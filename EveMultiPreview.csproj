@@ -28,6 +28,14 @@
     <ApplicationIcon>Icon.ico</ApplicationIcon>
   </PropertyGroup>
 
+  <!-- v2.3.x uses the WinForms ThumbnailWindow.cs implementation. The older
+       WPF ThumbnailWindow.xaml/.xaml.cs files are still present upstream but
+       must not be compiled, otherwise both define EveMultiPreview.Views.ThumbnailWindow. -->
+  <ItemGroup>
+    <Compile Remove="Views\ThumbnailWindow.xaml.cs" />
+    <Page Remove="Views\ThumbnailWindow.xaml" />
+  </ItemGroup>
+
   <ItemGroup>
     <EmbeddedResource Include="Icon.ico" />
     <EmbeddedResource Include="Icon-Suspend.ico" />

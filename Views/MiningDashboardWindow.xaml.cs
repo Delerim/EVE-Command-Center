@@ -247,10 +247,10 @@ public partial class MiningDashboardWindow : Window
     private static string Price(double value) => value <= 0 ? "—" : value.ToString("N2", CultureInfo.CurrentCulture);
     private static string Number(double value) => value <= 0 ? "—" : value.ToString("N0", CultureInfo.CurrentCulture);
 
-    private static string GetComboTag(ComboBox combo, string fallback) =>
+    private static string GetComboTag(System.Windows.Controls.ComboBox combo, string fallback) =>
         (combo.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? fallback;
 
-    private static void SelectComboTag(ComboBox combo, string value)
+    private static void SelectComboTag(System.Windows.Controls.ComboBox combo, string value)
     {
         foreach (var item in combo.Items.OfType<ComboBoxItem>())
         {
