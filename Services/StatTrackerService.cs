@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 using EveMultiPreview.Models;
 
 namespace EveMultiPreview.Services;
@@ -20,8 +21,17 @@ public sealed class StatTrackerService
 {
     private readonly ConcurrentDictionary<string, CharacterStats> _stats = new();
     private readonly TimeSpan _windowDuration = TimeSpan.FromSeconds(30); // AHK: WINDOW_SECS := 30
+    private static readonly TimeSpan MiningRateWindow = TimeSpan.FromMinutes(2);
     private const int MaxEventsPerWindow = 500;
+    private const int MaxMiningCyclesPerCharacter = 2000;
     private int _totalRecordCount = 0;
+    private readonly AppSettings _settings;
+    private readonly MiningMarketService _miningMarket = new();
+
+    public StatTrackerService(AppSettings? settings = null)
+    {
+        _settings = settings ?? new AppSettings();
+    }
 
     // CSV logging
     private bool _csvLoggingEnabled = false;
@@ -134,35 +144,126 @@ public sealed class StatTrackerService
         _stats.TryRemove(character, out _);
     }
 
-    /// <summary>Record mining yield with ore type classification.</summary>
-    public void RecordMining(string character, int amount, string mineType = "ore")
+    /// <summary>
+    /// Record a mining result. The richer event keeps the exact resource name and
+    /// a critical-success flag so a crit can contribute to REAL yield without
+    /// distorting the miner's stable BASE m³/s estimate.
+    /// </summary>
+    public void RecordMining(string character, int amount, string mineType = "ore",
+        string oreType = "", bool isCriticalHint = false)
     {
         var stats = GetOrCreate(character);
-        var entry = new TimedValue(DateTime.UtcNow, amount);
+        var now = DateTime.UtcNow;
+        var entry = new TimedValue(now, amount);
+        oreType = oreType?.Trim() ?? "";
+        mineType = string.IsNullOrWhiteSpace(mineType) ? "ore" : mineType.ToLowerInvariant();
 
-        switch (mineType.ToLowerInvariant())
+        bool isCritical = isCriticalHint;
+        if (!isCritical && mineType == "ore" && !string.IsNullOrWhiteSpace(oreType))
+            isCritical = LooksLikeCritical(stats, oreType, amount);
+
+        stats.MiningCycles.Enqueue(new MiningCycleRecord(now, amount, oreType, mineType, isCritical));
+        if (!string.IsNullOrWhiteSpace(oreType))
+        {
+            stats.LastOreType = oreType;
+            stats.SessionUnitsByOre.AddOrUpdate(oreType, amount, (_, total) => total + amount);
+            _ = _miningMarket.EnsureQuoteAsync(oreType);
+        }
+
+        if (isCritical)
+            stats.MiningCritCount++;
+        stats.MiningCycleCount++;
+
+        switch (mineType)
         {
             case "gas":
                 stats.GasMining.Add(entry);
                 stats.GasMined += amount;
                 stats.GasLastCycle = amount;
-                Debug.WriteLine($"[StatTracker:Record] ☁ Gas mining: {amount} for '{character}'");
+                Debug.WriteLine($"[StatTracker:Record] ☁ Gas mining: {amount} {oreType} for '{character}'");
                 break;
             case "ice":
                 stats.IceMining.Add(entry);
                 stats.IceMined += amount;
                 stats.IceLastCycle = amount;
-                Debug.WriteLine($"[StatTracker:Record] 🧊 Ice mining: {amount} for '{character}'");
+                Debug.WriteLine($"[StatTracker:Record] 🧊 Ice mining: {amount} {oreType} for '{character}'");
                 break;
             default:
                 stats.MiningYield.Add(entry);
                 stats.MinedUnits += amount;
                 stats.LastMineCycle = amount;
+                Debug.WriteLine($"[StatTracker:Record] ⛏ Ore mining: {amount} {oreType} for '{character}', crit={isCritical}");
                 break;
         }
 
+        TrimMiningCycles(stats);
         CheckAndPrune(character, stats);
-        LogCsv(character, $"MINE_{mineType.ToUpperInvariant()}", amount);
+        LogCsv(character, $"MINE_{mineType.ToUpperInvariant()}{(isCritical ? "_CRIT" : "")}", amount);
+    }
+
+    private static bool LooksLikeCritical(CharacterStats stats, string oreType, int amount)
+    {
+        // Critical-success wording is localized. For clients where the parser cannot
+        // directly identify the word, infer it conservatively from recent normal
+        // cycles of the SAME resource. CCP crit yields are dramatically larger than
+        // a normal cycle, so a 1.8x threshold avoids normal jitter/partial cycles.
+        var recentNormal = stats.MiningCycles
+            .Where(c => c.MineType == "ore" && !c.IsCritical &&
+                        c.OreType.Equals(oreType, StringComparison.OrdinalIgnoreCase))
+            .TakeLast(20)
+            .Select(c => (double)c.Units)
+            .OrderBy(v => v)
+            .ToList();
+
+        if (recentNormal.Count < 3) return false;
+        double median = Median(recentNormal);
+        return median > 0 && amount >= median * 1.8;
+    }
+
+    private static void TrimMiningCycles(CharacterStats stats)
+    {
+        var cutoff = DateTime.UtcNow - TimeSpan.FromHours(2);
+        while (stats.MiningCycles.TryPeek(out var first) &&
+               (first.Timestamp < cutoff || stats.MiningCycles.Count > MaxMiningCyclesPerCharacter))
+            stats.MiningCycles.TryDequeue(out _);
+    }
+
+    public IReadOnlyList<string> GetTrackedCharacters() =>
+        _stats.Keys.OrderBy(k => k, StringComparer.OrdinalIgnoreCase).ToList();
+
+    public IReadOnlyDictionary<string, double> GetMiningSessionUnitsByOre(string character)
+    {
+        if (!_stats.TryGetValue(character, out var stats))
+            return new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
+        return new Dictionary<string, double>(stats.SessionUnitsByOre, StringComparer.OrdinalIgnoreCase);
+    }
+
+    public Dictionary<string, double> GetFleetMiningSessionUnitsByOre()
+    {
+        var result = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
+        foreach (var stats in _stats.Values)
+        {
+            foreach (var kv in stats.SessionUnitsByOre)
+            {
+                result.TryGetValue(kv.Key, out double existing);
+                result[kv.Key] = existing + kv.Value;
+            }
+        }
+        return result;
+    }
+
+    public bool TryGetMiningQuote(string oreType, out MiningMarketQuote quote) =>
+        _miningMarket.TryGetQuote(oreType, out quote!);
+
+    public Task<MiningMarketQuote?> EnsureMiningQuoteAsync(string oreType) =>
+        _miningMarket.EnsureQuoteAsync(oreType);
+
+    public double GetMarketUnitPrice(MiningMarketQuote quote, string market, string priceMode)
+    {
+        bool buy = priceMode.Equals("buy", StringComparison.OrdinalIgnoreCase);
+        if (market.Equals("Amarr", StringComparison.OrdinalIgnoreCase))
+            return (buy ? quote.AmarrBestBuy : quote.AmarrBestSell) ?? 0;
+        return (buy ? quote.JitaBestBuy : quote.JitaBestSell) ?? 0;
     }
 
     // ── Rate Getters ────────────────────────────────────────────────
@@ -251,6 +352,8 @@ public sealed class StatTrackerService
         if (!_stats.TryGetValue(character, out var stats))
             return new CharacterStatSnapshot();
 
+        var mining = CalculateMiningAnalytics(stats);
+
         return new CharacterStatSnapshot
         {
             Dps = CalculateRate(stats.DamageDealt),
@@ -276,9 +379,24 @@ public sealed class StatTrackerService
             TotalArmorRepIn = stats.ArmorRepIn,
             TotalShieldRepOut = stats.ShieldRepOut,
             TotalShieldRepIn = stats.ShieldRepIn,
-            // AHK: Mining per-cycle
+            // AHK: Mining per-cycle + richer crit-aware m³/market stats
             LastMineCycle = stats.LastMineCycle,
             GasLastCycle = stats.GasLastCycle,
+            CurrentOre = mining.CurrentOre,
+            BaseM3PerSec = mining.BaseM3PerSec,
+            ActualM3PerSec = mining.ActualM3PerSec,
+            MiningCritCount = mining.CritCount,
+            MiningCycleCount = mining.CycleCount,
+            MiningCritBonusM3 = mining.CritBonusM3,
+            SessionM3 = mining.SessionM3,
+            JitaIskPerHour = mining.JitaIskPerHour,
+            AmarrIskPerHour = mining.AmarrIskPerHour,
+            BestIskPerHour = mining.BestIskPerHour,
+            SessionJitaValue = mining.SessionJitaValue,
+            SessionAmarrValue = mining.SessionAmarrValue,
+            SessionBestValue = mining.SessionBestValue,
+            SessionBuybackValue = mining.SessionBuybackValue,
+            MarketDataReady = mining.MarketDataReady,
             // AHK: Bounty session
             BountySession = stats.BountySession,
             LastBountyTick = stats.LastBountyTick,
@@ -354,8 +472,31 @@ public sealed class StatTrackerService
         if ((metrics & StatMetrics.MineMask) != 0)
         {
             var col = new List<string> { "[Mine]" };
-            if ((metrics & StatMetrics.Ompc) != 0) col.Add($"OMPC:{FormatNumber(snap.LastMineCycle)}");
-            if ((metrics & StatMetrics.Omph) != 0) col.Add($"OMPH:{FormatNumber(snap.OreMiningRate)}");
+
+            // The old OMPC/OMPH pair mixed normal cycles and critical-success
+            // cycles into one rolling number. Keep the same settings bits so
+            // existing profiles continue to work, but present stable BASE and
+            // realised ACTUAL m³/s instead.
+            bool wantsOre = (metrics & (StatMetrics.Ompc | StatMetrics.Omph)) != 0;
+            if (wantsOre)
+            {
+                if (!string.IsNullOrWhiteSpace(snap.CurrentOre))
+                    col.Add(ShortResourceName(snap.CurrentOre, 22));
+
+                if ((metrics & StatMetrics.Ompc) != 0)
+                    col.Add($"BASE:{snap.BaseM3PerSec:F1} m3/s");
+                if ((metrics & StatMetrics.Omph) != 0)
+                    col.Add($"REAL:{snap.ActualM3PerSec:F1} m3/s");
+
+                if (snap.MiningCycleCount > 0)
+                {
+                    double critPct = snap.MiningCritCount * 100.0 / snap.MiningCycleCount;
+                    col.Add($"CRIT:{snap.MiningCritCount}/{snap.MiningCycleCount} {critPct:F1}%");
+                }
+
+            }
+
+            // Gas / ice retain the upstream unit-per-hour presentation.
             if ((metrics & StatMetrics.Gmpc) != 0) col.Add($"GMPC:{FormatNumber(snap.GasLastCycle)}");
             if ((metrics & StatMetrics.Gmph) != 0) col.Add($"GMPH:{FormatNumber(snap.GasMiningRate)}");
             if ((metrics & StatMetrics.Imph) != 0) col.Add($"IMPH:{FormatNumber(snap.IceMiningRate)}");
@@ -391,6 +532,12 @@ public sealed class StatTrackerService
             lines.Add(line.TrimEnd());
         }
         return string.Join("\n", lines);
+    }
+
+    private static string ShortResourceName(string value, int maxLength)
+    {
+        if (string.IsNullOrWhiteSpace(value) || value.Length <= maxLength) return value;
+        return value[..Math.Max(1, maxLength - 1)] + "…";
     }
 
     // ── Number Formatting (AHK: _Fmt with K/M/B/T) ────────────────
@@ -480,6 +627,163 @@ public sealed class StatTrackerService
         double elapsedSeconds = (DateTime.UtcNow - oldest).TotalSeconds;
         if (elapsedSeconds <= 0) return 0;
         return (totalAmount / elapsedSeconds) * 3600;
+    }
+
+    // ── Rich Mining Analytics ──────────────────────────────────────
+
+    private MiningAnalytics CalculateMiningAnalytics(CharacterStats stats)
+    {
+        var cutoff = DateTime.UtcNow - MiningRateWindow;
+        var recent = stats.MiningCycles
+            .Where(c => c.Timestamp >= cutoff && c.MineType == "ore")
+            .OrderBy(c => c.Timestamp)
+            .ToList();
+
+        var baselineUnits = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
+        foreach (var group in recent.GroupBy(c => c.OreType, StringComparer.OrdinalIgnoreCase))
+        {
+            var normal = group.Where(c => !c.IsCritical).Select(c => (double)c.Units).OrderBy(v => v).ToList();
+            if (normal.Count > 0) baselineUnits[group.Key] = Median(normal);
+        }
+
+        var valued = new List<ValuedMiningCycle>();
+        double critBonusM3 = 0;
+        foreach (var cycle in recent)
+        {
+            if (string.IsNullOrWhiteSpace(cycle.OreType) ||
+                !_miningMarket.TryGetQuote(cycle.OreType, out var quote) ||
+                !quote.IsAvailable)
+                continue;
+
+            double actualM3 = cycle.Units * quote.UnitVolumeM3;
+            double normalUnits = baselineUnits.TryGetValue(cycle.OreType, out var b) ? b : cycle.Units;
+            double baseM3 = (cycle.IsCritical ? normalUnits : cycle.Units) * quote.UnitVolumeM3;
+            if (cycle.IsCritical) critBonusM3 += Math.Max(0, actualM3 - baseM3);
+
+            double jita = cycle.Units * GetMarketUnitPrice(quote, "Jita", _settings.MiningMarketPriceMode);
+            double amarr = cycle.Units * GetMarketUnitPrice(quote, "Amarr", _settings.MiningMarketPriceMode);
+            valued.Add(new ValuedMiningCycle(cycle.Timestamp, actualM3, baseM3, jita, amarr));
+        }
+
+        double baseM3PerSec = 0;
+        double actualM3PerSec = 0;
+        double jitaIskPerHour = 0;
+        double amarrIskPerHour = 0;
+
+        var clusters = ClusterMiningCycles(valued);
+        if (clusters.Count >= 2)
+        {
+            var intervals = new List<double>();
+            for (int i = 1; i < clusters.Count; i++)
+            {
+                double gap = (clusters[i].Timestamp - clusters[i - 1].Timestamp).TotalSeconds;
+                if (gap > 0.25) intervals.Add(gap);
+            }
+
+            if (intervals.Count > 0)
+            {
+                double typicalInterval = Math.Max(0.25, Median(intervals));
+                // Median normalized cluster yield is intentionally used for BASE. A
+                // single crit, partial rock, lag spike, or odd event cannot make it jump.
+                baseM3PerSec = Median(clusters.Select(c => c.BaseM3).OrderBy(v => v).ToList()) / typicalInterval;
+
+                // REAL is the actual output over the observed cycles, including crits.
+                // Add one typical interval so endpoint cycles do not exaggerate the rate.
+                double duration = Math.Max(typicalInterval,
+                    (clusters[^1].Timestamp - clusters[0].Timestamp).TotalSeconds + typicalInterval);
+                actualM3PerSec = clusters.Sum(c => c.ActualM3) / duration;
+                jitaIskPerHour = clusters.Sum(c => c.JitaIsk) / duration * 3600.0;
+                amarrIskPerHour = clusters.Sum(c => c.AmarrIsk) / duration * 3600.0;
+            }
+        }
+
+        double sessionM3 = 0;
+        double sessionJita = 0;
+        double sessionAmarr = 0;
+        double sessionBest = 0;
+        double sessionBuyback = 0;
+        bool marketReady = false;
+
+        foreach (var kv in stats.SessionUnitsByOre)
+        {
+            if (!_miningMarket.TryGetQuote(kv.Key, out var quote) || !quote.IsAvailable)
+                continue;
+
+            marketReady = true;
+            sessionM3 += kv.Value * quote.UnitVolumeM3;
+            double jitaUnit = GetMarketUnitPrice(quote, "Jita", _settings.MiningMarketPriceMode);
+            double amarrUnit = GetMarketUnitPrice(quote, "Amarr", _settings.MiningMarketPriceMode);
+            double jitaValue = kv.Value * jitaUnit;
+            double amarrValue = kv.Value * amarrUnit;
+            sessionJita += jitaValue;
+            sessionAmarr += amarrValue;
+
+            double best = 0;
+            if (_settings.MiningMarketJitaEnabled) best = Math.Max(best, jitaValue);
+            if (_settings.MiningMarketAmarrEnabled) best = Math.Max(best, amarrValue);
+            sessionBest += best;
+
+            double buybackUnit = GetMarketUnitPrice(quote, _settings.MiningCorpBuybackMarket, _settings.MiningCorpBuybackPriceMode);
+            sessionBuyback += kv.Value * buybackUnit * Math.Clamp(_settings.MiningCorpBuybackPercent, 0, 100) / 100.0;
+        }
+
+        double bestRate = 0;
+        if (_settings.MiningMarketJitaEnabled) bestRate = Math.Max(bestRate, jitaIskPerHour);
+        if (_settings.MiningMarketAmarrEnabled) bestRate = Math.Max(bestRate, amarrIskPerHour);
+
+        return new MiningAnalytics
+        {
+            CurrentOre = stats.LastOreType,
+            BaseM3PerSec = baseM3PerSec,
+            ActualM3PerSec = actualM3PerSec,
+            CritCount = stats.MiningCritCount,
+            CycleCount = stats.MiningCycleCount,
+            CritBonusM3 = critBonusM3,
+            SessionM3 = sessionM3,
+            JitaIskPerHour = jitaIskPerHour,
+            AmarrIskPerHour = amarrIskPerHour,
+            BestIskPerHour = bestRate,
+            SessionJitaValue = sessionJita,
+            SessionAmarrValue = sessionAmarr,
+            SessionBestValue = sessionBest,
+            SessionBuybackValue = sessionBuyback,
+            MarketDataReady = marketReady
+        };
+    }
+
+    private static List<MiningCluster> ClusterMiningCycles(List<ValuedMiningCycle> cycles)
+    {
+        var clusters = new List<MiningCluster>();
+        foreach (var cycle in cycles)
+        {
+            if (clusters.Count == 0 ||
+                (cycle.Timestamp - clusters[^1].Timestamp).TotalSeconds > 2.5)
+            {
+                clusters.Add(new MiningCluster(cycle.Timestamp, cycle.ActualM3, cycle.BaseM3, cycle.JitaIsk, cycle.AmarrIsk));
+            }
+            else
+            {
+                var old = clusters[^1];
+                clusters[^1] = old with
+                {
+                    ActualM3 = old.ActualM3 + cycle.ActualM3,
+                    BaseM3 = old.BaseM3 + cycle.BaseM3,
+                    JitaIsk = old.JitaIsk + cycle.JitaIsk,
+                    AmarrIsk = old.AmarrIsk + cycle.AmarrIsk
+                };
+            }
+        }
+        return clusters;
+    }
+
+    private static double Median(IReadOnlyList<double> values)
+    {
+        if (values.Count == 0) return 0;
+        var sorted = values.OrderBy(v => v).ToArray();
+        int middle = sorted.Length / 2;
+        return sorted.Length % 2 == 1
+            ? sorted[middle]
+            : (sorted[middle - 1] + sorted[middle]) / 2.0;
     }
 
     private static int PruneWindow(ConcurrentBag<TimedValue> window, DateTime cutoff)
@@ -590,6 +894,12 @@ public sealed class StatTrackerService
         public ConcurrentBag<TimedValue> MiningYield { get; } = new();
         public double MinedUnits { get; set; } = 0;
         public double LastMineCycle { get; set; } = 0;
+        public ConcurrentQueue<MiningCycleRecord> MiningCycles { get; } = new();
+        public ConcurrentDictionary<string, double> SessionUnitsByOre { get; } =
+            new(StringComparer.OrdinalIgnoreCase);
+        public string LastOreType { get; set; } = "";
+        public int MiningCritCount { get; set; } = 0;
+        public int MiningCycleCount { get; set; } = 0;
 
         // Mining — Gas
         public ConcurrentBag<TimedValue> GasMining { get; } = new();
@@ -605,6 +915,29 @@ public sealed class StatTrackerService
         public ConcurrentBag<TimedValue> BountyTicks { get; } = new();
         public double BountySession { get; set; } = 0;
         public double LastBountyTick { get; set; } = 0;
+    }
+
+    private record MiningCycleRecord(DateTime Timestamp, int Units, string OreType, string MineType, bool IsCritical);
+    private record ValuedMiningCycle(DateTime Timestamp, double ActualM3, double BaseM3, double JitaIsk, double AmarrIsk);
+    private record MiningCluster(DateTime Timestamp, double ActualM3, double BaseM3, double JitaIsk, double AmarrIsk);
+
+    private sealed class MiningAnalytics
+    {
+        public string CurrentOre { get; init; } = "";
+        public double BaseM3PerSec { get; init; }
+        public double ActualM3PerSec { get; init; }
+        public int CritCount { get; init; }
+        public int CycleCount { get; init; }
+        public double CritBonusM3 { get; init; }
+        public double SessionM3 { get; init; }
+        public double JitaIskPerHour { get; init; }
+        public double AmarrIskPerHour { get; init; }
+        public double BestIskPerHour { get; init; }
+        public double SessionJitaValue { get; init; }
+        public double SessionAmarrValue { get; init; }
+        public double SessionBestValue { get; init; }
+        public double SessionBuybackValue { get; init; }
+        public bool MarketDataReady { get; init; }
     }
 
     private record TimedValue(DateTime Timestamp, double Value);
@@ -637,6 +970,23 @@ public record CharacterStatSnapshot
     public double IceMiningRate { get; init; }
     public double LastMineCycle { get; init; }
     public double GasLastCycle { get; init; }
+
+    // Rich mining dashboard values
+    public string CurrentOre { get; init; } = "";
+    public double BaseM3PerSec { get; init; }
+    public double ActualM3PerSec { get; init; }
+    public int MiningCritCount { get; init; }
+    public int MiningCycleCount { get; init; }
+    public double MiningCritBonusM3 { get; init; }
+    public double SessionM3 { get; init; }
+    public double JitaIskPerHour { get; init; }
+    public double AmarrIskPerHour { get; init; }
+    public double BestIskPerHour { get; init; }
+    public double SessionJitaValue { get; init; }
+    public double SessionAmarrValue { get; init; }
+    public double SessionBestValue { get; init; }
+    public double SessionBuybackValue { get; init; }
+    public bool MarketDataReady { get; init; }
 
     // Ratting
     public double BountyRate { get; init; }

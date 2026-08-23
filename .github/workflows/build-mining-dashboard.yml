@@ -1,0 +1,31 @@
+name: Build Mining Dashboard EXE
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main, mining-dashboard ]
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore
+        run: dotnet restore EveMultiPreview.csproj
+
+      - name: Publish single-file Windows EXE
+        run: dotnet publish EveMultiPreview.csproj -c Release -r win-x64 --self-contained true /p:PublishSingleFile=true /p:IncludeNativeLibrariesForSelfExtract=true -o artifacts/publish
+
+      - name: Upload EXE artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: EVE-MultiPreview-Mining-Dashboard
+          path: artifacts/publish/**
+          if-no-files-found: error

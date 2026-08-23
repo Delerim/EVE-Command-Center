@@ -1845,6 +1845,11 @@ public sealed class LogMonitorService : IDisposable
 
         string oreType = yieldMatch.Groups["ore"].Value.Trim();
 
+        // English clients explicitly include "critical" in the success line.
+        // Localized clients are still handled by the statistical fallback in
+        // StatTrackerService, so this is a hint rather than the sole detector.
+        bool isCritical = cleanLine.Contains("critical", StringComparison.OrdinalIgnoreCase);
+
         // Classify ore type (AHK: _ClassifyOre)
         string mineType = "ore";
         if (oreType.Contains("Fullerite") || oreType.Contains("Cytoserocin") || oreType.Contains("Mykoserocin"))
@@ -1860,6 +1865,7 @@ public sealed class LogMonitorService : IDisposable
             Amount = amount,
             OreType = oreType,
             MineType = mineType,
+            IsCritical = isCritical,
             CharacterName = character
         });
     }
@@ -2310,5 +2316,6 @@ public record MiningEvent
     public int Amount { get; init; }
     public string OreType { get; init; } = "";
     public string MineType { get; init; } = "ore"; // "ore", "gas", "ice"
+    public bool IsCritical { get; init; }
     public string CharacterName { get; init; } = "";
 }

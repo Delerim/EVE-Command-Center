@@ -40,6 +40,7 @@ public partial class App : Application
     private ProcessMonitorService? _processMonitor;
     private CropManager? _cropManager;
     private SettingsWindow? _settingsWindow;
+    private MiningDashboardWindow? _miningDashboardWindow;
 
     // Tray balloon click-to-focus (matches AHK _trayAlertChar/_trayAlertHwnd)
     private string _trayAlertChar = "";
@@ -143,7 +144,7 @@ public partial class App : Application
         _thumbnailManager = new ThumbnailManager(_discovery, _settings);
 
         // 4. Start stat tracker (needed before thumbnails fire)
-        _statTracker = new StatTrackerService();
+        _statTracker = new StatTrackerService(_settings.Settings);
         // Wire CSV stat-logging from settings (#settings-audit). SetCsvLogging was never
         // called, so the "Enable Logging" checkbox + dir + retention did nothing. Applied
         // at startup (restart to take effect), consistent with the log-monitor toggles.
@@ -231,7 +232,8 @@ public partial class App : Application
             };
             _logMonitor.MiningYield += (mining) =>
             {
-                _statTracker.RecordMining(mining.CharacterName, mining.Amount, mining.MineType);
+                _statTracker.RecordMining(mining.CharacterName, mining.Amount, mining.MineType,
+                    mining.OreType, mining.IsCritical);
             };
             _logMonitor.RepairReceived += (repair) =>
             {
@@ -683,6 +685,13 @@ public partial class App : Application
         });
         L(settingsItem, "L.Tray.Settings", "⚙ Settings");
 
+        // Dedicated crit-aware mining dashboard. Kept separate from the thumbnail
+        // overview so the compact multi-client layout remains untouched.
+        var miningItem = menu.Items.Add("⛏ Mining Dashboard", null, (_, _) =>
+        {
+            Application.Current?.Dispatcher.BeginInvoke(new Action(OpenMiningDashboard));
+        });
+
         // Profile submenu (dynamically rebuilt to sync checks and profile list)
         var profileMenu = new ToolStripMenuItem();
         L(profileMenu, "L.Tray.Profiles", "👤 Profiles");
@@ -893,6 +902,26 @@ public partial class App : Application
         _thumbnailManager?.ShowTooltipFeedback($"Profile: {newProfile}");
 
         Debug.WriteLine($"[App:Profile] 🔄 Cycled {(forward ? "forward" : "backward")} to profile: {newProfile}");
+    }
+
+    private void OpenMiningDashboard()
+    {
+        if (_statTracker == null || _settings == null) return;
+
+        if (_miningDashboardWindow != null)
+        {
+            if (_miningDashboardWindow.WindowState == WindowState.Minimized)
+                _miningDashboardWindow.WindowState = WindowState.Normal;
+            _miningDashboardWindow.Show();
+            _miningDashboardWindow.Activate();
+            return;
+        }
+
+        _miningDashboardWindow = new MiningDashboardWindow(
+            _statTracker, _settings.Settings, () => _settings.SaveDelayed());
+        _miningDashboardWindow.Closed += (_, _) => _miningDashboardWindow = null;
+        _miningDashboardWindow.Show();
+        _miningDashboardWindow.Activate();
     }
 
     private void OpenSettings() => OpenSettings(startMinimized: false);

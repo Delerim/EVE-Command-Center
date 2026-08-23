@@ -198,6 +198,19 @@ public class AppSettings
     public Dictionary<string, CharacterStatSettings> PerCharacterStats { get; set; } = new();
     public Dictionary<string, ThumbnailRect> StatWindowPositions { get; set; } = new();
 
+    // ── Mining Dashboard / Market Valuation ────────────────────────
+    // Public ESI only; no EVE character authentication is required.
+    public bool MiningMarketJitaEnabled { get; set; } = true;
+    public bool MiningMarketAmarrEnabled { get; set; } = true;
+    /// <summary>Price side used by the live market dashboard: "sell" or "buy".</summary>
+    public string MiningMarketPriceMode { get; set; } = "sell";
+    /// <summary>Corp buyback percentage of the configured reference market price.</summary>
+    public double MiningCorpBuybackPercent { get; set; } = 90.0;
+    /// <summary>Reference market for corp buyback: "Jita" or "Amarr".</summary>
+    public string MiningCorpBuybackMarket { get; set; } = "Jita";
+    /// <summary>Reference side for corp buyback: "sell" or "buy".</summary>
+    public string MiningCorpBuybackPriceMode { get; set; } = "sell";
+
     /// <summary>Global default metric set — bits that are visible for every character
     /// unless overridden. Effective per-character = (Global | ForcedOn) &amp; ~ForcedOff.</summary>
     public StatMetrics GlobalStatMetrics { get; set; } = StatMetrics.None;
