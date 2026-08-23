@@ -36,9 +36,18 @@
     <Page Remove="Views\ThumbnailWindow.xaml" />
   </ItemGroup>
 
+  <!-- The upstream public repo omits the localization source XAML files that are
+       present in the official release binary. These are the precompiled BAML
+       dictionaries recovered from the official v2.3.25 release and embedded
+       directly into the WPF .g.resources bundle. -->
+  <ItemGroup>
+    <Resource Include="Resources\Strings.*.baml" />
+  </ItemGroup>
+
   <ItemGroup>
     <EmbeddedResource Include="Icon.ico" />
     <EmbeddedResource Include="Icon-Suspend.ico" />
+    <EmbeddedResource Include="Resources\alert_patterns.json" />
   </ItemGroup>
 
 </Project>
