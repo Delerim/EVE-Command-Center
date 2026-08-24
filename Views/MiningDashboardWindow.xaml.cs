@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
@@ -18,6 +18,7 @@ public partial class MiningDashboardWindow : Window
     private readonly MiningIdleWatchdogService? _watchdog;
     private readonly MiningDashboardPreferences _prefs;
     private readonly Action? _saveRequested;
+    private readonly Action? _toggleOverviewRequested;
     private readonly DispatcherTimer _refreshTimer;
     private bool _syncingSettings;
 
@@ -25,7 +26,8 @@ public partial class MiningDashboardWindow : Window
         StatTrackerService tracker,
         AppSettings settings,
         MiningIdleWatchdogService? watchdog = null,
-        Action? saveRequested = null)
+        Action? saveRequested = null,
+        Action? toggleOverviewRequested = null)
     {
         InitializeComponent();
         _tracker = tracker;
@@ -33,6 +35,7 @@ public partial class MiningDashboardWindow : Window
         _watchdog = watchdog;
         _prefs = watchdog?.Preferences ?? MiningDashboardPreferencesStore.Load();
         _saveRequested = saveRequested;
+        _toggleOverviewRequested = toggleOverviewRequested;
 
         ApplyPreferencesToRuntimeSettings();
         SyncControlsFromSettings();
@@ -70,6 +73,12 @@ public partial class MiningDashboardWindow : Window
             IdleWatchdogCheck.IsChecked = _prefs.IdleWatchdogEnabled;
             IdleSecondsText.Text = Math.Clamp(_prefs.IdleSeconds, 15, 3600).ToString(CultureInfo.InvariantCulture);
             IdleSoundCheck.IsChecked = _prefs.IdleSoundEnabled;
+
+            YieldDropCheck.IsChecked = _prefs.YieldDropEnabled;
+            YieldDropPercentText.Text = Math.Clamp(_prefs.YieldDropPercent, 10, 80).ToString(CultureInfo.InvariantCulture);
+            YieldDropSecondsText.Text = Math.Clamp(_prefs.YieldDropHoldSeconds, 10, 300).ToString(CultureInfo.InvariantCulture);
+
+            AutoOverviewCheck.IsChecked = _prefs.AutoShowFleetOverview;
         }
         finally
         {
@@ -92,11 +101,22 @@ public partial class MiningDashboardWindow : Window
         IdleSoundCheck.Checked += (_, _) => SaveSettingsFromControls();
         IdleSoundCheck.Unchecked += (_, _) => SaveSettingsFromControls();
 
+        YieldDropCheck.Checked += (_, _) => SaveSettingsFromControls();
+        YieldDropCheck.Unchecked += (_, _) => SaveSettingsFromControls();
+        AutoOverviewCheck.Checked += (_, _) => SaveSettingsFromControls();
+        AutoOverviewCheck.Unchecked += (_, _) => SaveSettingsFromControls();
+
         BuybackPercentText.LostFocus += (_, _) => SaveSettingsFromControls();
         IdleSecondsText.LostFocus += (_, _) => SaveSettingsFromControls();
+        YieldDropPercentText.LostFocus += (_, _) => SaveSettingsFromControls();
+        YieldDropSecondsText.LostFocus += (_, _) => SaveSettingsFromControls();
 
         BuybackPercentText.KeyDown += NumericTextBox_KeyDown;
         IdleSecondsText.KeyDown += NumericTextBox_KeyDown;
+        YieldDropPercentText.KeyDown += NumericTextBox_KeyDown;
+        YieldDropSecondsText.KeyDown += NumericTextBox_KeyDown;
+
+        ToggleOverviewButton.Click += (_, _) => _toggleOverviewRequested?.Invoke();
     }
 
     private void NumericTextBox_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
@@ -122,12 +142,9 @@ public partial class MiningDashboardWindow : Window
             _settings.MiningCorpBuybackPercent = Math.Clamp(pct, 0, 100);
         }
 
-        int idleSeconds = _prefs.IdleSeconds;
-        if (int.TryParse(IdleSecondsText.Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out int parsedIdle) ||
-            int.TryParse(IdleSecondsText.Text, NumberStyles.Integer, CultureInfo.CurrentCulture, out parsedIdle))
-        {
-            idleSeconds = Math.Clamp(parsedIdle, 15, 3600);
-        }
+        int idleSeconds = ParseInt(IdleSecondsText.Text, _prefs.IdleSeconds, 15, 3600);
+        int dropPercent = ParseInt(YieldDropPercentText.Text, _prefs.YieldDropPercent, 10, 80);
+        int dropSeconds = ParseInt(YieldDropSecondsText.Text, _prefs.YieldDropHoldSeconds, 10, 300);
 
         _prefs.JitaEnabled = _settings.MiningMarketJitaEnabled;
         _prefs.AmarrEnabled = _settings.MiningMarketAmarrEnabled;
@@ -135,15 +152,22 @@ public partial class MiningDashboardWindow : Window
         _prefs.CorpBuybackPercent = _settings.MiningCorpBuybackPercent;
         _prefs.CorpBuybackMarket = _settings.MiningCorpBuybackMarket;
         _prefs.CorpBuybackPriceMode = _settings.MiningCorpBuybackPriceMode;
+
         _prefs.IdleWatchdogEnabled = IdleWatchdogCheck.IsChecked == true;
         _prefs.IdleSeconds = idleSeconds;
         _prefs.IdleSoundEnabled = IdleSoundCheck.IsChecked == true;
+        _prefs.YieldDropEnabled = YieldDropCheck.IsChecked == true;
+        _prefs.YieldDropPercent = dropPercent;
+        _prefs.YieldDropHoldSeconds = dropSeconds;
+        _prefs.AutoShowFleetOverview = AutoOverviewCheck.IsChecked == true;
 
         _syncingSettings = true;
         try
         {
             BuybackPercentText.Text = _settings.MiningCorpBuybackPercent.ToString("0.##", CultureInfo.InvariantCulture);
             IdleSecondsText.Text = _prefs.IdleSeconds.ToString(CultureInfo.InvariantCulture);
+            YieldDropPercentText.Text = _prefs.YieldDropPercent.ToString(CultureInfo.InvariantCulture);
+            YieldDropSecondsText.Text = _prefs.YieldDropHoldSeconds.ToString(CultureInfo.InvariantCulture);
         }
         finally
         {
@@ -156,6 +180,14 @@ public partial class MiningDashboardWindow : Window
             MiningDashboardPreferencesStore.Save(_prefs);
 
         _saveRequested?.Invoke();
+    }
+
+    private static int ParseInt(string text, int fallback, int min, int max)
+    {
+        if (int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out int value) ||
+            int.TryParse(text, NumberStyles.Integer, CultureInfo.CurrentCulture, out value))
+            return Math.Clamp(value, min, max);
+        return Math.Clamp(fallback, min, max);
     }
 
     private async System.Threading.Tasks.Task RefreshDashboardAsync()
@@ -171,16 +203,15 @@ public partial class MiningDashboardWindow : Window
 
         double totalBase = 0;
         double totalActual = 0;
-        double totalSessionM3 = 0;
-        double totalJitaSession = 0;
-        double totalAmarrSession = 0;
-        double totalBestSession = 0;
-        double totalCorpSession = 0;
+        double totalTodayM3 = 0;
+        double totalBestToday = 0;
+        double totalCorpToday = 0;
 
-        foreach (var character in _tracker.GetTrackedCharacters())
+        foreach (var character in _tracker.GetMiningDashboardCharacters())
         {
             var s = _tracker.GetSnapshot(character);
-            if (s.MiningCycleCount == 0 && string.IsNullOrWhiteSpace(s.CurrentOre))
+            bool hasToday = s.SessionM3 > 0;
+            if (s.MiningCycleCount == 0 && string.IsNullOrWhiteSpace(s.CurrentOre) && !hasToday)
                 continue;
 
             var idle = _watchdog?.GetState(character)
@@ -188,9 +219,7 @@ public partial class MiningDashboardWindow : Window
                            s.MiningCycleCount > 0 ? MiningIdleKind.Mining : MiningIdleKind.Waiting,
                            null, 0, s.MiningCycleCount);
 
-            double critPct = s.MiningCycleCount > 0
-                ? s.MiningCritCount * 100.0 / s.MiningCycleCount
-                : 0;
+            var dailyCrit = _tracker.GetTodayMiningCritSummary(character);
 
             bool actualReady = s.MiningCycleCount >= 6 && s.ActualM3PerSec > 0;
             string actualText = actualReady
@@ -206,7 +235,7 @@ public partial class MiningDashboardWindow : Window
                 BaseM3PerSec = s.BaseM3PerSec,
                 ActualM3PerSecText = actualText,
                 ActualM3PerSecValue = actualReady ? s.ActualM3PerSec : 0,
-                Crits = $"{s.MiningCritCount}/{s.MiningCycleCount} ({critPct:F1}%)",
+                Crits = dailyCrit.ToString(),
                 SessionM3 = s.SessionM3,
                 JitaIskPerHourText = _settings.MiningMarketJitaEnabled ? Isk(s.JitaIskPerHour) : "off",
                 AmarrIskPerHourText = _settings.MiningMarketAmarrEnabled ? Isk(s.AmarrIskPerHour) : "off",
@@ -228,11 +257,9 @@ public partial class MiningDashboardWindow : Window
 
             totalBase += s.BaseM3PerSec;
             if (actualReady) totalActual += s.ActualM3PerSec;
-            totalSessionM3 += s.SessionM3;
-            totalJitaSession += s.SessionJitaValue;
-            totalAmarrSession += s.SessionAmarrValue;
-            totalBestSession += s.SessionBestValue;
-            totalCorpSession += s.SessionBuybackValue;
+            totalTodayM3 += s.SessionM3;
+            totalBestToday += s.SessionBestValue;
+            totalCorpToday += s.SessionBuybackValue;
         }
 
         if (liveRows.Count > 1)
@@ -249,11 +276,11 @@ public partial class MiningDashboardWindow : Window
                     : "warming…",
                 ActualM3PerSecValue = totalActual,
                 Crits = FleetCritText(),
-                SessionM3 = totalSessionM3,
+                SessionM3 = totalTodayM3,
                 JitaIskPerHourText = _settings.MiningMarketJitaEnabled ? Isk(SumSnapshot(x => x.JitaIskPerHour)) : "off",
                 AmarrIskPerHourText = _settings.MiningMarketAmarrEnabled ? Isk(SumSnapshot(x => x.AmarrIskPerHour)) : "off",
                 BestIskPerHourText = Isk(SumSnapshot(x => x.BestIskPerHour)),
-                CorpSessionText = Isk(totalCorpSession)
+                CorpSessionText = Isk(totalCorpToday)
             });
         }
 
@@ -262,9 +289,9 @@ public partial class MiningDashboardWindow : Window
 
         SummaryBaseText.Text = totalBase > 0 ? $"{totalBase:N1} m³/s" : "—";
         SummaryActualText.Text = totalActual > 0 ? $"{totalActual:N1} m³/s" : "warming…";
-        SummarySessionM3Text.Text = totalSessionM3 > 0 ? $"{totalSessionM3:N0} m³" : "—";
-        SummaryBestValueText.Text = Isk(totalBestSession);
-        SummaryBuybackText.Text = Isk(totalCorpSession);
+        SummarySessionM3Text.Text = totalTodayM3 > 0 ? $"{totalTodayM3:N0} m³" : "—";
+        SummaryBestValueText.Text = Isk(totalBestToday);
+        SummaryBuybackText.Text = Isk(totalCorpToday);
         SummaryCritText.Text = FleetCritText();
 
         var marketRows = new List<MarketOreRow>();
@@ -353,33 +380,22 @@ public partial class MiningDashboardWindow : Window
         BuybackGrid.ItemsSource = buybackRows;
 
         string watchdogText = _prefs.IdleWatchdogEnabled
-            ? $"idle alarm {_prefs.IdleSeconds}s"
-            : "idle alarm off";
+            ? $"no-pull {_prefs.IdleSeconds}s"
+            : "no-pull off";
+        string dropText = _prefs.YieldDropEnabled
+            ? $"drop {_prefs.YieldDropPercent}%/{_prefs.YieldDropHoldSeconds}s"
+            : "drop off";
 
         LastRefreshText.Text =
-            $"Public ESI • {DateTime.Now:HH:mm:ss} • {fleetOre.Count} resource type(s) • {watchdogText}";
+            $"{_tracker.GetMiningDayLabel()} day · ESI {DateTime.Now:HH:mm:ss} · {fleetOre.Count} resource(s) · {watchdogText} · {dropText}";
     }
 
-    private string FleetCritText()
-    {
-        int crit = 0;
-        int cycles = 0;
-
-        foreach (var c in _tracker.GetTrackedCharacters())
-        {
-            var s = _tracker.GetSnapshot(c);
-            crit += s.MiningCritCount;
-            cycles += s.MiningCycleCount;
-        }
-
-        double pct = cycles > 0 ? crit * 100.0 / cycles : 0;
-        return $"{crit}/{cycles} ({pct:F1}%)";
-    }
+    private string FleetCritText() => _tracker.GetTodayMiningCritSummary().ToString();
 
     private double SumSnapshot(Func<CharacterStatSnapshot, double> selector)
     {
         double result = 0;
-        foreach (var c in _tracker.GetTrackedCharacters())
+        foreach (var c in _tracker.GetMiningDashboardCharacters())
             result += selector(_tracker.GetSnapshot(c));
         return result;
     }
@@ -493,5 +509,3 @@ public partial class MiningDashboardWindow : Window
         };
     }
 }
-
-

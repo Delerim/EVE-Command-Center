@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
@@ -41,7 +41,9 @@ public partial class App : Application
     private CropManager? _cropManager;
     private SettingsWindow? _settingsWindow;
     private MiningDashboardWindow? _miningDashboardWindow;
+    private MiningFleetOverviewWindow? _miningFleetOverviewWindow;
     private MiningIdleWatchdogService? _miningIdleWatchdog;
+    private ToolStripMenuItem? _miningOverviewTrayItem;
 
     // Tray balloon click-to-focus (matches AHK _trayAlertChar/_trayAlertHwnd)
     private string _trayAlertChar = "";
@@ -347,12 +349,16 @@ public partial class App : Application
             // idle miner can alert even when the dashboard is closed.
             _miningIdleWatchdog = new MiningIdleWatchdogService(_statTracker);
             _miningIdleWatchdog.IdleDetected += OnMiningIdleDetected;
+            _miningIdleWatchdog.YieldDropDetected += OnMiningYieldDropDetected;
             _miningIdleWatchdog.Start();
             PerfLog($"[Deferred] Mining idle watchdog started: {deferSw.ElapsedMilliseconds}ms");
 
             // 8. Set up system tray
             SetupTrayIcon();
             PerfLog($"[Deferred] Tray icon: {deferSw.ElapsedMilliseconds}ms");
+
+            if (_miningIdleWatchdog?.Preferences.AutoShowFleetOverview == true)
+                Application.Current?.Dispatcher.BeginInvoke(new Action(OpenMiningFleetOverview));
 
             _alertHub.Show();
             PerfLog($"[Deferred] AlertHub.Show: {deferSw.ElapsedMilliseconds}ms");
@@ -555,10 +561,14 @@ public partial class App : Application
         // EnableAlertSounds is the field the "Enable Sounds" master checkbox writes
         // (#settings-audit). The old gate read AlertSoundEnabled, which no UI ever set,
         // so the master toggle did nothing. Read the UI-backed field.
-        if (s == null || !s.EnableAlertSounds)
+        bool miningSoundRequested =
+            alertType.StartsWith("mine_", StringComparison.OrdinalIgnoreCase)
+            && _miningIdleWatchdog?.Preferences.IdleSoundEnabled == true;
+
+        if (s == null || (!s.EnableAlertSounds && !miningSoundRequested))
         {
             EveMultiPreview.Services.DiagnosticsService.LogAlerts(
-                $"[Sound] GATED off: EnableAlertSounds={s?.EnableAlertSounds} for {alertType} on '{character}'");
+                $"[Sound] GATED off: EnableAlertSounds={s?.EnableAlertSounds}, miningSoundRequested={miningSoundRequested} for {alertType} on '{character}'");
             return;
         }
         EveMultiPreview.Services.DiagnosticsService.LogAlerts(
@@ -592,10 +602,28 @@ public partial class App : Application
 
         if (string.IsNullOrEmpty(soundFile) || !System.IO.File.Exists(soundFile))
         {
-            Debug.WriteLine($"[AlertSound:Play] âš  No sound file for {alertType} (file='{soundFile ?? "null"}')");
-            EveMultiPreview.Services.DiagnosticsService.LogAlerts(
-                $"[Sound] GATED no-file: {alertType} on '{character}' resolved='{soundFile ?? "null"}' " +
-                $"(exists={(!string.IsNullOrEmpty(soundFile) && System.IO.File.Exists(soundFile))})");
+            // The upstream project does not ship audio files. For mining alerts,
+            // and for any alert when sounds are enabled, fall back to a built-in
+            // Windows system sound so a configured event is never silently lost.
+            try
+            {
+                var fallback = alertType switch
+                {
+                    "mine_crystal_broken" => System.Media.SystemSounds.Hand,
+                    "mine_cargo_full" => System.Media.SystemSounds.Asterisk,
+                    "mine_asteroid_depleted" => System.Media.SystemSounds.Beep,
+                    "mine_module_stopped" => System.Media.SystemSounds.Exclamation,
+                    _ => System.Media.SystemSounds.Exclamation
+                };
+                fallback.Play();
+                EveMultiPreview.Services.DiagnosticsService.LogAlerts(
+                    $"[Sound] FALLBACK system sound for {alertType} on '{character}'");
+            }
+            catch (Exception ex)
+            {
+                EveMultiPreview.Services.DiagnosticsService.LogAlerts(
+                    $"[Sound] FALLBACK failed for {alertType} on '{character}': {ex.Message}");
+            }
             return;
         }
 
@@ -699,6 +727,22 @@ public partial class App : Application
         {
             Application.Current?.Dispatcher.BeginInvoke(new Action(OpenMiningDashboard));
         });
+
+        // Compact fleet mining bar, inspired by the standalone tracker but fed
+        // from MultiPreview's own live parser/watchdog.
+        _miningOverviewTrayItem = new ToolStripMenuItem("▤ Mining Overview Bar")
+        {
+            CheckOnClick = true,
+            Checked = false
+        };
+        _miningOverviewTrayItem.Click += (_, _) =>
+        {
+            if (_miningOverviewTrayItem.Checked)
+                Application.Current?.Dispatcher.BeginInvoke(new Action(OpenMiningFleetOverview));
+            else
+                _miningFleetOverviewWindow?.Close();
+        };
+        menu.Items.Add(_miningOverviewTrayItem);
 
         // Profile submenu (dynamically rebuilt to sync checks and profile list)
         var profileMenu = new ToolStripMenuItem();
@@ -914,16 +958,26 @@ public partial class App : Application
 
     private void OnMiningIdleDetected(string charName)
     {
+        RaiseMiningWatchdogAlert(charName, $"{charName}: no mining pull detected");
+    }
+
+    private void OnMiningYieldDropDetected(string charName, double current, double learned)
+    {
+        double drop = learned > 0 ? Math.Max(0, (1.0 - current / learned) * 100.0) : 0;
+        RaiseMiningWatchdogAlert(charName,
+            $"{charName}: mining yield dropped {drop:F0}% ({current:F1} vs {learned:F1} m³/s)");
+    }
+
+    private void RaiseMiningWatchdogAlert(string charName, string message)
+    {
         if (_settings == null || _thumbnailManager == null) return;
         if (_thumbnailManager.IsCharacterAlertMuted(charName)) return;
 
         const string alertType = "mine_module_stopped";
         const string severity = "warning";
 
-        Debug.WriteLine($"[App:MiningIdle] ⚠ No mining pull from '{charName}' within watchdog threshold");
+        Debug.WriteLine($"[App:MiningWatchdog] ⚠ {message}");
 
-        // Re-use the existing MultiPreview alert pipeline so this behaves like
-        // the other alerts: thumbnail flash, numbered badge, Alert Hub and sound.
         _thumbnailManager.SetAlertFlash(charName, severity, alertType);
         _thumbnailManager.IncrementAlertBadge(charName, severity, alertType);
 
@@ -934,14 +988,47 @@ public partial class App : Application
             _alertHub.ShowToast(charName, alertType, severity);
 
         if (trayEnabled)
-            _trayIcon?.ShowBalloonTip(
-                3000,
-                "EVE MultiPreview",
-                $"{charName}: mining appears idle",
-                ToolTipIcon.Warning);
+            _trayIcon?.ShowBalloonTip(3500, "EVE MultiPreview", message, ToolTipIcon.Warning);
 
-        if (_miningIdleWatchdog?.Preferences.IdleSoundEnabled == true)
-            PlayAlertSound(charName, alertType, severity);
+        PlayAlertSound(charName, alertType, severity);
+    }
+
+    private void ToggleMiningFleetOverview()
+    {
+        if (_miningFleetOverviewWindow != null)
+        {
+            _miningFleetOverviewWindow.Close();
+            return;
+        }
+
+        OpenMiningFleetOverview();
+    }
+
+    private void OpenMiningFleetOverview()
+    {
+        if (_statTracker == null || _miningIdleWatchdog == null) return;
+
+        if (_miningFleetOverviewWindow != null)
+        {
+            _miningFleetOverviewWindow.Show();
+            _miningFleetOverviewWindow.Activate();
+            return;
+        }
+
+        _miningFleetOverviewWindow = new MiningFleetOverviewWindow(
+            _statTracker, _miningIdleWatchdog, _miningIdleWatchdog.Preferences);
+
+        if (_miningOverviewTrayItem != null)
+            _miningOverviewTrayItem.Checked = true;
+
+        _miningFleetOverviewWindow.Closed += (_, _) =>
+        {
+            _miningFleetOverviewWindow = null;
+            if (_miningOverviewTrayItem != null)
+                _miningOverviewTrayItem.Checked = false;
+        };
+
+        _miningFleetOverviewWindow.Show();
     }
 
     private void OpenMiningDashboard()
@@ -958,7 +1045,11 @@ public partial class App : Application
         }
 
         _miningDashboardWindow = new MiningDashboardWindow(
-            _statTracker, _settings.Settings, _miningIdleWatchdog, () => _settings.SaveDelayed());
+            _statTracker,
+            _settings.Settings,
+            _miningIdleWatchdog,
+            () => _settings.SaveDelayed(),
+            ToggleMiningFleetOverview);
         _miningDashboardWindow.Closed += (_, _) => _miningDashboardWindow = null;
         _miningDashboardWindow.Show();
         _miningDashboardWindow.Activate();
@@ -1175,4 +1266,3 @@ public partial class App : Application
 
 
 }
-

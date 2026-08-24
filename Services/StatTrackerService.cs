@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -27,6 +27,7 @@ public sealed class StatTrackerService
     private int _totalRecordCount = 0;
     private readonly AppSettings _settings;
     private readonly MiningMarketService _miningMarket = new();
+    private readonly MiningDailyStore _dailyMiningStore = new();
 
     public StatTrackerService(AppSettings? settings = null)
     {
@@ -174,6 +175,9 @@ public sealed class StatTrackerService
             stats.MiningCritCount++;
         stats.MiningCycleCount++;
 
+        if (mineType == "ore" && !string.IsNullOrWhiteSpace(oreType))
+            _dailyMiningStore.Record(now, character, oreType, amount, isCritical);
+
         switch (mineType)
         {
             case "gas":
@@ -231,26 +235,23 @@ public sealed class StatTrackerService
     public IReadOnlyList<string> GetTrackedCharacters() =>
         _stats.Keys.OrderBy(k => k, StringComparer.OrdinalIgnoreCase).ToList();
 
-    public IReadOnlyDictionary<string, double> GetMiningSessionUnitsByOre(string character)
-    {
-        if (!_stats.TryGetValue(character, out var stats))
-            return new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
-        return new Dictionary<string, double>(stats.SessionUnitsByOre, StringComparer.OrdinalIgnoreCase);
-    }
+    public IReadOnlyList<string> GetMiningDashboardCharacters() =>
+        _stats.Keys
+            .Concat(_dailyMiningStore.GetCharacters())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(k => k, StringComparer.OrdinalIgnoreCase)
+            .ToList();
 
-    public Dictionary<string, double> GetFleetMiningSessionUnitsByOre()
-    {
-        var result = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
-        foreach (var stats in _stats.Values)
-        {
-            foreach (var kv in stats.SessionUnitsByOre)
-            {
-                result.TryGetValue(kv.Key, out double existing);
-                result[kv.Key] = existing + kv.Value;
-            }
-        }
-        return result;
-    }
+    public IReadOnlyDictionary<string, double> GetMiningSessionUnitsByOre(string character) =>
+        _dailyMiningStore.GetCharacterUnitsByOre(character);
+
+    public Dictionary<string, double> GetFleetMiningSessionUnitsByOre() =>
+        _dailyMiningStore.GetFleetUnitsByOre();
+
+    public MiningDailyCritSummary GetTodayMiningCritSummary(string? character = null) =>
+        _dailyMiningStore.GetCritSummary(character);
+
+    public string GetMiningDayLabel() => _dailyMiningStore.CurrentDayKey;
 
     public bool TryGetMiningQuote(string oreType, out MiningMarketQuote quote) =>
         _miningMarket.TryGetQuote(oreType, out quote!);
@@ -349,10 +350,10 @@ public sealed class StatTrackerService
     /// <summary>Get all stat values for a character in one call (for stat overlay).</summary>
     public CharacterStatSnapshot GetSnapshot(string character)
     {
-        if (!_stats.TryGetValue(character, out var stats))
-            return new CharacterStatSnapshot();
+        _stats.TryGetValue(character, out var stats);
+        stats ??= new CharacterStats();
 
-        var mining = CalculateMiningAnalytics(stats);
+        var mining = CalculateMiningAnalytics(character, stats);
 
         return new CharacterStatSnapshot
         {
@@ -392,6 +393,8 @@ public sealed class StatTrackerService
             JitaIskPerHour = mining.JitaIskPerHour,
             AmarrIskPerHour = mining.AmarrIskPerHour,
             BestIskPerHour = mining.BestIskPerHour,
+            BuybackIskPerHour = mining.BuybackIskPerHour,
+            BuybackUnitPrice = mining.BuybackUnitPrice,
             SessionJitaValue = mining.SessionJitaValue,
             SessionAmarrValue = mining.SessionAmarrValue,
             SessionBestValue = mining.SessionBestValue,
@@ -494,6 +497,8 @@ public sealed class StatTrackerService
                     col.Add($"CRIT:{snap.MiningCritCount}/{snap.MiningCycleCount} {critPct:F1}%");
                 }
 
+                col.Add($"PROFIT:{FormatNumber(snap.BestIskPerHour)}/h");
+                col.Add($"BB:{FormatNumber(snap.BuybackUnitPrice)}/u");
             }
 
             // Gas / ice retain the upstream unit-per-hour presentation.
@@ -631,7 +636,7 @@ public sealed class StatTrackerService
 
     // â”€â”€ Rich Mining Analytics â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-    private MiningAnalytics CalculateMiningAnalytics(CharacterStats stats)
+    private MiningAnalytics CalculateMiningAnalytics(string character, CharacterStats stats)
     {
         var cutoff = DateTime.UtcNow - MiningRateWindow;
         var recent = stats.MiningCycles
@@ -662,13 +667,17 @@ public sealed class StatTrackerService
 
             double jita = cycle.Units * GetMarketUnitPrice(quote, "Jita", _settings.MiningMarketPriceMode);
             double amarr = cycle.Units * GetMarketUnitPrice(quote, "Amarr", _settings.MiningMarketPriceMode);
-            valued.Add(new ValuedMiningCycle(cycle.Timestamp, actualM3, baseM3, jita, amarr));
+            double buyback = cycle.Units
+                * GetMarketUnitPrice(quote, _settings.MiningCorpBuybackMarket, _settings.MiningCorpBuybackPriceMode)
+                * Math.Clamp(_settings.MiningCorpBuybackPercent, 0, 100) / 100.0;
+            valued.Add(new ValuedMiningCycle(cycle.Timestamp, actualM3, baseM3, jita, amarr, buyback));
         }
 
         double baseM3PerSec = 0;
         double actualM3PerSec = 0;
         double jitaIskPerHour = 0;
         double amarrIskPerHour = 0;
+        double buybackIskPerHour = 0;
 
         // Use the raw mining-pull stream rather than grouping nearby events.
         // This matters for ships with two independently cycling strip miners:
@@ -706,6 +715,7 @@ public sealed class StatTrackerService
                 actualM3PerSec = ordered.Sum(c => c.ActualM3) / duration;
                 jitaIskPerHour = ordered.Sum(c => c.JitaIsk) / duration * 3600.0;
                 amarrIskPerHour = ordered.Sum(c => c.AmarrIsk) / duration * 3600.0;
+                buybackIskPerHour = ordered.Sum(c => c.BuybackIsk) / duration * 3600.0;
             }
         }
 
@@ -716,7 +726,7 @@ public sealed class StatTrackerService
         double sessionBuyback = 0;
         bool marketReady = false;
 
-        foreach (var kv in stats.SessionUnitsByOre)
+        foreach (var kv in _dailyMiningStore.GetCharacterUnitsByOre(character))
         {
             if (!_miningMarket.TryGetQuote(kv.Key, out var quote) || !quote.IsAvailable)
                 continue;
@@ -743,9 +753,23 @@ public sealed class StatTrackerService
         if (_settings.MiningMarketJitaEnabled) bestRate = Math.Max(bestRate, jitaIskPerHour);
         if (_settings.MiningMarketAmarrEnabled) bestRate = Math.Max(bestRate, amarrIskPerHour);
 
+        string currentOreName = string.IsNullOrWhiteSpace(stats.LastOreType)
+            ? _dailyMiningStore.GetLastOre(character)
+            : stats.LastOreType;
+
+        double buybackUnitPrice = 0;
+        if (!string.IsNullOrWhiteSpace(currentOreName)
+            && _miningMarket.TryGetQuote(currentOreName, out var currentQuote)
+            && currentQuote.IsAvailable)
+        {
+            buybackUnitPrice =
+                GetMarketUnitPrice(currentQuote, _settings.MiningCorpBuybackMarket, _settings.MiningCorpBuybackPriceMode)
+                * Math.Clamp(_settings.MiningCorpBuybackPercent, 0, 100) / 100.0;
+        }
+
         return new MiningAnalytics
         {
-            CurrentOre = stats.LastOreType,
+            CurrentOre = currentOreName,
             BaseM3PerSec = baseM3PerSec,
             ActualM3PerSec = actualM3PerSec,
             CritCount = stats.MiningCritCount,
@@ -755,6 +779,8 @@ public sealed class StatTrackerService
             JitaIskPerHour = jitaIskPerHour,
             AmarrIskPerHour = amarrIskPerHour,
             BestIskPerHour = bestRate,
+            BuybackIskPerHour = buybackIskPerHour,
+            BuybackUnitPrice = buybackUnitPrice,
             SessionJitaValue = sessionJita,
             SessionAmarrValue = sessionAmarr,
             SessionBestValue = sessionBest,
@@ -930,7 +956,7 @@ public sealed class StatTrackerService
     }
 
     private record MiningCycleRecord(DateTime Timestamp, int Units, string OreType, string MineType, bool IsCritical);
-    private record ValuedMiningCycle(DateTime Timestamp, double ActualM3, double BaseM3, double JitaIsk, double AmarrIsk);
+    private record ValuedMiningCycle(DateTime Timestamp, double ActualM3, double BaseM3, double JitaIsk, double AmarrIsk, double BuybackIsk);
     private record MiningCluster(DateTime Timestamp, double ActualM3, double BaseM3, double JitaIsk, double AmarrIsk);
 
     private sealed class MiningAnalytics
@@ -945,6 +971,8 @@ public sealed class StatTrackerService
         public double JitaIskPerHour { get; init; }
         public double AmarrIskPerHour { get; init; }
         public double BestIskPerHour { get; init; }
+        public double BuybackIskPerHour { get; init; }
+        public double BuybackUnitPrice { get; init; }
         public double SessionJitaValue { get; init; }
         public double SessionAmarrValue { get; init; }
         public double SessionBestValue { get; init; }
@@ -994,6 +1022,8 @@ public record CharacterStatSnapshot
     public double JitaIskPerHour { get; init; }
     public double AmarrIskPerHour { get; init; }
     public double BestIskPerHour { get; init; }
+    public double BuybackIskPerHour { get; init; }
+    public double BuybackUnitPrice { get; init; }
     public double SessionJitaValue { get; init; }
     public double SessionAmarrValue { get; init; }
     public double SessionBestValue { get; init; }
@@ -1009,4 +1039,3 @@ public record CharacterStatSnapshot
     public double Hps => ArmorRepPerSec + ShieldRepPerSec;
     public double HpsOut => ArmorRepPerSec + ShieldRepPerSec;
 }
-

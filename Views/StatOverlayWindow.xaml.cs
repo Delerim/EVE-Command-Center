@@ -69,6 +69,15 @@ public partial class StatOverlayWindow : Window
         Dispatcher.Invoke(() =>
         {
             StatLabel.Text = multiLineText;
+
+            // Mining now has BASE, REAL, CRIT, PROFIT and BB lines. Respect the
+            // user's saved size, but never allow a stat window to be shorter than
+            // the text it must display.
+            int lineCount = Math.Max(1, multiLineText.Split('\n').Length);
+            double lineHeight = Math.Max(13, StatLabel.FontSize * 1.45);
+            MinHeight = Math.Max(120, 32 + lineCount * lineHeight);
+            if (Height < MinHeight)
+                Height = MinHeight;
         });
     }
 
@@ -137,7 +146,7 @@ public partial class StatOverlayWindow : Window
         source.AddHook(WndProc);
     }
 
-    // ── Win32 Message Hook (right-click drag/resize) ────────────────
+    // â”€â”€ Win32 Message Hook (right-click drag/resize) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     private const int WM_RBUTTONDOWN = 0x0204;
     private const int WM_RBUTTONUP = 0x0205;
@@ -176,7 +185,7 @@ public partial class StatOverlayWindow : Window
     {
         if (LockPositions)
         {
-            System.Diagnostics.Debug.WriteLine("[StatOverlay] 🔒 Positions locked — drag/resize blocked");
+            System.Diagnostics.Debug.WriteLine("[StatOverlay] ðŸ”’ Positions locked â€” drag/resize blocked");
             return;
         }
         if (_dragMode != DragMode.None) return;
@@ -214,7 +223,7 @@ public partial class StatOverlayWindow : Window
     {
         if (_dragMode == DragMode.Drag)
         {
-            // Right is held, left just pressed → switch to resize mode
+            // Right is held, left just pressed â†’ switch to resize mode
             _dragMode = DragMode.Resize;
             var screenPos = GetScreenMousePos();
             _dragStartScreen = screenPos;
@@ -245,7 +254,7 @@ public partial class StatOverlayWindow : Window
                 return;
             }
 
-            // Check if left button is now held → switch to resize
+            // Check if left button is now held â†’ switch to resize
             if (User32.IsKeyDown(User32.VK_LBUTTON))
             {
                 _dragMode = DragMode.Resize;
@@ -330,7 +339,7 @@ public partial class StatOverlayWindow : Window
     {
         "DPS" => "DPS",
         "Logi" => "HP/s",
-        "Mining" => "m³/min",
+        "Mining" => "mÂ³/min",
         "Ratting" => "ISK/h",
         _ => ""
     };

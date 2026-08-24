@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text.Json;
@@ -6,13 +6,10 @@ using System.Windows.Threading;
 
 namespace EveMultiPreview.Services;
 
-/// <summary>
-/// Small sidecar settings file for the mining dashboard.  Kept separate from the
-/// legacy AHK-compatible EVE MultiPreview.json so new mining-only options can be
-/// added without risking the user's existing MultiPreview configuration.
-/// </summary>
 public sealed class MiningDashboardPreferences
 {
+    public int PreferencesVersion { get; set; } = 2;
+
     public bool JitaEnabled { get; set; } = true;
     public bool AmarrEnabled { get; set; } = true;
     public string MarketPriceMode { get; set; } = "sell";
@@ -21,9 +18,19 @@ public sealed class MiningDashboardPreferences
     public string CorpBuybackMarket { get; set; } = "Jita";
     public string CorpBuybackPriceMode { get; set; } = "sell";
 
-    public bool IdleWatchdogEnabled { get; set; } = false;
+    public bool IdleWatchdogEnabled { get; set; } = true;
     public int IdleSeconds { get; set; } = 90;
     public bool IdleSoundEnabled { get; set; } = true;
+
+    public bool YieldDropEnabled { get; set; } = true;
+    public int YieldDropPercent { get; set; } = 35;
+    public int YieldDropHoldSeconds { get; set; } = 30;
+
+    public bool AutoShowFleetOverview { get; set; } = false;
+    public bool FleetOverviewTopmost { get; set; } = true;
+    public double? FleetOverviewX { get; set; }
+    public double? FleetOverviewY { get; set; }
+    public double FleetOverviewWidth { get; set; } = 1500;
 }
 
 public static class MiningDashboardPreferencesStore
@@ -51,9 +58,22 @@ public static class MiningDashboardPreferencesStore
             if (!File.Exists(FilePath))
                 return new MiningDashboardPreferences();
 
-            return JsonSerializer.Deserialize<MiningDashboardPreferences>(
-                       File.ReadAllText(FilePath), JsonOptions)
-                   ?? new MiningDashboardPreferences();
+            string json = File.ReadAllText(FilePath);
+            var prefs = JsonSerializer.Deserialize<MiningDashboardPreferences>(json, JsonOptions)
+                        ?? new MiningDashboardPreferences();
+
+            // V1.4 shipped the watchdog disabled by default. On the first V1.5 load,
+            // migrate our own old sidecar once so the mining alarms the user asked for
+            // are actually armed. After this, the user's choice is preserved.
+            if (!json.Contains("\"PreferencesVersion\"", StringComparison.Ordinal))
+            {
+                prefs.PreferencesVersion = 2;
+                prefs.IdleWatchdogEnabled = true;
+                prefs.YieldDropEnabled = true;
+                Save(prefs);
+            }
+
+            return prefs;
         }
         catch
         {
@@ -71,8 +91,7 @@ public static class MiningDashboardPreferencesStore
         }
         catch
         {
-            // Dashboard preferences are non-critical.  Never take down MultiPreview
-            // because a sidecar file could not be written.
+            // Dashboard preferences are non-critical.
         }
     }
 }
@@ -82,6 +101,7 @@ public enum MiningIdleKind
     Waiting,
     Mining,
     Late,
+    Degraded,
     Idle
 }
 
@@ -95,29 +115,43 @@ public readonly record struct MiningIdleState(
     {
         MiningIdleKind.Mining => "MINING",
         MiningIdleKind.Late => "LATE",
+        MiningIdleKind.Degraded => "DEGRADED",
         MiningIdleKind.Idle => "IDLE ⚠",
         _ => "WAITING"
     };
 }
 
 /// <summary>
-/// Watches StatTracker's monotonically increasing mining-cycle count.  It does
-/// not need another EVE parser: a changed cycle count means the existing parser
-/// just received a mining pull for that character.
+/// Watches both complete inactivity and sustained yield drops. The latter catches
+/// the common "one of two strip miners stopped" case where pulls are still arriving,
+/// so a simple no-pull timer would never fire.
 /// </summary>
 public sealed class MiningIdleWatchdogService : IDisposable
 {
     private readonly StatTrackerService _tracker;
     private readonly DispatcherTimer _timer;
+
     private readonly Dictionary<string, int> _lastCycleCounts =
         new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, DateTime> _lastActivityUtc =
         new(StringComparer.OrdinalIgnoreCase);
-    private readonly HashSet<string> _alerted =
+    private readonly HashSet<string> _idleAlerted =
+        new(StringComparer.OrdinalIgnoreCase);
+
+    private readonly Dictionary<string, double> _learnedBase =
+        new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, DateTime> _dropSince =
+        new(StringComparer.OrdinalIgnoreCase);
+    private readonly HashSet<string> _dropAlerted =
+        new(StringComparer.OrdinalIgnoreCase);
+    private readonly HashSet<string> _degraded =
+        new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, string> _lastOre =
         new(StringComparer.OrdinalIgnoreCase);
 
     public MiningDashboardPreferences Preferences { get; }
     public event Action<string>? IdleDetected;
+    public event Action<string, double, double>? YieldDropDetected;
 
     public MiningIdleWatchdogService(StatTrackerService tracker)
     {
@@ -151,10 +185,15 @@ public sealed class MiningIdleWatchdogService : IDisposable
         double age = Math.Max(0, (DateTime.UtcNow - last).TotalSeconds);
         int idleAfter = Math.Clamp(Preferences.IdleSeconds, 15, 3600);
 
-        var kind =
-            age >= idleAfter ? MiningIdleKind.Idle :
-            age >= idleAfter * 0.70 ? MiningIdleKind.Late :
-            MiningIdleKind.Mining;
+        if (age >= idleAfter)
+            return new MiningIdleState(MiningIdleKind.Idle, last, age, snap.MiningCycleCount);
+
+        if (_degraded.Contains(character))
+            return new MiningIdleState(MiningIdleKind.Degraded, last, age, snap.MiningCycleCount);
+
+        var kind = age >= idleAfter * 0.70
+            ? MiningIdleKind.Late
+            : MiningIdleKind.Mining;
 
         return new MiningIdleState(kind, last, age, snap.MiningCycleCount);
     }
@@ -177,16 +216,15 @@ public sealed class MiningIdleWatchdogService : IDisposable
         {
             _lastCycleCounts[character] = count;
             _lastActivityUtc[character] = now;
-            return;
         }
-
-        if (count != previous)
+        else if (count != previous)
         {
             _lastCycleCounts[character] = count;
             _lastActivityUtc[character] = now;
-            _alerted.Remove(character);
-            return;
+            _idleAlerted.Remove(character);
         }
+
+        ObserveYield(character, snap, now, fireAlert);
 
         if (!Preferences.IdleWatchdogEnabled || !fireAlert)
             return;
@@ -201,8 +239,71 @@ public sealed class MiningIdleWatchdogService : IDisposable
         if ((now - last).TotalSeconds < idleAfter)
             return;
 
-        if (_alerted.Add(character))
+        if (_idleAlerted.Add(character))
             IdleDetected?.Invoke(character);
+    }
+
+    private void ObserveYield(string character, CharacterStatSnapshot snap, DateTime now, bool fireAlert)
+    {
+        if (!Preferences.YieldDropEnabled || snap.MiningCycleCount < 8 || snap.BaseM3PerSec <= 0)
+            return;
+
+        string ore = snap.CurrentOre ?? "";
+        if (_lastOre.TryGetValue(character, out var previousOre) &&
+            !string.Equals(previousOre, ore, StringComparison.OrdinalIgnoreCase))
+        {
+            _learnedBase.Remove(character);
+            _dropSince.Remove(character);
+            _dropAlerted.Remove(character);
+            _degraded.Remove(character);
+        }
+        _lastOre[character] = ore;
+
+        double current = snap.BaseM3PerSec;
+        if (!_learnedBase.TryGetValue(character, out double learned) || learned <= 0)
+        {
+            learned = current;
+            _learnedBase[character] = current;
+            return;
+        }
+
+        // Smoothly learn normal changes, but never "learn" a large sustained
+        // drop (such as losing one of two strip miners) as the new normal.
+        if (current >= learned * 0.85)
+        {
+            _learnedBase[character] = learned * 0.90 + current * 0.10;
+
+            _dropSince.Remove(character);
+            _dropAlerted.Remove(character);
+            _degraded.Remove(character);
+            return;
+        }
+
+        double dropFraction = Math.Clamp(Preferences.YieldDropPercent, 10, 80) / 100.0;
+        double threshold = learned * (1.0 - dropFraction);
+
+        if (current >= threshold)
+        {
+            _dropSince.Remove(character);
+            _dropAlerted.Remove(character);
+            _degraded.Remove(character);
+            return;
+        }
+
+        if (!_dropSince.TryGetValue(character, out var since))
+        {
+            _dropSince[character] = now;
+            return;
+        }
+
+        int hold = Math.Clamp(Preferences.YieldDropHoldSeconds, 10, 300);
+        if ((now - since).TotalSeconds < hold)
+            return;
+
+        _degraded.Add(character);
+
+        if (fireAlert && _dropAlerted.Add(character))
+            YieldDropDetected?.Invoke(character, current, learned);
     }
 
     public void Dispose()
@@ -210,4 +311,3 @@ public sealed class MiningIdleWatchdogService : IDisposable
         _timer.Stop();
     }
 }
-
