@@ -166,6 +166,27 @@ public partial class App : Application
         _cropManager = new CropManager(_discovery, _settings);
         _cropManager.AttachThumbnailManager(_thumbnailManager);
         if (_winEvents != null) _cropManager.AttachWinEvents(_winEvents);
+
+        // Upstream v2.3.26 (#101): apply a profile switch from one place,
+        // regardless of whether it came from the tray, cycle hotkey or Settings.
+        _settings.ProfileSwitched += name =>
+        {
+            _thumbnailManager?.ReapplySettings();
+
+            // Recovery net (issue #81): never carry a stuck crops-hidden state
+            // across a profile switch.
+            _cropManager?.ShowCrops();
+            _cropManager?.Refresh();
+
+            _hotkeyService?.RegisterFromSettings(
+                _settings.Settings,
+                _settings.CurrentProfile,
+                _thumbnailManager!,
+                OpenSettings);
+
+            Debug.WriteLine($"[App:Profile] Applied profile: {name}");
+        };
+
         PerfLog($"Core services created: {startupSw.ElapsedMilliseconds}ms");
 
         // ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ START DISCOVERY IMMEDIATELY ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â thumbnails appear ASAP ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬
@@ -908,17 +929,7 @@ public partial class App : Application
             {
                 Checked = name == _settings.Settings.LastUsedProfile
             };
-            item.Click += (_, _) =>
-            {
-                _settings.SwitchProfile(name);
-                
-                _thumbnailManager?.ReapplySettings();
-
-                _hotkeyService?.RegisterFromSettings(
-                    _settings.Settings, _settings.CurrentProfile,
-                    _thumbnailManager!, OpenSettings);
-                Debug.WriteLine($"[App:Profile] ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾ Switched to profile: {name}");
-            };
+            item.Click += (_, _) =>\n            {\n                _settings.SwitchProfile(name);   // ProfileSwitched applies it (#101)\n            };
             profileMenu.DropDownItems.Add(item);
         }
     }
@@ -953,17 +964,7 @@ public partial class App : Application
         }
 
         var newProfile = profileNames[nextIdx];
-        _settings.SwitchProfile(newProfile);
-
-        // Apply the new profile's settings to all running thumbnails
-        _thumbnailManager?.ReapplySettings();
-        _cropManager?.ShowCrops();   // recovery net (issue #81): never carry a stuck crops-hidden state across a profile switch
-        _cropManager?.Refresh();
-
-        // Re-register hotkeys for new profile (AHK does Reload() which re-runs __New)
-        _hotkeyService?.RegisterFromSettings(
-            _settings.Settings, _settings.CurrentProfile,
-            _thumbnailManager!, OpenSettings);
+        _settings.SwitchProfile(newProfile);   // ProfileSwitched applies it (#101)\n\n
 
         // Tooltip feedback (AHK L705: ToolTip("Profile: " newProfile))
         _thumbnailManager?.ShowTooltipFeedback($"Profile: {newProfile}");
