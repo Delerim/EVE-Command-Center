@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
@@ -15,17 +15,26 @@ public partial class MiningDashboardWindow : Window
 {
     private readonly StatTrackerService _tracker;
     private readonly AppSettings _settings;
+    private readonly MiningIdleWatchdogService? _watchdog;
+    private readonly MiningDashboardPreferences _prefs;
     private readonly Action? _saveRequested;
     private readonly DispatcherTimer _refreshTimer;
     private bool _syncingSettings;
 
-    public MiningDashboardWindow(StatTrackerService tracker, AppSettings settings, Action? saveRequested = null)
+    public MiningDashboardWindow(
+        StatTrackerService tracker,
+        AppSettings settings,
+        MiningIdleWatchdogService? watchdog = null,
+        Action? saveRequested = null)
     {
         InitializeComponent();
         _tracker = tracker;
         _settings = settings;
+        _watchdog = watchdog;
+        _prefs = watchdog?.Preferences ?? MiningDashboardPreferencesStore.Load();
         _saveRequested = saveRequested;
 
+        ApplyPreferencesToRuntimeSettings();
         SyncControlsFromSettings();
         HookSettingsControls();
 
@@ -34,6 +43,16 @@ public partial class MiningDashboardWindow : Window
         _refreshTimer.Start();
         Closed += (_, _) => _refreshTimer.Stop();
         Loaded += async (_, _) => await RefreshDashboardAsync();
+    }
+
+    private void ApplyPreferencesToRuntimeSettings()
+    {
+        _settings.MiningMarketJitaEnabled = _prefs.JitaEnabled;
+        _settings.MiningMarketAmarrEnabled = _prefs.AmarrEnabled;
+        _settings.MiningMarketPriceMode = _prefs.MarketPriceMode;
+        _settings.MiningCorpBuybackPercent = _prefs.CorpBuybackPercent;
+        _settings.MiningCorpBuybackMarket = _prefs.CorpBuybackMarket;
+        _settings.MiningCorpBuybackPriceMode = _prefs.CorpBuybackPriceMode;
     }
 
     private void SyncControlsFromSettings()
@@ -47,6 +66,10 @@ public partial class MiningDashboardWindow : Window
             BuybackPercentText.Text = _settings.MiningCorpBuybackPercent.ToString("0.##", CultureInfo.InvariantCulture);
             SelectComboTag(BuybackMarketCombo, _settings.MiningCorpBuybackMarket);
             SelectComboTag(BuybackPriceModeCombo, _settings.MiningCorpBuybackPriceMode);
+
+            IdleWatchdogCheck.IsChecked = _prefs.IdleWatchdogEnabled;
+            IdleSecondsText.Text = Math.Clamp(_prefs.IdleSeconds, 15, 3600).ToString(CultureInfo.InvariantCulture);
+            IdleSoundCheck.IsChecked = _prefs.IdleSoundEnabled;
         }
         finally
         {
@@ -63,15 +86,24 @@ public partial class MiningDashboardWindow : Window
         MarketPriceModeCombo.SelectionChanged += (_, _) => SaveSettingsFromControls();
         BuybackMarketCombo.SelectionChanged += (_, _) => SaveSettingsFromControls();
         BuybackPriceModeCombo.SelectionChanged += (_, _) => SaveSettingsFromControls();
+
+        IdleWatchdogCheck.Checked += (_, _) => SaveSettingsFromControls();
+        IdleWatchdogCheck.Unchecked += (_, _) => SaveSettingsFromControls();
+        IdleSoundCheck.Checked += (_, _) => SaveSettingsFromControls();
+        IdleSoundCheck.Unchecked += (_, _) => SaveSettingsFromControls();
+
         BuybackPercentText.LostFocus += (_, _) => SaveSettingsFromControls();
-        BuybackPercentText.KeyDown += (_, e) =>
-        {
-            if (e.Key == Key.Enter)
-            {
-                SaveSettingsFromControls();
-                Keyboard.ClearFocus();
-            }
-        };
+        IdleSecondsText.LostFocus += (_, _) => SaveSettingsFromControls();
+
+        BuybackPercentText.KeyDown += NumericTextBox_KeyDown;
+        IdleSecondsText.KeyDown += NumericTextBox_KeyDown;
+    }
+
+    private void NumericTextBox_KeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key != Key.Enter) return;
+        SaveSettingsFromControls();
+        Keyboard.ClearFocus();
     }
 
     private void SaveSettingsFromControls()
@@ -88,8 +120,40 @@ public partial class MiningDashboardWindow : Window
             double.TryParse(BuybackPercentText.Text, NumberStyles.Float, CultureInfo.CurrentCulture, out pct))
         {
             _settings.MiningCorpBuybackPercent = Math.Clamp(pct, 0, 100);
-            BuybackPercentText.Text = _settings.MiningCorpBuybackPercent.ToString("0.##", CultureInfo.InvariantCulture);
         }
+
+        int idleSeconds = _prefs.IdleSeconds;
+        if (int.TryParse(IdleSecondsText.Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out int parsedIdle) ||
+            int.TryParse(IdleSecondsText.Text, NumberStyles.Integer, CultureInfo.CurrentCulture, out parsedIdle))
+        {
+            idleSeconds = Math.Clamp(parsedIdle, 15, 3600);
+        }
+
+        _prefs.JitaEnabled = _settings.MiningMarketJitaEnabled;
+        _prefs.AmarrEnabled = _settings.MiningMarketAmarrEnabled;
+        _prefs.MarketPriceMode = _settings.MiningMarketPriceMode;
+        _prefs.CorpBuybackPercent = _settings.MiningCorpBuybackPercent;
+        _prefs.CorpBuybackMarket = _settings.MiningCorpBuybackMarket;
+        _prefs.CorpBuybackPriceMode = _settings.MiningCorpBuybackPriceMode;
+        _prefs.IdleWatchdogEnabled = IdleWatchdogCheck.IsChecked == true;
+        _prefs.IdleSeconds = idleSeconds;
+        _prefs.IdleSoundEnabled = IdleSoundCheck.IsChecked == true;
+
+        _syncingSettings = true;
+        try
+        {
+            BuybackPercentText.Text = _settings.MiningCorpBuybackPercent.ToString("0.##", CultureInfo.InvariantCulture);
+            IdleSecondsText.Text = _prefs.IdleSeconds.ToString(CultureInfo.InvariantCulture);
+        }
+        finally
+        {
+            _syncingSettings = false;
+        }
+
+        if (_watchdog != null)
+            _watchdog.SavePreferences();
+        else
+            MiningDashboardPreferencesStore.Save(_prefs);
 
         _saveRequested?.Invoke();
     }
@@ -100,23 +164,48 @@ public partial class MiningDashboardWindow : Window
         foreach (var ore in fleetOre.Keys)
             _ = _tracker.EnsureMiningQuoteAsync(ore);
 
-        // Yield once so newly completed quote tasks can update the grids on this tick.
         await System.Threading.Tasks.Task.Yield();
 
         var liveRows = new List<LiveMiningRow>();
+        var overviewRows = new List<OverviewCharacterRow>();
+
+        double totalBase = 0;
+        double totalActual = 0;
+        double totalSessionM3 = 0;
+        double totalJitaSession = 0;
+        double totalAmarrSession = 0;
+        double totalBestSession = 0;
+        double totalCorpSession = 0;
+
         foreach (var character in _tracker.GetTrackedCharacters())
         {
             var s = _tracker.GetSnapshot(character);
             if (s.MiningCycleCount == 0 && string.IsNullOrWhiteSpace(s.CurrentOre))
                 continue;
 
-            double critPct = s.MiningCycleCount > 0 ? s.MiningCritCount * 100.0 / s.MiningCycleCount : 0;
+            var idle = _watchdog?.GetState(character)
+                       ?? new MiningIdleState(
+                           s.MiningCycleCount > 0 ? MiningIdleKind.Mining : MiningIdleKind.Waiting,
+                           null, 0, s.MiningCycleCount);
+
+            double critPct = s.MiningCycleCount > 0
+                ? s.MiningCritCount * 100.0 / s.MiningCycleCount
+                : 0;
+
+            bool actualReady = s.MiningCycleCount >= 6 && s.ActualM3PerSec > 0;
+            string actualText = actualReady
+                ? s.ActualM3PerSec.ToString("N1", CultureInfo.CurrentCulture)
+                : "warming…";
+
             liveRows.Add(new LiveMiningRow
             {
                 Character = character,
+                Status = idle.Label,
+                LastPull = idle.LastActivityUtc.HasValue ? AgeText(idle.AgeSeconds) : "—",
                 Ore = string.IsNullOrWhiteSpace(s.CurrentOre) ? "—" : s.CurrentOre,
                 BaseM3PerSec = s.BaseM3PerSec,
-                ActualM3PerSec = s.ActualM3PerSec,
+                ActualM3PerSecText = actualText,
+                ActualM3PerSecValue = actualReady ? s.ActualM3PerSec : 0,
                 Crits = $"{s.MiningCritCount}/{s.MiningCycleCount} ({critPct:F1}%)",
                 SessionM3 = s.SessionM3,
                 JitaIskPerHourText = _settings.MiningMarketJitaEnabled ? Isk(s.JitaIskPerHour) : "off",
@@ -124,6 +213,26 @@ public partial class MiningDashboardWindow : Window
                 BestIskPerHourText = Isk(s.BestIskPerHour),
                 CorpSessionText = Isk(s.SessionBuybackValue)
             });
+
+            overviewRows.Add(new OverviewCharacterRow
+            {
+                Character = character,
+                Status = idle.Label,
+                Ore = string.IsNullOrWhiteSpace(s.CurrentOre) ? "—" : s.CurrentOre,
+                SessionM3Text = Number(s.SessionM3),
+                JitaValueText = _settings.MiningMarketJitaEnabled ? Isk(s.SessionJitaValue) : "off",
+                AmarrValueText = _settings.MiningMarketAmarrEnabled ? Isk(s.SessionAmarrValue) : "off",
+                BestValueText = Isk(s.SessionBestValue),
+                CorpValueText = Isk(s.SessionBuybackValue)
+            });
+
+            totalBase += s.BaseM3PerSec;
+            if (actualReady) totalActual += s.ActualM3PerSec;
+            totalSessionM3 += s.SessionM3;
+            totalJitaSession += s.SessionJitaValue;
+            totalAmarrSession += s.SessionAmarrValue;
+            totalBestSession += s.SessionBestValue;
+            totalCorpSession += s.SessionBuybackValue;
         }
 
         if (liveRows.Count > 1)
@@ -131,18 +240,32 @@ public partial class MiningDashboardWindow : Window
             liveRows.Add(new LiveMiningRow
             {
                 Character = "FLEET",
+                Status = "—",
+                LastPull = "—",
                 Ore = "—",
-                BaseM3PerSec = liveRows.Sum(r => r.BaseM3PerSec),
-                ActualM3PerSec = liveRows.Sum(r => r.ActualM3PerSec),
+                BaseM3PerSec = totalBase,
+                ActualM3PerSecText = totalActual > 0
+                    ? totalActual.ToString("N1", CultureInfo.CurrentCulture)
+                    : "warming…",
+                ActualM3PerSecValue = totalActual,
                 Crits = FleetCritText(),
-                SessionM3 = liveRows.Sum(r => r.SessionM3),
+                SessionM3 = totalSessionM3,
                 JitaIskPerHourText = _settings.MiningMarketJitaEnabled ? Isk(SumSnapshot(x => x.JitaIskPerHour)) : "off",
                 AmarrIskPerHourText = _settings.MiningMarketAmarrEnabled ? Isk(SumSnapshot(x => x.AmarrIskPerHour)) : "off",
                 BestIskPerHourText = Isk(SumSnapshot(x => x.BestIskPerHour)),
-                CorpSessionText = Isk(SumSnapshot(x => x.SessionBuybackValue))
+                CorpSessionText = Isk(totalCorpSession)
             });
         }
+
         LiveGrid.ItemsSource = liveRows;
+        OverviewCharacterGrid.ItemsSource = overviewRows;
+
+        SummaryBaseText.Text = totalBase > 0 ? $"{totalBase:N1} m³/s" : "—";
+        SummaryActualText.Text = totalActual > 0 ? $"{totalActual:N1} m³/s" : "warming…";
+        SummarySessionM3Text.Text = totalSessionM3 > 0 ? $"{totalSessionM3:N0} m³" : "—";
+        SummaryBestValueText.Text = Isk(totalBestSession);
+        SummaryBuybackText.Text = Isk(totalCorpSession);
+        SummaryCritText.Text = FleetCritText();
 
         var marketRows = new List<MarketOreRow>();
         foreach (var kv in fleetOre.OrderBy(k => k.Key, StringComparer.OrdinalIgnoreCase))
@@ -157,6 +280,7 @@ public partial class MiningDashboardWindow : Window
             double amarrUnit = _tracker.GetMarketUnitPrice(quote, "Amarr", _settings.MiningMarketPriceMode);
             double jitaValue = kv.Value * jitaUnit;
             double amarrValue = kv.Value * amarrUnit;
+
             var enabled = new List<(string Market, double Unit, double Value)>();
             if (_settings.MiningMarketJitaEnabled) enabled.Add(("Jita", jitaUnit, jitaValue));
             if (_settings.MiningMarketAmarrEnabled) enabled.Add(("Amarr", amarrUnit, amarrValue));
@@ -175,12 +299,15 @@ public partial class MiningDashboardWindow : Window
                 BestValueText = best.Market == null ? "—" : Isk(best.Value)
             });
         }
+
         MarketGrid.ItemsSource = marketRows;
+        OverviewOreGrid.ItemsSource = marketRows;
 
         var buybackRows = new List<BuybackOreRow>();
         double grossTotal = 0;
         double payoutTotal = 0;
         double rate = Math.Clamp(_settings.MiningCorpBuybackPercent, 0, 100) / 100.0;
+
         foreach (var kv in fleetOre.OrderBy(k => k.Key, StringComparer.OrdinalIgnoreCase))
         {
             if (!_tracker.TryGetMiningQuote(kv.Key, out var quote) || !quote.IsAvailable)
@@ -189,11 +316,16 @@ public partial class MiningDashboardWindow : Window
                 continue;
             }
 
-            double refUnit = _tracker.GetMarketUnitPrice(quote, _settings.MiningCorpBuybackMarket, _settings.MiningCorpBuybackPriceMode);
+            double refUnit = _tracker.GetMarketUnitPrice(
+                quote,
+                _settings.MiningCorpBuybackMarket,
+                _settings.MiningCorpBuybackPriceMode);
+
             double gross = kv.Value * refUnit;
             double payout = gross * rate;
             grossTotal += gross;
             payoutTotal += payout;
+
             buybackRows.Add(new BuybackOreRow
             {
                 Ore = kv.Key,
@@ -204,6 +336,7 @@ public partial class MiningDashboardWindow : Window
                 PayoutText = Isk(payout)
             });
         }
+
         if (buybackRows.Count > 0)
         {
             buybackRows.Add(new BuybackOreRow
@@ -216,21 +349,29 @@ public partial class MiningDashboardWindow : Window
                 PayoutText = Isk(payoutTotal)
             });
         }
+
         BuybackGrid.ItemsSource = buybackRows;
 
-        LastRefreshText.Text = $"Public ESI • {DateTime.Now:HH:mm:ss} • {fleetOre.Count} resource type(s)";
+        string watchdogText = _prefs.IdleWatchdogEnabled
+            ? $"idle alarm {_prefs.IdleSeconds}s"
+            : "idle alarm off";
+
+        LastRefreshText.Text =
+            $"Public ESI • {DateTime.Now:HH:mm:ss} • {fleetOre.Count} resource type(s) • {watchdogText}";
     }
 
     private string FleetCritText()
     {
         int crit = 0;
         int cycles = 0;
+
         foreach (var c in _tracker.GetTrackedCharacters())
         {
             var s = _tracker.GetSnapshot(c);
             crit += s.MiningCritCount;
             cycles += s.MiningCycleCount;
         }
+
         double pct = cycles > 0 ? crit * 100.0 / cycles : 0;
         return $"{crit}/{cycles} ({pct:F1}%)";
     }
@@ -243,9 +384,21 @@ public partial class MiningDashboardWindow : Window
         return result;
     }
 
-    private static string Isk(double value) => value <= 0 ? "—" : StatTrackerService.FormatNumber(value);
-    private static string Price(double value) => value <= 0 ? "—" : value.ToString("N2", CultureInfo.CurrentCulture);
-    private static string Number(double value) => value <= 0 ? "—" : value.ToString("N0", CultureInfo.CurrentCulture);
+    private static string AgeText(double seconds)
+    {
+        if (seconds < 60) return $"{Math.Round(seconds):0}s";
+        if (seconds < 3600) return $"{Math.Floor(seconds / 60):0}m {Math.Round(seconds % 60):0}s";
+        return $"{Math.Floor(seconds / 3600):0}h {Math.Floor((seconds % 3600) / 60):0}m";
+    }
+
+    private static string Isk(double value) =>
+        value <= 0 ? "—" : StatTrackerService.FormatNumber(value);
+
+    private static string Price(double value) =>
+        value <= 0 ? "—" : value.ToString("N2", CultureInfo.CurrentCulture);
+
+    private static string Number(double value) =>
+        value <= 0 ? "—" : value.ToString("N0", CultureInfo.CurrentCulture);
 
     private static string GetComboTag(System.Windows.Controls.ComboBox combo, string fallback) =>
         (combo.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? fallback;
@@ -260,21 +413,38 @@ public partial class MiningDashboardWindow : Window
                 return;
             }
         }
-        if (combo.Items.Count > 0) combo.SelectedIndex = 0;
+
+        if (combo.Items.Count > 0)
+            combo.SelectedIndex = 0;
     }
 
     private sealed class LiveMiningRow
     {
         public string Character { get; init; } = "";
+        public string Status { get; init; } = "";
+        public string LastPull { get; init; } = "";
         public string Ore { get; init; } = "";
         public double BaseM3PerSec { get; init; }
-        public double ActualM3PerSec { get; init; }
+        public string ActualM3PerSecText { get; init; } = "";
+        public double ActualM3PerSecValue { get; init; }
         public string Crits { get; init; } = "";
         public double SessionM3 { get; init; }
         public string JitaIskPerHourText { get; init; } = "";
         public string AmarrIskPerHourText { get; init; } = "";
         public string BestIskPerHourText { get; init; } = "";
         public string CorpSessionText { get; init; } = "";
+    }
+
+    private sealed class OverviewCharacterRow
+    {
+        public string Character { get; init; } = "";
+        public string Status { get; init; } = "";
+        public string Ore { get; init; } = "";
+        public string SessionM3Text { get; init; } = "";
+        public string JitaValueText { get; init; } = "";
+        public string AmarrValueText { get; init; } = "";
+        public string BestValueText { get; init; } = "";
+        public string CorpValueText { get; init; } = "";
     }
 
     private sealed class MarketOreRow
@@ -291,8 +461,15 @@ public partial class MiningDashboardWindow : Window
 
         public static MarketOreRow Pending(string ore, double units) => new()
         {
-            Ore = ore, Units = units, VolumeM3Text = "loading…", JitaUnitText = "loading…",
-            AmarrUnitText = "loading…", BestMarket = "—", JitaValueText = "—", AmarrValueText = "—", BestValueText = "—"
+            Ore = ore,
+            Units = units,
+            VolumeM3Text = "loading…",
+            JitaUnitText = "loading…",
+            AmarrUnitText = "loading…",
+            BestMarket = "—",
+            JitaValueText = "—",
+            AmarrValueText = "—",
+            BestValueText = "—"
         };
     }
 
@@ -307,8 +484,13 @@ public partial class MiningDashboardWindow : Window
 
         public static BuybackOreRow Pending(string ore, double units, double pct) => new()
         {
-            Ore = ore, Units = units, ReferenceUnitText = "loading…", GrossText = "—",
-            RateText = $"{pct:0.##}%", PayoutText = "—"
+            Ore = ore,
+            Units = units,
+            ReferenceUnitText = "loading…",
+            GrossText = "—",
+            RateText = $"{pct:0.##}%",
+            PayoutText = "—"
         };
     }
 }
+
