@@ -99,7 +99,7 @@ public partial class MiningDashboardWindow : Window
         IdleSecondsText.KeyDown += NumericTextBox_KeyDown;
     }
 
-    private void NumericTextBox_KeyDown(object sender, KeyEventArgs e)
+    private void NumericTextBox_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
     {
         if (e.Key != Key.Enter) return;
         SaveSettingsFromControls();
@@ -493,4 +493,5 @@ public partial class MiningDashboardWindow : Window
         };
     }
 }
+
 
