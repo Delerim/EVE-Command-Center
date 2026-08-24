@@ -27,13 +27,13 @@
             <DockPanel Grid.Row="0" Margin="0,0,0,8"
                        MouseLeftButtonDown="Header_MouseLeftButtonDown">
                 <StackPanel Orientation="Horizontal">
-                    <TextBlock Text="MINER OVERVIEW · LIVE + TODAY"
+                    <TextBlock Text="MINER OVERVIEW Â· LIVE + TODAY"
                                Foreground="#EAF7F4" FontWeight="SemiBold" FontSize="13"/>
                     <TextBlock x:Name="DayText" Margin="10,0,0,0"
                                Foreground="#58D3B4" FontSize="11" VerticalAlignment="Center"/>
                 </StackPanel>
 
-                <Button DockPanel.Dock="Right" Content="×" Width="27" Height="24"
+                <Button DockPanel.Dock="Right" Content="Ã—" Width="27" Height="24"
                         Click="Close_Click" Margin="8,0,0,0"/>
                 <TextBlock x:Name="UpdatedText" DockPanel.Dock="Right"
                            Foreground="#7F9B96" VerticalAlignment="Center"/>
@@ -71,7 +71,7 @@
                                                 <Setter Property="BorderBrush" Value="#F09A43"/>
                                                 <Setter Property="Background" Value="#3A241B"/>
                                             </DataTrigger>
-                                            <DataTrigger Binding="{Binding Status}" Value="IDLE ⚠">
+                                            <DataTrigger Binding="{Binding Status}" Value="IDLE âš ">
                                                 <Setter Property="BorderBrush" Value="#F06060"/>
                                                 <Setter Property="Background" Value="#442025"/>
                                             </DataTrigger>
@@ -117,7 +117,7 @@
                                         <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding CritText}"
                                                    Foreground="#C9D8D5" FontSize="11"/>
 
-                                        <TextBlock Grid.Row="3" Text="VALUE" Foreground="#7F9B96" FontSize="10"/>
+                                        <TextBlock Grid.Row="3" Text="PROFIT" Foreground="#7F9B96" FontSize="10"/>
                                         <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding ValueText}"
                                                    Foreground="#58D3B4" FontSize="11" FontWeight="SemiBold"/>
 
@@ -138,7 +138,7 @@
                                                     <DataTrigger Binding="{Binding Status}" Value="DEGRADED">
                                                         <Setter Property="Foreground" Value="#F09A43"/>
                                                     </DataTrigger>
-                                                    <DataTrigger Binding="{Binding Status}" Value="IDLE ⚠">
+                                                    <DataTrigger Binding="{Binding Status}" Value="IDLE âš ">
                                                         <Setter Property="Foreground" Value="#F06060"/>
                                                     </DataTrigger>
                                                     <DataTrigger Binding="{Binding Status}" Value="WAITING">

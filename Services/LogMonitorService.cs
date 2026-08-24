@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -1809,6 +1809,26 @@ public sealed class LogMonitorService : IDisposable
 
     private void ParseMiningLine(string line, string character)
     {
+        // IMPORTANT: rate calculations must use the timestamp written by EVE, not
+        // the moment FileSystemWatcher happened to deliver the line to us. Windows
+        // can batch several new lines in one read; stamping them all DateTime.UtcNow
+        // makes independent strip-miner cycles appear simultaneous and destroys m3/s.
+        DateTime eventTimestampUtc = DateTime.UtcNow;
+        var timestampMatch = Regex.Match(
+            line,
+            @"^\[\s*(?<ts>\d{4}\.\d{2}\.\d{2}\s+\d{2}:\d{2}:\d{2})\s*\]");
+
+        if (timestampMatch.Success &&
+            DateTime.TryParseExact(
+                timestampMatch.Groups["ts"].Value,
+                "yyyy.MM.dd HH:mm:ss",
+                CultureInfo.InvariantCulture,
+                DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal,
+                out var parsedTimestampUtc))
+        {
+            eventTimestampUtc = parsedTimestampUtc;
+        }
+
         // Residue is its OWN (mining) line carrying no ore name ("Additional N units
         // depleted from asteroid as residue") — skip it, in any language (#86).
         if (AlertPatterns.Matches(line, "mining_residue"))
@@ -1861,7 +1881,7 @@ public sealed class LogMonitorService : IDisposable
 
         MiningYield?.Invoke(new MiningEvent
         {
-            Timestamp = DateTime.UtcNow,
+            Timestamp = eventTimestampUtc,
             Amount = amount,
             OreType = oreType,
             MineType = mineType,
