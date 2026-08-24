@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
@@ -7,10 +8,11 @@ using System.Text.Json;
 namespace EveMultiPreview.Services;
 
 /// <summary>
-/// Append-only persistent mining-day history. A "mining day" rolls at 04:00 local
-/// time, so a session that begins at 06:00 and runs until 03:00 next morning stays
-/// together. EVE logs are only consumed live by LogMonitor, so app restarts do not
-/// replay old pulls into this file.
+/// Current mining-day store.
+///
+/// Only the active mining day keeps individual lightweight events in JSONL so
+/// live restarts are safe. Completed days are compacted by MiningHistoryService
+/// into history-v1.json and their JSONL files are deleted.
 /// </summary>
 public sealed class MiningDailyStore
 {
@@ -45,7 +47,88 @@ public sealed class MiningDailyStore
     }
 
     public static string GetDayKey(DateTime timestampUtc) =>
-        timestampUtc.ToLocalTime().AddHours(-DayCutoffHour).ToString("yyyy-MM-dd");
+        timestampUtc.ToLocalTime().AddHours(-DayCutoffHour)
+            .ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+
+    public static DateTime GetCurrentDayStartUtc()
+    {
+        var localNow = DateTime.Now;
+        var miningDate = localNow.Hour < DayCutoffHour
+            ? localNow.Date.AddDays(-1)
+            : localNow.Date;
+
+        var localStart = DateTime.SpecifyKind(
+            miningDate.AddHours(DayCutoffHour),
+            DateTimeKind.Local);
+
+        return localStart.ToUniversalTime();
+    }
+
+    /// <summary>
+    /// Replace the current day's partial custom ledger with the source-of-truth
+    /// events parsed from EVE's raw gamelogs.
+    /// </summary>
+    public void ReplaceCurrentDay(IEnumerable<MiningEvent> events)
+    {
+        string day = GetDayKey(DateTime.UtcNow);
+
+        var accepted = events
+            .Where(e =>
+                e.MineType == "ore" &&
+                e.Amount > 0 &&
+                !string.IsNullOrWhiteSpace(e.CharacterName) &&
+                !string.IsNullOrWhiteSpace(e.OreType) &&
+                GetDayKey(e.Timestamp) == day)
+            .OrderBy(e => e.Timestamp)
+            .ToList();
+
+        lock (_gate)
+        {
+            _loadedDay = day;
+            _byCharacter.Clear();
+            _lastOre.Clear();
+
+            foreach (var e in accepted)
+            {
+                ApplyLocked(new MiningDailyEvent
+                {
+                    TimestampUtc = e.Timestamp,
+                    Character = e.CharacterName.Trim(),
+                    Ore = e.OreType.Trim(),
+                    Units = e.Amount,
+                    IsCritical = e.IsCritical
+                });
+            }
+
+            try
+            {
+                Directory.CreateDirectory(_directory);
+                string path = Path.Combine(_directory, $"{day}.jsonl");
+                string temp = path + ".rebuild";
+
+                using (var writer = new StreamWriter(temp, append: false))
+                {
+                    foreach (var e in accepted)
+                    {
+                        writer.WriteLine(JsonSerializer.Serialize(new MiningDailyEvent
+                        {
+                            TimestampUtc = e.Timestamp,
+                            Character = e.CharacterName.Trim(),
+                            Ore = e.OreType.Trim(),
+                            Units = e.Amount,
+                            IsCritical = e.IsCritical
+                        }));
+                    }
+                }
+
+                File.Move(temp, path, overwrite: true);
+            }
+            catch
+            {
+                // The raw EVE logs can rebuild this again next launch.
+            }
+        }
+    }
 
     public void Record(DateTime timestampUtc, string character, string ore, int units, bool isCritical)
     {
@@ -106,8 +189,38 @@ public sealed class MiningDailyStore
             if (!_byCharacter.TryGetValue(character, out var ores))
                 return new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
 
-            return ores.ToDictionary(kv => kv.Key, kv => kv.Value.Units,
+            return ores.ToDictionary(
+                kv => kv.Key,
+                kv => kv.Value.Units,
                 StringComparer.OrdinalIgnoreCase);
+        }
+    }
+
+    public IReadOnlyList<MiningAggregateRow> GetAggregateRows()
+    {
+        lock (_gate)
+        {
+            string day = GetDayKey(DateTime.UtcNow);
+            EnsureDayLocked(day);
+
+            var result = new List<MiningAggregateRow>();
+            foreach (var (character, ores) in _byCharacter)
+            {
+                foreach (var (ore, totals) in ores)
+                {
+                    result.Add(new MiningAggregateRow
+                    {
+                        DayKey = day,
+                        Character = character,
+                        Ore = ore,
+                        Units = totals.Units,
+                        Crits = totals.Crits,
+                        Cycles = totals.Cycles
+                    });
+                }
+            }
+
+            return result;
         }
     }
 
@@ -116,7 +229,9 @@ public sealed class MiningDailyStore
         lock (_gate)
         {
             EnsureDayLocked(GetDayKey(DateTime.UtcNow));
-            return _byCharacter.Keys.OrderBy(x => x, StringComparer.OrdinalIgnoreCase).ToList();
+            return _byCharacter.Keys
+                .OrderBy(x => x, StringComparer.OrdinalIgnoreCase)
+                .ToList();
         }
     }
 
@@ -181,22 +296,17 @@ public sealed class MiningDailyStore
             foreach (var line in File.ReadLines(path))
             {
                 if (string.IsNullOrWhiteSpace(line)) continue;
+
                 try
                 {
                     var ev = JsonSerializer.Deserialize<MiningDailyEvent>(line);
                     if (ev == null || GetDayKey(ev.TimestampUtc) != day) continue;
                     ApplyLocked(ev);
                 }
-                catch
-                {
-                    // Ignore a single damaged line and retain the rest of the day.
-                }
+                catch { }
             }
         }
-        catch
-        {
-            // A locked/damaged history file should not stop live tracking.
-        }
+        catch { }
     }
 
     private void ApplyLocked(MiningDailyEvent ev)
@@ -234,6 +344,16 @@ public sealed class MiningDailyStore
         public int Units { get; set; }
         public bool IsCritical { get; set; }
     }
+}
+
+public sealed class MiningAggregateRow
+{
+    public string DayKey { get; set; } = "";
+    public string Character { get; set; } = "";
+    public string Ore { get; set; } = "";
+    public double Units { get; set; }
+    public int Crits { get; set; }
+    public int Cycles { get; set; }
 }
 
 public readonly record struct MiningDailyCritSummary(int Crits, int Cycles)

@@ -251,7 +251,7 @@
             </StackPanel>
         </Border>
 
-        <TabControl Grid.Row="2" Background="#0D1417" BorderBrush="#39796C">
+        <TabControl x:Name="MiningTabs" Grid.Row="2" Background="#0D1417" BorderBrush="#39796C">
             <TabItem Header="Overview">
                 <Grid Margin="6">
                     <Grid.RowDefinitions>
@@ -263,42 +263,42 @@
                         <Border Style="{StaticResource SummaryCard}">
                             <StackPanel>
                                 <TextBlock Text="FLEET BASE" Foreground="#809A95" FontSize="11"/>
-                                <TextBlock x:Name="SummaryBaseText" Text="Ã¢â‚¬â€" Foreground="#58D3B4"
+                                <TextBlock x:Name="SummaryBaseText" Text="ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â" Foreground="#58D3B4"
                                            FontSize="20" FontWeight="SemiBold"/>
                             </StackPanel>
                         </Border>
                         <Border Style="{StaticResource SummaryCard}">
                             <StackPanel>
                                 <TextBlock Text="FLEET ACTUAL" Foreground="#809A95" FontSize="11"/>
-                                <TextBlock x:Name="SummaryActualText" Text="Ã¢â‚¬â€" Foreground="#58D3B4"
+                                <TextBlock x:Name="SummaryActualText" Text="ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â" Foreground="#58D3B4"
                                            FontSize="20" FontWeight="SemiBold"/>
                             </StackPanel>
                         </Border>
                         <Border Style="{StaticResource SummaryCard}">
                             <StackPanel>
                                 <TextBlock Text="TODAY VOLUME" Foreground="#809A95" FontSize="11"/>
-                                <TextBlock x:Name="SummarySessionM3Text" Text="Ã¢â‚¬â€" Foreground="#58D3B4"
+                                <TextBlock x:Name="SummarySessionM3Text" Text="ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â" Foreground="#58D3B4"
                                            FontSize="20" FontWeight="SemiBold"/>
                             </StackPanel>
                         </Border>
                         <Border Style="{StaticResource SummaryCard}">
                             <StackPanel>
                                 <TextBlock Text="PROFIT TODAY" Foreground="#809A95" FontSize="11"/>
-                                <TextBlock x:Name="SummaryBestValueText" Text="Ã¢â‚¬â€" Foreground="#58D3B4"
+                                <TextBlock x:Name="SummaryBestValueText" Text="ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â" Foreground="#58D3B4"
                                            FontSize="20" FontWeight="SemiBold"/>
                             </StackPanel>
                         </Border>
                         <Border Style="{StaticResource SummaryCard}">
                             <StackPanel>
                                 <TextBlock Text="CORP BUYBACK TODAY" Foreground="#809A95" FontSize="11"/>
-                                <TextBlock x:Name="SummaryBuybackText" Text="Ã¢â‚¬â€" Foreground="#58D3B4"
+                                <TextBlock x:Name="SummaryBuybackText" Text="ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â" Foreground="#58D3B4"
                                            FontSize="20" FontWeight="SemiBold"/>
                             </StackPanel>
                         </Border>
                         <Border Style="{StaticResource SummaryCard}">
                             <StackPanel>
                                 <TextBlock Text="TODAY CRITICALS" Foreground="#809A95" FontSize="11"/>
-                                <TextBlock x:Name="SummaryCritText" Text="Ã¢â‚¬â€" Foreground="#58D3B4"
+                                <TextBlock x:Name="SummaryCritText" Text="ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â" Foreground="#58D3B4"
                                            FontSize="20" FontWeight="SemiBold"/>
                             </StackPanel>
                         </Border>
@@ -316,7 +316,7 @@
                                     <DataGridTextColumn Header="Character" Binding="{Binding Character}" Width="150"/>
                                     <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="88"/>
                                     <DataGridTextColumn Header="Current ore" Binding="{Binding Ore}" Width="170"/>
-                                    <DataGridTextColumn Header="Today mÃ‚Â³" Binding="{Binding SessionM3Text}" Width="105"/>
+                                    <DataGridTextColumn Header="Today mÃƒâ€šÃ‚Â³" Binding="{Binding SessionM3Text}" Width="105"/>
                                     <DataGridTextColumn Header="Jita" Binding="{Binding JitaValueText}" Width="95"/>
                                     <DataGridTextColumn Header="Amarr" Binding="{Binding AmarrValueText}" Width="95"/>
                                     <DataGridTextColumn Header="Best" Binding="{Binding BestValueText}" Width="95"/>
@@ -330,7 +330,7 @@
                                 <DataGrid.Columns>
                                     <DataGridTextColumn Header="Ore" Binding="{Binding Ore}" Width="*"/>
                                     <DataGridTextColumn Header="Units" Binding="{Binding Units, StringFormat={}{0:N0}}" Width="95"/>
-                                    <DataGridTextColumn Header="mÃ‚Â³" Binding="{Binding VolumeM3Text}" Width="95"/>
+                                    <DataGridTextColumn Header="mÃƒâ€šÃ‚Â³" Binding="{Binding VolumeM3Text}" Width="95"/>
                                     <DataGridTextColumn Header="Best" Binding="{Binding BestValueText}" Width="100"/>
                                 </DataGrid.Columns>
                             </DataGrid>
@@ -346,10 +346,10 @@
                         <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="90"/>
                         <DataGridTextColumn Header="Last pull" Binding="{Binding LastPull}" Width="82"/>
                         <DataGridTextColumn Header="Current ore" Binding="{Binding Ore}" Width="175"/>
-                        <DataGridTextColumn Header="BASE mÃ‚Â³/s" Binding="{Binding BaseM3PerSec, StringFormat={}{0:N1}}" Width="95"/>
-                        <DataGridTextColumn Header="ACTUAL mÃ‚Â³/s" Binding="{Binding ActualM3PerSecText}" Width="105"/>
+                        <DataGridTextColumn Header="BASE mÃƒâ€šÃ‚Â³/s" Binding="{Binding BaseM3PerSec, StringFormat={}{0:N1}}" Width="95"/>
+                        <DataGridTextColumn Header="ACTUAL mÃƒâ€šÃ‚Â³/s" Binding="{Binding ActualM3PerSecText}" Width="105"/>
                         <DataGridTextColumn Header="Today crits" Binding="{Binding Crits}" Width="105"/>
-                        <DataGridTextColumn Header="Today mÃ‚Â³" Binding="{Binding SessionM3, StringFormat={}{0:N0}}" Width="105"/>
+                        <DataGridTextColumn Header="Today mÃƒâ€šÃ‚Â³" Binding="{Binding SessionM3, StringFormat={}{0:N0}}" Width="105"/>
                         <DataGridTextColumn Header="Jita ISK/h" Binding="{Binding JitaIskPerHourText}" Width="105"/>
                         <DataGridTextColumn Header="Amarr ISK/h" Binding="{Binding AmarrIskPerHourText}" Width="105"/>
                         <DataGridTextColumn Header="Best ISK/h" Binding="{Binding BestIskPerHourText}" Width="105"/>
@@ -363,7 +363,7 @@
                     <DataGrid.Columns>
                         <DataGridTextColumn Header="Ore" Binding="{Binding Ore}" Width="220"/>
                         <DataGridTextColumn Header="Units today" Binding="{Binding Units, StringFormat={}{0:N0}}" Width="110"/>
-                        <DataGridTextColumn Header="Volume mÃ‚Â³" Binding="{Binding VolumeM3Text}" Width="115"/>
+                        <DataGridTextColumn Header="Volume mÃƒâ€šÃ‚Â³" Binding="{Binding VolumeM3Text}" Width="115"/>
                         <DataGridTextColumn Header="Jita / unit" Binding="{Binding JitaUnitText}" Width="115"/>
                         <DataGridTextColumn Header="Amarr / unit" Binding="{Binding AmarrUnitText}" Width="115"/>
                         <DataGridTextColumn Header="Best market" Binding="{Binding BestMarket}" Width="105"/>
@@ -386,9 +386,91 @@
                     </DataGrid.Columns>
                 </DataGrid>
             </TabItem>
+
+            <TabItem x:Name="HistoryTab" Header="History">
+                <Grid Margin="8">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <Border Grid.Row="0" Background="#131C20" BorderBrush="#2A665B"
+                            BorderThickness="1" CornerRadius="7" Padding="9" Margin="0,0,0,8">
+                        <StackPanel>
+                            <WrapPanel>
+                                <TextBlock Text="Range:" Foreground="#58D3B4" FontWeight="SemiBold"
+                                           VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                <Button x:Name="HistoryTodayButton" Content="Today"/>
+                                <Button x:Name="HistoryYesterdayButton" Content="Yesterday"/>
+                                <Button x:Name="HistoryThisWeekButton" Content="This Week"/>
+                                <Button x:Name="HistoryLastWeekButton" Content="Last Week"/>
+                                <Button x:Name="HistoryThisMonthButton" Content="This Month"/>
+                                <Button x:Name="HistoryLastMonthButton" Content="Last Month"/>
+                                <Button x:Name="History30Button" Content="30 Days"/>
+                                <Button x:Name="History90Button" Content="90 Days"/>
+                                <Button x:Name="HistoryYearButton" Content="1 Year"/>
+                                <Button x:Name="HistoryRefreshButton" Content="Refresh"/>
+                            </WrapPanel>
+
+                            <DockPanel Margin="4,7,4,0">
+                                <TextBlock x:Name="HistoryRangeText"
+                                           Foreground="#EAF7F4" FontWeight="SemiBold"/>
+                                <TextBlock x:Name="HistoryBuildText" DockPanel.Dock="Right"
+                                           Foreground="#809A95"/>
+                            </DockPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <UniformGrid Grid.Row="1" Columns="4" Margin="0,0,0,8">
+                        <Border Style="{StaticResource SummaryCard}">
+                            <StackPanel>
+                                <TextBlock Text="VOLUME" Foreground="#809A95" FontSize="11"/>
+                                <TextBlock x:Name="HistoryVolumeText" Text="—"
+                                           Foreground="#58D3B4" FontSize="20" FontWeight="SemiBold"/>
+                            </StackPanel>
+                        </Border>
+                        <Border Style="{StaticResource SummaryCard}">
+                            <StackPanel>
+                                <TextBlock Text="PROFIT EST." Foreground="#809A95" FontSize="11"/>
+                                <TextBlock x:Name="HistoryProfitText" Text="—"
+                                           Foreground="#58D3B4" FontSize="20" FontWeight="SemiBold"/>
+                            </StackPanel>
+                        </Border>
+                        <Border Style="{StaticResource SummaryCard}">
+                            <StackPanel>
+                                <TextBlock Text="CORP BUYBACK EST." Foreground="#809A95" FontSize="11"/>
+                                <TextBlock x:Name="HistoryBuybackText" Text="—"
+                                           Foreground="#58D3B4" FontSize="20" FontWeight="SemiBold"/>
+                            </StackPanel>
+                        </Border>
+                        <Border Style="{StaticResource SummaryCard}">
+                            <StackPanel>
+                                <TextBlock Text="CRITICALS" Foreground="#809A95" FontSize="11"/>
+                                <TextBlock x:Name="HistoryCritText" Text="—"
+                                           Foreground="#58D3B4" FontSize="20" FontWeight="SemiBold"/>
+                            </StackPanel>
+                        </Border>
+                    </UniformGrid>
+
+                    <DataGrid Grid.Row="2" x:Name="HistoryGrid" AlternationCount="2">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Mining day" Binding="{Binding Day}" Width="105"/>
+                            <DataGridTextColumn Header="Character" Binding="{Binding Character}" Width="150"/>
+                            <DataGridTextColumn Header="Ore" Binding="{Binding Ore}" Width="190"/>
+                            <DataGridTextColumn Header="Units" Binding="{Binding UnitsText}" Width="105"/>
+                            <DataGridTextColumn Header="m³" Binding="{Binding VolumeText}" Width="105"/>
+                            <DataGridTextColumn Header="Crits" Binding="{Binding CritText}" Width="105"/>
+                            <DataGridTextColumn Header="Profit est." Binding="{Binding ProfitText}" Width="115"/>
+                            <DataGridTextColumn Header="BB est." Binding="{Binding BuybackText}" Width="115"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Grid>
+            </TabItem>
+
         </TabControl>
 
         <TextBlock Grid.Row="3" Margin="2,9,0,0" Foreground="#809A95"
-                   Text="Mining day: 04:00 local Ã¢â€ â€™ 03:59 next day. Data is stored locally in MiningData/*.jsonl. Prices: public ESI, cached 5 minutes."/>
+                   Text="Mining day: 04:00 local ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ 03:59 next day. Current day is rebuilt from EVE logs; completed days are compacted in MiningData/history-v1.json. Historical ISK is estimated using current selected market prices."/>
     </Grid>
 </Window>
