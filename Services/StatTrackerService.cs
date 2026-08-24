@@ -45,7 +45,7 @@ public sealed class StatTrackerService
         _csvLoggingEnabled = enabled;
         _csvLogDirectory = directory;
         _csvRetentionDays = retentionDays;
-        Debug.WriteLine($"[StatTracker:CSV] ðŸ”§ CSV logging: enabled={enabled}, dir='{directory}', retention={retentionDays}d");
+        Debug.WriteLine($"[StatTracker:CSV] Ã°Å¸â€Â§ CSV logging: enabled={enabled}, dir='{directory}', retention={retentionDays}d");
 
         // AHK: Run auto-cleanup on startup
         if (enabled && !string.IsNullOrEmpty(directory))
@@ -67,11 +67,11 @@ public sealed class StatTrackerService
             // Track per-type incoming for the damage-type breakdown overlay (issue #11)
             stats.IncomingByType.AddOrUpdate(damageType, amount, (_, total) => total + amount);
 
-            // Track volley (peak single hit) â€” NPC or player
+            // Track volley (peak single hit) Ã¢â‚¬â€ NPC or player
             if (amount > stats.PeakVolley)
             {
                 stats.PeakVolley = amount;
-                Debug.WriteLine($"[StatTracker:Record] ðŸ’¥ New peak volley: {amount} for '{character}' (NPC={isNpc})");
+                Debug.WriteLine($"[StatTracker:Record] Ã°Å¸â€™Â¥ New peak volley: {amount} for '{character}' (NPC={isNpc})");
             }
         }
         else
@@ -85,7 +85,7 @@ public sealed class StatTrackerService
             else if (hitQuality == "glance" || hitQuality == "miss")
                 stats.MissesOut++;
 
-            // Bounty tracking â€” only NPC kills count as ratting ISK
+            // Bounty tracking Ã¢â‚¬â€ only NPC kills count as ratting ISK
             if (isNpc)
                 stats.BountyTicks.Add(entry);
         }
@@ -116,7 +116,7 @@ public sealed class StatTrackerService
                 else { stats.CapTransOut += amount; stats.CapTransOutWindow.Add(entry); }
                 break;
             default:
-                // Hull or unknown â€” treat as armor
+                // Hull or unknown Ã¢â‚¬â€ treat as armor
                 if (isIncoming) { stats.ArmorRepIn += amount; }
                 else { stats.ArmorRepOut += amount; stats.ArmorRepOutWindow.Add(entry); }
                 break;
@@ -136,7 +136,7 @@ public sealed class StatTrackerService
         stats.LastBountyTick = amount;
         CheckAndPrune(character, stats);
         LogCsv(character, "BOUNTY", amount);
-        Debug.WriteLine($"[StatTracker:Record] ðŸ’° Bounty recorded: {amount:N0} ISK for '{character}'");
+        Debug.WriteLine($"[StatTracker:Record] Ã°Å¸â€™Â° Bounty recorded: {amount:N0} ISK for '{character}'");
     }
 
     /// <summary>Remove all stat data for a character (on logoff).</summary>
@@ -148,7 +148,7 @@ public sealed class StatTrackerService
     /// <summary>
     /// Record a mining result. The richer event keeps the exact resource name and
     /// a critical-success flag so a crit can contribute to REAL yield without
-    /// distorting the miner's stable BASE mÂ³/s estimate.
+    /// distorting the miner's stable BASE mÃ‚Â³/s estimate.
     /// </summary>
     public void RecordMining(string character, int amount, string mineType = "ore",
         string oreType = "", bool isCriticalHint = false)
@@ -184,19 +184,19 @@ public sealed class StatTrackerService
                 stats.GasMining.Add(entry);
                 stats.GasMined += amount;
                 stats.GasLastCycle = amount;
-                Debug.WriteLine($"[StatTracker:Record] â˜ Gas mining: {amount} {oreType} for '{character}'");
+                Debug.WriteLine($"[StatTracker:Record] Ã¢ËœÂ Gas mining: {amount} {oreType} for '{character}'");
                 break;
             case "ice":
                 stats.IceMining.Add(entry);
                 stats.IceMined += amount;
                 stats.IceLastCycle = amount;
-                Debug.WriteLine($"[StatTracker:Record] ðŸ§Š Ice mining: {amount} {oreType} for '{character}'");
+                Debug.WriteLine($"[StatTracker:Record] Ã°Å¸Â§Å  Ice mining: {amount} {oreType} for '{character}'");
                 break;
             default:
                 stats.MiningYield.Add(entry);
                 stats.MinedUnits += amount;
                 stats.LastMineCycle = amount;
-                Debug.WriteLine($"[StatTracker:Record] â› Ore mining: {amount} {oreType} for '{character}', crit={isCritical}");
+                Debug.WriteLine($"[StatTracker:Record] Ã¢â€ºÂ Ore mining: {amount} {oreType} for '{character}', crit={isCritical}");
                 break;
         }
 
@@ -267,7 +267,7 @@ public sealed class StatTrackerService
         return (buy ? quote.JitaBestBuy : quote.JitaBestSell) ?? 0;
     }
 
-    // â”€â”€ Rate Getters â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // Ã¢â€â‚¬Ã¢â€â‚¬ Rate Getters Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
     public double GetDps(string character)
     {
@@ -380,7 +380,7 @@ public sealed class StatTrackerService
             TotalArmorRepIn = stats.ArmorRepIn,
             TotalShieldRepOut = stats.ShieldRepOut,
             TotalShieldRepIn = stats.ShieldRepIn,
-            // AHK: Mining per-cycle + richer crit-aware mÂ³/market stats
+            // AHK: Mining per-cycle + richer crit-aware mÃ‚Â³/market stats
             LastMineCycle = stats.LastMineCycle,
             GasLastCycle = stats.GasLastCycle,
             CurrentOre = mining.CurrentOre,
@@ -407,14 +407,14 @@ public sealed class StatTrackerService
     }
 
     /// <summary>Returns session totals per damage type for incoming damage
-    /// (issue #11). Keys missing â†’ never-hit type.</summary>
+    /// (issue #11). Keys missing Ã¢â€ â€™ never-hit type.</summary>
     public Dictionary<DamageType, long> GetIncomingByType(string character)
     {
         var stats = GetOrCreate(character);
         return new Dictionary<DamageType, long>(stats.IncomingByType);
     }
 
-    // â”€â”€ Overlay Text (AHK: side-by-side columns with abbreviations) â”€â”€
+    // Ã¢â€â‚¬Ã¢â€â‚¬ Overlay Text (AHK: side-by-side columns with abbreviations) Ã¢â€â‚¬Ã¢â€â‚¬
 
     /// <summary>Build multi-row overlay text matching AHK StatTracker format.
     /// Each metric in <paramref name="metrics"/> is rendered as its own line within
@@ -479,7 +479,7 @@ public sealed class StatTrackerService
             // The old OMPC/OMPH pair mixed normal cycles and critical-success
             // cycles into one rolling number. Keep the same settings bits so
             // existing profiles continue to work, but present stable BASE and
-            // realised ACTUAL mÂ³/s instead.
+            // realised ACTUAL mÃ‚Â³/s instead.
             bool wantsOre = (metrics & (StatMetrics.Ompc | StatMetrics.Omph)) != 0;
             if (wantsOre)
             {
@@ -497,8 +497,8 @@ public sealed class StatTrackerService
                     col.Add($"CRIT:{snap.MiningCritCount}/{snap.MiningCycleCount} {critPct:F1}%");
                 }
 
-                col.Add($"PROFIT:{FormatNumber(snap.BestIskPerHour)}/h");
-                col.Add($"BB:{FormatNumber(snap.BuybackUnitPrice)}/u");
+                col.Add($"VALUE:{FormatNumber(snap.SessionBestValue)}");
+                col.Add($"BB:{FormatNumber(snap.SessionBuybackValue)}");
             }
 
             // Gas / ice retain the upstream unit-per-hour presentation.
@@ -542,10 +542,10 @@ public sealed class StatTrackerService
     private static string ShortResourceName(string value, int maxLength)
     {
         if (string.IsNullOrWhiteSpace(value) || value.Length <= maxLength) return value;
-        return value[..Math.Max(1, maxLength - 1)] + "â€¦";
+        return value[..Math.Max(1, maxLength - 1)] + "Ã¢â‚¬Â¦";
     }
 
-    // â”€â”€ Number Formatting (AHK: _Fmt with K/M/B/T) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // Ã¢â€â‚¬Ã¢â€â‚¬ Number Formatting (AHK: _Fmt with K/M/B/T) Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
     /// <summary>Format numbers with K/M/B/T suffixes matching AHK.</summary>
     public static string FormatNumber(double value)
@@ -559,7 +559,7 @@ public sealed class StatTrackerService
         return $"{Math.Round(value)}";
     }
 
-    // â”€â”€ Pruning â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // Ã¢â€â‚¬Ã¢â€â‚¬ Pruning Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
     /// <summary>Prune old events from all windows.</summary>
     public void Prune()
@@ -579,7 +579,7 @@ public sealed class StatTrackerService
             pruned += PruneWindow(stats.BountyTicks, cutoff);
 
             if (pruned > 0)
-                Debug.WriteLine($"[StatTracker:Prune] ðŸ§¹ Pruned {pruned} old events for '{charName}'");
+                Debug.WriteLine($"[StatTracker:Prune] Ã°Å¸Â§Â¹ Pruned {pruned} old events for '{charName}'");
         }
     }
 
@@ -607,7 +607,7 @@ public sealed class StatTrackerService
         return _stats.GetOrAdd(character, _ => new CharacterStats());
     }
 
-    // AHK: _RatePerSec â€” averages over actual elapsed time, not full window
+    // AHK: _RatePerSec Ã¢â‚¬â€ averages over actual elapsed time, not full window
     private double CalculateRate(ConcurrentBag<TimedValue> window)
     {
         var cutoff = DateTime.UtcNow - _windowDuration;
@@ -620,7 +620,7 @@ public sealed class StatTrackerService
         return totalAmount / elapsedSeconds;
     }
 
-    // AHK: _MiningRate â€” units per hour from rolling window
+    // AHK: _MiningRate Ã¢â‚¬â€ units per hour from rolling window
     private double CalculateMiningRate(ConcurrentBag<TimedValue> window)
     {
         var cutoff = DateTime.UtcNow - _windowDuration;
@@ -634,7 +634,7 @@ public sealed class StatTrackerService
         return (totalAmount / elapsedSeconds) * 3600;
     }
 
-    // â”€â”€ Rich Mining Analytics â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // Ã¢â€â‚¬Ã¢â€â‚¬ Rich Mining Analytics Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
     private MiningAnalytics CalculateMiningAnalytics(string character, CharacterStats stats)
     {
@@ -679,43 +679,77 @@ public sealed class StatTrackerService
         double amarrIskPerHour = 0;
         double buybackIskPerHour = 0;
 
-        // Use the raw mining-pull stream rather than grouping nearby events.
-        // This matters for ships with two independently cycling strip miners:
-        // e.g. 71.1 m3/s + 61.2 m3/s should converge near 132.3 m3/s.
+        // Stable BASE / realised REAL from the CURRENT continuous mining segment.
         //
-        // Each valued cycle already has:
-        //   ActualM3 = the logged pull (crit included)
-        //   BaseM3   = the logged pull, except crits normalized to a normal pull
+        // V1.5 capped long pauses before summing elapsed time. After a break that
+        // made the denominator artificially tiny, so BASE could jump from a correct
+        // ~44.8 m3/s to 100+ m3/s even though the strips had not changed.
         //
-        // N timestamped pulls span N-1 observed gaps, but represent roughly N
-        // production intervals. Add one average active gap as an endpoint correction.
-        // Large pauses are capped so an AFK gap does not poison the stable BASE rate.
+        // V1.6 splits at the latest real pause instead. Crit pulls keep their
+        // timestamp but use BaseM3 (normalised normal-cycle yield), so a crit raises
+        // REAL while BASE remains tied to normal production.
         if (valued.Count >= 4)
         {
             var ordered = valued.OrderBy(c => c.Timestamp).ToList();
-            var gaps = new List<double>();
 
+            var positiveGaps = new List<double>();
             for (int i = 1; i < ordered.Count; i++)
             {
                 double gap = (ordered[i].Timestamp - ordered[i - 1].Timestamp).TotalSeconds;
                 if (gap > 0.25)
-                    gaps.Add(gap);
+                    positiveGaps.Add(gap);
             }
 
-            if (gaps.Count > 0)
+            if (positiveGaps.Count > 0)
             {
-                double medianGap = Math.Max(0.25, Median(gaps));
-                double maxActiveGap = Math.Max(5.0, medianGap * 3.0);
+                double typicalGap = Math.Max(0.25, Median(positiveGaps));
+                double pauseGap = Math.Max(45.0, typicalGap * 4.0);
 
-                double activeSpan = gaps.Sum(g => Math.Min(g, maxActiveGap));
-                double averageActiveGap = activeSpan / gaps.Count;
-                double duration = Math.Max(0.25, activeSpan + averageActiveGap);
+                int segmentStart = 0;
+                for (int i = 1; i < ordered.Count; i++)
+                {
+                    double gap = (ordered[i].Timestamp - ordered[i - 1].Timestamp).TotalSeconds;
+                    if (gap > pauseGap)
+                        segmentStart = i;
+                }
 
-                baseM3PerSec = ordered.Sum(c => c.BaseM3) / duration;
-                actualM3PerSec = ordered.Sum(c => c.ActualM3) / duration;
-                jitaIskPerHour = ordered.Sum(c => c.JitaIsk) / duration * 3600.0;
-                amarrIskPerHour = ordered.Sum(c => c.AmarrIsk) / duration * 3600.0;
-                buybackIskPerHour = ordered.Sum(c => c.BuybackIsk) / duration * 3600.0;
+                var active = ordered.Skip(segmentStart).ToList();
+
+                // Keep the rate responsive to a current boost / fit change without
+                // carrying early-session warm-up forever.
+                if (active.Count >= 4)
+                {
+                    var latest = active[^1].Timestamp;
+                    var shortWindowStart = latest - TimeSpan.FromSeconds(90);
+                    var shortActive = active.Where(c => c.Timestamp >= shortWindowStart).ToList();
+                    if (shortActive.Count >= 4)
+                        active = shortActive;
+                }
+
+                if (active.Count >= 4)
+                {
+                    var activeGaps = new List<double>();
+                    for (int i = 1; i < active.Count; i++)
+                    {
+                        double gap = (active[i].Timestamp - active[i - 1].Timestamp).TotalSeconds;
+                        if (gap > 0.25 && gap <= pauseGap)
+                            activeGaps.Add(gap);
+                    }
+
+                    if (activeGaps.Count > 0)
+                    {
+                        double endpointGap = Math.Max(0.25, Median(activeGaps));
+                        double duration = Math.Max(
+                            endpointGap,
+                            (active[^1].Timestamp - active[0].Timestamp).TotalSeconds + endpointGap);
+
+                        baseM3PerSec = active.Sum(c => c.BaseM3) / duration;
+                        actualM3PerSec = active.Sum(c => c.ActualM3) / duration;
+                        jitaIskPerHour = active.Sum(c => c.JitaIsk) / duration * 3600.0;
+                        amarrIskPerHour = active.Sum(c => c.AmarrIsk) / duration * 3600.0;
+                        buybackIskPerHour = active.Sum(c => c.BuybackIsk) / duration * 3600.0;
+                    }
+                }
             }
         }
 
@@ -828,14 +862,14 @@ public sealed class StatTrackerService
     {
         if (window.Count <= MaxEventsPerWindow) return 0;
 
-        // Snapshot the bag and filter â€” any items added concurrently will survive
+        // Snapshot the bag and filter Ã¢â‚¬â€ any items added concurrently will survive
         // because we only remove items older than cutoff
         var snapshot = window.ToArray();
         var recent = snapshot.Where(v => v.Timestamp > cutoff).ToArray();
         int removed = snapshot.Length - recent.Length;
         if (removed <= 0) return 0;
 
-        // Drain and refill â€” items added between these lines are post-cutoff
+        // Drain and refill Ã¢â‚¬â€ items added between these lines are post-cutoff
         // by definition (they were just created), so losing them is acceptable
         // only if we re-add them. Instead, we accept the brief window of loss
         // is negligible since pruning only triggers every 50 records.
@@ -844,7 +878,7 @@ public sealed class StatTrackerService
         return removed;
     }
 
-    // â”€â”€ CSV Logging (AHK: _LogEvent with HTML stripping) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // Ã¢â€â‚¬Ã¢â€â‚¬ CSV Logging (AHK: _LogEvent with HTML stripping) Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
     private void LogCsv(string character, string eventType, double amount)
     {
@@ -869,7 +903,7 @@ public sealed class StatTrackerService
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[StatTracker:CSV] âŒ CSV write error: {ex.Message}");
+            Debug.WriteLine($"[StatTracker:CSV] Ã¢ÂÅ’ CSV write error: {ex.Message}");
         }
     }
 
@@ -888,17 +922,17 @@ public sealed class StatTrackerService
                 if (fileInfo.LastWriteTime < cutoffDate)
                 {
                     fileInfo.Delete();
-                    Debug.WriteLine($"[StatTracker:CSV] ðŸ—‘ Deleted old log: {fileInfo.Name}");
+                    Debug.WriteLine($"[StatTracker:CSV] Ã°Å¸â€”â€˜ Deleted old log: {fileInfo.Name}");
                 }
             }
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[StatTracker:CSV] âŒ Cleanup error: {ex.Message}");
+            Debug.WriteLine($"[StatTracker:CSV] Ã¢ÂÅ’ Cleanup error: {ex.Message}");
         }
     }
 
-    // â”€â”€ Inner Types (AHK: _NewStatData with all fields) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // Ã¢â€â‚¬Ã¢â€â‚¬ Inner Types (AHK: _NewStatData with all fields) Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
     private class CharacterStats
     {
@@ -911,7 +945,7 @@ public sealed class StatTrackerService
         public int MissesOut { get; set; } = 0;
         public double PeakVolley { get; set; } = 0;
 
-        // Per-type incoming damage totals (issue #11) â€” session accumulator used
+        // Per-type incoming damage totals (issue #11) Ã¢â‚¬â€ session accumulator used
         // for the percentage breakdown in the DPS overlay. Not a windowed rate.
         public ConcurrentDictionary<DamageType, long> IncomingByType { get; } = new();
 
@@ -928,7 +962,7 @@ public sealed class StatTrackerService
         public double ShieldRepIn { get; set; } = 0;
         public double CapTransIn { get; set; } = 0;
 
-        // Mining â€” Ore
+        // Mining Ã¢â‚¬â€ Ore
         public ConcurrentBag<TimedValue> MiningYield { get; } = new();
         public double MinedUnits { get; set; } = 0;
         public double LastMineCycle { get; set; } = 0;
@@ -939,12 +973,12 @@ public sealed class StatTrackerService
         public int MiningCritCount { get; set; } = 0;
         public int MiningCycleCount { get; set; } = 0;
 
-        // Mining â€” Gas
+        // Mining Ã¢â‚¬â€ Gas
         public ConcurrentBag<TimedValue> GasMining { get; } = new();
         public double GasMined { get; set; } = 0;
         public double GasLastCycle { get; set; } = 0;
 
-        // Mining â€” Ice
+        // Mining Ã¢â‚¬â€ Ice
         public ConcurrentBag<TimedValue> IceMining { get; } = new();
         public double IceMined { get; set; } = 0;
         public double IceLastCycle { get; set; } = 0;
@@ -1035,7 +1069,7 @@ public record CharacterStatSnapshot
     public double BountySession { get; init; }
     public double LastBountyTick { get; init; }
 
-    // Legacy compat â€” computed properties for existing callers
+    // Legacy compat Ã¢â‚¬â€ computed properties for existing callers
     public double Hps => ArmorRepPerSec + ShieldRepPerSec;
     public double HpsOut => ArmorRepPerSec + ShieldRepPerSec;
 }

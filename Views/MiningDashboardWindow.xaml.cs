@@ -79,6 +79,7 @@ public partial class MiningDashboardWindow : Window
             YieldDropSecondsText.Text = Math.Clamp(_prefs.YieldDropHoldSeconds, 10, 300).ToString(CultureInfo.InvariantCulture);
 
             AutoOverviewCheck.IsChecked = _prefs.AutoShowFleetOverview;
+            TileWallCheck.IsChecked = _prefs.UseFleetTileWall;
         }
         finally
         {
@@ -105,6 +106,8 @@ public partial class MiningDashboardWindow : Window
         YieldDropCheck.Unchecked += (_, _) => SaveSettingsFromControls();
         AutoOverviewCheck.Checked += (_, _) => SaveSettingsFromControls();
         AutoOverviewCheck.Unchecked += (_, _) => SaveSettingsFromControls();
+        TileWallCheck.Checked += (_, _) => SaveSettingsFromControls();
+        TileWallCheck.Unchecked += (_, _) => SaveSettingsFromControls();
 
         BuybackPercentText.LostFocus += (_, _) => SaveSettingsFromControls();
         IdleSecondsText.LostFocus += (_, _) => SaveSettingsFromControls();
@@ -160,6 +163,7 @@ public partial class MiningDashboardWindow : Window
         _prefs.YieldDropPercent = dropPercent;
         _prefs.YieldDropHoldSeconds = dropSeconds;
         _prefs.AutoShowFleetOverview = AutoOverviewCheck.IsChecked == true;
+        _prefs.UseFleetTileWall = TileWallCheck.IsChecked == true;
 
         _syncingSettings = true;
         try
@@ -224,14 +228,14 @@ public partial class MiningDashboardWindow : Window
             bool actualReady = s.MiningCycleCount >= 6 && s.ActualM3PerSec > 0;
             string actualText = actualReady
                 ? s.ActualM3PerSec.ToString("N1", CultureInfo.CurrentCulture)
-                : "warming…";
+                : "warmingâ€¦";
 
             liveRows.Add(new LiveMiningRow
             {
                 Character = character,
                 Status = idle.Label,
-                LastPull = idle.LastActivityUtc.HasValue ? AgeText(idle.AgeSeconds) : "—",
-                Ore = string.IsNullOrWhiteSpace(s.CurrentOre) ? "—" : s.CurrentOre,
+                LastPull = idle.LastActivityUtc.HasValue ? AgeText(idle.AgeSeconds) : "â€”",
+                Ore = string.IsNullOrWhiteSpace(s.CurrentOre) ? "â€”" : s.CurrentOre,
                 BaseM3PerSec = s.BaseM3PerSec,
                 ActualM3PerSecText = actualText,
                 ActualM3PerSecValue = actualReady ? s.ActualM3PerSec : 0,
@@ -247,7 +251,7 @@ public partial class MiningDashboardWindow : Window
             {
                 Character = character,
                 Status = idle.Label,
-                Ore = string.IsNullOrWhiteSpace(s.CurrentOre) ? "—" : s.CurrentOre,
+                Ore = string.IsNullOrWhiteSpace(s.CurrentOre) ? "â€”" : s.CurrentOre,
                 SessionM3Text = Number(s.SessionM3),
                 JitaValueText = _settings.MiningMarketJitaEnabled ? Isk(s.SessionJitaValue) : "off",
                 AmarrValueText = _settings.MiningMarketAmarrEnabled ? Isk(s.SessionAmarrValue) : "off",
@@ -267,13 +271,13 @@ public partial class MiningDashboardWindow : Window
             liveRows.Add(new LiveMiningRow
             {
                 Character = "FLEET",
-                Status = "—",
-                LastPull = "—",
-                Ore = "—",
+                Status = "â€”",
+                LastPull = "â€”",
+                Ore = "â€”",
                 BaseM3PerSec = totalBase,
                 ActualM3PerSecText = totalActual > 0
                     ? totalActual.ToString("N1", CultureInfo.CurrentCulture)
-                    : "warming…",
+                    : "warmingâ€¦",
                 ActualM3PerSecValue = totalActual,
                 Crits = FleetCritText(),
                 SessionM3 = totalTodayM3,
@@ -287,9 +291,9 @@ public partial class MiningDashboardWindow : Window
         LiveGrid.ItemsSource = liveRows;
         OverviewCharacterGrid.ItemsSource = overviewRows;
 
-        SummaryBaseText.Text = totalBase > 0 ? $"{totalBase:N1} m³/s" : "—";
-        SummaryActualText.Text = totalActual > 0 ? $"{totalActual:N1} m³/s" : "warming…";
-        SummarySessionM3Text.Text = totalTodayM3 > 0 ? $"{totalTodayM3:N0} m³" : "—";
+        SummaryBaseText.Text = totalBase > 0 ? $"{totalBase:N1} mÂ³/s" : "â€”";
+        SummaryActualText.Text = totalActual > 0 ? $"{totalActual:N1} mÂ³/s" : "warmingâ€¦";
+        SummarySessionM3Text.Text = totalTodayM3 > 0 ? $"{totalTodayM3:N0} mÂ³" : "â€”";
         SummaryBestValueText.Text = Isk(totalBestToday);
         SummaryBuybackText.Text = Isk(totalCorpToday);
         SummaryCritText.Text = FleetCritText();
@@ -320,10 +324,10 @@ public partial class MiningDashboardWindow : Window
                 VolumeM3Text = Number(kv.Value * quote.UnitVolumeM3),
                 JitaUnitText = _settings.MiningMarketJitaEnabled ? Price(jitaUnit) : "off",
                 AmarrUnitText = _settings.MiningMarketAmarrEnabled ? Price(amarrUnit) : "off",
-                BestMarket = best.Market ?? "—",
+                BestMarket = best.Market ?? "â€”",
                 JitaValueText = _settings.MiningMarketJitaEnabled ? Isk(jitaValue) : "off",
                 AmarrValueText = _settings.MiningMarketAmarrEnabled ? Isk(amarrValue) : "off",
-                BestValueText = best.Market == null ? "—" : Isk(best.Value)
+                BestValueText = best.Market == null ? "â€”" : Isk(best.Value)
             });
         }
 
@@ -387,7 +391,7 @@ public partial class MiningDashboardWindow : Window
             : "drop off";
 
         LastRefreshText.Text =
-            $"{_tracker.GetMiningDayLabel()} day · ESI {DateTime.Now:HH:mm:ss} · {fleetOre.Count} resource(s) · {watchdogText} · {dropText}";
+            $"{_tracker.GetMiningDayLabel()} day Â· ESI {DateTime.Now:HH:mm:ss} Â· {fleetOre.Count} resource(s) Â· {watchdogText} Â· {dropText}";
     }
 
     private string FleetCritText() => _tracker.GetTodayMiningCritSummary().ToString();
@@ -408,13 +412,13 @@ public partial class MiningDashboardWindow : Window
     }
 
     private static string Isk(double value) =>
-        value <= 0 ? "—" : StatTrackerService.FormatNumber(value);
+        value <= 0 ? "â€”" : StatTrackerService.FormatNumber(value);
 
     private static string Price(double value) =>
-        value <= 0 ? "—" : value.ToString("N2", CultureInfo.CurrentCulture);
+        value <= 0 ? "â€”" : value.ToString("N2", CultureInfo.CurrentCulture);
 
     private static string Number(double value) =>
-        value <= 0 ? "—" : value.ToString("N0", CultureInfo.CurrentCulture);
+        value <= 0 ? "â€”" : value.ToString("N0", CultureInfo.CurrentCulture);
 
     private static string GetComboTag(System.Windows.Controls.ComboBox combo, string fallback) =>
         (combo.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? fallback;
@@ -479,13 +483,13 @@ public partial class MiningDashboardWindow : Window
         {
             Ore = ore,
             Units = units,
-            VolumeM3Text = "loading…",
-            JitaUnitText = "loading…",
-            AmarrUnitText = "loading…",
-            BestMarket = "—",
-            JitaValueText = "—",
-            AmarrValueText = "—",
-            BestValueText = "—"
+            VolumeM3Text = "loadingâ€¦",
+            JitaUnitText = "loadingâ€¦",
+            AmarrUnitText = "loadingâ€¦",
+            BestMarket = "â€”",
+            JitaValueText = "â€”",
+            AmarrValueText = "â€”",
+            BestValueText = "â€”"
         };
     }
 
@@ -502,10 +506,10 @@ public partial class MiningDashboardWindow : Window
         {
             Ore = ore,
             Units = units,
-            ReferenceUnitText = "loading…",
-            GrossText = "—",
+            ReferenceUnitText = "loadingâ€¦",
+            GrossText = "â€”",
             RateText = $"{pct:0.##}%",
-            PayoutText = "—"
+            PayoutText = "â€”"
         };
     }
 }

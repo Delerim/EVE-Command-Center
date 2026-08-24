@@ -244,7 +244,9 @@
                     <TextBlock Text="Overview:" FontWeight="SemiBold" Foreground="#58D3B4"
                                VerticalAlignment="Center" Margin="0,0,8,0"/>
                     <CheckBox x:Name="AutoOverviewCheck" Content="Auto-show on launch"/>
-                    <Button x:Name="ToggleOverviewButton" Content="Show / hide overview bar"/>
+                    <CheckBox x:Name="TileWallCheck"
+                              Content="Use tile wall instead of individual mining boxes (restart)"/>
+                    <Button x:Name="ToggleOverviewButton" Content="Show / hide tile wall"/>
                 </WrapPanel>
             </StackPanel>
         </Border>
@@ -261,42 +263,42 @@
                         <Border Style="{StaticResource SummaryCard}">
                             <StackPanel>
                                 <TextBlock Text="FLEET BASE" Foreground="#809A95" FontSize="11"/>
-                                <TextBlock x:Name="SummaryBaseText" Text="—" Foreground="#58D3B4"
+                                <TextBlock x:Name="SummaryBaseText" Text="â€”" Foreground="#58D3B4"
                                            FontSize="20" FontWeight="SemiBold"/>
                             </StackPanel>
                         </Border>
                         <Border Style="{StaticResource SummaryCard}">
                             <StackPanel>
                                 <TextBlock Text="FLEET ACTUAL" Foreground="#809A95" FontSize="11"/>
-                                <TextBlock x:Name="SummaryActualText" Text="—" Foreground="#58D3B4"
+                                <TextBlock x:Name="SummaryActualText" Text="â€”" Foreground="#58D3B4"
                                            FontSize="20" FontWeight="SemiBold"/>
                             </StackPanel>
                         </Border>
                         <Border Style="{StaticResource SummaryCard}">
                             <StackPanel>
                                 <TextBlock Text="TODAY VOLUME" Foreground="#809A95" FontSize="11"/>
-                                <TextBlock x:Name="SummarySessionM3Text" Text="—" Foreground="#58D3B4"
+                                <TextBlock x:Name="SummarySessionM3Text" Text="â€”" Foreground="#58D3B4"
                                            FontSize="20" FontWeight="SemiBold"/>
                             </StackPanel>
                         </Border>
                         <Border Style="{StaticResource SummaryCard}">
                             <StackPanel>
                                 <TextBlock Text="BEST MARKET TODAY" Foreground="#809A95" FontSize="11"/>
-                                <TextBlock x:Name="SummaryBestValueText" Text="—" Foreground="#58D3B4"
+                                <TextBlock x:Name="SummaryBestValueText" Text="â€”" Foreground="#58D3B4"
                                            FontSize="20" FontWeight="SemiBold"/>
                             </StackPanel>
                         </Border>
                         <Border Style="{StaticResource SummaryCard}">
                             <StackPanel>
                                 <TextBlock Text="CORP BUYBACK TODAY" Foreground="#809A95" FontSize="11"/>
-                                <TextBlock x:Name="SummaryBuybackText" Text="—" Foreground="#58D3B4"
+                                <TextBlock x:Name="SummaryBuybackText" Text="â€”" Foreground="#58D3B4"
                                            FontSize="20" FontWeight="SemiBold"/>
                             </StackPanel>
                         </Border>
                         <Border Style="{StaticResource SummaryCard}">
                             <StackPanel>
                                 <TextBlock Text="TODAY CRITICALS" Foreground="#809A95" FontSize="11"/>
-                                <TextBlock x:Name="SummaryCritText" Text="—" Foreground="#58D3B4"
+                                <TextBlock x:Name="SummaryCritText" Text="â€”" Foreground="#58D3B4"
                                            FontSize="20" FontWeight="SemiBold"/>
                             </StackPanel>
                         </Border>
@@ -314,7 +316,7 @@
                                     <DataGridTextColumn Header="Character" Binding="{Binding Character}" Width="150"/>
                                     <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="88"/>
                                     <DataGridTextColumn Header="Current ore" Binding="{Binding Ore}" Width="170"/>
-                                    <DataGridTextColumn Header="Today m³" Binding="{Binding SessionM3Text}" Width="105"/>
+                                    <DataGridTextColumn Header="Today mÂ³" Binding="{Binding SessionM3Text}" Width="105"/>
                                     <DataGridTextColumn Header="Jita" Binding="{Binding JitaValueText}" Width="95"/>
                                     <DataGridTextColumn Header="Amarr" Binding="{Binding AmarrValueText}" Width="95"/>
                                     <DataGridTextColumn Header="Best" Binding="{Binding BestValueText}" Width="95"/>
@@ -328,7 +330,7 @@
                                 <DataGrid.Columns>
                                     <DataGridTextColumn Header="Ore" Binding="{Binding Ore}" Width="*"/>
                                     <DataGridTextColumn Header="Units" Binding="{Binding Units, StringFormat={}{0:N0}}" Width="95"/>
-                                    <DataGridTextColumn Header="m³" Binding="{Binding VolumeM3Text}" Width="95"/>
+                                    <DataGridTextColumn Header="mÂ³" Binding="{Binding VolumeM3Text}" Width="95"/>
                                     <DataGridTextColumn Header="Best" Binding="{Binding BestValueText}" Width="100"/>
                                 </DataGrid.Columns>
                             </DataGrid>
@@ -344,10 +346,10 @@
                         <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="90"/>
                         <DataGridTextColumn Header="Last pull" Binding="{Binding LastPull}" Width="82"/>
                         <DataGridTextColumn Header="Current ore" Binding="{Binding Ore}" Width="175"/>
-                        <DataGridTextColumn Header="BASE m³/s" Binding="{Binding BaseM3PerSec, StringFormat={}{0:N1}}" Width="95"/>
-                        <DataGridTextColumn Header="ACTUAL m³/s" Binding="{Binding ActualM3PerSecText}" Width="105"/>
+                        <DataGridTextColumn Header="BASE mÂ³/s" Binding="{Binding BaseM3PerSec, StringFormat={}{0:N1}}" Width="95"/>
+                        <DataGridTextColumn Header="ACTUAL mÂ³/s" Binding="{Binding ActualM3PerSecText}" Width="105"/>
                         <DataGridTextColumn Header="Today crits" Binding="{Binding Crits}" Width="105"/>
-                        <DataGridTextColumn Header="Today m³" Binding="{Binding SessionM3, StringFormat={}{0:N0}}" Width="105"/>
+                        <DataGridTextColumn Header="Today mÂ³" Binding="{Binding SessionM3, StringFormat={}{0:N0}}" Width="105"/>
                         <DataGridTextColumn Header="Jita ISK/h" Binding="{Binding JitaIskPerHourText}" Width="105"/>
                         <DataGridTextColumn Header="Amarr ISK/h" Binding="{Binding AmarrIskPerHourText}" Width="105"/>
                         <DataGridTextColumn Header="Best ISK/h" Binding="{Binding BestIskPerHourText}" Width="105"/>
@@ -361,7 +363,7 @@
                     <DataGrid.Columns>
                         <DataGridTextColumn Header="Ore" Binding="{Binding Ore}" Width="220"/>
                         <DataGridTextColumn Header="Units today" Binding="{Binding Units, StringFormat={}{0:N0}}" Width="110"/>
-                        <DataGridTextColumn Header="Volume m³" Binding="{Binding VolumeM3Text}" Width="115"/>
+                        <DataGridTextColumn Header="Volume mÂ³" Binding="{Binding VolumeM3Text}" Width="115"/>
                         <DataGridTextColumn Header="Jita / unit" Binding="{Binding JitaUnitText}" Width="115"/>
                         <DataGridTextColumn Header="Amarr / unit" Binding="{Binding AmarrUnitText}" Width="115"/>
                         <DataGridTextColumn Header="Best market" Binding="{Binding BestMarket}" Width="105"/>
@@ -387,6 +389,6 @@
         </TabControl>
 
         <TextBlock Grid.Row="3" Margin="2,9,0,0" Foreground="#809A95"
-                   Text="Mining day: 04:00 local → 03:59 next day. Data is stored locally in MiningData/*.jsonl. Prices: public ESI, cached 5 minutes."/>
+                   Text="Mining day: 04:00 local â†’ 03:59 next day. Data is stored locally in MiningData/*.jsonl. Prices: public ESI, cached 5 minutes."/>
     </Grid>
 </Window>

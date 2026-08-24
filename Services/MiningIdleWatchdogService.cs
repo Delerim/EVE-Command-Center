@@ -8,7 +8,7 @@ namespace EveMultiPreview.Services;
 
 public sealed class MiningDashboardPreferences
 {
-    public int PreferencesVersion { get; set; } = 2;
+    public int PreferencesVersion { get; set; } = 3;
 
     public bool JitaEnabled { get; set; } = true;
     public bool AmarrEnabled { get; set; } = true;
@@ -26,11 +26,14 @@ public sealed class MiningDashboardPreferences
     public int YieldDropPercent { get; set; } = 35;
     public int YieldDropHoldSeconds { get; set; } = 30;
 
-    public bool AutoShowFleetOverview { get; set; } = false;
+    // V1.6 defaults to the single tiled fleet wall the user asked for.
+    public bool UseFleetTileWall { get; set; } = true;
+    public bool AutoShowFleetOverview { get; set; } = true;
     public bool FleetOverviewTopmost { get; set; } = true;
     public double? FleetOverviewX { get; set; }
     public double? FleetOverviewY { get; set; }
     public double FleetOverviewWidth { get; set; } = 1500;
+    public double FleetOverviewHeight { get; set; } = 390;
 }
 
 public static class MiningDashboardPreferencesStore
@@ -62,16 +65,32 @@ public static class MiningDashboardPreferencesStore
             var prefs = JsonSerializer.Deserialize<MiningDashboardPreferences>(json, JsonOptions)
                         ?? new MiningDashboardPreferences();
 
-            // V1.4 shipped the watchdog disabled by default. On the first V1.5 load,
-            // migrate our own old sidecar once so the mining alarms the user asked for
-            // are actually armed. After this, the user's choice is preserved.
-            if (!json.Contains("\"PreferencesVersion\"", StringComparison.Ordinal))
+            int storedVersion = json.Contains("\"PreferencesVersion\"", StringComparison.Ordinal)
+                ? prefs.PreferencesVersion
+                : 1;
+
+            bool changed = false;
+
+            // V1.4 -> V1.5 migration.
+            if (storedVersion < 2)
             {
-                prefs.PreferencesVersion = 2;
                 prefs.IdleWatchdogEnabled = true;
                 prefs.YieldDropEnabled = true;
-                Save(prefs);
+                changed = true;
             }
+
+            // V1.5 -> V1.6 migration. Move the mining-only overlays into one
+            // resizable tiled window and auto-show it on startup.
+            if (storedVersion < 3)
+            {
+                prefs.UseFleetTileWall = true;
+                prefs.AutoShowFleetOverview = true;
+                changed = true;
+            }
+
+            prefs.PreferencesVersion = 3;
+            if (changed)
+                Save(prefs);
 
             return prefs;
         }
@@ -122,9 +141,11 @@ public readonly record struct MiningIdleState(
 }
 
 /// <summary>
-/// Watches both complete inactivity and sustained yield drops. The latter catches
-/// the common "one of two strip miners stopped" case where pulls are still arriving,
-/// so a simple no-pull timer would never fire.
+/// Watches both complete inactivity and sustained yield drops.
+///
+/// V1.6 deliberately requires a stable learned BASE before the yield-drop alarm
+/// is armed. This prevents mining drones, warm-up, boost changes, partial rocks,
+/// or a temporary BASE estimator wobble from immediately flashing a client.
 /// </summary>
 public sealed class MiningIdleWatchdogService : IDisposable
 {
@@ -140,6 +161,8 @@ public sealed class MiningIdleWatchdogService : IDisposable
 
     private readonly Dictionary<string, double> _learnedBase =
         new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, int> _stableSamples =
+        new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, DateTime> _dropSince =
         new(StringComparer.OrdinalIgnoreCase);
     private readonly HashSet<string> _dropAlerted =
@@ -148,6 +171,9 @@ public sealed class MiningIdleWatchdogService : IDisposable
         new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, string> _lastOre =
         new(StringComparer.OrdinalIgnoreCase);
+
+    private const int StableSamplesRequired = 20;
+    private const double StableBand = 0.12;
 
     public MiningDashboardPreferences Preferences { get; }
     public event Action<string>? IdleDetected;
@@ -243,39 +269,69 @@ public sealed class MiningIdleWatchdogService : IDisposable
             IdleDetected?.Invoke(character);
     }
 
+    private void ResetYieldLearning(string character)
+    {
+        _learnedBase.Remove(character);
+        _stableSamples.Remove(character);
+        _dropSince.Remove(character);
+        _dropAlerted.Remove(character);
+        _degraded.Remove(character);
+    }
+
     private void ObserveYield(string character, CharacterStatSnapshot snap, DateTime now, bool fireAlert)
     {
-        if (!Preferences.YieldDropEnabled || snap.MiningCycleCount < 8 || snap.BaseM3PerSec <= 0)
+        if (!Preferences.YieldDropEnabled || snap.MiningCycleCount < 10 || snap.BaseM3PerSec <= 0)
             return;
 
         string ore = snap.CurrentOre ?? "";
         if (_lastOre.TryGetValue(character, out var previousOre) &&
             !string.Equals(previousOre, ore, StringComparison.OrdinalIgnoreCase))
         {
-            _learnedBase.Remove(character);
-            _dropSince.Remove(character);
-            _dropAlerted.Remove(character);
-            _degraded.Remove(character);
+            ResetYieldLearning(character);
         }
         _lastOre[character] = ore;
 
         double current = snap.BaseM3PerSec;
         if (!_learnedBase.TryGetValue(character, out double learned) || learned <= 0)
         {
-            learned = current;
             _learnedBase[character] = current;
+            _stableSamples[character] = 0;
             return;
         }
 
-        // Smoothly learn normal changes, but never "learn" a large sustained
-        // drop (such as losing one of two strip miners) as the new normal.
-        if (current >= learned * 0.85)
+        double relative = Math.Abs(current - learned) / Math.Max(1.0, learned);
+
+        // Stable readings slowly refine the learned normal BASE. The alarm is not
+        // armed until we have seen ~20 seconds of this stable state.
+        if (relative <= StableBand)
         {
-            _learnedBase[character] = learned * 0.90 + current * 0.10;
+            _learnedBase[character] = learned * 0.95 + current * 0.05;
+            _stableSamples[character] = Math.Min(
+                StableSamplesRequired,
+                _stableSamples.GetValueOrDefault(character) + 1);
 
             _dropSince.Remove(character);
             _dropAlerted.Remove(character);
             _degraded.Remove(character);
+            return;
+        }
+
+        // A sudden HIGH reading is not a stopped miner. It can be a boost/fit
+        // change, drones landing together, warm-up, or a transient estimator jump.
+        // Do not promote that spike into the normal baseline; just re-arm learning.
+        if (current > learned)
+        {
+            _stableSamples[character] = 0;
+            _dropSince.Remove(character);
+            _dropAlerted.Remove(character);
+            _degraded.Remove(character);
+            return;
+        }
+
+        // Never alarm from a baseline that was not proven stable first.
+        if (_stableSamples.GetValueOrDefault(character) < StableSamplesRequired)
+        {
+            _learnedBase[character] = learned * 0.97 + current * 0.03;
             return;
         }
 

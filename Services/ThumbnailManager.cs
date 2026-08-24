@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -3791,6 +3791,14 @@ public sealed class ThumbnailManager : IDisposable
         s.PerCharacterStats.TryGetValue(charName, out var statConfig);
         var effective = CharacterStatSettings.Resolve(s.GlobalStatMetrics, statConfig);
         if ((effective & StatMetrics.AllMetrics) == 0) return;
+
+        // V1.6 tile-wall mode replaces the ten separate MINING-ONLY boxes with one
+        // resizable WrapPanel window. Mixed DPS/logi/rat overlays are untouched.
+        var miningPrefs = MiningDashboardPreferencesStore.Load();
+        bool hasMining = (effective & StatMetrics.MineMask) != 0;
+        bool hasNonMining = (effective & ~StatMetrics.MineMask) != 0;
+        if (miningPrefs.UseFleetTileWall && hasMining && !hasNonMining)
+            return;
 
         // AHK: ONE stat window per character (not per stat type)
         string key = charName;

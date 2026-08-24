@@ -36,6 +36,7 @@ public partial class MiningFleetOverviewWindow : Window
         }
 
         Width = Math.Max(MinWidth, prefs.FleetOverviewWidth);
+        Height = Math.Max(MinHeight, prefs.FleetOverviewHeight);
 
         _timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
         _timer.Tick += (_, _) => RefreshCards();
@@ -48,6 +49,7 @@ public partial class MiningFleetOverviewWindow : Window
             _prefs.FleetOverviewX = Left;
             _prefs.FleetOverviewY = Top;
             _prefs.FleetOverviewWidth = Width;
+            _prefs.FleetOverviewHeight = Height;
             MiningDashboardPreferencesStore.Save(_prefs);
         };
     }
@@ -63,21 +65,50 @@ public partial class MiningFleetOverviewWindow : Window
                 continue;
 
             var state = _watchdog.GetState(character);
+            var crit = _tracker.GetTodayMiningCritSummary(character);
+
             cards.Add(new FleetCard
             {
                 Character = character,
+                Ore = string.IsNullOrWhiteSpace(s.CurrentOre) ? "—" : s.CurrentOre,
                 BaseText = s.BaseM3PerSec > 0
                     ? $"{s.BaseM3PerSec.ToString("N1", CultureInfo.CurrentCulture)} m³/s"
                     : "warming…",
                 ActualText = s.ActualM3PerSec > 0
-                    ? $"actual {s.ActualM3PerSec.ToString("N1", CultureInfo.CurrentCulture)} m³/s"
-                    : "actual warming…",
-                Status = state.Label
+                    ? $"{s.ActualM3PerSec.ToString("N1", CultureInfo.CurrentCulture)} m³/s"
+                    : "warming…",
+                CritText = crit.Cycles > 0 ? crit.ToString() : "—",
+                ValueText = s.SessionBestValue > 0
+                    ? StatTrackerService.FormatNumber(s.SessionBestValue)
+                    : "—",
+                BuybackText = s.SessionBuybackValue > 0
+                    ? StatTrackerService.FormatNumber(s.SessionBuybackValue)
+                    : "—",
+                Status = state.Label,
+                StatusText = state.Kind switch
+                {
+                    MiningIdleKind.Mining => "Stable",
+                    MiningIdleKind.Late => $"Late · {AgeText(state.AgeSeconds)} since pull",
+                    MiningIdleKind.Degraded => "Yield drop · checking sustained loss",
+                    MiningIdleKind.Idle => $"Idle · {AgeText(state.AgeSeconds)} since pull",
+                    _ => "Warming up"
+                }
             });
         }
 
-        MinerItems.ItemsSource = cards.OrderBy(x => x.Character, StringComparer.OrdinalIgnoreCase).ToList();
-        UpdatedText.Text = $"{cards.Count} miner(s) · {DateTime.Now:HH:mm:ss}";
+        MinerItems.ItemsSource = cards
+            .OrderBy(x => x.Character, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        DayText.Text = $"MINING DAY {_tracker.GetMiningDayLabel()}";
+        UpdatedText.Text = $"{cards.Count} logged-in miner(s) · {DateTime.Now:HH:mm:ss}";
+    }
+
+    private static string AgeText(double seconds)
+    {
+        if (seconds < 60) return $"{Math.Round(seconds):0}s";
+        if (seconds < 3600) return $"{Math.Floor(seconds / 60):0}m {Math.Round(seconds % 60):0}s";
+        return $"{Math.Floor(seconds / 3600):0}h {Math.Floor((seconds % 3600) / 60):0}m";
     }
 
     private void Header_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
@@ -93,8 +124,13 @@ public partial class MiningFleetOverviewWindow : Window
     private sealed class FleetCard
     {
         public string Character { get; init; } = "";
+        public string Ore { get; init; } = "";
         public string BaseText { get; init; } = "";
         public string ActualText { get; init; } = "";
+        public string CritText { get; init; } = "";
+        public string ValueText { get; init; } = "";
+        public string BuybackText { get; init; } = "";
         public string Status { get; init; } = "";
+        public string StatusText { get; init; } = "";
     }
 }
