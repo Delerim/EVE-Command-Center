@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Windows;
-using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Threading;
 using EveMultiPreview.Services;
@@ -145,7 +144,7 @@ public partial class MiningFleetOverviewWindow : Window
 
     private void AlarmToggle_Click(object sender, RoutedEventArgs e)
     {
-        if (sender is not Button button ||
+        if (sender is not System.Windows.Controls.Button button ||
             button.Tag is not string character ||
             string.IsNullOrWhiteSpace(character))
             return;
