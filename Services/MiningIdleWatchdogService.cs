@@ -8,7 +8,7 @@ namespace EveMultiPreview.Services;
 
 public sealed class MiningDashboardPreferences
 {
-    public int PreferencesVersion { get; set; } = 3;
+    public int PreferencesVersion { get; set; } = 4;
 
     public bool JitaEnabled { get; set; } = true;
     public bool AmarrEnabled { get; set; } = true;
@@ -26,14 +26,16 @@ public sealed class MiningDashboardPreferences
     public int YieldDropPercent { get; set; } = 35;
     public int YieldDropHoldSeconds { get; set; } = 30;
 
-    // V1.6 defaults to the single tiled fleet wall the user asked for.
     public bool UseFleetTileWall { get; set; } = true;
     public bool AutoShowFleetOverview { get; set; } = true;
     public bool FleetOverviewTopmost { get; set; } = true;
     public double? FleetOverviewX { get; set; }
     public double? FleetOverviewY { get; set; }
-    public double FleetOverviewWidth { get; set; } = 1500;
-    public double FleetOverviewHeight { get; set; } = 390;
+    public double FleetOverviewWidth { get; set; } = 1780;
+    public double FleetOverviewHeight { get; set; } = 165;
+
+    public int DashboardOpacityPercent { get; set; } = 96;
+    public int FleetOverviewOpacityPercent { get; set; } = 94;
 }
 
 public static class MiningDashboardPreferencesStore
@@ -71,7 +73,6 @@ public static class MiningDashboardPreferencesStore
 
             bool changed = false;
 
-            // V1.4 -> V1.5 migration.
             if (storedVersion < 2)
             {
                 prefs.IdleWatchdogEnabled = true;
@@ -79,8 +80,6 @@ public static class MiningDashboardPreferencesStore
                 changed = true;
             }
 
-            // V1.5 -> V1.6 migration. Move the mining-only overlays into one
-            // resizable tiled window and auto-show it on startup.
             if (storedVersion < 3)
             {
                 prefs.UseFleetTileWall = true;
@@ -88,7 +87,20 @@ public static class MiningDashboardPreferencesStore
                 changed = true;
             }
 
-            prefs.PreferencesVersion = 3;
+            if (storedVersion < 4)
+            {
+                // V1.8: compact banner defaults and mild transparency.
+                prefs.FleetOverviewWidth = Math.Max(prefs.FleetOverviewWidth, 1780);
+                prefs.FleetOverviewHeight = 165;
+                prefs.DashboardOpacityPercent = 96;
+                prefs.FleetOverviewOpacityPercent = 94;
+                changed = true;
+            }
+
+            prefs.PreferencesVersion = 4;
+            prefs.DashboardOpacityPercent = Math.Clamp(prefs.DashboardOpacityPercent, 55, 100);
+            prefs.FleetOverviewOpacityPercent = Math.Clamp(prefs.FleetOverviewOpacityPercent, 55, 100);
+
             if (changed)
                 Save(prefs);
 
@@ -110,7 +122,7 @@ public static class MiningDashboardPreferencesStore
         }
         catch
         {
-            // Dashboard preferences are non-critical.
+            // Mining preferences must never prevent MultiPreview from running.
         }
     }
 }
@@ -135,18 +147,11 @@ public readonly record struct MiningIdleState(
         MiningIdleKind.Mining => "MINING",
         MiningIdleKind.Late => "LATE",
         MiningIdleKind.Degraded => "DEGRADED",
-        MiningIdleKind.Idle => "IDLE ⚠",
+        MiningIdleKind.Idle => "IDLE",
         _ => "WAITING"
     };
 }
 
-/// <summary>
-/// Watches both complete inactivity and sustained yield drops.
-///
-/// V1.6 deliberately requires a stable learned BASE before the yield-drop alarm
-/// is armed. This prevents mining drones, warm-up, boost changes, partial rocks,
-/// or a temporary BASE estimator wobble from immediately flashing a client.
-/// </summary>
 public sealed class MiningIdleWatchdogService : IDisposable
 {
     private readonly StatTrackerService _tracker;
@@ -172,8 +177,17 @@ public sealed class MiningIdleWatchdogService : IDisposable
     private readonly Dictionary<string, string> _lastOre =
         new(StringComparer.OrdinalIgnoreCase);
 
-    private const int StableSamplesRequired = 20;
-    private const double StableBand = 0.12;
+    private readonly Dictionary<string, double> _relearnCandidate =
+        new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, DateTime> _relearnSince =
+        new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, int> _relearnSamples =
+        new(StringComparer.OrdinalIgnoreCase);
+
+    private const int StableSamplesRequired = 8;
+    private const int RelearnSamplesRequired = 6;
+    private const double StableBand = 0.15;
+    private const double RelearnBand = 0.18;
 
     public MiningDashboardPreferences Preferences { get; }
     public event Action<string>? IdleDetected;
@@ -217,11 +231,11 @@ public sealed class MiningIdleWatchdogService : IDisposable
         if (_degraded.Contains(character))
             return new MiningIdleState(MiningIdleKind.Degraded, last, age, snap.MiningCycleCount);
 
-        var kind = age >= idleAfter * 0.70
-            ? MiningIdleKind.Late
-            : MiningIdleKind.Mining;
-
-        return new MiningIdleState(kind, last, age, snap.MiningCycleCount);
+        return new MiningIdleState(
+            age >= idleAfter * 0.70 ? MiningIdleKind.Late : MiningIdleKind.Mining,
+            last,
+            age,
+            snap.MiningCycleCount);
     }
 
     private void Tick()
@@ -237,20 +251,23 @@ public sealed class MiningIdleWatchdogService : IDisposable
         if (count <= 0) return;
 
         var now = DateTime.UtcNow;
+        bool newPull = false;
 
         if (!_lastCycleCounts.TryGetValue(character, out int previous))
         {
             _lastCycleCounts[character] = count;
             _lastActivityUtc[character] = now;
+            newPull = true;
         }
         else if (count != previous)
         {
             _lastCycleCounts[character] = count;
             _lastActivityUtc[character] = now;
             _idleAlerted.Remove(character);
+            newPull = true;
         }
 
-        ObserveYield(character, snap, now, fireAlert);
+        ObserveYield(character, snap, now, fireAlert, newPull);
 
         if (!Preferences.IdleWatchdogEnabled || !fireAlert)
             return;
@@ -276,11 +293,75 @@ public sealed class MiningIdleWatchdogService : IDisposable
         _dropSince.Remove(character);
         _dropAlerted.Remove(character);
         _degraded.Remove(character);
+        ClearRelearnCandidate(character);
     }
 
-    private void ObserveYield(string character, CharacterStatSnapshot snap, DateTime now, bool fireAlert)
+    private void ClearRelearnCandidate(string character)
     {
-        if (!Preferences.YieldDropEnabled || snap.MiningCycleCount < 10 || snap.BaseM3PerSec <= 0)
+        _relearnCandidate.Remove(character);
+        _relearnSince.Remove(character);
+        _relearnSamples.Remove(character);
+    }
+
+    private bool ObserveRelearnCandidate(
+        string character,
+        double current,
+        DateTime now,
+        int requiredSeconds)
+    {
+        if (!_relearnCandidate.TryGetValue(character, out double candidate) || candidate <= 0)
+        {
+            _relearnCandidate[character] = current;
+            _relearnSince[character] = now;
+            _relearnSamples[character] = 1;
+            return false;
+        }
+
+        double deviation = Math.Abs(current - candidate) / Math.Max(1.0, candidate);
+
+        if (deviation > RelearnBand)
+        {
+            _relearnCandidate[character] = current;
+            _relearnSince[character] = now;
+            _relearnSamples[character] = 1;
+            return false;
+        }
+
+        _relearnCandidate[character] = candidate * 0.80 + current * 0.20;
+        _relearnSamples[character] = _relearnSamples.GetValueOrDefault(character) + 1;
+
+        if (!_relearnSince.TryGetValue(character, out var since))
+            _relearnSince[character] = since = now;
+
+        if (_relearnSamples.GetValueOrDefault(character) < RelearnSamplesRequired)
+            return false;
+
+        return (now - since).TotalSeconds >= requiredSeconds;
+    }
+
+    private void AcceptRelearnedBaseline(string character)
+    {
+        if (!_relearnCandidate.TryGetValue(character, out double candidate) || candidate <= 0)
+            return;
+
+        _learnedBase[character] = candidate;
+        _stableSamples[character] = StableSamplesRequired;
+        _dropSince.Remove(character);
+        _dropAlerted.Remove(character);
+        _degraded.Remove(character);
+        ClearRelearnCandidate(character);
+    }
+
+    private void ObserveYield(
+        string character,
+        CharacterStatSnapshot snap,
+        DateTime now,
+        bool fireAlert,
+        bool newPull)
+    {
+        if (!Preferences.YieldDropEnabled ||
+            snap.MiningCycleCount < 10 ||
+            snap.BaseM3PerSec <= 0)
             return;
 
         string ore = snap.CurrentOre ?? "";
@@ -291,21 +372,25 @@ public sealed class MiningIdleWatchdogService : IDisposable
         }
         _lastOre[character] = ore;
 
+        // Only learn from new EVE mining pulls, never the one-second UI timer.
+        if (!newPull)
+            return;
+
         double current = snap.BaseM3PerSec;
+
         if (!_learnedBase.TryGetValue(character, out double learned) || learned <= 0)
         {
             _learnedBase[character] = current;
-            _stableSamples[character] = 0;
+            _stableSamples[character] = 1;
+            ClearRelearnCandidate(character);
             return;
         }
 
         double relative = Math.Abs(current - learned) / Math.Max(1.0, learned);
 
-        // Stable readings slowly refine the learned normal BASE. The alarm is not
-        // armed until we have seen ~20 seconds of this stable state.
         if (relative <= StableBand)
         {
-            _learnedBase[character] = learned * 0.95 + current * 0.05;
+            _learnedBase[character] = learned * 0.90 + current * 0.10;
             _stableSamples[character] = Math.Min(
                 StableSamplesRequired,
                 _stableSamples.GetValueOrDefault(character) + 1);
@@ -313,53 +398,62 @@ public sealed class MiningIdleWatchdogService : IDisposable
             _dropSince.Remove(character);
             _dropAlerted.Remove(character);
             _degraded.Remove(character);
+            ClearRelearnCandidate(character);
             return;
         }
 
-        // A sudden HIGH reading is not a stopped miner. It can be a boost/fit
-        // change, drones landing together, warm-up, or a transient estimator jump.
-        // Do not promote that spike into the normal baseline; just re-arm learning.
-        if (current > learned)
+        bool baselineArmed =
+            _stableSamples.GetValueOrDefault(character) >= StableSamplesRequired;
+
+        if (!baselineArmed)
         {
-            _stableSamples[character] = 0;
+            _learnedBase[character] = current;
+            _stableSamples[character] = 1;
             _dropSince.Remove(character);
             _dropAlerted.Remove(character);
             _degraded.Remove(character);
-            return;
-        }
-
-        // Never alarm from a baseline that was not proven stable first.
-        if (_stableSamples.GetValueOrDefault(character) < StableSamplesRequired)
-        {
-            _learnedBase[character] = learned * 0.97 + current * 0.03;
-            return;
-        }
-
-        double dropFraction = Math.Clamp(Preferences.YieldDropPercent, 10, 80) / 100.0;
-        double threshold = learned * (1.0 - dropFraction);
-
-        if (current >= threshold)
-        {
-            _dropSince.Remove(character);
-            _dropAlerted.Remove(character);
-            _degraded.Remove(character);
-            return;
-        }
-
-        if (!_dropSince.TryGetValue(character, out var since))
-        {
-            _dropSince[character] = now;
+            ClearRelearnCandidate(character);
             return;
         }
 
         int hold = Math.Clamp(Preferences.YieldDropHoldSeconds, 10, 300);
-        if ((now - since).TotalSeconds < hold)
+        double dropFraction = Math.Clamp(Preferences.YieldDropPercent, 10, 80) / 100.0;
+        double dropThreshold = learned * (1.0 - dropFraction);
+
+        // A changed but non-dangerous stable rate may become the new baseline.
+        if (current >= dropThreshold)
+        {
+            _dropSince.Remove(character);
+            _dropAlerted.Remove(character);
+            _degraded.Remove(character);
+
+            int relearnSeconds = Math.Max(30, hold);
+            if (ObserveRelearnCandidate(character, current, now, relearnSeconds))
+                AcceptRelearnedBaseline(character);
+
+            return;
+        }
+
+        if (!_dropSince.TryGetValue(character, out var dropSince))
+        {
+            _dropSince[character] = now;
+            ClearRelearnCandidate(character);
+            return;
+        }
+
+        if ((now - dropSince).TotalSeconds < hold)
             return;
 
         _degraded.Add(character);
 
         if (fireAlert && _dropAlerted.Add(character))
             YieldDropDetected?.Invoke(character, current, learned);
+
+        // A lower rate is allowed to become the new normal after the warning has
+        // fired and consistent mining pulls prove the lower rate is deliberate.
+        int lowerRelearnSeconds = Math.Max(60, hold * 2);
+        if (ObserveRelearnCandidate(character, current, now, lowerRelearnSeconds))
+            AcceptRelearnedBaseline(character);
     }
 
     public void Dispose()

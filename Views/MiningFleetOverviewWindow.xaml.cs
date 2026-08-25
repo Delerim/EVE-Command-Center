@@ -27,6 +27,7 @@ public partial class MiningFleetOverviewWindow : Window
         _prefs = prefs;
 
         Topmost = prefs.FleetOverviewTopmost;
+        Opacity = Math.Clamp(prefs.FleetOverviewOpacityPercent, 55, 100) / 100.0;
 
         if (prefs.FleetOverviewX.HasValue && prefs.FleetOverviewY.HasValue)
         {
@@ -43,6 +44,8 @@ public partial class MiningFleetOverviewWindow : Window
         _timer.Start();
 
         Loaded += (_, _) => RefreshCards();
+        SizeChanged += (_, _) => RefreshCards();
+
         Closed += (_, _) =>
         {
             _timer.Stop();
@@ -70,38 +73,48 @@ public partial class MiningFleetOverviewWindow : Window
             cards.Add(new FleetCard
             {
                 Character = character,
-                Ore = string.IsNullOrWhiteSpace(s.CurrentOre) ? "—" : s.CurrentOre,
+                Ore = string.IsNullOrWhiteSpace(s.CurrentOre) ? "-" : s.CurrentOre,
                 BaseText = s.BaseM3PerSec > 0
-                    ? $"{s.BaseM3PerSec.ToString("N1", CultureInfo.CurrentCulture)} m³/s"
-                    : "warming…",
+                    ? $"{s.BaseM3PerSec.ToString("N1", CultureInfo.CurrentCulture)} m3/s"
+                    : "warming...",
                 ActualText = s.ActualM3PerSec > 0
-                    ? $"{s.ActualM3PerSec.ToString("N1", CultureInfo.CurrentCulture)} m³/s"
-                    : "warming…",
-                CritText = crit.Cycles > 0 ? crit.ToString() : "—",
+                    ? $"{s.ActualM3PerSec.ToString("N1", CultureInfo.CurrentCulture)} m3/s"
+                    : "warming...",
+                CritText = crit.Cycles > 0 ? crit.ToString() : "-",
                 ValueText = s.SessionBestValue > 0
                     ? StatTrackerService.FormatNumber(s.SessionBestValue)
-                    : "—",
+                    : "-",
                 BuybackText = s.SessionBuybackValue > 0
                     ? StatTrackerService.FormatNumber(s.SessionBuybackValue)
-                    : "—",
+                    : "-",
                 Status = state.Label,
                 StatusText = state.Kind switch
                 {
                     MiningIdleKind.Mining => "Stable",
-                    MiningIdleKind.Late => $"Late · {AgeText(state.AgeSeconds)} since pull",
-                    MiningIdleKind.Degraded => "Yield drop · checking sustained loss",
-                    MiningIdleKind.Idle => $"Idle · {AgeText(state.AgeSeconds)} since pull",
+                    MiningIdleKind.Late => $"Late - {AgeText(state.AgeSeconds)} since pull",
+                    MiningIdleKind.Degraded => "Yield drop detected - relearning baseline",
+                    MiningIdleKind.Idle => $"Idle - {AgeText(state.AgeSeconds)} since pull",
                     _ => "Warming up"
                 }
             });
         }
 
-        MinerItems.ItemsSource = cards
+        var ordered = cards
             .OrderBy(x => x.Character, StringComparer.OrdinalIgnoreCase)
             .ToList();
 
-        DayText.Text = $"MINING DAY {_tracker.GetMiningDayLabel()}";
-        UpdatedText.Text = $"{cards.Count} logged-in miner(s) · {DateTime.Now:HH:mm:ss}";
+        double available = Math.Max(500, ActualWidth - 28);
+        int count = Math.Max(1, ordered.Count);
+        double ideal = (available - Math.Max(0, count - 1) * 6) / count;
+        double cardWidth = Math.Clamp(Math.Floor(ideal), 150, 205);
+
+        foreach (var card in ordered)
+            card.CardWidth = cardWidth;
+
+        MinerItems.ItemsSource = ordered;
+
+        DayText.Text = $"DAY {_tracker.GetMiningDayLabel()}";
+        UpdatedText.Text = $"{cards.Count} miners | {DateTime.Now:HH:mm:ss}";
     }
 
     private static string AgeText(double seconds)
@@ -123,6 +136,7 @@ public partial class MiningFleetOverviewWindow : Window
 
     private sealed class FleetCard
     {
+        public double CardWidth { get; set; } = 170;
         public string Character { get; init; } = "";
         public string Ore { get; init; } = "";
         public string BaseText { get; init; } = "";

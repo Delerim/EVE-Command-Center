@@ -214,6 +214,8 @@ public sealed class MiningDailyStore
                         Character = character,
                         Ore = ore,
                         Units = totals.Units,
+                        NormalUnits = totals.NormalUnits,
+                        CriticalUnits = totals.CriticalUnits,
                         Crits = totals.Crits,
                         Cycles = totals.Cycles
                     });
@@ -325,13 +327,23 @@ public sealed class MiningDailyStore
 
         totals.Units += ev.Units;
         totals.Cycles++;
-        if (ev.IsCritical) totals.Crits++;
+        if (ev.IsCritical)
+        {
+            totals.Crits++;
+            totals.CriticalUnits += ev.Units;
+        }
+        else
+        {
+            totals.NormalUnits += ev.Units;
+        }
         _lastOre[ev.Character] = ev.Ore;
     }
 
     private sealed class DailyOreTotals
     {
         public double Units { get; set; }
+        public double NormalUnits { get; set; }
+        public double CriticalUnits { get; set; }
         public int Crits { get; set; }
         public int Cycles { get; set; }
     }
@@ -352,6 +364,8 @@ public sealed class MiningAggregateRow
     public string Character { get; set; } = "";
     public string Ore { get; set; } = "";
     public double Units { get; set; }
+    public double NormalUnits { get; set; }
+    public double CriticalUnits { get; set; }
     public int Crits { get; set; }
     public int Cycles { get; set; }
 }

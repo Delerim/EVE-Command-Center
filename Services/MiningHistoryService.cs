@@ -214,6 +214,8 @@ public sealed class MiningHistoryService : IDisposable
                 }, (acc, row) =>
                 {
                     acc.Units += row.Units;
+                    acc.NormalUnits += row.NormalUnits;
+                    acc.CriticalUnits += row.CriticalUnits;
                     acc.Crits += row.Crits;
                     acc.Cycles += row.Cycles;
                     return acc;
@@ -335,7 +337,7 @@ public sealed class MiningHistoryService : IDisposable
                 continue;
 
             var rest = trimmed.Substring(key.Length).TrimStart();
-            if (rest.Length == 0 || (rest[0] != ':' && rest[0] != '：'))
+            if (rest.Length == 0 || (rest[0] != ':' && rest[0] != 'ï¼š'))
                 continue;
 
             string name = rest.Substring(1).Trim();
@@ -453,6 +455,8 @@ public sealed class MiningHistoryService : IDisposable
                 Character = g.Key.Character,
                 Ore = g.Key.Ore,
                 Units = g.Sum(e => (double)e.Amount),
+                NormalUnits = g.Where(e => !e.IsCritical).Sum(e => (double)e.Amount),
+                CriticalUnits = g.Where(e => e.IsCritical).Sum(e => (double)e.Amount),
                 Cycles = g.Count(),
                 Crits = g.Count(e => e.IsCritical)
             })
@@ -466,9 +470,16 @@ public sealed class MiningHistoryService : IDisposable
             if (!File.Exists(_archivePath))
                 return new MiningHistoryArchive();
 
-            return JsonSerializer.Deserialize<MiningHistoryArchive>(
-                       File.ReadAllText(_archivePath))
-                   ?? new MiningHistoryArchive();
+            var loaded = JsonSerializer.Deserialize<MiningHistoryArchive>(
+                             File.ReadAllText(_archivePath))
+                         ?? new MiningHistoryArchive();
+
+            // Archive v1 did not store normal-vs-critical unit totals. Rebuild
+            // once from the raw EVE logs so Profit analytics are exact.
+            if (loaded.Version < 2)
+                return new MiningHistoryArchive { Version = 2 };
+
+            return loaded;
         }
         catch
         {
@@ -521,6 +532,8 @@ public sealed class MiningHistoryService : IDisposable
         Character = r.Character,
         Ore = r.Ore,
         Units = r.Units,
+        NormalUnits = r.NormalUnits,
+        CriticalUnits = r.CriticalUnits,
         Crits = r.Crits,
         Cycles = r.Cycles
     };
@@ -533,7 +546,7 @@ public sealed class MiningHistoryService : IDisposable
 
     private sealed class MiningHistoryArchive
     {
-        public int Version { get; set; } = 1;
+        public int Version { get; set; } = 2;
         public DateTime LastCompletedScanUtc { get; set; }
         public List<MiningAggregateRow> Rows { get; set; } = new();
     }

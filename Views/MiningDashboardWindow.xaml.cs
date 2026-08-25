@@ -23,6 +23,8 @@ public partial class MiningDashboardWindow : Window
     private readonly DispatcherTimer _historyRefreshTimer;
     private DateTime _historyFrom;
     private DateTime _historyTo;
+    private DateTime _profitFrom;
+    private DateTime _profitTo;
     private bool _syncingSettings;
 
     public MiningDashboardWindow(
@@ -45,12 +47,17 @@ public partial class MiningDashboardWindow : Window
         HookSettingsControls();
         HookHistoryControls();
         SetHistoryRange("today");
+        HookProfitControls();
+        SetProfitRange("today");
+        Opacity = Math.Clamp(_prefs.DashboardOpacityPercent, 55, 100) / 100.0;
 
         _historyRefreshTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
         _historyRefreshTimer.Tick += async (_, _) =>
         {
             if (HistoryTab.IsSelected)
                 await RefreshHistoryAsync();
+            else if (ProfitTab.IsSelected)
+                await RefreshProfitAsync();
         };
         _historyRefreshTimer.Start();
 
@@ -97,6 +104,8 @@ public partial class MiningDashboardWindow : Window
 
             AutoOverviewCheck.IsChecked = _prefs.AutoShowFleetOverview;
             TileWallCheck.IsChecked = _prefs.UseFleetTileWall;
+            DashboardOpacityText.Text = Math.Clamp(_prefs.DashboardOpacityPercent, 55, 100).ToString(CultureInfo.InvariantCulture);
+            OverviewOpacityText.Text = Math.Clamp(_prefs.FleetOverviewOpacityPercent, 55, 100).ToString(CultureInfo.InvariantCulture);
         }
         finally
         {
@@ -130,11 +139,15 @@ public partial class MiningDashboardWindow : Window
         IdleSecondsText.LostFocus += (_, _) => SaveSettingsFromControls();
         YieldDropPercentText.LostFocus += (_, _) => SaveSettingsFromControls();
         YieldDropSecondsText.LostFocus += (_, _) => SaveSettingsFromControls();
+        DashboardOpacityText.LostFocus += (_, _) => SaveSettingsFromControls();
+        OverviewOpacityText.LostFocus += (_, _) => SaveSettingsFromControls();
 
         BuybackPercentText.KeyDown += NumericTextBox_KeyDown;
         IdleSecondsText.KeyDown += NumericTextBox_KeyDown;
         YieldDropPercentText.KeyDown += NumericTextBox_KeyDown;
         YieldDropSecondsText.KeyDown += NumericTextBox_KeyDown;
+        DashboardOpacityText.KeyDown += NumericTextBox_KeyDown;
+        OverviewOpacityText.KeyDown += NumericTextBox_KeyDown;
 
         ToggleOverviewButton.Click += (_, _) => _toggleOverviewRequested?.Invoke();
     }
@@ -165,6 +178,8 @@ public partial class MiningDashboardWindow : Window
         int idleSeconds = ParseInt(IdleSecondsText.Text, _prefs.IdleSeconds, 15, 3600);
         int dropPercent = ParseInt(YieldDropPercentText.Text, _prefs.YieldDropPercent, 10, 80);
         int dropSeconds = ParseInt(YieldDropSecondsText.Text, _prefs.YieldDropHoldSeconds, 10, 300);
+        int dashboardOpacity = ParseInt(DashboardOpacityText.Text, _prefs.DashboardOpacityPercent, 55, 100);
+        int overviewOpacity = ParseInt(OverviewOpacityText.Text, _prefs.FleetOverviewOpacityPercent, 55, 100);
 
         _prefs.JitaEnabled = _settings.MiningMarketJitaEnabled;
         _prefs.AmarrEnabled = _settings.MiningMarketAmarrEnabled;
@@ -181,6 +196,9 @@ public partial class MiningDashboardWindow : Window
         _prefs.YieldDropHoldSeconds = dropSeconds;
         _prefs.AutoShowFleetOverview = AutoOverviewCheck.IsChecked == true;
         _prefs.UseFleetTileWall = TileWallCheck.IsChecked == true;
+        _prefs.DashboardOpacityPercent = dashboardOpacity;
+        _prefs.FleetOverviewOpacityPercent = overviewOpacity;
+        Opacity = dashboardOpacity / 100.0;
 
         _syncingSettings = true;
         try
@@ -189,6 +207,8 @@ public partial class MiningDashboardWindow : Window
             IdleSecondsText.Text = _prefs.IdleSeconds.ToString(CultureInfo.InvariantCulture);
             YieldDropPercentText.Text = _prefs.YieldDropPercent.ToString(CultureInfo.InvariantCulture);
             YieldDropSecondsText.Text = _prefs.YieldDropHoldSeconds.ToString(CultureInfo.InvariantCulture);
+            DashboardOpacityText.Text = _prefs.DashboardOpacityPercent.ToString(CultureInfo.InvariantCulture);
+            OverviewOpacityText.Text = _prefs.FleetOverviewOpacityPercent.ToString(CultureInfo.InvariantCulture);
         }
         finally
         {
@@ -245,14 +265,14 @@ public partial class MiningDashboardWindow : Window
             bool actualReady = s.MiningCycleCount >= 6 && s.ActualM3PerSec > 0;
             string actualText = actualReady
                 ? s.ActualM3PerSec.ToString("N1", CultureInfo.CurrentCulture)
-                : "warmingÃ¢â‚¬Â¦";
+                : "warmingÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦";
 
             liveRows.Add(new LiveMiningRow
             {
                 Character = character,
                 Status = idle.Label,
-                LastPull = idle.LastActivityUtc.HasValue ? AgeText(idle.AgeSeconds) : "Ã¢â‚¬â€",
-                Ore = string.IsNullOrWhiteSpace(s.CurrentOre) ? "Ã¢â‚¬â€" : s.CurrentOre,
+                LastPull = idle.LastActivityUtc.HasValue ? AgeText(idle.AgeSeconds) : "ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â",
+                Ore = string.IsNullOrWhiteSpace(s.CurrentOre) ? "ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â" : s.CurrentOre,
                 BaseM3PerSec = s.BaseM3PerSec,
                 ActualM3PerSecText = actualText,
                 ActualM3PerSecValue = actualReady ? s.ActualM3PerSec : 0,
@@ -268,7 +288,7 @@ public partial class MiningDashboardWindow : Window
             {
                 Character = character,
                 Status = idle.Label,
-                Ore = string.IsNullOrWhiteSpace(s.CurrentOre) ? "Ã¢â‚¬â€" : s.CurrentOre,
+                Ore = string.IsNullOrWhiteSpace(s.CurrentOre) ? "ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â" : s.CurrentOre,
                 SessionM3Text = Number(s.SessionM3),
                 JitaValueText = _settings.MiningMarketJitaEnabled ? Isk(s.SessionJitaValue) : "off",
                 AmarrValueText = _settings.MiningMarketAmarrEnabled ? Isk(s.SessionAmarrValue) : "off",
@@ -288,13 +308,13 @@ public partial class MiningDashboardWindow : Window
             liveRows.Add(new LiveMiningRow
             {
                 Character = "FLEET",
-                Status = "Ã¢â‚¬â€",
-                LastPull = "Ã¢â‚¬â€",
-                Ore = "Ã¢â‚¬â€",
+                Status = "ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â",
+                LastPull = "ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â",
+                Ore = "ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â",
                 BaseM3PerSec = totalBase,
                 ActualM3PerSecText = totalActual > 0
                     ? totalActual.ToString("N1", CultureInfo.CurrentCulture)
-                    : "warmingÃ¢â‚¬Â¦",
+                    : "warmingÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦",
                 ActualM3PerSecValue = totalActual,
                 Crits = FleetCritText(),
                 SessionM3 = totalTodayM3,
@@ -308,9 +328,9 @@ public partial class MiningDashboardWindow : Window
         LiveGrid.ItemsSource = liveRows;
         OverviewCharacterGrid.ItemsSource = overviewRows;
 
-        SummaryBaseText.Text = totalBase > 0 ? $"{totalBase:N1} mÃ‚Â³/s" : "Ã¢â‚¬â€";
-        SummaryActualText.Text = totalActual > 0 ? $"{totalActual:N1} mÃ‚Â³/s" : "warmingÃ¢â‚¬Â¦";
-        SummarySessionM3Text.Text = totalTodayM3 > 0 ? $"{totalTodayM3:N0} mÃ‚Â³" : "Ã¢â‚¬â€";
+        SummaryBaseText.Text = totalBase > 0 ? $"{totalBase:N1} mÃƒâ€šÃ‚Â³/s" : "ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â";
+        SummaryActualText.Text = totalActual > 0 ? $"{totalActual:N1} mÃƒâ€šÃ‚Â³/s" : "warmingÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦";
+        SummarySessionM3Text.Text = totalTodayM3 > 0 ? $"{totalTodayM3:N0} mÃƒâ€šÃ‚Â³" : "ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â";
         SummaryBestValueText.Text = Isk(totalBestToday);
         SummaryBuybackText.Text = Isk(totalCorpToday);
         SummaryCritText.Text = FleetCritText();
@@ -341,10 +361,10 @@ public partial class MiningDashboardWindow : Window
                 VolumeM3Text = Number(kv.Value * quote.UnitVolumeM3),
                 JitaUnitText = _settings.MiningMarketJitaEnabled ? Price(jitaUnit) : "off",
                 AmarrUnitText = _settings.MiningMarketAmarrEnabled ? Price(amarrUnit) : "off",
-                BestMarket = best.Market ?? "Ã¢â‚¬â€",
+                BestMarket = best.Market ?? "ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â",
                 JitaValueText = _settings.MiningMarketJitaEnabled ? Isk(jitaValue) : "off",
                 AmarrValueText = _settings.MiningMarketAmarrEnabled ? Isk(amarrValue) : "off",
-                BestValueText = best.Market == null ? "Ã¢â‚¬â€" : Isk(best.Value)
+                BestValueText = best.Market == null ? "ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â" : Isk(best.Value)
             });
         }
 
@@ -408,7 +428,7 @@ public partial class MiningDashboardWindow : Window
             : "drop off";
 
         LastRefreshText.Text =
-            $"{_tracker.GetMiningDayLabel()} day Ã‚Â· ESI {DateTime.Now:HH:mm:ss} Ã‚Â· {fleetOre.Count} resource(s) Ã‚Â· {watchdogText} Ã‚Â· {dropText}";
+            $"{_tracker.GetMiningDayLabel()} day Ãƒâ€š| ESI {DateTime.Now:HH:mm:ss} Ãƒâ€š| {fleetOre.Count} resource(s) Ãƒâ€š| {watchdogText} Ãƒâ€š| {dropText}";
     }
 
 
@@ -429,6 +449,8 @@ public partial class MiningDashboardWindow : Window
         {
             if (HistoryTab.IsSelected)
                 await RefreshHistoryAsync();
+            else if (ProfitTab.IsSelected)
+                await RefreshProfitAsync();
         };
     }
 
@@ -499,7 +521,7 @@ public partial class MiningDashboardWindow : Window
         _historyTo = to.Date;
         HistoryRangeText.Text = from == to
             ? from.ToString("dd MMM yyyy", CultureInfo.CurrentCulture)
-            : $"{from:dd MMM yyyy} → {to:dd MMM yyyy}";
+            : $"{from:dd MMM yyyy} â†’ {to:dd MMM yyyy}";
     }
 
     private async System.Threading.Tasks.Task RefreshHistoryAsync()
@@ -573,7 +595,7 @@ public partial class MiningDashboardWindow : Window
                 Character = r.Character,
                 Ore = r.Ore,
                 UnitsText = r.Units.ToString("N0", CultureInfo.CurrentCulture),
-                VolumeText = m3 > 0 ? m3.ToString("N0", CultureInfo.CurrentCulture) : "—",
+                VolumeText = m3 > 0 ? m3.ToString("N0", CultureInfo.CurrentCulture) : "â€”",
                 CritText = $"{r.Crits}/{r.Cycles} ({critPct:F1}%)",
                 ProfitText = Isk(profit),
                 BuybackText = Isk(buyback)
@@ -581,7 +603,7 @@ public partial class MiningDashboardWindow : Window
         }
 
         HistoryGrid.ItemsSource = rows;
-        HistoryVolumeText.Text = totalM3 > 0 ? $"{totalM3:N0} m³" : "—";
+        HistoryVolumeText.Text = totalM3 > 0 ? $"{totalM3:N0} mÂ³" : "â€”";
         HistoryProfitText.Text = Isk(totalProfit);
         HistoryBuybackText.Text = Isk(totalBuyback);
 
@@ -590,10 +612,261 @@ public partial class MiningDashboardWindow : Window
 
         var status = _tracker.GetMiningHistoryStatus();
         HistoryBuildText.Text = status.IsRunning
-            ? $"{status.Message} · {status.ProgressPercent:F0}%"
+            ? $"{status.Message} Â· {status.ProgressPercent:F0}%"
             : status.Message;
     }
 
+    private void HookProfitControls()
+    {
+        ProfitTodayButton.Click += async (_, _) => { SetProfitRange("today"); await RefreshProfitAsync(); };
+        ProfitYesterdayButton.Click += async (_, _) => { SetProfitRange("yesterday"); await RefreshProfitAsync(); };
+        ProfitThisWeekButton.Click += async (_, _) => { SetProfitRange("thisweek"); await RefreshProfitAsync(); };
+        ProfitLastWeekButton.Click += async (_, _) => { SetProfitRange("lastweek"); await RefreshProfitAsync(); };
+        ProfitThisMonthButton.Click += async (_, _) => { SetProfitRange("thismonth"); await RefreshProfitAsync(); };
+        ProfitLastMonthButton.Click += async (_, _) => { SetProfitRange("lastmonth"); await RefreshProfitAsync(); };
+        Profit30Button.Click += async (_, _) => { SetProfitRange("30"); await RefreshProfitAsync(); };
+        Profit90Button.Click += async (_, _) => { SetProfitRange("90"); await RefreshProfitAsync(); };
+        ProfitYearButton.Click += async (_, _) => { SetProfitRange("year"); await RefreshProfitAsync(); };
+        ProfitRefreshButton.Click += async (_, _) => await RefreshProfitAsync();
+    }
+
+    private void SetProfitRange(string preset)
+    {
+        if (!DateTime.TryParseExact(
+                _tracker.GetMiningDayLabel(),
+                "yyyy-MM-dd",
+                CultureInfo.InvariantCulture,
+                DateTimeStyles.None,
+                out var today))
+            today = DateTime.Today;
+
+        DateTime from;
+        DateTime to;
+
+        switch (preset)
+        {
+            case "yesterday":
+                from = to = today.AddDays(-1);
+                break;
+            case "thisweek":
+                int daysSinceMonday = ((int)today.DayOfWeek + 6) % 7;
+                from = today.AddDays(-daysSinceMonday);
+                to = today;
+                break;
+            case "lastweek":
+                int offset = ((int)today.DayOfWeek + 6) % 7;
+                DateTime thisWeek = today.AddDays(-offset);
+                from = thisWeek.AddDays(-7);
+                to = thisWeek.AddDays(-1);
+                break;
+            case "thismonth":
+                from = new DateTime(today.Year, today.Month, 1);
+                to = today;
+                break;
+            case "lastmonth":
+                DateTime thisMonth = new DateTime(today.Year, today.Month, 1);
+                from = thisMonth.AddMonths(-1);
+                to = thisMonth.AddDays(-1);
+                break;
+            case "30":
+                from = today.AddDays(-29);
+                to = today;
+                break;
+            case "90":
+                from = today.AddDays(-89);
+                to = today;
+                break;
+            case "year":
+                from = today.AddDays(-364);
+                to = today;
+                break;
+            default:
+                from = to = today;
+                break;
+        }
+
+        _profitFrom = from.Date;
+        _profitTo = to.Date;
+        ProfitRangeText.Text = from == to
+            ? from.ToString("dd MMM yyyy", CultureInfo.CurrentCulture)
+            : $"{from:dd MMM yyyy} -> {to:dd MMM yyyy}";
+    }
+
+    private async System.Threading.Tasks.Task RefreshProfitAsync()
+    {
+        if (!ProfitTab.IsSelected)
+            return;
+
+        var aggregates = _tracker.GetMiningHistoryRange(_profitFrom, _profitTo);
+
+        var ores = aggregates
+            .Select(r => r.Ore)
+            .Where(o => !string.IsNullOrWhiteSpace(o))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (ores.Count > 0)
+            await System.Threading.Tasks.Task.WhenAll(ores.Select(o => _tracker.EnsureMiningQuoteAsync(o)));
+
+        double totalUnits = aggregates.Sum(r => r.Units);
+        double totalNormal = aggregates.Sum(r => r.NormalUnits);
+        double totalCriticalUnits = aggregates.Sum(r => r.CriticalUnits);
+        int totalCrits = aggregates.Sum(r => r.Crits);
+        int totalCycles = aggregates.Sum(r => r.Cycles);
+
+        double totalProfit = 0;
+        double totalBuyback = 0;
+        double totalM3 = 0;
+
+        var oreRows = new List<ProfitOreRow>();
+
+        foreach (var group in aggregates
+                     .GroupBy(r => r.Ore, StringComparer.OrdinalIgnoreCase)
+                     .OrderByDescending(g => g.Sum(r => r.Units)))
+        {
+            string ore = group.Key;
+            double units = group.Sum(r => r.Units);
+            double normal = group.Sum(r => r.NormalUnits);
+            double critical = group.Sum(r => r.CriticalUnits);
+
+            double jitaUnit = 0;
+            double amarrUnit = 0;
+            double bestValue = 0;
+            double bbValue = 0;
+
+            if (_tracker.TryGetMiningQuote(ore, out var quote) && quote.IsAvailable)
+            {
+                totalM3 += units * quote.UnitVolumeM3;
+
+                jitaUnit = _tracker.GetMarketUnitPrice(quote, "Jita", _settings.MiningMarketPriceMode);
+                amarrUnit = _tracker.GetMarketUnitPrice(quote, "Amarr", _settings.MiningMarketPriceMode);
+
+                if (_settings.MiningMarketJitaEnabled)
+                    bestValue = Math.Max(bestValue, units * jitaUnit);
+                if (_settings.MiningMarketAmarrEnabled)
+                    bestValue = Math.Max(bestValue, units * amarrUnit);
+
+                double bbUnit = _tracker.GetMarketUnitPrice(
+                    quote,
+                    _settings.MiningCorpBuybackMarket,
+                    _settings.MiningCorpBuybackPriceMode);
+
+                bbValue = units * bbUnit *
+                    Math.Clamp(_settings.MiningCorpBuybackPercent, 0, 100) / 100.0;
+            }
+
+            totalProfit += bestValue;
+            totalBuyback += bbValue;
+
+            oreRows.Add(new ProfitOreRow
+            {
+                Ore = ore,
+                NormalText = normal.ToString("N0", CultureInfo.CurrentCulture),
+                CriticalText = critical > 0
+                    ? "+" + critical.ToString("N0", CultureInfo.CurrentCulture)
+                    : "0",
+                CombinedText = units.ToString("N0", CultureInfo.CurrentCulture),
+                PercentText = totalUnits > 0 ? $"{units * 100.0 / totalUnits:F1}%" : "0.0%",
+                JitaUnitText = jitaUnit > 0 ? Price(jitaUnit) : "-",
+                AmarrUnitText = amarrUnit > 0 ? Price(amarrUnit) : "-",
+                BestValueText = Isk(bestValue),
+                BuybackText = Isk(bbValue)
+            });
+        }
+
+        var characterRows = new List<ProfitCharacterRow>();
+
+        foreach (var group in aggregates
+                     .GroupBy(r => r.Character, StringComparer.OrdinalIgnoreCase)
+                     .OrderByDescending(g => g.Sum(r => r.Units)))
+        {
+            double units = group.Sum(r => r.Units);
+            int crits = group.Sum(r => r.Crits);
+            int cycles = group.Sum(r => r.Cycles);
+            double m3 = 0;
+            double profit = 0;
+            double buyback = 0;
+
+            foreach (var r in group)
+            {
+                if (!_tracker.TryGetMiningQuote(r.Ore, out var quote) || !quote.IsAvailable)
+                    continue;
+
+                m3 += r.Units * quote.UnitVolumeM3;
+
+                double jita = r.Units * _tracker.GetMarketUnitPrice(
+                    quote, "Jita", _settings.MiningMarketPriceMode);
+                double amarr = r.Units * _tracker.GetMarketUnitPrice(
+                    quote, "Amarr", _settings.MiningMarketPriceMode);
+
+                if (_settings.MiningMarketJitaEnabled) profit += jita;
+                if (_settings.MiningMarketAmarrEnabled)
+                {
+                    // Per ore choose the better enabled market, not Jita+Amarr.
+                    double currentBestForOre = Math.Max(
+                        _settings.MiningMarketJitaEnabled ? jita : 0,
+                        amarr);
+                    double jitaContribution = _settings.MiningMarketJitaEnabled ? jita : 0;
+                    profit -= jitaContribution;
+                    profit += currentBestForOre;
+                }
+
+                double bbUnit = _tracker.GetMarketUnitPrice(
+                    quote,
+                    _settings.MiningCorpBuybackMarket,
+                    _settings.MiningCorpBuybackPriceMode);
+                buyback += r.Units * bbUnit *
+                    Math.Clamp(_settings.MiningCorpBuybackPercent, 0, 100) / 100.0;
+            }
+
+            double critPct = cycles > 0 ? crits * 100.0 / cycles : 0;
+
+            characterRows.Add(new ProfitCharacterRow
+            {
+                Character = group.Key,
+                UnitsText = units.ToString("N0", CultureInfo.CurrentCulture),
+                VolumeText = m3 > 0 ? m3.ToString("N0", CultureInfo.CurrentCulture) : "-",
+                CritText = $"{crits}/{cycles} ({critPct:F1}%)",
+                ProfitText = Isk(profit),
+                BuybackText = Isk(buyback)
+            });
+        }
+
+        ProfitOreGrid.ItemsSource = oreRows;
+        ProfitCharacterGrid.ItemsSource = characterRows;
+
+        ProfitTotalMinedText.Text = totalUnits > 0 ? totalUnits.ToString("N0", CultureInfo.CurrentCulture) : "-";
+        ProfitNormalText.Text = totalNormal > 0 ? totalNormal.ToString("N0", CultureInfo.CurrentCulture) : "-";
+        ProfitCriticalUnitsText.Text = totalCriticalUnits > 0
+            ? "+" + totalCriticalUnits.ToString("N0", CultureInfo.CurrentCulture)
+            : "0";
+        ProfitCriticalCountText.Text = totalCrits.ToString("N0", CultureInfo.CurrentCulture);
+        ProfitMarketText.Text = Isk(totalProfit);
+        ProfitBuybackText.Text = Isk(totalBuyback);
+
+        int miners = aggregates.Select(r => r.Character).Distinct(StringComparer.OrdinalIgnoreCase).Count();
+        int oreTypes = aggregates.Select(r => r.Ore).Distinct(StringComparer.OrdinalIgnoreCase).Count();
+        int miningDays = Math.Max(1, aggregates.Select(r => r.DayKey).Distinct(StringComparer.Ordinal).Count());
+        double critRate = totalCycles > 0 ? totalCrits * 100.0 / totalCycles : 0;
+        double avgDay = totalUnits / miningDays;
+        double avgMiner = miners > 0 ? totalUnits / miners : 0;
+
+        ProfitFleetStatsText.Text =
+            $"{miners} miners | {oreTypes} ore types | {miningDays} mining day(s) | " +
+            $"{totalCycles:N0} mining pulls | crit rate {critRate:F1}% | " +
+            $"avg/day {avgDay:N0} units | avg/miner {avgMiner:N0} units | volume {totalM3:N0} m3";
+
+        var status = _tracker.GetMiningHistoryStatus();
+        ProfitBuildText.Text = status.IsRunning
+            ? $"{status.Message} | {status.ProgressPercent:F0}%"
+            : status.Message;
+    }
+
+    private void Minimize_Click(object sender, RoutedEventArgs e) =>
+        WindowState = WindowState.Minimized;
+
+    private void CloseWindow_Click(object sender, RoutedEventArgs e) =>
+        Close();
     private string FleetCritText() => _tracker.GetTodayMiningCritSummary().ToString();
 
     private double SumSnapshot(Func<CharacterStatSnapshot, double> selector)
@@ -612,13 +885,13 @@ public partial class MiningDashboardWindow : Window
     }
 
     private static string Isk(double value) =>
-        value <= 0 ? "Ã¢â‚¬â€" : StatTrackerService.FormatNumber(value);
+        value <= 0 ? "ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â" : StatTrackerService.FormatNumber(value);
 
     private static string Price(double value) =>
-        value <= 0 ? "Ã¢â‚¬â€" : value.ToString("N2", CultureInfo.CurrentCulture);
+        value <= 0 ? "ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â" : value.ToString("N2", CultureInfo.CurrentCulture);
 
     private static string Number(double value) =>
-        value <= 0 ? "Ã¢â‚¬â€" : value.ToString("N0", CultureInfo.CurrentCulture);
+        value <= 0 ? "ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â" : value.ToString("N0", CultureInfo.CurrentCulture);
 
     private static string GetComboTag(System.Windows.Controls.ComboBox combo, string fallback) =>
         (combo.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? fallback;
@@ -683,17 +956,39 @@ public partial class MiningDashboardWindow : Window
         {
             Ore = ore,
             Units = units,
-            VolumeM3Text = "loadingÃ¢â‚¬Â¦",
-            JitaUnitText = "loadingÃ¢â‚¬Â¦",
-            AmarrUnitText = "loadingÃ¢â‚¬Â¦",
-            BestMarket = "Ã¢â‚¬â€",
-            JitaValueText = "Ã¢â‚¬â€",
-            AmarrValueText = "Ã¢â‚¬â€",
-            BestValueText = "Ã¢â‚¬â€"
+            VolumeM3Text = "loadingÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦",
+            JitaUnitText = "loadingÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦",
+            AmarrUnitText = "loadingÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦",
+            BestMarket = "ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â",
+            JitaValueText = "ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â",
+            AmarrValueText = "ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â",
+            BestValueText = "ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â"
         };
     }
 
 
+    private sealed class ProfitOreRow
+    {
+        public string Ore { get; init; } = "";
+        public string NormalText { get; init; } = "";
+        public string CriticalText { get; init; } = "";
+        public string CombinedText { get; init; } = "";
+        public string PercentText { get; init; } = "";
+        public string JitaUnitText { get; init; } = "";
+        public string AmarrUnitText { get; init; } = "";
+        public string BestValueText { get; init; } = "";
+        public string BuybackText { get; init; } = "";
+    }
+
+    private sealed class ProfitCharacterRow
+    {
+        public string Character { get; init; } = "";
+        public string UnitsText { get; init; } = "";
+        public string VolumeText { get; init; } = "";
+        public string CritText { get; init; } = "";
+        public string ProfitText { get; init; } = "";
+        public string BuybackText { get; init; } = "";
+    }
     private sealed class HistoryRow
     {
         public string Day { get; init; } = "";
@@ -719,10 +1014,10 @@ public partial class MiningDashboardWindow : Window
         {
             Ore = ore,
             Units = units,
-            ReferenceUnitText = "loadingÃ¢â‚¬Â¦",
-            GrossText = "Ã¢â‚¬â€",
+            ReferenceUnitText = "loadingÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦",
+            GrossText = "ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â",
             RateText = $"{pct:0.##}%",
-            PayoutText = "Ã¢â‚¬â€"
+            PayoutText = "ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â"
         };
     }
 }

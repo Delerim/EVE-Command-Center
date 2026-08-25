@@ -1,138 +1,199 @@
 <Window x:Class="EveMultiPreview.Views.MiningDashboardWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
         Title="EVE MultiPreview - Mining Dashboard"
-        Width="1500" Height="820" MinWidth="1120" MinHeight="620"
+        Width="1500" Height="830" MinWidth="1120" MinHeight="650"
         WindowStartupLocation="CenterScreen"
-        Background="#0D1417" Foreground="#EAF7F4">
+        WindowStyle="None" ResizeMode="CanResize"
+        Background="#0A1013" Foreground="#EAF7F4">
+
+    <shell:WindowChrome.WindowChrome>
+        <shell:WindowChrome CaptionHeight="38"
+                            ResizeBorderThickness="6"
+                            GlassFrameThickness="0"
+                            CornerRadius="8"
+                            UseAeroCaptionButtons="False"/>
+    </shell:WindowChrome.WindowChrome>
+
     <Window.Resources>
         <SolidColorBrush x:Key="Teal" Color="#39C6A4"/>
-        <SolidColorBrush x:Key="Panel" Color="#131C20"/>
-        <SolidColorBrush x:Key="Panel2" Color="#182328"/>
-        <SolidColorBrush x:Key="GridLine" Color="#26363B"/>
-        <SolidColorBrush x:Key="Muted" Color="#809A95"/>
+        <SolidColorBrush x:Key="Panel" Color="#111A1E"/>
+        <SolidColorBrush x:Key="Panel2" Color="#162126"/>
+        <SolidColorBrush x:Key="Muted" Color="#78958E"/>
+        <SolidColorBrush x:Key="Line" Color="#24353A"/>
 
         <Style TargetType="TextBlock">
             <Setter Property="Foreground" Value="#EAF7F4"/>
         </Style>
 
         <Style TargetType="CheckBox">
-            <Setter Property="Foreground" Value="#EAF7F4"/>
+            <Setter Property="Foreground" Value="#DCEAE6"/>
             <Setter Property="VerticalAlignment" Value="Center"/>
-            <Setter Property="Margin" Value="0,0,18,0"/>
+            <Setter Property="Margin" Value="0,0,15,0"/>
         </Style>
 
         <Style TargetType="TextBox">
-            <Setter Property="Background" Value="#0F171A"/>
-            <Setter Property="Foreground" Value="#EAF7F4"/>
-            <Setter Property="BorderBrush" Value="#39796C"/>
-            <Setter Property="CaretBrush" Value="#EAF7F4"/>
+            <Setter Property="Background" Value="#0C1518"/>
+            <Setter Property="Foreground" Value="#F0F7F5"/>
+            <Setter Property="BorderBrush" Value="#315E56"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CaretBrush" Value="#58D3B4"/>
             <Setter Property="Padding" Value="6,3"/>
         </Style>
 
-        <!-- Keep ComboBoxes conventional/light so the selected value is always
-             readable. The previous dark style inherited Windows' white selection
-             chrome and produced white-on-white text. -->
         <Style TargetType="ComboBox">
-            <Setter Property="MinWidth" Value="96"/>
+            <Setter Property="MinWidth" Value="94"/>
             <Setter Property="Height" Value="26"/>
-            <Setter Property="Margin" Value="6,0,18,0"/>
+            <Setter Property="Margin" Value="6,0,15,0"/>
             <Setter Property="Foreground" Value="#10201D"/>
-            <Setter Property="Background" Value="#EAF7F4"/>
+            <Setter Property="Background" Value="#DDE9E6"/>
             <Setter Property="BorderBrush" Value="#39796C"/>
         </Style>
 
         <Style TargetType="ComboBoxItem">
             <Setter Property="Foreground" Value="#EAF7F4"/>
-            <Setter Property="Background" Value="#131C20"/>
+            <Setter Property="Background" Value="#111A1E"/>
             <Setter Property="Padding" Value="7,4"/>
             <Style.Triggers>
                 <Trigger Property="IsHighlighted" Value="True">
-                    <Setter Property="Background" Value="#247A68"/>
+                    <Setter Property="Background" Value="#216B5E"/>
                     <Setter Property="Foreground" Value="#FFFFFF"/>
                 </Trigger>
                 <Trigger Property="IsSelected" Value="True">
-                    <Setter Property="Background" Value="#2B8F7B"/>
+                    <Setter Property="Background" Value="#2A8A77"/>
                     <Setter Property="Foreground" Value="#FFFFFF"/>
                 </Trigger>
             </Style.Triggers>
         </Style>
 
         <Style TargetType="Button">
-            <Setter Property="Background" Value="#1B3D38"/>
             <Setter Property="Foreground" Value="#EAF7F4"/>
-            <Setter Property="BorderBrush" Value="#39796C"/>
+            <Setter Property="Background" Value="#17312D"/>
+            <Setter Property="BorderBrush" Value="#356F63"/>
             <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Padding" Value="9,4"/>
-            <Setter Property="Margin" Value="4,0"/>
+            <Setter Property="Padding" Value="10,5"/>
+            <Setter Property="Margin" Value="3,0"/>
             <Setter Property="Cursor" Value="Hand"/>
-            <Style.Triggers>
-                <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="Background" Value="#286B5F"/>
-                </Trigger>
-            </Style.Triggers>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="ButtonBorder"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="5"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="ButtonBorder" Property="Background" Value="#225348"/>
+                                <Setter TargetName="ButtonBorder" Property="BorderBrush" Value="#4DC8A9"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="ButtonBorder" Property="Background" Value="#2A7B69"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="WindowButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="Width" Value="34"/>
+            <Setter Property="Height" Value="26"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Margin" Value="2,0"/>
+            <Setter Property="FontSize" Value="12"/>
         </Style>
 
         <Style TargetType="DataGrid">
-            <Setter Property="Background" Value="#0D1417"/>
+            <Setter Property="Background" Value="#0D1518"/>
             <Setter Property="Foreground" Value="#EAF7F4"/>
-            <Setter Property="BorderBrush" Value="#39796C"/>
-            <Setter Property="GridLinesVisibility" Value="Horizontal"/>
-            <Setter Property="HorizontalGridLinesBrush" Value="#26363B"/>
-            <Setter Property="RowBackground" Value="#0D1417"/>
-            <Setter Property="AlternatingRowBackground" Value="#111B1F"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="GridLinesVisibility" Value="None"/>
+            <Setter Property="RowBackground" Value="#0E171A"/>
+            <Setter Property="AlternatingRowBackground" Value="#121D20"/>
             <Setter Property="HeadersVisibility" Value="Column"/>
             <Setter Property="CanUserAddRows" Value="False"/>
             <Setter Property="CanUserDeleteRows" Value="False"/>
             <Setter Property="IsReadOnly" Value="True"/>
             <Setter Property="AutoGenerateColumns" Value="False"/>
             <Setter Property="SelectionMode" Value="Single"/>
+            <Setter Property="RowHeight" Value="29"/>
         </Style>
 
         <Style TargetType="DataGridColumnHeader">
-            <Setter Property="Background" Value="#162226"/>
+            <Setter Property="Background" Value="#172328"/>
             <Setter Property="Foreground" Value="#58D3B4"/>
-            <Setter Property="BorderBrush" Value="#26363B"/>
+            <Setter Property="BorderBrush" Value="#26383D"/>
+            <Setter Property="BorderThickness" Value="0,0,0,1"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Padding" Value="8,6"/>
+            <Setter Property="Padding" Value="9,7"/>
         </Style>
 
         <Style TargetType="DataGridCell">
             <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Padding" Value="8,4"/>
-            <Setter Property="Foreground" Value="#EAF7F4"/>
+            <Setter Property="Padding" Value="9,5"/>
+            <Setter Property="Foreground" Value="#E3EFEC"/>
             <Style.Triggers>
                 <Trigger Property="IsSelected" Value="True">
-                    <Setter Property="Background" Value="#245E55"/>
+                    <Setter Property="Background" Value="#205C51"/>
                     <Setter Property="Foreground" Value="#FFFFFF"/>
                 </Trigger>
             </Style.Triggers>
         </Style>
 
         <Style TargetType="DataGridRow">
+            <Setter Property="Margin" Value="0,1,0,1"/>
             <Style.Triggers>
                 <Trigger Property="IsSelected" Value="True">
-                    <Setter Property="Background" Value="#245E55"/>
-                    <Setter Property="Foreground" Value="#FFFFFF"/>
+                    <Setter Property="Background" Value="#205C51"/>
                 </Trigger>
             </Style.Triggers>
         </Style>
 
-        <!-- Full custom tab template: avoids Windows drawing a white selected tab. -->
+        <Style TargetType="TabControl">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TabControl">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+                            <TabPanel Grid.Row="0" IsItemsHost="True"
+                                      Background="Transparent" Margin="0,0,0,7"/>
+                            <Border Grid.Row="1" Background="#0D1518"
+                                    CornerRadius="8" Padding="8">
+                                <ContentPresenter Content="{TemplateBinding SelectedContent}"
+                                                  ContentTemplate="{TemplateBinding SelectedContentTemplate}"/>
+                            </Border>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <Style TargetType="TabItem">
-            <Setter Property="Foreground" Value="#CFE4DF"/>
-            <Setter Property="Background" Value="#121B1F"/>
-            <Setter Property="BorderBrush" Value="#2C4843"/>
-            <Setter Property="Padding" Value="16,7"/>
+            <Setter Property="Foreground" Value="#AFC5C0"/>
+            <Setter Property="Background" Value="#111A1E"/>
+            <Setter Property="BorderBrush" Value="#28463F"/>
+            <Setter Property="Padding" Value="14,6"/>
+            <Setter Property="Margin" Value="0,0,5,0"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="TabItem">
                         <Border x:Name="TabBorder"
                                 Background="{TemplateBinding Background}"
                                 BorderBrush="{TemplateBinding BorderBrush}"
-                                BorderThickness="1,1,1,0"
-                                Padding="{TemplateBinding Padding}"
-                                Margin="0,0,2,0">
+                                BorderThickness="1"
+                                CornerRadius="6"
+                                Padding="{TemplateBinding Padding}">
                             <ContentPresenter ContentSource="Header"
                                               HorizontalAlignment="Center"
                                               VerticalAlignment="Center"
@@ -140,11 +201,11 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="TabBorder" Property="Background" Value="#1F4B43"/>
+                                <Setter TargetName="TabBorder" Property="Background" Value="#193B35"/>
                                 <Setter Property="Foreground" Value="#FFFFFF"/>
                             </Trigger>
                             <Trigger Property="IsSelected" Value="True">
-                                <Setter TargetName="TabBorder" Property="Background" Value="#2B8F7B"/>
+                                <Setter TargetName="TabBorder" Property="Background" Value="#277D6B"/>
                                 <Setter TargetName="TabBorder" Property="BorderBrush" Value="#58D3B4"/>
                                 <Setter Property="Foreground" Value="#FFFFFF"/>
                                 <Setter Property="FontWeight" Value="SemiBold"/>
@@ -156,321 +217,465 @@
         </Style>
 
         <Style x:Key="SummaryCard" TargetType="Border">
-            <Setter Property="Background" Value="#131C20"/>
-            <Setter Property="BorderBrush" Value="#2A665B"/>
+            <Setter Property="Background" Value="#121D21"/>
+            <Setter Property="BorderBrush" Value="#284E47"/>
             <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="CornerRadius" Value="7"/>
-            <Setter Property="Padding" Value="12"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Padding" Value="12,10"/>
             <Setter Property="Margin" Value="4"/>
         </Style>
 
-        <Style TargetType="GroupBox">
-            <Setter Property="Foreground" Value="#58D3B4"/>
-            <Setter Property="BorderBrush" Value="#39796C"/>
+        <Style x:Key="PanelCard" TargetType="Border">
+            <Setter Property="Background" Value="#10191D"/>
+            <Setter Property="BorderBrush" Value="#254A43"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Padding" Value="8"/>
         </Style>
     </Window.Resources>
 
-    <Grid Margin="12">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
-            <RowDefinition Height="Auto"/>
-        </Grid.RowDefinitions>
+    <Border Background="#0C1316" BorderBrush="#2B655A" BorderThickness="1" CornerRadius="9">
+        <Grid Margin="12">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
 
-        <DockPanel Grid.Row="0" Margin="0,0,0,10">
-            <StackPanel DockPanel.Dock="Left">
-                <TextBlock Text="Mining Dashboard" FontSize="22" FontWeight="SemiBold" Foreground="#58D3B4"/>
-                <TextBlock Text="Stable BASE excludes crit spikes. ACTUAL includes them. TODAY persists across restarts until the 04:00 mining-day rollover."
-                           Margin="0,3,0,0" Foreground="#809A95"/>
-            </StackPanel>
-            <TextBlock x:Name="LastRefreshText" DockPanel.Dock="Right" VerticalAlignment="Bottom"
-                       Foreground="#809A95" Text="Public ESI market data"/>
-        </DockPanel>
+            <!-- Custom dark title bar. No Windows white banner. -->
+            <Grid Grid.Row="0" Height="39" Margin="2,-3,0,7">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="Mining Dashboard" FontSize="18"
+                               FontWeight="SemiBold" Foreground="#58D3B4"/>
+                    <TextBlock x:Name="LastRefreshText" Margin="14,3,0,0"
+                               Foreground="#6E8C85" FontSize="10.5"
+                               Text="Public ESI market data"/>
+                </StackPanel>
+                <StackPanel Grid.Column="1" Orientation="Horizontal"
+                            shell:WindowChrome.IsHitTestVisibleInChrome="True">
+                    <Button Style="{StaticResource WindowButton}" Content="_"
+                            Click="Minimize_Click"/>
+                    <Button Style="{StaticResource WindowButton}" Content="X"
+                            Click="CloseWindow_Click"/>
+                </StackPanel>
+            </Grid>
 
-        <Border Grid.Row="1" Background="#131C20" BorderBrush="#2A665B" BorderThickness="1"
-                CornerRadius="7" Padding="10" Margin="0,0,0,10">
-            <StackPanel>
-                <WrapPanel VerticalAlignment="Center">
-                    <TextBlock Text="Markets:" FontWeight="SemiBold" Foreground="#58D3B4"
-                               Margin="0,0,10,0" VerticalAlignment="Center"/>
-                    <CheckBox x:Name="JitaCheck" Content="Jita 4-4"/>
-                    <CheckBox x:Name="AmarrCheck" Content="Amarr"/>
+            <Border Grid.Row="1" Style="{StaticResource PanelCard}" Margin="0,0,0,9">
+                <StackPanel>
+                    <WrapPanel VerticalAlignment="Center">
+                        <TextBlock Text="Markets" FontWeight="SemiBold" Foreground="#58D3B4"
+                                   Margin="0,0,10,0" VerticalAlignment="Center"/>
+                        <CheckBox x:Name="JitaCheck" Content="Jita 4-4"/>
+                        <CheckBox x:Name="AmarrCheck" Content="Amarr"/>
 
-                    <TextBlock Text="Market price:" VerticalAlignment="Center"/>
-                    <ComboBox x:Name="MarketPriceModeCombo">
-                        <ComboBoxItem Content="Lowest sell" Tag="sell"/>
-                        <ComboBoxItem Content="Highest buy" Tag="buy"/>
-                    </ComboBox>
+                        <TextBlock Text="Price" VerticalAlignment="Center"/>
+                        <ComboBox x:Name="MarketPriceModeCombo">
+                            <ComboBoxItem Content="Lowest sell" Tag="sell"/>
+                            <ComboBoxItem Content="Highest buy" Tag="buy"/>
+                        </ComboBox>
 
-                    <TextBlock Text="Corp buyback:" FontWeight="SemiBold" Foreground="#58D3B4"
-                               VerticalAlignment="Center"/>
-                    <TextBox x:Name="BuybackPercentText" Width="58" Margin="6,0,3,0"
-                             VerticalContentAlignment="Center"/>
-                    <TextBlock Text="% of" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                    <ComboBox x:Name="BuybackMarketCombo" MinWidth="78">
-                        <ComboBoxItem Content="Jita" Tag="Jita"/>
-                        <ComboBoxItem Content="Amarr" Tag="Amarr"/>
-                    </ComboBox>
-                    <ComboBox x:Name="BuybackPriceModeCombo">
-                        <ComboBoxItem Content="Lowest sell" Tag="sell"/>
-                        <ComboBoxItem Content="Highest buy" Tag="buy"/>
-                    </ComboBox>
-                </WrapPanel>
+                        <TextBlock Text="Corp BB" FontWeight="SemiBold" Foreground="#58D3B4"
+                                   VerticalAlignment="Center"/>
+                        <TextBox x:Name="BuybackPercentText" Width="52" Margin="6,0,3,0"
+                                 VerticalContentAlignment="Center"/>
+                        <TextBlock Text="%" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                        <ComboBox x:Name="BuybackMarketCombo" MinWidth="72">
+                            <ComboBoxItem Content="Jita" Tag="Jita"/>
+                            <ComboBoxItem Content="Amarr" Tag="Amarr"/>
+                        </ComboBox>
+                        <ComboBox x:Name="BuybackPriceModeCombo">
+                            <ComboBoxItem Content="Lowest sell" Tag="sell"/>
+                            <ComboBoxItem Content="Highest buy" Tag="buy"/>
+                        </ComboBox>
+                    </WrapPanel>
 
-                <Separator Margin="0,9,0,9" Background="#2A665B"/>
+                    <Border Height="1" Background="#203A35" Margin="0,8"/>
 
-                <WrapPanel VerticalAlignment="Center">
-                    <TextBlock Text="Mining alarms:" FontWeight="SemiBold" Foreground="#58D3B4"
-                               Margin="0,0,10,0" VerticalAlignment="Center"/>
-                    <CheckBox x:Name="IdleWatchdogCheck" Content="No-pull"/>
-                    <TextBlock Text="after" VerticalAlignment="Center"/>
-                    <TextBox x:Name="IdleSecondsText" Width="54" Margin="6,0,6,0"
-                             VerticalContentAlignment="Center"/>
-                    <TextBlock Text="sec" VerticalAlignment="Center" Margin="0,0,14,0"/>
+                    <WrapPanel VerticalAlignment="Center">
+                        <TextBlock Text="Alarms" FontWeight="SemiBold" Foreground="#58D3B4"
+                                   Margin="0,0,10,0" VerticalAlignment="Center"/>
+                        <CheckBox x:Name="IdleWatchdogCheck" Content="No-pull"/>
+                        <TextBlock Text="after" VerticalAlignment="Center"/>
+                        <TextBox x:Name="IdleSecondsText" Width="48" Margin="5,0"/>
+                        <TextBlock Text="sec" VerticalAlignment="Center" Margin="0,0,12,0"/>
 
-                    <CheckBox x:Name="YieldDropCheck" Content="Yield drop"/>
-                    <TextBlock Text=">" VerticalAlignment="Center"/>
-                    <TextBox x:Name="YieldDropPercentText" Width="44" Margin="6,0,3,0"
-                             VerticalContentAlignment="Center"/>
-                    <TextBlock Text="%" VerticalAlignment="Center"/>
-                    <TextBlock Text="for" VerticalAlignment="Center" Margin="8,0,0,0"/>
-                    <TextBox x:Name="YieldDropSecondsText" Width="44" Margin="6,0,3,0"
-                             VerticalContentAlignment="Center"/>
-                    <TextBlock Text="sec" VerticalAlignment="Center" Margin="0,0,14,0"/>
+                        <CheckBox x:Name="YieldDropCheck" Content="Yield drop"/>
+                        <TextBlock Text=">" VerticalAlignment="Center"/>
+                        <TextBox x:Name="YieldDropPercentText" Width="40" Margin="5,0"/>
+                        <TextBlock Text="%" VerticalAlignment="Center"/>
+                        <TextBlock Text="for" Margin="7,0,0,0" VerticalAlignment="Center"/>
+                        <TextBox x:Name="YieldDropSecondsText" Width="40" Margin="5,0"/>
+                        <TextBlock Text="sec" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                        <CheckBox x:Name="IdleSoundCheck" Content="Sound"/>
 
-                    <CheckBox x:Name="IdleSoundCheck" Content="Sound"/>
+                        <TextBlock Text="Overview" FontWeight="SemiBold" Foreground="#58D3B4"
+                                   Margin="4,0,8,0" VerticalAlignment="Center"/>
+                        <CheckBox x:Name="AutoOverviewCheck" Content="Auto-show"/>
+                        <CheckBox x:Name="TileWallCheck" Content="Tile wall"/>
+                        <Button x:Name="ToggleOverviewButton" Content="Show / hide"/>
 
-                    <TextBlock Text="Overview:" FontWeight="SemiBold" Foreground="#58D3B4"
-                               VerticalAlignment="Center" Margin="0,0,8,0"/>
-                    <CheckBox x:Name="AutoOverviewCheck" Content="Auto-show on launch"/>
-                    <CheckBox x:Name="TileWallCheck"
-                              Content="Use tile wall instead of individual mining boxes (restart)"/>
-                    <Button x:Name="ToggleOverviewButton" Content="Show / hide tile wall"/>
-                </WrapPanel>
-            </StackPanel>
-        </Border>
+                        <TextBlock Text="Opacity" FontWeight="SemiBold" Foreground="#58D3B4"
+                                   Margin="15,0,7,0" VerticalAlignment="Center"/>
+                        <TextBlock Text="Dash" VerticalAlignment="Center"/>
+                        <TextBox x:Name="DashboardOpacityText" Width="38" Margin="5,0,2,0"/>
+                        <TextBlock Text="%" VerticalAlignment="Center" Margin="0,0,7,0"/>
+                        <TextBlock Text="Wall" VerticalAlignment="Center"/>
+                        <TextBox x:Name="OverviewOpacityText" Width="38" Margin="5,0,2,0"/>
+                        <TextBlock Text="%" VerticalAlignment="Center"/>
+                    </WrapPanel>
+                </StackPanel>
+            </Border>
 
-        <TabControl x:Name="MiningTabs" Grid.Row="2" Background="#0D1417" BorderBrush="#39796C">
-            <TabItem Header="Overview">
-                <Grid Margin="6">
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="*"/>
-                    </Grid.RowDefinitions>
+            <TabControl x:Name="MiningTabs" Grid.Row="2">
+                <TabItem Header="Overview">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
 
-                    <UniformGrid Grid.Row="0" Columns="6" Margin="0,0,0,8">
-                        <Border Style="{StaticResource SummaryCard}">
-                            <StackPanel>
-                                <TextBlock Text="FLEET BASE" Foreground="#809A95" FontSize="11"/>
-                                <TextBlock x:Name="SummaryBaseText" Text="ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â" Foreground="#58D3B4"
-                                           FontSize="20" FontWeight="SemiBold"/>
-                            </StackPanel>
-                        </Border>
-                        <Border Style="{StaticResource SummaryCard}">
-                            <StackPanel>
-                                <TextBlock Text="FLEET ACTUAL" Foreground="#809A95" FontSize="11"/>
-                                <TextBlock x:Name="SummaryActualText" Text="ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â" Foreground="#58D3B4"
-                                           FontSize="20" FontWeight="SemiBold"/>
-                            </StackPanel>
-                        </Border>
-                        <Border Style="{StaticResource SummaryCard}">
-                            <StackPanel>
-                                <TextBlock Text="TODAY VOLUME" Foreground="#809A95" FontSize="11"/>
-                                <TextBlock x:Name="SummarySessionM3Text" Text="ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â" Foreground="#58D3B4"
-                                           FontSize="20" FontWeight="SemiBold"/>
-                            </StackPanel>
-                        </Border>
-                        <Border Style="{StaticResource SummaryCard}">
-                            <StackPanel>
-                                <TextBlock Text="PROFIT TODAY" Foreground="#809A95" FontSize="11"/>
-                                <TextBlock x:Name="SummaryBestValueText" Text="ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â" Foreground="#58D3B4"
-                                           FontSize="20" FontWeight="SemiBold"/>
-                            </StackPanel>
-                        </Border>
-                        <Border Style="{StaticResource SummaryCard}">
-                            <StackPanel>
-                                <TextBlock Text="CORP BUYBACK TODAY" Foreground="#809A95" FontSize="11"/>
-                                <TextBlock x:Name="SummaryBuybackText" Text="ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â" Foreground="#58D3B4"
-                                           FontSize="20" FontWeight="SemiBold"/>
-                            </StackPanel>
-                        </Border>
-                        <Border Style="{StaticResource SummaryCard}">
-                            <StackPanel>
-                                <TextBlock Text="TODAY CRITICALS" Foreground="#809A95" FontSize="11"/>
-                                <TextBlock x:Name="SummaryCritText" Text="ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â" Foreground="#58D3B4"
-                                           FontSize="20" FontWeight="SemiBold"/>
-                            </StackPanel>
-                        </Border>
-                    </UniformGrid>
+                        <UniformGrid Grid.Row="0" Columns="6" Margin="0,0,0,7">
+                            <Border Style="{StaticResource SummaryCard}">
+                                <StackPanel>
+                                    <TextBlock Text="FLEET BASE" Foreground="#78958E" FontSize="10"/>
+                                    <TextBlock x:Name="SummaryBaseText" Text="-" Foreground="#58D3B4"
+                                               FontSize="19" FontWeight="SemiBold"/>
+                                </StackPanel>
+                            </Border>
+                            <Border Style="{StaticResource SummaryCard}">
+                                <StackPanel>
+                                    <TextBlock Text="FLEET ACTUAL" Foreground="#78958E" FontSize="10"/>
+                                    <TextBlock x:Name="SummaryActualText" Text="-" Foreground="#58D3B4"
+                                               FontSize="19" FontWeight="SemiBold"/>
+                                </StackPanel>
+                            </Border>
+                            <Border Style="{StaticResource SummaryCard}">
+                                <StackPanel>
+                                    <TextBlock Text="TODAY VOLUME" Foreground="#78958E" FontSize="10"/>
+                                    <TextBlock x:Name="SummarySessionM3Text" Text="-" Foreground="#58D3B4"
+                                               FontSize="19" FontWeight="SemiBold"/>
+                                </StackPanel>
+                            </Border>
+                            <Border Style="{StaticResource SummaryCard}">
+                                <StackPanel>
+                                    <TextBlock Text="PROFIT TODAY" Foreground="#78958E" FontSize="10"/>
+                                    <TextBlock x:Name="SummaryBestValueText" Text="-" Foreground="#58D3B4"
+                                               FontSize="19" FontWeight="SemiBold"/>
+                                </StackPanel>
+                            </Border>
+                            <Border Style="{StaticResource SummaryCard}">
+                                <StackPanel>
+                                    <TextBlock Text="CORP BB TODAY" Foreground="#78958E" FontSize="10"/>
+                                    <TextBlock x:Name="SummaryBuybackText" Text="-" Foreground="#58D3B4"
+                                               FontSize="19" FontWeight="SemiBold"/>
+                                </StackPanel>
+                            </Border>
+                            <Border Style="{StaticResource SummaryCard}">
+                                <StackPanel>
+                                    <TextBlock Text="TODAY CRITICALS" Foreground="#78958E" FontSize="10"/>
+                                    <TextBlock x:Name="SummaryCritText" Text="-" Foreground="#58D3B4"
+                                               FontSize="19" FontWeight="SemiBold"/>
+                                </StackPanel>
+                            </Border>
+                        </UniformGrid>
 
-                    <Grid Grid.Row="1">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="3*"/>
-                            <ColumnDefinition Width="2*"/>
-                        </Grid.ColumnDefinitions>
+                        <Grid Grid.Row="1">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="3*"/>
+                                <ColumnDefinition Width="2*"/>
+                            </Grid.ColumnDefinitions>
 
-                        <GroupBox Header="Character breakdown" Margin="0,0,5,0">
-                            <DataGrid x:Name="OverviewCharacterGrid" AlternationCount="2">
-                                <DataGrid.Columns>
-                                    <DataGridTextColumn Header="Character" Binding="{Binding Character}" Width="150"/>
-                                    <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="88"/>
-                                    <DataGridTextColumn Header="Current ore" Binding="{Binding Ore}" Width="170"/>
-                                    <DataGridTextColumn Header="Today mÃƒâ€šÃ‚Â³" Binding="{Binding SessionM3Text}" Width="105"/>
-                                    <DataGridTextColumn Header="Jita" Binding="{Binding JitaValueText}" Width="95"/>
-                                    <DataGridTextColumn Header="Amarr" Binding="{Binding AmarrValueText}" Width="95"/>
-                                    <DataGridTextColumn Header="Best" Binding="{Binding BestValueText}" Width="95"/>
-                                    <DataGridTextColumn Header="Corp" Binding="{Binding CorpValueText}" Width="95"/>
-                                </DataGrid.Columns>
-                            </DataGrid>
-                        </GroupBox>
+                            <Border Style="{StaticResource PanelCard}" Margin="0,0,4,0">
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="*"/>
+                                    </Grid.RowDefinitions>
+                                    <TextBlock Text="Character breakdown" Foreground="#58D3B4"
+                                               FontWeight="SemiBold" Margin="2,0,0,7"/>
+                                    <DataGrid Grid.Row="1" x:Name="OverviewCharacterGrid" AlternationCount="2">
+                                        <DataGrid.Columns>
+                                            <DataGridTextColumn Header="Character" Binding="{Binding Character}" Width="150"/>
+                                            <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="88"/>
+                                            <DataGridTextColumn Header="Current ore" Binding="{Binding Ore}" Width="170"/>
+                                            <DataGridTextColumn Header="Today m3" Binding="{Binding SessionM3Text}" Width="105"/>
+                                            <DataGridTextColumn Header="Jita" Binding="{Binding JitaValueText}" Width="95"/>
+                                            <DataGridTextColumn Header="Amarr" Binding="{Binding AmarrValueText}" Width="95"/>
+                                            <DataGridTextColumn Header="Best" Binding="{Binding BestValueText}" Width="95"/>
+                                            <DataGridTextColumn Header="Corp" Binding="{Binding CorpValueText}" Width="95"/>
+                                        </DataGrid.Columns>
+                                    </DataGrid>
+                                </Grid>
+                            </Border>
 
-                        <GroupBox Grid.Column="1" Header="Today's ore breakdown" Margin="5,0,0,0">
-                            <DataGrid x:Name="OverviewOreGrid" AlternationCount="2">
-                                <DataGrid.Columns>
-                                    <DataGridTextColumn Header="Ore" Binding="{Binding Ore}" Width="*"/>
-                                    <DataGridTextColumn Header="Units" Binding="{Binding Units, StringFormat={}{0:N0}}" Width="95"/>
-                                    <DataGridTextColumn Header="mÃƒâ€šÃ‚Â³" Binding="{Binding VolumeM3Text}" Width="95"/>
-                                    <DataGridTextColumn Header="Best" Binding="{Binding BestValueText}" Width="100"/>
-                                </DataGrid.Columns>
-                            </DataGrid>
-                        </GroupBox>
+                            <Border Grid.Column="1" Style="{StaticResource PanelCard}" Margin="4,0,0,0">
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="*"/>
+                                    </Grid.RowDefinitions>
+                                    <TextBlock Text="Today's ore breakdown" Foreground="#58D3B4"
+                                               FontWeight="SemiBold" Margin="2,0,0,7"/>
+                                    <DataGrid Grid.Row="1" x:Name="OverviewOreGrid" AlternationCount="2">
+                                        <DataGrid.Columns>
+                                            <DataGridTextColumn Header="Ore" Binding="{Binding Ore}" Width="*"/>
+                                            <DataGridTextColumn Header="Units" Binding="{Binding Units, StringFormat={}{0:N0}}" Width="95"/>
+                                            <DataGridTextColumn Header="m3" Binding="{Binding VolumeM3Text}" Width="95"/>
+                                            <DataGridTextColumn Header="Best" Binding="{Binding BestValueText}" Width="100"/>
+                                        </DataGrid.Columns>
+                                    </DataGrid>
+                                </Grid>
+                            </Border>
+                        </Grid>
                     </Grid>
-                </Grid>
-            </TabItem>
+                </TabItem>
 
-            <TabItem Header="Live Mining">
-                <DataGrid x:Name="LiveGrid" AlternationCount="2">
-                    <DataGrid.Columns>
-                        <DataGridTextColumn Header="Character" Binding="{Binding Character}" Width="150"/>
-                        <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="90"/>
-                        <DataGridTextColumn Header="Last pull" Binding="{Binding LastPull}" Width="82"/>
-                        <DataGridTextColumn Header="Current ore" Binding="{Binding Ore}" Width="175"/>
-                        <DataGridTextColumn Header="BASE mÃƒâ€šÃ‚Â³/s" Binding="{Binding BaseM3PerSec, StringFormat={}{0:N1}}" Width="95"/>
-                        <DataGridTextColumn Header="ACTUAL mÃƒâ€šÃ‚Â³/s" Binding="{Binding ActualM3PerSecText}" Width="105"/>
-                        <DataGridTextColumn Header="Today crits" Binding="{Binding Crits}" Width="105"/>
-                        <DataGridTextColumn Header="Today mÃƒâ€šÃ‚Â³" Binding="{Binding SessionM3, StringFormat={}{0:N0}}" Width="105"/>
-                        <DataGridTextColumn Header="Jita ISK/h" Binding="{Binding JitaIskPerHourText}" Width="105"/>
-                        <DataGridTextColumn Header="Amarr ISK/h" Binding="{Binding AmarrIskPerHourText}" Width="105"/>
-                        <DataGridTextColumn Header="Best ISK/h" Binding="{Binding BestIskPerHourText}" Width="105"/>
-                        <DataGridTextColumn Header="Corp today" Binding="{Binding CorpSessionText}" Width="110"/>
-                    </DataGrid.Columns>
-                </DataGrid>
-            </TabItem>
-
-            <TabItem Header="Market / Ore">
-                <DataGrid x:Name="MarketGrid" AlternationCount="2">
-                    <DataGrid.Columns>
-                        <DataGridTextColumn Header="Ore" Binding="{Binding Ore}" Width="220"/>
-                        <DataGridTextColumn Header="Units today" Binding="{Binding Units, StringFormat={}{0:N0}}" Width="110"/>
-                        <DataGridTextColumn Header="Volume mÃƒâ€šÃ‚Â³" Binding="{Binding VolumeM3Text}" Width="115"/>
-                        <DataGridTextColumn Header="Jita / unit" Binding="{Binding JitaUnitText}" Width="115"/>
-                        <DataGridTextColumn Header="Amarr / unit" Binding="{Binding AmarrUnitText}" Width="115"/>
-                        <DataGridTextColumn Header="Best market" Binding="{Binding BestMarket}" Width="105"/>
-                        <DataGridTextColumn Header="Jita today" Binding="{Binding JitaValueText}" Width="120"/>
-                        <DataGridTextColumn Header="Amarr today" Binding="{Binding AmarrValueText}" Width="120"/>
-                        <DataGridTextColumn Header="Best today" Binding="{Binding BestValueText}" Width="120"/>
-                    </DataGrid.Columns>
-                </DataGrid>
-            </TabItem>
-
-            <TabItem Header="Corp Buyback">
-                <DataGrid x:Name="BuybackGrid" AlternationCount="2">
-                    <DataGrid.Columns>
-                        <DataGridTextColumn Header="Ore" Binding="{Binding Ore}" Width="240"/>
-                        <DataGridTextColumn Header="Units today" Binding="{Binding Units, StringFormat={}{0:N0}}" Width="115"/>
-                        <DataGridTextColumn Header="Reference / unit" Binding="{Binding ReferenceUnitText}" Width="135"/>
-                        <DataGridTextColumn Header="Gross market" Binding="{Binding GrossText}" Width="135"/>
-                        <DataGridTextColumn Header="Buyback rate" Binding="{Binding RateText}" Width="105"/>
-                        <DataGridTextColumn Header="Corp payout" Binding="{Binding PayoutText}" Width="145"/>
-                    </DataGrid.Columns>
-                </DataGrid>
-            </TabItem>
-
-            <TabItem x:Name="HistoryTab" Header="History">
-                <Grid Margin="8">
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="*"/>
-                    </Grid.RowDefinitions>
-
-                    <Border Grid.Row="0" Background="#131C20" BorderBrush="#2A665B"
-                            BorderThickness="1" CornerRadius="7" Padding="9" Margin="0,0,0,8">
-                        <StackPanel>
-                            <WrapPanel>
-                                <TextBlock Text="Range:" Foreground="#58D3B4" FontWeight="SemiBold"
-                                           VerticalAlignment="Center" Margin="0,0,8,0"/>
-                                <Button x:Name="HistoryTodayButton" Content="Today"/>
-                                <Button x:Name="HistoryYesterdayButton" Content="Yesterday"/>
-                                <Button x:Name="HistoryThisWeekButton" Content="This Week"/>
-                                <Button x:Name="HistoryLastWeekButton" Content="Last Week"/>
-                                <Button x:Name="HistoryThisMonthButton" Content="This Month"/>
-                                <Button x:Name="HistoryLastMonthButton" Content="Last Month"/>
-                                <Button x:Name="History30Button" Content="30 Days"/>
-                                <Button x:Name="History90Button" Content="90 Days"/>
-                                <Button x:Name="HistoryYearButton" Content="1 Year"/>
-                                <Button x:Name="HistoryRefreshButton" Content="Refresh"/>
-                            </WrapPanel>
-
-                            <DockPanel Margin="4,7,4,0">
-                                <TextBlock x:Name="HistoryRangeText"
-                                           Foreground="#EAF7F4" FontWeight="SemiBold"/>
-                                <TextBlock x:Name="HistoryBuildText" DockPanel.Dock="Right"
-                                           Foreground="#809A95"/>
-                            </DockPanel>
-                        </StackPanel>
-                    </Border>
-
-                    <UniformGrid Grid.Row="1" Columns="4" Margin="0,0,0,8">
-                        <Border Style="{StaticResource SummaryCard}">
-                            <StackPanel>
-                                <TextBlock Text="VOLUME" Foreground="#809A95" FontSize="11"/>
-                                <TextBlock x:Name="HistoryVolumeText" Text="—"
-                                           Foreground="#58D3B4" FontSize="20" FontWeight="SemiBold"/>
-                            </StackPanel>
-                        </Border>
-                        <Border Style="{StaticResource SummaryCard}">
-                            <StackPanel>
-                                <TextBlock Text="PROFIT EST." Foreground="#809A95" FontSize="11"/>
-                                <TextBlock x:Name="HistoryProfitText" Text="—"
-                                           Foreground="#58D3B4" FontSize="20" FontWeight="SemiBold"/>
-                            </StackPanel>
-                        </Border>
-                        <Border Style="{StaticResource SummaryCard}">
-                            <StackPanel>
-                                <TextBlock Text="CORP BUYBACK EST." Foreground="#809A95" FontSize="11"/>
-                                <TextBlock x:Name="HistoryBuybackText" Text="—"
-                                           Foreground="#58D3B4" FontSize="20" FontWeight="SemiBold"/>
-                            </StackPanel>
-                        </Border>
-                        <Border Style="{StaticResource SummaryCard}">
-                            <StackPanel>
-                                <TextBlock Text="CRITICALS" Foreground="#809A95" FontSize="11"/>
-                                <TextBlock x:Name="HistoryCritText" Text="—"
-                                           Foreground="#58D3B4" FontSize="20" FontWeight="SemiBold"/>
-                            </StackPanel>
-                        </Border>
-                    </UniformGrid>
-
-                    <DataGrid Grid.Row="2" x:Name="HistoryGrid" AlternationCount="2">
+                <TabItem Header="Live Mining">
+                    <DataGrid x:Name="LiveGrid" AlternationCount="2">
                         <DataGrid.Columns>
-                            <DataGridTextColumn Header="Mining day" Binding="{Binding Day}" Width="105"/>
                             <DataGridTextColumn Header="Character" Binding="{Binding Character}" Width="150"/>
-                            <DataGridTextColumn Header="Ore" Binding="{Binding Ore}" Width="190"/>
-                            <DataGridTextColumn Header="Units" Binding="{Binding UnitsText}" Width="105"/>
-                            <DataGridTextColumn Header="m³" Binding="{Binding VolumeText}" Width="105"/>
-                            <DataGridTextColumn Header="Crits" Binding="{Binding CritText}" Width="105"/>
-                            <DataGridTextColumn Header="Profit est." Binding="{Binding ProfitText}" Width="115"/>
-                            <DataGridTextColumn Header="BB est." Binding="{Binding BuybackText}" Width="115"/>
+                            <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="90"/>
+                            <DataGridTextColumn Header="Last pull" Binding="{Binding LastPull}" Width="82"/>
+                            <DataGridTextColumn Header="Current ore" Binding="{Binding Ore}" Width="175"/>
+                            <DataGridTextColumn Header="BASE m3/s" Binding="{Binding BaseM3PerSec, StringFormat={}{0:N1}}" Width="95"/>
+                            <DataGridTextColumn Header="ACTUAL m3/s" Binding="{Binding ActualM3PerSecText}" Width="105"/>
+                            <DataGridTextColumn Header="Today crits" Binding="{Binding Crits}" Width="105"/>
+                            <DataGridTextColumn Header="Today m3" Binding="{Binding SessionM3, StringFormat={}{0:N0}}" Width="105"/>
+                            <DataGridTextColumn Header="Jita ISK/h" Binding="{Binding JitaIskPerHourText}" Width="105"/>
+                            <DataGridTextColumn Header="Amarr ISK/h" Binding="{Binding AmarrIskPerHourText}" Width="105"/>
+                            <DataGridTextColumn Header="Best ISK/h" Binding="{Binding BestIskPerHourText}" Width="105"/>
+                            <DataGridTextColumn Header="Corp today" Binding="{Binding CorpSessionText}" Width="110"/>
                         </DataGrid.Columns>
                     </DataGrid>
-                </Grid>
-            </TabItem>
+                </TabItem>
 
-        </TabControl>
+                <TabItem x:Name="ProfitTab" Header="Profit">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
 
-        <TextBlock Grid.Row="3" Margin="2,9,0,0" Foreground="#809A95"
-                   Text="Mining day: 04:00 local ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ 03:59 next day. Current day is rebuilt from EVE logs; completed days are compacted in MiningData/history-v1.json. Historical ISK is estimated using current selected market prices."/>
-    </Grid>
+                        <Border Style="{StaticResource PanelCard}" Margin="0,0,0,7">
+                            <StackPanel>
+                                <WrapPanel>
+                                    <TextBlock Text="Range" Foreground="#58D3B4" FontWeight="SemiBold"
+                                               VerticalAlignment="Center" Margin="0,0,7,0"/>
+                                    <Button x:Name="ProfitTodayButton" Content="Today"/>
+                                    <Button x:Name="ProfitYesterdayButton" Content="Yesterday"/>
+                                    <Button x:Name="ProfitThisWeekButton" Content="This Week"/>
+                                    <Button x:Name="ProfitLastWeekButton" Content="Last Week"/>
+                                    <Button x:Name="ProfitThisMonthButton" Content="This Month"/>
+                                    <Button x:Name="ProfitLastMonthButton" Content="Last Month"/>
+                                    <Button x:Name="Profit30Button" Content="30 Days"/>
+                                    <Button x:Name="Profit90Button" Content="90 Days"/>
+                                    <Button x:Name="ProfitYearButton" Content="1 Year"/>
+                                    <Button x:Name="ProfitRefreshButton" Content="Refresh"/>
+                                </WrapPanel>
+                                <DockPanel Margin="3,7,3,0">
+                                    <TextBlock x:Name="ProfitRangeText" Foreground="#DCEAE6" FontWeight="SemiBold"/>
+                                    <TextBlock x:Name="ProfitBuildText" DockPanel.Dock="Right" Foreground="#78958E"/>
+                                </DockPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <UniformGrid Grid.Row="1" Columns="6" Margin="0,0,0,7">
+                            <Border Style="{StaticResource SummaryCard}">
+                                <StackPanel>
+                                    <TextBlock Text="TOTAL MINED" Foreground="#78958E" FontSize="10"/>
+                                    <TextBlock x:Name="ProfitTotalMinedText" Text="-" Foreground="#58D3B4"
+                                               FontSize="18" FontWeight="SemiBold"/>
+                                </StackPanel>
+                            </Border>
+                            <Border Style="{StaticResource SummaryCard}">
+                                <StackPanel>
+                                    <TextBlock Text="NORMAL YIELD" Foreground="#78958E" FontSize="10"/>
+                                    <TextBlock x:Name="ProfitNormalText" Text="-" Foreground="#58D3B4"
+                                               FontSize="18" FontWeight="SemiBold"/>
+                                </StackPanel>
+                            </Border>
+                            <Border Style="{StaticResource SummaryCard}">
+                                <StackPanel>
+                                    <TextBlock Text="CRITICAL BONUS" Foreground="#78958E" FontSize="10"/>
+                                    <TextBlock x:Name="ProfitCriticalUnitsText" Text="-" Foreground="#58D3B4"
+                                               FontSize="18" FontWeight="SemiBold"/>
+                                </StackPanel>
+                            </Border>
+                            <Border Style="{StaticResource SummaryCard}">
+                                <StackPanel>
+                                    <TextBlock Text="CRITICAL SUCCESSES" Foreground="#78958E" FontSize="10"/>
+                                    <TextBlock x:Name="ProfitCriticalCountText" Text="-" Foreground="#58D3B4"
+                                               FontSize="18" FontWeight="SemiBold"/>
+                                </StackPanel>
+                            </Border>
+                            <Border Style="{StaticResource SummaryCard}">
+                                <StackPanel>
+                                    <TextBlock Text="PROFIT EST." Foreground="#78958E" FontSize="10"/>
+                                    <TextBlock x:Name="ProfitMarketText" Text="-" Foreground="#58D3B4"
+                                               FontSize="18" FontWeight="SemiBold"/>
+                                </StackPanel>
+                            </Border>
+                            <Border Style="{StaticResource SummaryCard}">
+                                <StackPanel>
+                                    <TextBlock Text="CORP BB EST." Foreground="#78958E" FontSize="10"/>
+                                    <TextBlock x:Name="ProfitBuybackText" Text="-" Foreground="#58D3B4"
+                                               FontSize="18" FontWeight="SemiBold"/>
+                                </StackPanel>
+                            </Border>
+                        </UniformGrid>
+
+                        <Border Grid.Row="2" Style="{StaticResource PanelCard}" Padding="10,7" Margin="4,0,4,7">
+                            <TextBlock x:Name="ProfitFleetStatsText" Foreground="#B6CDC7" FontSize="10.5"/>
+                        </Border>
+
+                        <TabControl Grid.Row="3">
+                            <TabItem Header="Ore breakdown">
+                                <DataGrid x:Name="ProfitOreGrid" AlternationCount="2">
+                                    <DataGrid.Columns>
+                                        <DataGridTextColumn Header="Ore" Binding="{Binding Ore}" Width="190"/>
+                                        <DataGridTextColumn Header="Normal" Binding="{Binding NormalText}" Width="105"/>
+                                        <DataGridTextColumn Header="Critical bonus" Binding="{Binding CriticalText}" Width="115"/>
+                                        <DataGridTextColumn Header="Combined" Binding="{Binding CombinedText}" Width="105"/>
+                                        <DataGridTextColumn Header="% total" Binding="{Binding PercentText}" Width="85"/>
+                                        <DataGridTextColumn Header="Jita / unit" Binding="{Binding JitaUnitText}" Width="100"/>
+                                        <DataGridTextColumn Header="Amarr / unit" Binding="{Binding AmarrUnitText}" Width="100"/>
+                                        <DataGridTextColumn Header="Best value" Binding="{Binding BestValueText}" Width="115"/>
+                                        <DataGridTextColumn Header="Corp BB" Binding="{Binding BuybackText}" Width="115"/>
+                                    </DataGrid.Columns>
+                                </DataGrid>
+                            </TabItem>
+                            <TabItem Header="Character stats">
+                                <DataGrid x:Name="ProfitCharacterGrid" AlternationCount="2">
+                                    <DataGrid.Columns>
+                                        <DataGridTextColumn Header="Character" Binding="{Binding Character}" Width="170"/>
+                                        <DataGridTextColumn Header="Total units" Binding="{Binding UnitsText}" Width="115"/>
+                                        <DataGridTextColumn Header="Volume m3" Binding="{Binding VolumeText}" Width="115"/>
+                                        <DataGridTextColumn Header="Crits" Binding="{Binding CritText}" Width="115"/>
+                                        <DataGridTextColumn Header="Profit est." Binding="{Binding ProfitText}" Width="125"/>
+                                        <DataGridTextColumn Header="Corp BB est." Binding="{Binding BuybackText}" Width="125"/>
+                                    </DataGrid.Columns>
+                                </DataGrid>
+                            </TabItem>
+                        </TabControl>
+                    </Grid>
+                </TabItem>
+
+                <TabItem Header="Market / Ore">
+                    <DataGrid x:Name="MarketGrid" AlternationCount="2">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Ore" Binding="{Binding Ore}" Width="220"/>
+                            <DataGridTextColumn Header="Units today" Binding="{Binding Units, StringFormat={}{0:N0}}" Width="110"/>
+                            <DataGridTextColumn Header="Volume m3" Binding="{Binding VolumeM3Text}" Width="115"/>
+                            <DataGridTextColumn Header="Jita / unit" Binding="{Binding JitaUnitText}" Width="115"/>
+                            <DataGridTextColumn Header="Amarr / unit" Binding="{Binding AmarrUnitText}" Width="115"/>
+                            <DataGridTextColumn Header="Best market" Binding="{Binding BestMarket}" Width="105"/>
+                            <DataGridTextColumn Header="Jita today" Binding="{Binding JitaValueText}" Width="120"/>
+                            <DataGridTextColumn Header="Amarr today" Binding="{Binding AmarrValueText}" Width="120"/>
+                            <DataGridTextColumn Header="Best today" Binding="{Binding BestValueText}" Width="120"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </TabItem>
+
+                <TabItem Header="Corp Buyback">
+                    <DataGrid x:Name="BuybackGrid" AlternationCount="2">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Ore" Binding="{Binding Ore}" Width="240"/>
+                            <DataGridTextColumn Header="Units today" Binding="{Binding Units, StringFormat={}{0:N0}}" Width="115"/>
+                            <DataGridTextColumn Header="Reference / unit" Binding="{Binding ReferenceUnitText}" Width="135"/>
+                            <DataGridTextColumn Header="Gross market" Binding="{Binding GrossText}" Width="135"/>
+                            <DataGridTextColumn Header="Buyback rate" Binding="{Binding RateText}" Width="105"/>
+                            <DataGridTextColumn Header="Corp payout" Binding="{Binding PayoutText}" Width="145"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </TabItem>
+
+                <TabItem x:Name="HistoryTab" Header="History">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+
+                        <Border Style="{StaticResource PanelCard}" Margin="0,0,0,7">
+                            <StackPanel>
+                                <WrapPanel>
+                                    <TextBlock Text="Range" Foreground="#58D3B4" FontWeight="SemiBold"
+                                               VerticalAlignment="Center" Margin="0,0,7,0"/>
+                                    <Button x:Name="HistoryTodayButton" Content="Today"/>
+                                    <Button x:Name="HistoryYesterdayButton" Content="Yesterday"/>
+                                    <Button x:Name="HistoryThisWeekButton" Content="This Week"/>
+                                    <Button x:Name="HistoryLastWeekButton" Content="Last Week"/>
+                                    <Button x:Name="HistoryThisMonthButton" Content="This Month"/>
+                                    <Button x:Name="HistoryLastMonthButton" Content="Last Month"/>
+                                    <Button x:Name="History30Button" Content="30 Days"/>
+                                    <Button x:Name="History90Button" Content="90 Days"/>
+                                    <Button x:Name="HistoryYearButton" Content="1 Year"/>
+                                    <Button x:Name="HistoryRefreshButton" Content="Refresh"/>
+                                </WrapPanel>
+                                <DockPanel Margin="3,7,3,0">
+                                    <TextBlock x:Name="HistoryRangeText" Foreground="#DCEAE6" FontWeight="SemiBold"/>
+                                    <TextBlock x:Name="HistoryBuildText" DockPanel.Dock="Right" Foreground="#78958E"/>
+                                </DockPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <UniformGrid Grid.Row="1" Columns="4" Margin="0,0,0,7">
+                            <Border Style="{StaticResource SummaryCard}">
+                                <StackPanel>
+                                    <TextBlock Text="VOLUME" Foreground="#78958E" FontSize="10"/>
+                                    <TextBlock x:Name="HistoryVolumeText" Text="-" Foreground="#58D3B4"
+                                               FontSize="18" FontWeight="SemiBold"/>
+                                </StackPanel>
+                            </Border>
+                            <Border Style="{StaticResource SummaryCard}">
+                                <StackPanel>
+                                    <TextBlock Text="PROFIT EST." Foreground="#78958E" FontSize="10"/>
+                                    <TextBlock x:Name="HistoryProfitText" Text="-" Foreground="#58D3B4"
+                                               FontSize="18" FontWeight="SemiBold"/>
+                                </StackPanel>
+                            </Border>
+                            <Border Style="{StaticResource SummaryCard}">
+                                <StackPanel>
+                                    <TextBlock Text="CORP BB EST." Foreground="#78958E" FontSize="10"/>
+                                    <TextBlock x:Name="HistoryBuybackText" Text="-" Foreground="#58D3B4"
+                                               FontSize="18" FontWeight="SemiBold"/>
+                                </StackPanel>
+                            </Border>
+                            <Border Style="{StaticResource SummaryCard}">
+                                <StackPanel>
+                                    <TextBlock Text="CRITICALS" Foreground="#78958E" FontSize="10"/>
+                                    <TextBlock x:Name="HistoryCritText" Text="-" Foreground="#58D3B4"
+                                               FontSize="18" FontWeight="SemiBold"/>
+                                </StackPanel>
+                            </Border>
+                        </UniformGrid>
+
+                        <DataGrid Grid.Row="2" x:Name="HistoryGrid" AlternationCount="2">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Mining day" Binding="{Binding Day}" Width="105"/>
+                                <DataGridTextColumn Header="Character" Binding="{Binding Character}" Width="150"/>
+                                <DataGridTextColumn Header="Ore" Binding="{Binding Ore}" Width="190"/>
+                                <DataGridTextColumn Header="Units" Binding="{Binding UnitsText}" Width="105"/>
+                                <DataGridTextColumn Header="m3" Binding="{Binding VolumeText}" Width="105"/>
+                                <DataGridTextColumn Header="Crits" Binding="{Binding CritText}" Width="105"/>
+                                <DataGridTextColumn Header="Profit est." Binding="{Binding ProfitText}" Width="115"/>
+                                <DataGridTextColumn Header="BB est." Binding="{Binding BuybackText}" Width="115"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Grid>
+                </TabItem>
+            </TabControl>
+
+            <TextBlock Grid.Row="3" Margin="4,8,0,0" Foreground="#637E78" FontSize="10"
+                       Text="Mining day: 04:00 local -> 03:59 next day. Historical ore quantities are exact; historical ISK is estimated at the currently selected market prices."/>
+        </Grid>
+    </Border>
 </Window>
