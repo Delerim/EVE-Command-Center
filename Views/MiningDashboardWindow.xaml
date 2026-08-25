@@ -6,7 +6,10 @@
         Width="1500" Height="830" MinWidth="1120" MinHeight="650"
         WindowStartupLocation="CenterScreen"
         WindowStyle="None" ResizeMode="CanResize"
-        Background="#0A1013" Foreground="#EAF7F4"
+        Background="#080E11" Foreground="#EAF7F4"
+        FontFamily="Segoe UI Variable Text, Segoe UI"
+        TextOptions.TextFormattingMode="Display"
+        TextOptions.TextRenderingMode="ClearType"
         UseLayoutRounding="True" SnapsToDevicePixels="True">
 
     <shell:WindowChrome.WindowChrome>
@@ -23,15 +26,69 @@
         <SolidColorBrush x:Key="Panel2" Color="#162126"/>
         <SolidColorBrush x:Key="Muted" Color="#78958E"/>
         <SolidColorBrush x:Key="Line" Color="#24353A"/>
-        <!-- Dark, compact scrollbars used by every DataGrid and ScrollViewer. -->
-        <Style x:Key="MiningScrollThumb" TargetType="Thumb">
+        <SolidColorBrush x:Key="Surface" Color="#0B1316"/>
+        <SolidColorBrush x:Key="SurfaceRaised" Color="#101B1E"/>
+        <SolidColorBrush x:Key="SurfaceHover" Color="#162724"/>
+        <SolidColorBrush x:Key="BorderSoft" Color="#1D3834"/>
+        <SolidColorBrush x:Key="AccentSoft" Color="#234D45"/>
+        <SolidColorBrush x:Key="AccentStrong" Color="#58D3B4"/>
+        <SolidColorBrush x:Key="Warning" Color="#E7B85A"/>
+
+        <LinearGradientBrush x:Key="ShellGradient"
+                             StartPoint="0,0" EndPoint="1,1">
+            <GradientStop Color="#0D171A" Offset="0"/>
+            <GradientStop Color="#091114" Offset="0.55"/>
+            <GradientStop Color="#0B1517" Offset="1"/>
+        </LinearGradientBrush>
+
+        <LinearGradientBrush x:Key="CardGradient"
+                             StartPoint="0,0" EndPoint="1,1">
+            <GradientStop Color="#132225" Offset="0"/>
+            <GradientStop Color="#0F1A1D" Offset="1"/>
+        </LinearGradientBrush>
+
+        <LinearGradientBrush x:Key="SummaryGradient"
+                             StartPoint="0,0" EndPoint="1,1">
+            <GradientStop Color="#15272A" Offset="0"/>
+            <GradientStop Color="#101B1E" Offset="0.75"/>
+            <GradientStop Color="#0D171A" Offset="1"/>
+        </LinearGradientBrush>
+        <!-- Premium low-profile scrollbars: visible rail + usable handle. -->
+        <Style x:Key="VerticalMiningThumb" TargetType="Thumb">
+            <Setter Property="MinHeight" Value="40"/>
+            <Setter Property="Margin" Value="3,2"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Thumb">
                         <Border x:Name="ThumbBody"
                                 Background="#315E56"
-                                CornerRadius="5"
-                                Margin="1"/>
+                                CornerRadius="4"/>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="ThumbBody"
+                                        Property="Background"
+                                        Value="#49A58F"/>
+                            </Trigger>
+                            <Trigger Property="IsDragging" Value="True">
+                                <Setter TargetName="ThumbBody"
+                                        Property="Background"
+                                        Value="#58D3B4"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="HorizontalMiningThumb" TargetType="Thumb">
+            <Setter Property="MinWidth" Value="40"/>
+            <Setter Property="Margin" Value="2,3"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Thumb">
+                        <Border x:Name="ThumbBody"
+                                Background="#315E56"
+                                CornerRadius="4"/>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter TargetName="ThumbBody"
@@ -50,7 +107,11 @@
         </Style>
 
         <ControlTemplate x:Key="VerticalMiningScrollBar" TargetType="ScrollBar">
-            <Grid Background="#091114">
+            <Grid Background="Transparent">
+                <Border Width="4"
+                        HorizontalAlignment="Center"
+                        Background="#132326"
+                        CornerRadius="2"/>
                 <Track x:Name="PART_Track"
                        IsDirectionReversed="True"
                        Focusable="False">
@@ -60,7 +121,7 @@
                                       Focusable="False"/>
                     </Track.DecreaseRepeatButton>
                     <Track.Thumb>
-                        <Thumb Style="{StaticResource MiningScrollThumb}"/>
+                        <Thumb Style="{StaticResource VerticalMiningThumb}"/>
                     </Track.Thumb>
                     <Track.IncreaseRepeatButton>
                         <RepeatButton Command="{x:Static ScrollBar.PageDownCommand}"
@@ -72,7 +133,11 @@
         </ControlTemplate>
 
         <ControlTemplate x:Key="HorizontalMiningScrollBar" TargetType="ScrollBar">
-            <Grid Background="#091114">
+            <Grid Background="Transparent">
+                <Border Height="4"
+                        VerticalAlignment="Center"
+                        Background="#132326"
+                        CornerRadius="2"/>
                 <Track x:Name="PART_Track"
                        IsDirectionReversed="False"
                        Focusable="False">
@@ -82,7 +147,7 @@
                                       Focusable="False"/>
                     </Track.DecreaseRepeatButton>
                     <Track.Thumb>
-                        <Thumb Style="{StaticResource MiningScrollThumb}"/>
+                        <Thumb Style="{StaticResource HorizontalMiningThumb}"/>
                     </Track.Thumb>
                     <Track.IncreaseRepeatButton>
                         <RepeatButton Command="{x:Static ScrollBar.PageRightCommand}"
@@ -94,10 +159,9 @@
         </ControlTemplate>
 
         <Style TargetType="ScrollBar">
-            <Setter Property="Background" Value="#091114"/>
-            <Setter Property="Foreground" Value="#315E56"/>
-            <Setter Property="Width" Value="10"/>
-            <Setter Property="Height" Value="10"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Width" Value="12"/>
+            <Setter Property="Height" Value="12"/>
             <Setter Property="Template"
                     Value="{StaticResource VerticalMiningScrollBar}"/>
             <Style.Triggers>
@@ -111,54 +175,273 @@
             <Setter Property="Foreground" Value="#EAF7F4"/>
         </Style>
 
-        <Style TargetType="CheckBox">
+                <Style TargetType="CheckBox">
             <Setter Property="Foreground" Value="#DCEAE6"/>
             <Setter Property="VerticalAlignment" Value="Center"/>
-            <Setter Property="Margin" Value="0,0,15,0"/>
+            <Setter Property="Margin" Value="0,0,14,0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="CheckBox">
+                        <StackPanel Orientation="Horizontal"
+                                    VerticalAlignment="Center">
+                            <Border x:Name="Box"
+                                    Width="17" Height="17"
+                                    CornerRadius="5"
+                                    Background="#0B1518"
+                                    BorderBrush="#315E56"
+                                    BorderThickness="1"
+                                    Margin="0,0,7,0">
+                                <Path x:Name="CheckMark"
+                                      Data="M 3.2 8.2 L 6.7 11.6 L 13.8 4.7"
+                                      Stroke="#07110F"
+                                      StrokeThickness="2.2"
+                                      StrokeStartLineCap="Round"
+                                      StrokeEndLineCap="Round"
+                                      Visibility="Collapsed"/>
+                            </Border>
+                            <ContentPresenter Content="{TemplateBinding Content}"
+                                              ContentTemplate="{TemplateBinding ContentTemplate}"
+                                              VerticalAlignment="Center"
+                                              RecognizesAccessKey="True"/>
+                        </StackPanel>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Box"
+                                        Property="BorderBrush"
+                                        Value="#58D3B4"/>
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Box"
+                                        Property="Background"
+                                        Value="#58D3B4"/>
+                                <Setter TargetName="Box"
+                                        Property="BorderBrush"
+                                        Value="#58D3B4"/>
+                                <Setter TargetName="CheckMark"
+                                        Property="Visibility"
+                                        Value="Visible"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.4"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
 
-        <Style TargetType="TextBox">
-            <Setter Property="Background" Value="#0C1518"/>
+                <Style TargetType="TextBox">
+            <Setter Property="Background" Value="#0A1417"/>
             <Setter Property="Foreground" Value="#F0F7F5"/>
-            <Setter Property="BorderBrush" Value="#315E56"/>
+            <Setter Property="BorderBrush" Value="#294A44"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="CaretBrush" Value="#58D3B4"/>
-            <Setter Property="Padding" Value="6,3"/>
+            <Setter Property="Padding" Value="8,4"/>
+            <Setter Property="MinHeight" Value="30"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TextBox">
+                        <Border x:Name="Field"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="7"
+                                Padding="{TemplateBinding Padding}">
+                            <ScrollViewer x:Name="PART_ContentHost"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Field"
+                                        Property="BorderBrush"
+                                        Value="#3A6D62"/>
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocusWithin" Value="True">
+                                <Setter TargetName="Field"
+                                        Property="BorderBrush"
+                                        Value="#58D3B4"/>
+                                <Setter TargetName="Field"
+                                        Property="Background"
+                                        Value="#0D1B1D"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.45"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
 
-        <Style TargetType="ComboBox">
-            <Setter Property="MinWidth" Value="94"/>
-            <Setter Property="Height" Value="26"/>
-            <Setter Property="Margin" Value="6,0,15,0"/>
-            <Setter Property="Foreground" Value="#10201D"/>
-            <Setter Property="Background" Value="#DDE9E6"/>
-            <Setter Property="BorderBrush" Value="#39796C"/>
-        </Style>
-
-        <Style TargetType="ComboBoxItem">
+                <Style TargetType="ComboBox">
+            <Setter Property="MinWidth" Value="104"/>
+            <Setter Property="Height" Value="32"/>
+            <Setter Property="Margin" Value="7,0,15,0"/>
             <Setter Property="Foreground" Value="#EAF7F4"/>
-            <Setter Property="Background" Value="#111A1E"/>
-            <Setter Property="Padding" Value="7,4"/>
-            <Style.Triggers>
-                <Trigger Property="IsHighlighted" Value="True">
-                    <Setter Property="Background" Value="#216B5E"/>
-                    <Setter Property="Foreground" Value="#FFFFFF"/>
-                </Trigger>
-                <Trigger Property="IsSelected" Value="True">
-                    <Setter Property="Background" Value="#2A8A77"/>
-                    <Setter Property="Foreground" Value="#FFFFFF"/>
-                </Trigger>
-            </Style.Triggers>
-        </Style>
-
-        <Style TargetType="Button">
-            <Setter Property="Foreground" Value="#EAF7F4"/>
-            <Setter Property="Background" Value="#17312D"/>
-            <Setter Property="BorderBrush" Value="#356F63"/>
+            <Setter Property="Background" Value="#0B1518"/>
+            <Setter Property="BorderBrush" Value="#294A44"/>
             <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Padding" Value="10,5"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBox">
+                        <Grid>
+                            <Border x:Name="ComboShell"
+                                    Background="{TemplateBinding Background}"
+                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                    CornerRadius="8">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="30"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <ContentPresenter Grid.Column="0"
+                                                      Margin="10,0,4,0"
+                                                      VerticalAlignment="Center"
+                                                      HorizontalAlignment="Left"
+                                                      Content="{TemplateBinding SelectionBoxItem}"
+                                                      ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
+                                                      ContentStringFormat="{TemplateBinding SelectionBoxItemStringFormat}"
+                                                      TextElement.Foreground="#EAF7F4"
+                                                      IsHitTestVisible="False"/>
+
+                                    <Border Grid.Column="1"
+                                            Width="1"
+                                            Height="16"
+                                            HorizontalAlignment="Left"
+                                            Background="#203631"/>
+
+                                    <Path Grid.Column="1"
+                                          Data="M 0 0 L 4 4 L 8 0"
+                                          Stroke="#78B7A8"
+                                          StrokeThickness="1.6"
+                                          StrokeStartLineCap="Round"
+                                          StrokeEndLineCap="Round"
+                                          HorizontalAlignment="Center"
+                                          VerticalAlignment="Center"/>
+                                </Grid>
+                            </Border>
+
+                            <ToggleButton Focusable="False"
+                                          Background="Transparent"
+                                          BorderThickness="0"
+                                          ClickMode="Press"
+                                          IsChecked="{Binding IsDropDownOpen,
+                                                              RelativeSource={RelativeSource TemplatedParent},
+                                                              Mode=TwoWay}">
+                                <ToggleButton.Template>
+                                    <ControlTemplate TargetType="ToggleButton">
+                                        <Border Background="Transparent"/>
+                                    </ControlTemplate>
+                                </ToggleButton.Template>
+                            </ToggleButton>
+
+                            <Popup x:Name="PART_Popup"
+                                   IsOpen="{TemplateBinding IsDropDownOpen}"
+                                   Placement="Bottom"
+                                   AllowsTransparency="True"
+                                   PopupAnimation="Fade"
+                                   Focusable="False">
+                                <Border Margin="0,5,0,0"
+                                        MinWidth="{Binding ActualWidth,
+                                                           RelativeSource={RelativeSource TemplatedParent}}"
+                                        MaxHeight="320"
+                                        Background="#101A1E"
+                                        BorderBrush="#315E56"
+                                        BorderThickness="1"
+                                        CornerRadius="9"
+                                        Padding="4">
+                                    <ScrollViewer VerticalScrollBarVisibility="Auto"
+                                                  HorizontalScrollBarVisibility="Disabled"
+                                                  CanContentScroll="True">
+                                        <ItemsPresenter/>
+                                    </ScrollViewer>
+                                </Border>
+                            </Popup>
+                        </Grid>
+
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="ComboShell"
+                                        Property="BorderBrush"
+                                        Value="#3F7569"/>
+                                <Setter TargetName="ComboShell"
+                                        Property="Background"
+                                        Value="#0E1C1E"/>
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocusWithin" Value="True">
+                                <Setter TargetName="ComboShell"
+                                        Property="BorderBrush"
+                                        Value="#58D3B4"/>
+                            </Trigger>
+                            <Trigger Property="IsDropDownOpen" Value="True">
+                                <Setter TargetName="ComboShell"
+                                        Property="BorderBrush"
+                                        Value="#58D3B4"/>
+                                <Setter TargetName="ComboShell"
+                                        Property="Background"
+                                        Value="#10221F"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.45"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+                <Style TargetType="ComboBoxItem">
+            <Setter Property="Foreground" Value="#DCEAE6"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Padding" Value="10,7"/>
+            <Setter Property="Margin" Value="1"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBoxItem">
+                        <Border x:Name="ItemShell"
+                                Background="{TemplateBinding Background}"
+                                CornerRadius="6"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsHighlighted" Value="True">
+                                <Setter TargetName="ItemShell"
+                                        Property="Background"
+                                        Value="#193A35"/>
+                                <Setter Property="Foreground"
+                                        Value="#FFFFFF"/>
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="ItemShell"
+                                        Property="Background"
+                                        Value="#235E53"/>
+                                <Setter Property="Foreground"
+                                        Value="#FFFFFF"/>
+                                <Setter Property="FontWeight"
+                                        Value="SemiBold"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+                <Style TargetType="Button">
+            <Setter Property="Foreground" Value="#EAF7F4"/>
+            <Setter Property="Background" Value="#15312C"/>
+            <Setter Property="BorderBrush" Value="#2D5C53"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="12,6"/>
+            <Setter Property="MinHeight" Value="31"/>
             <Setter Property="Margin" Value="3,0"/>
             <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
@@ -166,18 +449,27 @@
                                 Background="{TemplateBinding Background}"
                                 BorderBrush="{TemplateBinding BorderBrush}"
                                 BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="5"
+                                CornerRadius="8"
                                 Padding="{TemplateBinding Padding}">
                             <ContentPresenter HorizontalAlignment="Center"
                                               VerticalAlignment="Center"/>
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="ButtonBorder" Property="Background" Value="#225348"/>
-                                <Setter TargetName="ButtonBorder" Property="BorderBrush" Value="#4DC8A9"/>
+                                <Setter TargetName="ButtonBorder"
+                                        Property="Background"
+                                        Value="#1D493F"/>
+                                <Setter TargetName="ButtonBorder"
+                                        Property="BorderBrush"
+                                        Value="#58D3B4"/>
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="ButtonBorder" Property="Background" Value="#2A7B69"/>
+                                <Setter TargetName="ButtonBorder"
+                                        Property="Background"
+                                        Value="#276A5B"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.4"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -186,63 +478,77 @@
         </Style>
 
         <Style x:Key="WindowButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
-            <Setter Property="Width" Value="34"/>
-            <Setter Property="Height" Value="26"/>
+            <Setter Property="Width" Value="32"/>
+            <Setter Property="Height" Value="30"/>
+            <Setter Property="MinHeight" Value="30"/>
             <Setter Property="Padding" Value="0"/>
-            <Setter Property="Margin" Value="2,0"/>
+            <Setter Property="Margin" Value="3,0"/>
             <Setter Property="FontSize" Value="12"/>
+            <Setter Property="FontWeight" Value="Normal"/>
+            <Setter Property="Foreground" Value="#9BB2AC"/>
+            <Setter Property="Background" Value="#101B1E"/>
+            <Setter Property="BorderBrush" Value="#253D39"/>
         </Style>
 
-        <Style TargetType="DataGrid">
-            <Setter Property="Background" Value="#0D1518"/>
+                <Style TargetType="DataGrid">
+            <Setter Property="Background" Value="#0B1417"/>
             <Setter Property="Foreground" Value="#EAF7F4"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="GridLinesVisibility" Value="None"/>
-            <Setter Property="RowBackground" Value="#0E171A"/>
-            <Setter Property="AlternatingRowBackground" Value="#121D20"/>
+            <Setter Property="RowBackground" Value="#0D171A"/>
+            <Setter Property="AlternatingRowBackground" Value="#101C1F"/>
             <Setter Property="HeadersVisibility" Value="Column"/>
             <Setter Property="CanUserAddRows" Value="False"/>
             <Setter Property="CanUserDeleteRows" Value="False"/>
             <Setter Property="IsReadOnly" Value="True"/>
             <Setter Property="AutoGenerateColumns" Value="False"/>
             <Setter Property="SelectionMode" Value="Single"/>
-            <Setter Property="RowHeight" Value="29"/>
+            <Setter Property="SelectionUnit" Value="FullRow"/>
+            <Setter Property="RowHeaderWidth" Value="0"/>
+            <Setter Property="RowHeight" Value="32"/>
+            <Setter Property="ColumnHeaderHeight" Value="34"/>
+            <Setter Property="HorizontalGridLinesBrush" Value="Transparent"/>
+            <Setter Property="VerticalGridLinesBrush" Value="Transparent"/>
         </Style>
 
-        <Style TargetType="DataGridColumnHeader">
-            <Setter Property="Background" Value="#172328"/>
-            <Setter Property="Foreground" Value="#58D3B4"/>
-            <Setter Property="BorderBrush" Value="#26383D"/>
+                <Style TargetType="DataGridColumnHeader">
+            <Setter Property="Background" Value="#142125"/>
+            <Setter Property="Foreground" Value="#63CDB2"/>
+            <Setter Property="BorderBrush" Value="#203531"/>
             <Setter Property="BorderThickness" Value="0,0,0,1"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Padding" Value="9,7"/>
+            <Setter Property="FontSize" Value="10.5"/>
+            <Setter Property="Padding" Value="10,8"/>
         </Style>
 
-        <Style TargetType="DataGridCell">
+                <Style TargetType="DataGridCell">
             <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Padding" Value="9,5"/>
-            <Setter Property="Foreground" Value="#E3EFEC"/>
+            <Setter Property="Padding" Value="10,6"/>
+            <Setter Property="Foreground" Value="#DCEAE6"/>
+            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
             <Style.Triggers>
                 <Trigger Property="IsSelected" Value="True">
-                    <Setter Property="Background" Value="#205C51"/>
+                    <Setter Property="Background" Value="Transparent"/>
                     <Setter Property="Foreground" Value="#FFFFFF"/>
                 </Trigger>
             </Style.Triggers>
         </Style>
 
-        <Style TargetType="DataGridRow">
-            <Setter Property="Margin" Value="0,1,0,1"/>
+                <Style TargetType="DataGridRow">
+            <Setter Property="Margin" Value="0,0,0,2"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
             <Style.Triggers>
                 <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="Background" Value="#162724"/>
+                    <Setter Property="Background" Value="#152724"/>
                 </Trigger>
                 <Trigger Property="IsSelected" Value="True">
-                    <Setter Property="Background" Value="#205C51"/>
+                    <Setter Property="Background" Value="#193A35"/>
                 </Trigger>
             </Style.Triggers>
         </Style>
 
-        <Style TargetType="TabControl">
+                <Style TargetType="TabControl">
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="Template">
@@ -253,17 +559,26 @@
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="*"/>
                             </Grid.RowDefinitions>
+
                             <Border Grid.Row="0"
-                                    Background="#0A1215"
-                                    CornerRadius="7"
-                                    Padding="3"
-                                    Margin="0,0,0,8">
+                                    Background="#091215"
+                                    BorderBrush="#182D2A"
+                                    BorderThickness="1"
+                                    CornerRadius="12"
+                                    Padding="5"
+                                    Margin="0,0,0,10">
                                 <TabPanel IsItemsHost="True"
                                           Background="Transparent"
-                                          Margin="0"/>
+                                          Margin="0"
+                                          ClipToBounds="False"/>
                             </Border>
-                            <Border Grid.Row="1" Background="#0D1518"
-                                    CornerRadius="8" Padding="8">
+
+                            <Border Grid.Row="1"
+                                    Background="#0B1518"
+                                    BorderBrush="#19332E"
+                                    BorderThickness="1"
+                                    CornerRadius="12"
+                                    Padding="10">
                                 <ContentPresenter Content="{TemplateBinding SelectedContent}"
                                                   ContentTemplate="{TemplateBinding SelectedContentTemplate}"/>
                             </Border>
@@ -273,40 +588,54 @@
             </Setter>
         </Style>
 
-        <Style TargetType="TabItem">
-            <Setter Property="Foreground" Value="#AFC5C0"/>
-            <Setter Property="Background" Value="#101A1D"/>
-            <Setter Property="BorderBrush" Value="#28463F"/>
-            <Setter Property="Padding" Value="13,6"/>
-            <Setter Property="Margin" Value="0,0,5,0"/>
-            <Setter Property="MinHeight" Value="31"/>
+                <Style TargetType="TabItem">
+            <Setter Property="Foreground" Value="#8FA9A3"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+            <Setter Property="Padding" Value="16,7"/>
+            <Setter Property="Margin" Value="2,0,5,0"/>
+            <Setter Property="MinHeight" Value="35"/>
             <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="TabItem">
-                        <Border x:Name="TabBorder"
+                        <Border x:Name="TabPill"
                                 Background="{TemplateBinding Background}"
                                 BorderBrush="{TemplateBinding BorderBrush}"
                                 BorderThickness="1"
-                                CornerRadius="7"
+                                CornerRadius="9"
                                 Padding="{TemplateBinding Padding}"
-                                Margin="1"
                                 SnapsToDevicePixels="True">
                             <ContentPresenter ContentSource="Header"
                                               HorizontalAlignment="Center"
                                               VerticalAlignment="Center"
                                               TextElement.Foreground="{TemplateBinding Foreground}"/>
                         </Border>
+
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="TabBorder" Property="Background" Value="#193B35"/>
-                                <Setter Property="Foreground" Value="#FFFFFF"/>
+                                <Setter TargetName="TabPill"
+                                        Property="Background"
+                                        Value="#122724"/>
+                                <Setter TargetName="TabPill"
+                                        Property="BorderBrush"
+                                        Value="#294E47"/>
+                                <Setter Property="Foreground"
+                                        Value="#DCEAE6"/>
                             </Trigger>
                             <Trigger Property="IsSelected" Value="True">
-                                <Setter TargetName="TabBorder" Property="Background" Value="#216B5E"/>
-                                <Setter TargetName="TabBorder" Property="BorderBrush" Value="#58D3B4"/>
-                                <Setter Property="Foreground" Value="#FFFFFF"/>
-                                <Setter Property="FontWeight" Value="SemiBold"/>
+                                <Setter TargetName="TabPill"
+                                        Property="Background"
+                                        Value="#1C5A4F"/>
+                                <Setter TargetName="TabPill"
+                                        Property="BorderBrush"
+                                        Value="#4BB99F"/>
+                                <Setter Property="Foreground"
+                                        Value="#FFFFFF"/>
+                                <Setter Property="FontWeight"
+                                        Value="SemiBold"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -314,26 +643,26 @@
             </Setter>
         </Style>
 
-        <Style x:Key="SummaryCard" TargetType="Border">
-            <Setter Property="Background" Value="#121D21"/>
-            <Setter Property="BorderBrush" Value="#284E47"/>
+                <Style x:Key="SummaryCard" TargetType="Border">
+            <Setter Property="Background" Value="{StaticResource SummaryGradient}"/>
+            <Setter Property="BorderBrush" Value="#22443E"/>
             <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="CornerRadius" Value="8"/>
-            <Setter Property="Padding" Value="12,10"/>
-            <Setter Property="Margin" Value="4"/>
+            <Setter Property="CornerRadius" Value="11"/>
+            <Setter Property="Padding" Value="14,12"/>
+            <Setter Property="Margin" Value="5"/>
         </Style>
 
-        <Style x:Key="PanelCard" TargetType="Border">
-            <Setter Property="Background" Value="#10191D"/>
-            <Setter Property="BorderBrush" Value="#254A43"/>
+                <Style x:Key="PanelCard" TargetType="Border">
+            <Setter Property="Background" Value="{StaticResource CardGradient}"/>
+            <Setter Property="BorderBrush" Value="#1E3B36"/>
             <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="CornerRadius" Value="8"/>
-            <Setter Property="Padding" Value="8"/>
+            <Setter Property="CornerRadius" Value="12"/>
+            <Setter Property="Padding" Value="12"/>
         </Style>
     </Window.Resources>
 
-    <Border Background="#0C1316" BorderBrush="#2B655A" BorderThickness="1" CornerRadius="9">
-        <Grid Margin="12">
+    <Border Background="{StaticResource ShellGradient}" BorderBrush="#28574E" BorderThickness="1" CornerRadius="14">
+        <Grid Margin="16">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
@@ -341,94 +670,265 @@
                 <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
-            <!-- Custom dark title bar. No Windows white banner. -->
-            <Grid Grid.Row="0" Height="39" Margin="2,-3,0,7">
+            <!-- Premium command-center title bar. -->
+            <Grid Grid.Row="0" Height="52" Margin="2,-2,0,11">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
-                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                    <TextBlock Text="Mining Dashboard" FontSize="18"
-                               FontWeight="SemiBold" Foreground="#58D3B4"/>
-                    <TextBlock x:Name="LastRefreshText" Margin="14,3,0,0"
-                               Foreground="#6E8C85" FontSize="10.5"
-                               Text="Public ESI market data"/>
+
+                <StackPanel Orientation="Horizontal"
+                            VerticalAlignment="Center">
+                    <Border Background="#12332D"
+                            BorderBrush="#2A5F54"
+                            BorderThickness="1"
+                            CornerRadius="8"
+                            Padding="9,5"
+                            Margin="0,0,12,0">
+                        <TextBlock Text="MINING"
+                                   Foreground="#58D3B4"
+                                   FontSize="10"
+                                   FontWeight="Bold"/>
+                    </Border>
+
+                    <StackPanel VerticalAlignment="Center">
+                        <TextBlock Text="Mining Command Center"
+                                   FontSize="21"
+                                   FontWeight="SemiBold"
+                                   Foreground="#F1F8F6"/>
+                        <TextBlock x:Name="LastRefreshText"
+                                   Margin="0,2,0,0"
+                                   Foreground="#6F9189"
+                                   FontSize="10"
+                                   Text="Public ESI market data"/>
+                    </StackPanel>
                 </StackPanel>
-                <StackPanel Grid.Column="1" Orientation="Horizontal"
+
+                <StackPanel Grid.Column="1"
+                            Orientation="Horizontal"
+                            VerticalAlignment="Center"
                             shell:WindowChrome.IsHitTestVisibleInChrome="True">
-                    <Button Style="{StaticResource WindowButton}" Content="_"
+                    <Button Style="{StaticResource WindowButton}"
+                            Content="_"
                             Click="Minimize_Click"/>
-                    <Button Style="{StaticResource WindowButton}" Content="X"
+                    <Button Style="{StaticResource WindowButton}"
+                            Content="X"
                             Click="CloseWindow_Click"/>
                 </StackPanel>
             </Grid>
 
-            <Border Grid.Row="1" Style="{StaticResource PanelCard}" Margin="0,0,0,9">
-                <StackPanel>
-                    <WrapPanel VerticalAlignment="Center">
-                        <TextBlock Text="Markets" FontWeight="SemiBold" Foreground="#58D3B4"
-                                   Margin="0,0,10,0" VerticalAlignment="Center"/>
-                        <CheckBox x:Name="JitaCheck" Content="Jita 4-4"/>
-                        <CheckBox x:Name="AmarrCheck" Content="Amarr"/>
+                        <Grid Grid.Row="1" Margin="0,0,0,13">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="0.95*"/>
+                    <ColumnDefinition Width="1.35*"/>
+                </Grid.ColumnDefinitions>
 
-                        <TextBlock Text="Price" VerticalAlignment="Center"/>
-                        <ComboBox x:Name="MarketPriceModeCombo">
-                            <ComboBoxItem Content="Lowest sell" Tag="sell"/>
-                            <ComboBoxItem Content="Highest buy" Tag="buy"/>
-                        </ComboBox>
+                <!-- Market intelligence -->
+                <Border Grid.Column="0"
+                        Style="{StaticResource PanelCard}"
+                        Margin="0,0,6,0">
+                    <StackPanel>
+                        <Grid Margin="1,0,1,9">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel>
+                                <TextBlock Text="MARKET INTELLIGENCE"
+                                           Foreground="#58D3B4"
+                                           FontSize="10.5"
+                                           FontWeight="Bold"/>
+                                <TextBlock Text="Live hub valuation and corp buyback"
+                                           Foreground="#68877F"
+                                           FontSize="9.5"
+                                           Margin="0,2,0,0"/>
+                            </StackPanel>
+                            <Border Grid.Column="1"
+                                    Background="#10251F"
+                                    BorderBrush="#24483F"
+                                    BorderThickness="1"
+                                    CornerRadius="7"
+                                    Padding="8,4"
+                                    VerticalAlignment="Center">
+                                <TextBlock Text="PUBLIC ESI"
+                                           Foreground="#6FAE9D"
+                                           FontSize="9"
+                                           FontWeight="SemiBold"/>
+                            </Border>
+                        </Grid>
 
-                        <TextBlock Text="Corp BB" FontWeight="SemiBold" Foreground="#58D3B4"
-                                   VerticalAlignment="Center"/>
-                        <TextBox x:Name="BuybackPercentText" Width="52" Margin="6,0,3,0"
-                                 VerticalContentAlignment="Center"/>
-                        <TextBlock Text="%" VerticalAlignment="Center" Margin="0,0,5,0"/>
-                        <ComboBox x:Name="BuybackMarketCombo" MinWidth="72">
-                            <ComboBoxItem Content="Jita" Tag="Jita"/>
-                            <ComboBoxItem Content="Amarr" Tag="Amarr"/>
-                        </ComboBox>
-                        <ComboBox x:Name="BuybackPriceModeCombo">
-                            <ComboBoxItem Content="Lowest sell" Tag="sell"/>
-                            <ComboBoxItem Content="Highest buy" Tag="buy"/>
-                        </ComboBox>
-                    </WrapPanel>
+                        <Border Height="1" Background="#1A312D" Margin="0,0,0,9"/>
 
-                    <Border Height="1" Background="#203A35" Margin="0,8"/>
+                        <WrapPanel VerticalAlignment="Center">
+                            <TextBlock Text="HUBS"
+                                       Foreground="#63837B"
+                                       FontSize="9"
+                                       FontWeight="SemiBold"
+                                       Margin="0,0,9,0"
+                                       VerticalAlignment="Center"/>
+                            <CheckBox x:Name="JitaCheck" Content="Jita 4-4"/>
+                            <CheckBox x:Name="AmarrCheck" Content="Amarr"/>
 
-                    <WrapPanel VerticalAlignment="Center">
-                        <TextBlock Text="Alarms" FontWeight="SemiBold" Foreground="#58D3B4"
-                                   Margin="0,0,10,0" VerticalAlignment="Center"/>
-                        <CheckBox x:Name="IdleWatchdogCheck" Content="No-pull"/>
-                        <TextBlock Text="after" VerticalAlignment="Center"/>
-                        <TextBox x:Name="IdleSecondsText" Width="48" Margin="5,0"/>
-                        <TextBlock Text="sec" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                            <TextBlock Text="PRICE"
+                                       Foreground="#63837B"
+                                       FontSize="9"
+                                       FontWeight="SemiBold"
+                                       Margin="2,0,0,0"
+                                       VerticalAlignment="Center"/>
+                            <ComboBox x:Name="MarketPriceModeCombo">
+                                <ComboBoxItem Content="Lowest sell" Tag="sell"/>
+                                <ComboBoxItem Content="Highest buy" Tag="buy"/>
+                            </ComboBox>
+                        </WrapPanel>
 
-                        <CheckBox x:Name="YieldDropCheck" Content="Yield drop"/>
-                        <TextBlock Text=">" VerticalAlignment="Center"/>
-                        <TextBox x:Name="YieldDropPercentText" Width="40" Margin="5,0"/>
-                        <TextBlock Text="%" VerticalAlignment="Center"/>
-                        <TextBlock Text="for" Margin="7,0,0,0" VerticalAlignment="Center"/>
-                        <TextBox x:Name="YieldDropSecondsText" Width="40" Margin="5,0"/>
-                        <TextBlock Text="sec" VerticalAlignment="Center" Margin="0,0,12,0"/>
-                        <CheckBox x:Name="IdleSoundCheck" Content="Sound"/>
+                        <WrapPanel Margin="0,9,0,0"
+                                   VerticalAlignment="Center">
+                            <TextBlock Text="CORP BUYBACK"
+                                       Foreground="#63837B"
+                                       FontSize="9"
+                                       FontWeight="SemiBold"
+                                       Margin="0,0,7,0"
+                                       VerticalAlignment="Center"/>
+                            <TextBox x:Name="BuybackPercentText"
+                                     Width="54"
+                                     Margin="0,0,4,0"/>
+                            <TextBlock Text="% of"
+                                       Foreground="#78958E"
+                                       VerticalAlignment="Center"
+                                       Margin="0,0,2,0"/>
+                            <ComboBox x:Name="BuybackMarketCombo"
+                                      MinWidth="82">
+                                <ComboBoxItem Content="Jita" Tag="Jita"/>
+                                <ComboBoxItem Content="Amarr" Tag="Amarr"/>
+                            </ComboBox>
+                            <ComboBox x:Name="BuybackPriceModeCombo"
+                                      MinWidth="120">
+                                <ComboBoxItem Content="Lowest sell" Tag="sell"/>
+                                <ComboBoxItem Content="Highest buy" Tag="buy"/>
+                            </ComboBox>
+                        </WrapPanel>
+                    </StackPanel>
+                </Border>
 
-                        <TextBlock Text="Overview" FontWeight="SemiBold" Foreground="#58D3B4"
-                                   Margin="4,0,8,0" VerticalAlignment="Center"/>
-                        <CheckBox x:Name="AutoOverviewCheck" Content="Auto-show"/>
-                        <CheckBox x:Name="TileWallCheck" Content="Tile wall"/>
-                        <CheckBox x:Name="AllowResizeWallCheck" Content="Allow wall resize"/>
-                        <Button x:Name="ToggleOverviewButton" Content="Show / hide"/>
+                <!-- Fleet operations -->
+                <Border Grid.Column="1"
+                        Style="{StaticResource PanelCard}"
+                        Margin="6,0,0,0">
+                    <StackPanel>
+                        <Grid Margin="1,0,1,9">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel>
+                                <TextBlock Text="FLEET OPERATIONS"
+                                           Foreground="#58D3B4"
+                                           FontSize="10.5"
+                                           FontWeight="Bold"/>
+                                <TextBlock Text="Watchdogs, overview behavior and display"
+                                           Foreground="#68877F"
+                                           FontSize="9.5"
+                                           Margin="0,2,0,0"/>
+                            </StackPanel>
+                            <Border Grid.Column="1"
+                                    Background="#10251F"
+                                    BorderBrush="#24483F"
+                                    BorderThickness="1"
+                                    CornerRadius="7"
+                                    Padding="8,4"
+                                    VerticalAlignment="Center">
+                                <TextBlock Text="LIVE"
+                                           Foreground="#58D3B4"
+                                           FontSize="9"
+                                           FontWeight="Bold"/>
+                            </Border>
+                        </Grid>
 
-                        <TextBlock Text="Opacity" FontWeight="SemiBold" Foreground="#58D3B4"
-                                   Margin="15,0,7,0" VerticalAlignment="Center"/>
-                        <TextBlock Text="Dash" VerticalAlignment="Center"/>
-                        <TextBox x:Name="DashboardOpacityText" Width="38" Margin="5,0,2,0"/>
-                        <TextBlock Text="%" VerticalAlignment="Center" Margin="0,0,7,0"/>
-                        <TextBlock Text="Wall" VerticalAlignment="Center"/>
-                        <TextBox x:Name="OverviewOpacityText" Width="38" Margin="5,0,2,0"/>
-                        <TextBlock Text="%" VerticalAlignment="Center"/>
-                    </WrapPanel>
-                </StackPanel>
-            </Border>
+                        <Border Height="1" Background="#1A312D" Margin="0,0,0,9"/>
+
+                        <WrapPanel VerticalAlignment="Center">
+                            <TextBlock Text="ALARMS"
+                                       Foreground="#63837B"
+                                       FontSize="9"
+                                       FontWeight="SemiBold"
+                                       Margin="0,0,9,0"
+                                       VerticalAlignment="Center"/>
+                            <CheckBox x:Name="IdleWatchdogCheck" Content="No-pull"/>
+                            <TextBlock Text="after"
+                                       Foreground="#78958E"
+                                       VerticalAlignment="Center"/>
+                            <TextBox x:Name="IdleSecondsText"
+                                     Width="48"
+                                     Margin="5,0"/>
+                            <TextBlock Text="sec"
+                                       Foreground="#78958E"
+                                       VerticalAlignment="Center"
+                                       Margin="0,0,12,0"/>
+
+                            <CheckBox x:Name="YieldDropCheck" Content="Yield drop"/>
+                            <TextBlock Text=">"
+                                       Foreground="#78958E"
+                                       VerticalAlignment="Center"/>
+                            <TextBox x:Name="YieldDropPercentText"
+                                     Width="42"
+                                     Margin="5,0"/>
+                            <TextBlock Text="% for"
+                                       Foreground="#78958E"
+                                       VerticalAlignment="Center"/>
+                            <TextBox x:Name="YieldDropSecondsText"
+                                     Width="42"
+                                     Margin="5,0"/>
+                            <TextBlock Text="sec"
+                                       Foreground="#78958E"
+                                       VerticalAlignment="Center"
+                                       Margin="0,0,12,0"/>
+                            <CheckBox x:Name="IdleSoundCheck" Content="Sound"/>
+                        </WrapPanel>
+
+                        <Border Height="1" Background="#1A312D" Margin="0,9"/>
+
+                        <WrapPanel VerticalAlignment="Center">
+                            <TextBlock Text="OVERVIEW"
+                                       Foreground="#63837B"
+                                       FontSize="9"
+                                       FontWeight="SemiBold"
+                                       Margin="0,0,9,0"
+                                       VerticalAlignment="Center"/>
+                            <CheckBox x:Name="AutoOverviewCheck" Content="Auto-show"/>
+                            <CheckBox x:Name="TileWallCheck" Content="Tile wall"/>
+                            <CheckBox x:Name="AllowResizeWallCheck" Content="Allow resize"/>
+                            <Button x:Name="ToggleOverviewButton"
+                                    Content="Show / hide"/>
+
+                            <TextBlock Text="OPACITY"
+                                       Foreground="#63837B"
+                                       FontSize="9"
+                                       FontWeight="SemiBold"
+                                       Margin="15,0,7,0"
+                                       VerticalAlignment="Center"/>
+                            <TextBlock Text="Dash"
+                                       Foreground="#78958E"
+                                       VerticalAlignment="Center"/>
+                            <TextBox x:Name="DashboardOpacityText"
+                                     Width="42"
+                                     Margin="5,0,3,0"/>
+                            <TextBlock Text="%"
+                                       Foreground="#78958E"
+                                       VerticalAlignment="Center"
+                                       Margin="0,0,8,0"/>
+                            <TextBlock Text="Wall"
+                                       Foreground="#78958E"
+                                       VerticalAlignment="Center"/>
+                            <TextBox x:Name="OverviewOpacityText"
+                                     Width="42"
+                                     Margin="5,0,3,0"/>
+                            <TextBlock Text="%"
+                                       Foreground="#78958E"
+                                       VerticalAlignment="Center"/>
+                        </WrapPanel>
+                    </StackPanel>
+                </Border>
+            </Grid>
 
             <TabControl x:Name="MiningTabs" Grid.Row="2">
                 <TabItem Header="Overview">
@@ -686,7 +1186,7 @@
                                     </Grid.RowDefinitions>
 
                                     <WrapPanel Grid.Row="0" Margin="4,0,4,7">
-                                        <TextBlock Text="Ore filter" Foreground="#58D3B4"
+                                        <TextBlock Text="SOURCE FILTER" Foreground="#6FAE9D" FontSize="9.5"
                                                    FontWeight="SemiBold"
                                                    VerticalAlignment="Center"
                                                    Margin="0,0,7,0"/>
@@ -694,7 +1194,7 @@
                                             <ComboBoxItem Content="All high-sec" Tag="myhs"/>
                                 <ComboBoxItem Content="Moon - R4" Tag="r4"/>
                                 <ComboBoxItem Content="Amarr belts" Tag="amarrbelt"/>
-                                <ComboBoxItem Content="Anomaly - Omber / Kernite" Tag="omberkernite"/>
+                                <ComboBoxItem Content="High-sec anomaly - Omber / Kernite" Tag="omberkernite"/>
                                 <ComboBoxItem Content="Escalation - Mordunium" Tag="mordunium"/>
                                         </ComboBox>
                                     </WrapPanel>
@@ -759,7 +1259,7 @@
                         </Grid.RowDefinitions>
 
                         <WrapPanel Grid.Row="0" Margin="4,0,4,7">
-                            <TextBlock Text="Ore filter" Foreground="#58D3B4"
+                            <TextBlock Text="SOURCE FILTER" Foreground="#6FAE9D" FontSize="9.5"
                                        FontWeight="SemiBold"
                                        VerticalAlignment="Center"
                                        Margin="0,0,7,0"/>
@@ -767,7 +1267,7 @@
                                 <ComboBoxItem Content="All high-sec" Tag="myhs"/>
                                 <ComboBoxItem Content="Moon - R4" Tag="r4"/>
                                 <ComboBoxItem Content="Amarr belts" Tag="amarrbelt"/>
-                                <ComboBoxItem Content="Anomaly - Omber / Kernite" Tag="omberkernite"/>
+                                <ComboBoxItem Content="High-sec anomaly - Omber / Kernite" Tag="omberkernite"/>
                                 <ComboBoxItem Content="Escalation - Mordunium" Tag="mordunium"/>
                             </ComboBox>
                             <TextBlock Text="Filters the market decision tables only."
@@ -832,7 +1332,7 @@
                         </Grid.RowDefinitions>
 
                         <WrapPanel Grid.Row="0" Margin="4,0,4,7">
-                            <TextBlock Text="Ore filter" Foreground="#58D3B4"
+                            <TextBlock Text="SOURCE FILTER" Foreground="#6FAE9D" FontSize="9.5"
                                        FontWeight="SemiBold"
                                        VerticalAlignment="Center"
                                        Margin="0,0,7,0"/>
@@ -840,7 +1340,7 @@
                                 <ComboBoxItem Content="All high-sec" Tag="myhs"/>
                                 <ComboBoxItem Content="Moon - R4" Tag="r4"/>
                                 <ComboBoxItem Content="Amarr belts" Tag="amarrbelt"/>
-                                <ComboBoxItem Content="Anomaly - Omber / Kernite" Tag="omberkernite"/>
+                                <ComboBoxItem Content="High-sec anomaly - Omber / Kernite" Tag="omberkernite"/>
                                 <ComboBoxItem Content="Escalation - Mordunium" Tag="mordunium"/>
                             </ComboBox>
                             <TextBlock Text="Sorted by current best sell ISK/m3. Liquidity is shown separately so thin markets are obvious."
@@ -1029,8 +1529,17 @@
                 </TabItem>
             </TabControl>
 
-            <TextBlock Grid.Row="3" Margin="4,8,0,0" Foreground="#637E78" FontSize="10"
-                       Text="Mining day: 04:00 local -> 03:59 next day. Historical ore quantities are exact; historical ISK is estimated at the currently selected market prices."/>
+            <Border Grid.Row="3"
+                    Background="#091316"
+                    BorderBrush="#18302C"
+                    BorderThickness="1"
+                    CornerRadius="8"
+                    Padding="10,6"
+                    Margin="0,10,0,0">
+                <TextBlock Foreground="#637E78"
+                           FontSize="9.5"
+                           Text="Mining day 04:00 local - 03:59 next day  |  Historical quantities are exact  |  Historical ISK uses the currently selected market prices."/>
+            </Border>
         </Grid>
     </Border>
 </Window>
