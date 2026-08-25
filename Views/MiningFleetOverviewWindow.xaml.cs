@@ -124,7 +124,6 @@ public partial class MiningFleetOverviewWindow : Window
         const double cardWidth = 205;
         const double cardGap = 6;
         const double windowChrome = 44;
-        const double fixedHeight = 182;
 
         foreach (var card in ordered)
             card.CardWidth = cardWidth;
@@ -143,8 +142,10 @@ public partial class MiningFleetOverviewWindow : Window
             if (Math.Abs(Width - desiredWidth) > 1)
                 Width = desiredWidth;
 
-            if (Math.Abs(Height - fixedHeight) > 1)
-                Height = fixedHeight;
+            // Height is intentionally NOT assigned here. In automatic mode WPF
+            // measures the larger fonts, labels and alarm button and grows the
+            // window just enough to fit them. This prevents future font/layout
+            // changes from reintroducing clipping.
 
             // If the wall grows near the right edge of the Windows virtual desktop,
             // slide it left instead of clipping the new miner tile.
@@ -167,8 +168,10 @@ public partial class MiningFleetOverviewWindow : Window
     {
         if (_prefs.AllowFleetOverviewResize)
         {
+            // Manual mode behaves like a normal window again.
+            SizeToContent = SizeToContent.Manual;
             ResizeMode = ResizeMode.CanResizeWithGrip;
-            MinHeight = 125;
+            MinHeight = 142;
             MaxHeight = double.PositiveInfinity;
 
             if (MinerScroll != null)
@@ -179,14 +182,16 @@ public partial class MiningFleetOverviewWindow : Window
         }
         else
         {
+            // Automatic mode owns the width while WPF owns the height.
+            // Any larger font, DPI scale or future extra row automatically
+            // increases the wall height instead of clipping the controls.
             ResizeMode = ResizeMode.NoResize;
-            MinHeight = 182;
-            MaxHeight = 182;
+            MinHeight = 142;
+            MaxHeight = double.PositiveInfinity;
+            SizeToContent = SizeToContent.Height;
 
             if (MinerScroll != null)
             {
-                // The wall already calculates its exact width. Hiding the scrollbar
-                // also gives the bottom status/alarm row its full vertical space.
                 MinerScroll.HorizontalScrollBarVisibility =
                     System.Windows.Controls.ScrollBarVisibility.Disabled;
             }

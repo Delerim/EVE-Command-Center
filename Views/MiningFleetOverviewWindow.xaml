@@ -94,7 +94,7 @@
 
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
-                            <Border Width="{Binding CardWidth}" Height="128"
+                            <Border Width="{Binding CardWidth}" MinHeight="128"
                                     VerticalAlignment="Top"
                                     CornerRadius="7" BorderThickness="1.5"
                                     Padding="8,6" Margin="0,0,6,0">
@@ -131,7 +131,7 @@
                                         <RowDefinition Height="Auto"/>
                                         <RowDefinition Height="Auto"/>
                                         <RowDefinition Height="Auto"/>
-                                        <RowDefinition Height="23"/>
+                                        <RowDefinition Height="Auto"/>
                                     </Grid.RowDefinitions>
 
                                     <DockPanel Grid.Row="0">
@@ -218,8 +218,8 @@
                                                 ToolTip="{Binding AlarmToolTip}"
                                                 FontSize="9.5"
                                                 MinWidth="57"
-                                                Height="18"
-                                                Padding="5,0"
+                                                MinHeight="21"
+                                                Padding="6,1"
                                                 HorizontalAlignment="Right"
                                                 VerticalAlignment="Center">
                                             <Button.Style>
