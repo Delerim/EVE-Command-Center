@@ -34,6 +34,13 @@ public sealed class MiningMarketService
     private readonly ConcurrentDictionary<string, Task<MiningMarketQuote?>> _inFlight =
         new(StringComparer.OrdinalIgnoreCase);
 
+    private static readonly TimeSpan HistoryTtl = TimeSpan.FromHours(6);
+
+    private readonly ConcurrentDictionary<string, MiningMarketHistory> _history =
+        new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<string, Task<MiningMarketHistory?>> _historyInFlight =
+        new(StringComparer.OrdinalIgnoreCase);
+
     private static HttpClient CreateHttpClient()
     {
         var client = new HttpClient { Timeout = TimeSpan.FromSeconds(15) };
@@ -68,6 +75,257 @@ public sealed class MiningMarketService
         return _inFlight.GetOrAdd(oreName, key => FetchAndStoreAsync(key, cancellationToken));
     }
 
+    public bool TryGetHistory(string oreName, out MiningMarketHistory history)
+    {
+        history = default!;
+        if (string.IsNullOrWhiteSpace(oreName)) return false;
+        return _history.TryGetValue(oreName.Trim(), out history!);
+    }
+
+    public async Task<MiningMarketHistory?> EnsureHistoryAsync(
+        string oreName,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(oreName))
+            return null;
+
+        oreName = oreName.Trim();
+
+        if (_history.TryGetValue(oreName, out var existing))
+        {
+            var age = DateTime.UtcNow - existing.FetchedAtUtc;
+            var ttl = string.IsNullOrEmpty(existing.Error)
+                ? HistoryTtl
+                : ErrorRetryTtl;
+
+            if (age < ttl)
+                return existing;
+        }
+
+        var quote = await EnsureQuoteAsync(
+            oreName, cancellationToken).ConfigureAwait(false);
+
+        if (quote == null || quote.TypeId <= 0)
+        {
+            var unavailable = MiningMarketHistory.Unavailable(
+                oreName,
+                quote?.TypeId ?? 0,
+                quote?.Error ?? "Unable to resolve EVE type.");
+
+            _history[oreName] = unavailable;
+            return unavailable;
+        }
+
+        return await _historyInFlight.GetOrAdd(
+            oreName,
+            key => FetchHistoryAndStoreAsync(
+                key, quote, cancellationToken)).ConfigureAwait(false);
+    }
+
+    public MiningMarketTimingSignal GetTimingSignal(
+        string oreName,
+        string market,
+        string priceMode)
+    {
+        if (!TryGetQuote(oreName, out var quote) ||
+            !quote.IsAvailable ||
+            !TryGetHistory(oreName, out var history) ||
+            !history.IsAvailable)
+        {
+            return MiningMarketTimingSignal.Unavailable(
+                market,
+                "Loading market history...");
+        }
+
+        bool amarr = market.Equals(
+            "Amarr", StringComparison.OrdinalIgnoreCase);
+        bool buy = priceMode.Equals(
+            "buy", StringComparison.OrdinalIgnoreCase);
+
+        double current = amarr
+            ? ((buy ? quote.AmarrBestBuy : quote.AmarrBestSell) ?? 0)
+            : ((buy ? quote.JitaBestBuy : quote.JitaBestSell) ?? 0);
+
+        if (current <= 0)
+            return MiningMarketTimingSignal.Unavailable(
+                market,
+                "No current station price.");
+
+        var source = amarr ? history.Domain : history.TheForge;
+
+        var valid = source
+            .Where(d => d.Average > 0)
+            .OrderBy(d => d.DateUtc)
+            .ToList();
+
+        if (valid.Count < 7)
+            return MiningMarketTimingSignal.Unavailable(
+                market,
+                "Not enough ESI history yet.");
+
+        DateTime today = DateTime.UtcNow.Date;
+
+        var d7 = valid.Where(
+            d => d.DateUtc >= today.AddDays(-7)).ToList();
+        var d30 = valid.Where(
+            d => d.DateUtc >= today.AddDays(-30)).ToList();
+        var d90 = valid.Where(
+            d => d.DateUtc >= today.AddDays(-90)).ToList();
+
+        if (d30.Count == 0)
+            return MiningMarketTimingSignal.Unavailable(
+                market,
+                "No recent ESI history.");
+
+        double avg7 = WeightedAverage(d7);
+        double avg30 = WeightedAverage(d30);
+        double low90 = d90.Count > 0
+            ? d90.Min(d => d.Average)
+            : avg30;
+        double high90 = d90.Count > 0
+            ? d90.Max(d => d.Average)
+            : avg30;
+
+        double vs30Pct = avg30 > 0
+            ? (current / avg30 - 1.0) * 100.0
+            : 0;
+
+        double trendPct = avg30 > 0 && avg7 > 0
+            ? (avg7 / avg30 - 1.0) * 100.0
+            : 0;
+
+        double rangePosition = high90 > low90
+            ? Math.Clamp(
+                (current - low90) / (high90 - low90),
+                0,
+                1)
+            : 0.5;
+
+        string signal;
+
+        // Conservative historical-position heuristic, not a price prediction.
+        if (rangePosition >= 0.82 || vs30Pct >= 8.0)
+            signal = "SELL";
+        else if (rangePosition <= 0.22 || vs30Pct <= -8.0)
+            signal = "HOLD";
+        else if (trendPct >= 4.0 && vs30Pct < 2.0)
+            signal = "HOLD";
+        else if (trendPct <= -4.0 && vs30Pct > 0)
+            signal = "SELL";
+        else
+            signal = "FAIR";
+
+        string reason =
+            $"{FormatSigned(vs30Pct)} vs 30d avg; " +
+            $"{rangePosition * 100.0:F0}% of 90d range; " +
+            $"7d trend {FormatSigned(trendPct)}";
+
+        return new MiningMarketTimingSignal
+        {
+            IsAvailable = true,
+            Signal = signal,
+            Market = amarr ? "Amarr" : "Jita",
+            CurrentPrice = current,
+            Average7 = avg7,
+            Average30 = avg30,
+            Low90 = low90,
+            High90 = high90,
+            Vs30Percent = vs30Pct,
+            TrendPercent = trendPct,
+            RangePositionPercent = rangePosition * 100.0,
+            Reason = reason
+        };
+    }
+
+    private async Task<MiningMarketHistory?> FetchHistoryAndStoreAsync(
+        string oreName,
+        MiningMarketQuote quote,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var forgeTask = FetchRegionHistoryAsync(
+                TheForgeRegionId,
+                quote.TypeId,
+                cancellationToken);
+
+            var domainTask = FetchRegionHistoryAsync(
+                DomainRegionId,
+                quote.TypeId,
+                cancellationToken);
+
+            await Task.WhenAll(
+                forgeTask, domainTask).ConfigureAwait(false);
+
+            var result = new MiningMarketHistory
+            {
+                OreName = quote.OreName,
+                TypeId = quote.TypeId,
+                TheForge = await forgeTask.ConfigureAwait(false),
+                Domain = await domainTask.ConfigureAwait(false),
+                FetchedAtUtc = DateTime.UtcNow,
+                Error = null
+            };
+
+            _history[oreName] = result;
+
+            if (!oreName.Equals(
+                    quote.OreName,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                _history[quote.OreName] = result;
+            }
+
+            return result;
+        }
+        catch (OperationCanceledException)
+            when (cancellationToken.IsCancellationRequested)
+        {
+            return null;
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine(
+                $"[MiningMarket] History error for '{oreName}': {ex.Message}");
+
+            var failed = MiningMarketHistory.Unavailable(
+                oreName,
+                quote.TypeId,
+                ex.Message);
+
+            _history[oreName] = failed;
+            return failed;
+        }
+        finally
+        {
+            _historyInFlight.TryRemove(oreName, out _);
+        }
+    }
+
+    private static double WeightedAverage(
+        IReadOnlyCollection<MiningMarketHistoryDay> days)
+    {
+        if (days.Count == 0) return 0;
+
+        double weighted = 0;
+        double volume = 0;
+
+        foreach (var day in days)
+        {
+            double weight = Math.Max(1, day.Volume);
+            weighted += day.Average * weight;
+            volume += weight;
+        }
+
+        return volume > 0
+            ? weighted / volume
+            : days.Average(d => d.Average);
+    }
+
+    private static string FormatSigned(double value) =>
+        value.ToString(
+            "+0.0;-0.0;0.0",
+            CultureInfo.InvariantCulture) + "%";
     private async Task<MiningMarketQuote?> FetchAndStoreAsync(string oreName, CancellationToken cancellationToken)
     {
         try
@@ -206,6 +464,86 @@ public sealed class MiningMarketService
 
         return (bestSell, bestBuy);
     }
+
+    private static async Task<IReadOnlyList<MiningMarketHistoryDay>>
+        FetchRegionHistoryAsync(
+            int regionId,
+            int typeId,
+            CancellationToken cancellationToken)
+    {
+        string url =
+            $"https://esi.evetech.net/markets/{regionId}/history/" +
+            $"?datasource=tranquility&type_id={typeId}";
+
+        using var response = await Http.GetAsync(
+            url, cancellationToken).ConfigureAwait(false);
+
+        response.EnsureSuccessStatusCode();
+
+        await using var stream = await response.Content
+            .ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
+
+        using var doc = await JsonDocument.ParseAsync(
+            stream,
+            cancellationToken: cancellationToken).ConfigureAwait(false);
+
+        DateTime cutoff = DateTime.UtcNow.Date.AddDays(-365);
+        var result = new List<MiningMarketHistoryDay>();
+
+        foreach (var row in doc.RootElement.EnumerateArray())
+        {
+            if (!row.TryGetProperty("date", out var dateEl))
+                continue;
+
+            string? dateText = dateEl.GetString();
+
+            if (!DateTime.TryParseExact(
+                    dateText,
+                    "yyyy-MM-dd",
+                    CultureInfo.InvariantCulture,
+                    DateTimeStyles.AssumeUniversal |
+                    DateTimeStyles.AdjustToUniversal,
+                    out var dateUtc))
+            {
+                continue;
+            }
+
+            if (dateUtc < cutoff)
+                continue;
+
+            result.Add(new MiningMarketHistoryDay
+            {
+                DateUtc = dateUtc,
+                Average = ReadDouble(row, "average"),
+                Highest = ReadDouble(row, "highest"),
+                Lowest = ReadDouble(row, "lowest"),
+                OrderCount = ReadInt(row, "order_count"),
+                Volume = ReadLong(row, "volume")
+            });
+        }
+
+        return result
+            .OrderBy(d => d.DateUtc)
+            .ToList();
+    }
+
+    private static double ReadDouble(JsonElement row, string property) =>
+        row.TryGetProperty(property, out var el) &&
+        el.TryGetDouble(out double value)
+            ? value
+            : 0;
+
+    private static int ReadInt(JsonElement row, string property) =>
+        row.TryGetProperty(property, out var el) &&
+        el.TryGetInt32(out int value)
+            ? value
+            : 0;
+
+    private static long ReadLong(JsonElement row, string property) =>
+        row.TryGetProperty(property, out var el) &&
+        el.TryGetInt64(out long value)
+            ? value
+            : 0;
 }
 
 public sealed record MiningMarketQuote
@@ -227,5 +565,71 @@ public sealed record MiningMarketQuote
         OreName = oreName,
         FetchedAtUtc = DateTime.UtcNow,
         Error = error
+    };
+}
+
+public sealed record MiningMarketHistoryDay
+{
+    public DateTime DateUtc { get; init; }
+    public double Average { get; init; }
+    public double Highest { get; init; }
+    public double Lowest { get; init; }
+    public int OrderCount { get; init; }
+    public long Volume { get; init; }
+}
+
+public sealed record MiningMarketHistory
+{
+    public string OreName { get; init; } = "";
+    public int TypeId { get; init; }
+
+    public IReadOnlyList<MiningMarketHistoryDay> TheForge { get; init; } =
+        Array.Empty<MiningMarketHistoryDay>();
+
+    public IReadOnlyList<MiningMarketHistoryDay> Domain { get; init; } =
+        Array.Empty<MiningMarketHistoryDay>();
+
+    public DateTime FetchedAtUtc { get; init; }
+    public string? Error { get; init; }
+
+    public bool IsAvailable =>
+        string.IsNullOrEmpty(Error) &&
+        (TheForge.Count > 0 || Domain.Count > 0);
+
+    public static MiningMarketHistory Unavailable(
+        string oreName,
+        int typeId,
+        string error) => new()
+    {
+        OreName = oreName,
+        TypeId = typeId,
+        FetchedAtUtc = DateTime.UtcNow,
+        Error = error
+    };
+}
+
+public sealed record MiningMarketTimingSignal
+{
+    public bool IsAvailable { get; init; }
+    public string Signal { get; init; } = "LOADING";
+    public string Market { get; init; } = "";
+    public double CurrentPrice { get; init; }
+    public double Average7 { get; init; }
+    public double Average30 { get; init; }
+    public double Low90 { get; init; }
+    public double High90 { get; init; }
+    public double Vs30Percent { get; init; }
+    public double TrendPercent { get; init; }
+    public double RangePositionPercent { get; init; }
+    public string Reason { get; init; } = "";
+
+    public static MiningMarketTimingSignal Unavailable(
+        string market,
+        string reason) => new()
+    {
+        IsAvailable = false,
+        Signal = "LOADING",
+        Market = market,
+        Reason = reason
     };
 }

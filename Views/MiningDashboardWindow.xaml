@@ -576,28 +576,71 @@
                                         <DataGridTextColumn Header="Corp BB est." Binding="{Binding BuybackText}" Width="125"/>
                                     </DataGrid.Columns>
                                 </DataGrid>
+                            </TabItem>                            <TabItem x:Name="SellTimingTab" Header="Sell timing">
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="*"/>
+                                    </Grid.RowDefinitions>
+
+                                    <TextBlock Grid.Row="0"
+                                               Margin="4,1,4,8"
+                                               Foreground="#78958E"
+                                               FontSize="10.5"
+                                               Text="Heuristic only: current station price vs ESI regional 7d / 30d / 90d market history. SELL means historically expensive; HOLD means historically cheap."/>
+
+                                    <DataGrid Grid.Row="1" x:Name="SellTimingGrid" AlternationCount="2">
+                                        <DataGrid.Columns>
+                                            <DataGridTextColumn Header="Ore" Binding="{Binding Ore}" Width="180"/>
+                                            <DataGridTextColumn Header="Units" Binding="{Binding UnitsText}" Width="95"/>
+                                            <DataGridTextColumn Header="Market" Binding="{Binding Market}" Width="75"/>
+                                            <DataGridTextColumn Header="Current" Binding="{Binding CurrentText}" Width="95"/>
+                                            <DataGridTextColumn Header="7d avg" Binding="{Binding Average7Text}" Width="95"/>
+                                            <DataGridTextColumn Header="30d avg" Binding="{Binding Average30Text}" Width="95"/>
+                                            <DataGridTextColumn Header="90d low" Binding="{Binding Low90Text}" Width="95"/>
+                                            <DataGridTextColumn Header="90d high" Binding="{Binding High90Text}" Width="95"/>
+                                            <DataGridTextColumn Header="vs 30d" Binding="{Binding Vs30Text}" Width="80"/>
+                                            <DataGridTextColumn Header="Trend" Binding="{Binding TrendText}" Width="80"/>
+                                            <DataGridTextColumn Header="Signal" Binding="{Binding Signal}" Width="70"/>
+                                            <DataGridTextColumn Header="Why" Binding="{Binding Reason}" Width="*"/>
+                                        </DataGrid.Columns>
+                                    </DataGrid>
+                                </Grid>
                             </TabItem>
                         </TabControl>
                     </Grid>
                 </TabItem>
 
-                <TabItem Header="Market / Ore">
-                    <DataGrid x:Name="MarketGrid" AlternationCount="2">
-                        <DataGrid.Columns>
-                            <DataGridTextColumn Header="Ore" Binding="{Binding Ore}" Width="220"/>
-                            <DataGridTextColumn Header="Units today" Binding="{Binding Units, StringFormat={}{0:N0}}" Width="110"/>
-                            <DataGridTextColumn Header="Volume m3" Binding="{Binding VolumeM3Text}" Width="115"/>
-                            <DataGridTextColumn Header="Jita / unit" Binding="{Binding JitaUnitText}" Width="115"/>
-                            <DataGridTextColumn Header="Amarr / unit" Binding="{Binding AmarrUnitText}" Width="115"/>
-                            <DataGridTextColumn Header="Best market" Binding="{Binding BestMarket}" Width="105"/>
-                            <DataGridTextColumn Header="Jita today" Binding="{Binding JitaValueText}" Width="120"/>
-                            <DataGridTextColumn Header="Amarr today" Binding="{Binding AmarrValueText}" Width="120"/>
-                            <DataGridTextColumn Header="Best today" Binding="{Binding BestValueText}" Width="120"/>
-                        </DataGrid.Columns>
-                    </DataGrid>
-                </TabItem>
+                                <TabItem x:Name="MarketTab" Header="Market / Ore">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
 
-                <TabItem Header="Corp Buyback">
+                        <TextBlock Grid.Row="0"
+                                   Margin="4,1,4,8"
+                                   Foreground="#78958E"
+                                   FontSize="10.5"
+                                   Text="Live Jita 4-4 / Amarr station orders. 30d history and timing use ESI regional history (The Forge / Domain)."/>
+
+                        <DataGrid Grid.Row="1" x:Name="MarketGrid" AlternationCount="2">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Ore" Binding="{Binding Ore}" Width="180"/>
+                                <DataGridTextColumn Header="Today units" Binding="{Binding Units, StringFormat={}{0:N0}}" Width="95"/>
+                                <DataGridTextColumn Header="Jita sell" Binding="{Binding JitaSellText}" Width="95"/>
+                                <DataGridTextColumn Header="Jita buy" Binding="{Binding JitaBuyText}" Width="95"/>
+                                <DataGridTextColumn Header="Amarr sell" Binding="{Binding AmarrSellText}" Width="95"/>
+                                <DataGridTextColumn Header="Amarr buy" Binding="{Binding AmarrBuyText}" Width="95"/>
+                                <DataGridTextColumn Header="Best sell" Binding="{Binding BestSellText}" Width="100"/>
+                                <DataGridTextColumn Header="Best market" Binding="{Binding BestMarket}" Width="90"/>
+                                <DataGridTextColumn Header="30d avg" Binding="{Binding Average30Text}" Width="95"/>
+                                <DataGridTextColumn Header="Signal" Binding="{Binding Signal}" Width="70"/>
+                                <DataGridTextColumn Header="Why" Binding="{Binding SignalReason}" Width="*"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Grid>
+                </TabItem><TabItem Header="Corp Buyback">
                     <DataGrid x:Name="BuybackGrid" AlternationCount="2">
                         <DataGrid.Columns>
                             <DataGridTextColumn Header="Ore" Binding="{Binding Ore}" Width="240"/>

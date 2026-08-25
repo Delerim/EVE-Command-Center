@@ -55,6 +55,31 @@ public sealed class MiningHistoryService : IDisposable
             return _status with { };
     }
 
+    public void SetUnavailableStatus(string message)
+    {
+        lock (_gate)
+        {
+            _status = new MiningHistoryBuildStatus
+            {
+                IsRunning = false,
+                Message = message
+            };
+        }
+    }
+
+    public IReadOnlyList<string> GetKnownOres()
+    {
+        lock (_gate)
+        {
+            return _archive.Rows
+                .Select(r => r.Ore)
+                .Where(o => !string.IsNullOrWhiteSpace(o))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(o => o, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+        }
+    }
+
     /// <summary>
     /// Parse the complete CURRENT mining day directly from EVE gamelogs.
     /// This runs before live monitoring so TODAY is correct immediately.
@@ -85,7 +110,10 @@ public sealed class MiningHistoryService : IDisposable
     public void StartBackgroundBuild(string gameLogPath)
     {
         if (string.IsNullOrWhiteSpace(gameLogPath) || !Directory.Exists(gameLogPath))
+        {
+            SetUnavailableStatus("History unavailable - EVE Gamelogs folder not found");
             return;
+        }
 
         lock (_gate)
         {
@@ -95,7 +123,42 @@ public sealed class MiningHistoryService : IDisposable
             _cts?.Dispose();
             _cts = new CancellationTokenSource();
             var token = _cts.Token;
-            _buildTask = Task.Run(() => BuildBackgroundAsync(gameLogPath, token), token);
+
+            _status = new MiningHistoryBuildStatus
+            {
+                IsRunning = true,
+                Message = "Starting history index..."
+            };
+
+            _buildTask = Task.Run(async () =>
+            {
+                try
+                {
+                    await BuildBackgroundAsync(gameLogPath, token).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException)
+                {
+                    lock (_gate)
+                    {
+                        _status = new MiningHistoryBuildStatus
+                        {
+                            IsRunning = false,
+                            Message = "History indexing cancelled"
+                        };
+                    }
+                }
+                catch (Exception ex)
+                {
+                    lock (_gate)
+                    {
+                        _status = new MiningHistoryBuildStatus
+                        {
+                            IsRunning = false,
+                            Message = $"History indexing failed - {ex.Message}"
+                        };
+                    }
+                }
+            }, token);
         }
     }
 
@@ -559,5 +622,5 @@ public record MiningHistoryBuildStatus
     public int FilesTotal { get; init; }
     public double ProgressPercent { get; init; }
     public int DaysIndexed { get; init; }
-    public string Message { get; init; } = "History not indexed yet";
+    public string Message { get; init; } = "Waiting for history index...";
 }

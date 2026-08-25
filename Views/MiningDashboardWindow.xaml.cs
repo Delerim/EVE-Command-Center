@@ -25,6 +25,8 @@ public partial class MiningDashboardWindow : Window
     private DateTime _historyTo;
     private DateTime _profitFrom;
     private DateTime _profitTo;
+    private string _historyPreset = "today";
+    private string _profitPreset = "today";
     private bool _syncingSettings;
 
     public MiningDashboardWindow(
@@ -335,41 +337,105 @@ public partial class MiningDashboardWindow : Window
         SummaryBuybackText.Text = Isk(totalCorpToday);
         SummaryCritText.Text = FleetCritText();
 
-        var marketRows = new List<MarketOreRow>();
-        foreach (var kv in fleetOre.OrderBy(k => k.Key, StringComparer.OrdinalIgnoreCase))
+        var knownOres = _tracker.GetKnownMiningOres()
+            .Concat(fleetOre.Keys)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(o => o, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        foreach (var ore in knownOres)
         {
-            if (!_tracker.TryGetMiningQuote(kv.Key, out var quote) || !quote.IsAvailable)
+            _ = _tracker.EnsureMiningQuoteAsync(ore);
+
+            if (MarketTab.IsSelected)
+                _ = _tracker.EnsureMiningMarketHistoryAsync(ore);
+        }
+
+        var marketRows = new List<MarketOreRow>();
+
+        foreach (var ore in knownOres)
+        {
+            fleetOre.TryGetValue(ore, out double unitsToday);
+
+            if (!_tracker.TryGetMiningQuote(ore, out var quote) || !quote.IsAvailable)
             {
-                marketRows.Add(MarketOreRow.Pending(kv.Key, kv.Value));
+                marketRows.Add(MarketOreRow.Pending(ore, unitsToday));
                 continue;
             }
 
-            double jitaUnit = _tracker.GetMarketUnitPrice(quote, "Jita", _settings.MiningMarketPriceMode);
-            double amarrUnit = _tracker.GetMarketUnitPrice(quote, "Amarr", _settings.MiningMarketPriceMode);
-            double jitaValue = kv.Value * jitaUnit;
-            double amarrValue = kv.Value * amarrUnit;
+            double jitaSell = quote.JitaBestSell ?? 0;
+            double jitaBuy = quote.JitaBestBuy ?? 0;
+            double amarrSell = quote.AmarrBestSell ?? 0;
+            double amarrBuy = quote.AmarrBestBuy ?? 0;
 
-            var enabled = new List<(string Market, double Unit, double Value)>();
-            if (_settings.MiningMarketJitaEnabled) enabled.Add(("Jita", jitaUnit, jitaValue));
-            if (_settings.MiningMarketAmarrEnabled) enabled.Add(("Amarr", amarrUnit, amarrValue));
-            var best = enabled.OrderByDescending(x => x.Value).FirstOrDefault();
+            var enabledSell = new List<(string Market, double Price)>();
+            if (_settings.MiningMarketJitaEnabled && jitaSell > 0)
+                enabledSell.Add(("Jita", jitaSell));
+            if (_settings.MiningMarketAmarrEnabled && amarrSell > 0)
+                enabledSell.Add(("Amarr", amarrSell));
+
+            var bestSell = enabledSell
+                .OrderByDescending(x => x.Price)
+                .FirstOrDefault();
+
+            double jitaSelected = _tracker.GetMarketUnitPrice(
+                quote, "Jita", _settings.MiningMarketPriceMode);
+            double amarrSelected = _tracker.GetMarketUnitPrice(
+                quote, "Amarr", _settings.MiningMarketPriceMode);
+
+            string timingMarket = "Jita";
+            double selectedPrice = 0;
+
+            if (_settings.MiningMarketJitaEnabled && jitaSelected > selectedPrice)
+            {
+                timingMarket = "Jita";
+                selectedPrice = jitaSelected;
+            }
+
+            if (_settings.MiningMarketAmarrEnabled && amarrSelected > selectedPrice)
+            {
+                timingMarket = "Amarr";
+                selectedPrice = amarrSelected;
+            }
+
+            var timing = _tracker.GetMiningMarketTiming(
+                ore,
+                timingMarket,
+                _settings.MiningMarketPriceMode);
+
+            double bestValue = bestSell.Market == null
+                ? 0
+                : unitsToday * bestSell.Price;
 
             marketRows.Add(new MarketOreRow
             {
-                Ore = kv.Key,
-                Units = kv.Value,
-                VolumeM3Text = Number(kv.Value * quote.UnitVolumeM3),
-                JitaUnitText = _settings.MiningMarketJitaEnabled ? Price(jitaUnit) : "off",
-                AmarrUnitText = _settings.MiningMarketAmarrEnabled ? Price(amarrUnit) : "off",
-                BestMarket = best.Market ?? "-",
-                JitaValueText = _settings.MiningMarketJitaEnabled ? Isk(jitaValue) : "off",
-                AmarrValueText = _settings.MiningMarketAmarrEnabled ? Isk(amarrValue) : "off",
-                BestValueText = best.Market == null ? "-" : Isk(best.Value)
+                Ore = ore,
+                Units = unitsToday,
+                VolumeM3Text = unitsToday > 0
+                    ? Number(unitsToday * quote.UnitVolumeM3)
+                    : "-",
+                JitaSellText = Price(jitaSell),
+                JitaBuyText = Price(jitaBuy),
+                AmarrSellText = Price(amarrSell),
+                AmarrBuyText = Price(amarrBuy),
+                BestSellText = bestSell.Market == null
+                    ? "-"
+                    : Price(bestSell.Price),
+                BestMarket = bestSell.Market ?? "-",
+                Average30Text = timing.IsAvailable
+                    ? Price(timing.Average30)
+                    : "loading...",
+                Signal = timing.Signal,
+                SignalReason = timing.Reason,
+                BestValueText = Isk(bestValue)
             });
         }
 
         MarketGrid.ItemsSource = marketRows;
-        OverviewOreGrid.ItemsSource = marketRows;
+
+        OverviewOreGrid.ItemsSource = marketRows
+            .Where(r => r.Units > 0)
+            .ToList();
 
         var buybackRows = new List<BuybackOreRow>();
         double grossTotal = 0;
@@ -428,7 +494,7 @@ public partial class MiningDashboardWindow : Window
             : "drop off";
 
         LastRefreshText.Text =
-            $"{_tracker.GetMiningDayLabel()} day | ESI {DateTime.Now:HH:mm:ss} | {fleetOre.Count} resource(s) | {watchdogText} | {dropText}";
+            $"{_tracker.GetMiningDayLabel()} day | ESI {DateTime.Now:HH:mm:ss} | {knownOres.Count} priced ore(s) | {watchdogText} | {dropText}";
     }
 
 
@@ -456,6 +522,8 @@ public partial class MiningDashboardWindow : Window
 
     private void SetHistoryRange(string preset)
     {
+        _historyPreset = preset;
+
         if (!DateTime.TryParseExact(
                 _tracker.GetMiningDayLabel(),
                 "yyyy-MM-dd",
@@ -528,6 +596,8 @@ public partial class MiningDashboardWindow : Window
     {
         if (!HistoryTab.IsSelected)
             return;
+
+        SetHistoryRange(_historyPreset);
 
         var aggregates = _tracker.GetMiningHistoryRange(_historyFrom, _historyTo);
 
@@ -632,6 +702,8 @@ public partial class MiningDashboardWindow : Window
 
     private void SetProfitRange(string preset)
     {
+        _profitPreset = preset;
+
         if (!DateTime.TryParseExact(
                 _tracker.GetMiningDayLabel(),
                 "yyyy-MM-dd",
@@ -697,6 +769,8 @@ public partial class MiningDashboardWindow : Window
         if (!ProfitTab.IsSelected)
             return;
 
+        SetProfitRange(_profitPreset);
+
         var aggregates = _tracker.GetMiningHistoryRange(_profitFrom, _profitTo);
 
         var ores = aggregates
@@ -706,7 +780,13 @@ public partial class MiningDashboardWindow : Window
             .ToList();
 
         if (ores.Count > 0)
-            await System.Threading.Tasks.Task.WhenAll(ores.Select(o => _tracker.EnsureMiningQuoteAsync(o)));
+        {
+            await System.Threading.Tasks.Task.WhenAll(
+                ores.Select(o => _tracker.EnsureMiningQuoteAsync(o)));
+
+            foreach (var ore in ores)
+                _ = _tracker.EnsureMiningMarketHistoryAsync(ore);
+        }
 
         double totalUnits = aggregates.Sum(r => r.Units);
         double totalNormal = aggregates.Sum(r => r.NormalUnits);
@@ -835,6 +915,74 @@ public partial class MiningDashboardWindow : Window
         ProfitOreGrid.ItemsSource = oreRows;
         ProfitCharacterGrid.ItemsSource = characterRows;
 
+        var timingRows = new List<SellTimingRow>();
+
+        foreach (var group in aggregates
+                     .GroupBy(r => r.Ore, StringComparer.OrdinalIgnoreCase)
+                     .OrderByDescending(g => g.Sum(r => r.Units)))
+        {
+            string ore = group.Key;
+            double units = group.Sum(r => r.Units);
+
+            if (!_tracker.TryGetMiningQuote(ore, out var quote) || !quote.IsAvailable)
+            {
+                timingRows.Add(SellTimingRow.Loading(ore, units));
+                continue;
+            }
+
+            double jitaCurrent = _tracker.GetMarketUnitPrice(
+                quote, "Jita", _settings.MiningMarketPriceMode);
+            double amarrCurrent = _tracker.GetMarketUnitPrice(
+                quote, "Amarr", _settings.MiningMarketPriceMode);
+
+            string market = "Jita";
+            double current = 0;
+
+            if (_settings.MiningMarketJitaEnabled && jitaCurrent > current)
+            {
+                market = "Jita";
+                current = jitaCurrent;
+            }
+
+            if (_settings.MiningMarketAmarrEnabled && amarrCurrent > current)
+            {
+                market = "Amarr";
+                current = amarrCurrent;
+            }
+
+            var timing = _tracker.GetMiningMarketTiming(
+                ore,
+                market,
+                _settings.MiningMarketPriceMode);
+
+            if (!timing.IsAvailable)
+            {
+                timingRows.Add(SellTimingRow.Loading(
+                    ore, units, market, current, timing.Reason));
+                continue;
+            }
+
+            timingRows.Add(new SellTimingRow
+            {
+                Ore = ore,
+                UnitsText = units.ToString("N0", CultureInfo.CurrentCulture),
+                Market = timing.Market,
+                CurrentText = Price(timing.CurrentPrice),
+                Average7Text = Price(timing.Average7),
+                Average30Text = Price(timing.Average30),
+                Low90Text = Price(timing.Low90),
+                High90Text = Price(timing.High90),
+                Vs30Text = timing.Vs30Percent.ToString(
+                    "+0.0;-0.0;0.0", CultureInfo.CurrentCulture) + "%",
+                TrendText = timing.TrendPercent.ToString(
+                    "+0.0;-0.0;0.0", CultureInfo.CurrentCulture) + "%",
+                Signal = timing.Signal,
+                Reason = timing.Reason
+            });
+        }
+
+        SellTimingGrid.ItemsSource = timingRows;
+
         ProfitTotalMinedText.Text = totalUnits > 0 ? totalUnits.ToString("N0", CultureInfo.CurrentCulture) : "-";
         ProfitNormalText.Text = totalNormal > 0 ? totalNormal.ToString("N0", CultureInfo.CurrentCulture) : "-";
         ProfitCriticalUnitsText.Text = totalCriticalUnits > 0
@@ -945,28 +1093,72 @@ public partial class MiningDashboardWindow : Window
         public string Ore { get; init; } = "";
         public double Units { get; init; }
         public string VolumeM3Text { get; init; } = "";
-        public string JitaUnitText { get; init; } = "";
-        public string AmarrUnitText { get; init; } = "";
+        public string JitaSellText { get; init; } = "";
+        public string JitaBuyText { get; init; } = "";
+        public string AmarrSellText { get; init; } = "";
+        public string AmarrBuyText { get; init; } = "";
+        public string BestSellText { get; init; } = "";
         public string BestMarket { get; init; } = "";
-        public string JitaValueText { get; init; } = "";
-        public string AmarrValueText { get; init; } = "";
+        public string Average30Text { get; init; } = "";
+        public string Signal { get; init; } = "";
+        public string SignalReason { get; init; } = "";
         public string BestValueText { get; init; } = "";
 
         public static MarketOreRow Pending(string ore, double units) => new()
         {
             Ore = ore,
             Units = units,
-            VolumeM3Text = "loading...",
-            JitaUnitText = "loading...",
-            AmarrUnitText = "loading...",
+            VolumeM3Text = units > 0 ? "loading..." : "-",
+            JitaSellText = "loading...",
+            JitaBuyText = "loading...",
+            AmarrSellText = "loading...",
+            AmarrBuyText = "loading...",
+            BestSellText = "loading...",
             BestMarket = "-",
-            JitaValueText = "-",
-            AmarrValueText = "-",
+            Average30Text = "loading...",
+            Signal = "LOADING",
+            SignalReason = "Loading ESI prices...",
             BestValueText = "-"
         };
     }
 
 
+    private sealed class SellTimingRow
+    {
+        public string Ore { get; init; } = "";
+        public string UnitsText { get; init; } = "";
+        public string Market { get; init; } = "";
+        public string CurrentText { get; init; } = "";
+        public string Average7Text { get; init; } = "";
+        public string Average30Text { get; init; } = "";
+        public string Low90Text { get; init; } = "";
+        public string High90Text { get; init; } = "";
+        public string Vs30Text { get; init; } = "";
+        public string TrendText { get; init; } = "";
+        public string Signal { get; init; } = "";
+        public string Reason { get; init; } = "";
+
+        public static SellTimingRow Loading(
+            string ore,
+            double units,
+            string market = "-",
+            double current = 0,
+            string reason = "Loading ESI history...") => new()
+        {
+            Ore = ore,
+            UnitsText = units.ToString("N0", CultureInfo.CurrentCulture),
+            Market = market,
+            CurrentText = current > 0 ? Price(current) : "-",
+            Average7Text = "loading...",
+            Average30Text = "loading...",
+            Low90Text = "loading...",
+            High90Text = "loading...",
+            Vs30Text = "-",
+            TrendText = "-",
+            Signal = "LOADING",
+            Reason = reason
+        };
+    }
     private sealed class ProfitOreRow
     {
         public string Ore { get; init; } = "";

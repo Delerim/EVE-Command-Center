@@ -255,14 +255,36 @@ public sealed class StatTrackerService
     public MiningDailyCritSummary GetTodayMiningCritSummary(string? character = null) =>
         _dailyMiningStore.GetCritSummary(character);
 
+    private static string ResolveMiningGameLogPath(string? configuredPath)
+    {
+        if (!string.IsNullOrWhiteSpace(configuredPath) &&
+            Directory.Exists(configuredPath))
+            return configuredPath;
+
+        string docs = Environment.GetFolderPath(
+            Environment.SpecialFolder.MyDocuments);
+
+        string defaultPath = Path.Combine(
+            docs, "EVE", "logs", "Gamelogs");
+
+        return Directory.Exists(defaultPath) ? defaultPath : "";
+    }
+
     public void StartMiningHistory(string gameLogPath)
     {
-        if (string.IsNullOrWhiteSpace(gameLogPath) || !Directory.Exists(gameLogPath))
-            return;
+        gameLogPath = ResolveMiningGameLogPath(gameLogPath);
 
-        // TODAY first: synchronously rebuild the active 04:00->03:59 mining day
-        // from EVE's raw logs before the live LogMonitor starts at EOF.
+        if (string.IsNullOrWhiteSpace(gameLogPath))
+        {
+            _miningHistory.SetUnavailableStatus(
+                "History unavailable - EVE Gamelogs folder not found");
+            return;
+        }
+
+        Debug.WriteLine($"[StatTracker:History] Using gamelog path: {gameLogPath}");
+
         var today = _miningHistory.ScanCurrentDay(gameLogPath);
+
         if (today.Count > 0)
         {
             _dailyMiningStore.ReplaceCurrentDay(today);
@@ -271,12 +293,19 @@ public sealed class StatTrackerService
                          .Select(e => e.OreType)
                          .Where(o => !string.IsNullOrWhiteSpace(o))
                          .Distinct(StringComparer.OrdinalIgnoreCase))
+            {
                 _ = _miningMarket.EnsureQuoteAsync(ore);
+            }
 
-            Debug.WriteLine($"[StatTracker:History] Rebuilt TODAY from {today.Count:N0} raw EVE mining pull(s)");
+            Debug.WriteLine(
+                $"[StatTracker:History] Rebuilt TODAY from {today.Count:N0} raw EVE mining pull(s)");
+        }
+        else
+        {
+            Debug.WriteLine(
+                "[StatTracker:History] No current-day mining pulls found in raw EVE logs; preserving the live daily ledger.");
         }
 
-        // Older completed days are compacted slowly in the background.
         _miningHistory.StartBackgroundBuild(gameLogPath);
     }
 
@@ -323,6 +352,24 @@ public sealed class StatTrackerService
 
     public Task<MiningMarketQuote?> EnsureMiningQuoteAsync(string oreType) =>
         _miningMarket.EnsureQuoteAsync(oreType);
+
+    public Task<MiningMarketHistory?> EnsureMiningMarketHistoryAsync(string oreType) =>
+        _miningMarket.EnsureHistoryAsync(oreType);
+
+    public MiningMarketTimingSignal GetMiningMarketTiming(
+        string oreType,
+        string market,
+        string priceMode) =>
+        _miningMarket.GetTimingSignal(oreType, market, priceMode);
+
+    public IReadOnlyList<string> GetKnownMiningOres()
+    {
+        return _dailyMiningStore.GetFleetUnitsByOre().Keys
+            .Concat(_miningHistory.GetKnownOres())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(o => o, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
 
     public double GetMarketUnitPrice(MiningMarketQuote quote, string market, string priceMode)
     {
