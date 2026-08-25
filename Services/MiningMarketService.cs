@@ -213,7 +213,7 @@ public sealed class MiningMarketService
         else if (trendPct <= -4.0 && vs30Pct > 0)
             signal = "SELL";
         else
-            signal = "FAIR";
+            signal = "WAIT";
 
         string reason =
             $"{FormatSigned(vs30Pct)} vs 30d avg; " +

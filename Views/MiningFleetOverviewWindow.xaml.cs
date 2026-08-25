@@ -15,6 +15,7 @@ public partial class MiningFleetOverviewWindow : Window
     private readonly MiningIdleWatchdogService _watchdog;
     private readonly MiningDashboardPreferences _prefs;
     private readonly DispatcherTimer _timer;
+    private int _lastAutoSizedMinerCount;
 
     public MiningFleetOverviewWindow(
         StatTrackerService tracker,
@@ -112,6 +113,36 @@ public partial class MiningFleetOverviewWindow : Window
         var ordered = cards
             .OrderBy(x => x.Character, StringComparer.OrdinalIgnoreCase)
             .ToList();
+
+        int minerCount = ordered.Count;
+
+        // Keep the compact one-row wall readable when additional clients begin
+        // mining. Grow only when the miner count increases; never shrink a window
+        // the user deliberately resized.
+        if (_prefs.AutoSizeFleetOverview &&
+            minerCount > _lastAutoSizedMinerCount &&
+            minerCount > 0)
+        {
+            const double preferredCardWidth = 205;
+            const double outerChrome = 34;
+            const double gapPerCard = 6;
+            const double maxAutoWidth = 2400;
+
+            double desiredWidth =
+                outerChrome +
+                minerCount * preferredCardWidth +
+                Math.Max(0, minerCount - 1) * gapPerCard;
+
+            desiredWidth = Math.Clamp(
+                desiredWidth,
+                MinWidth,
+                maxAutoWidth);
+
+            if (desiredWidth > Width + 2)
+                Width = desiredWidth;
+        }
+
+        _lastAutoSizedMinerCount = minerCount;
 
         double available = Math.Max(500, ActualWidth - 28);
         int count = Math.Max(1, ordered.Count);

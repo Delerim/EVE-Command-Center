@@ -8,7 +8,7 @@ namespace EveMultiPreview.Services;
 
 public sealed class MiningDashboardPreferences
 {
-    public int PreferencesVersion { get; set; } = 5;
+    public int PreferencesVersion { get; set; } = 6;
 
     public bool JitaEnabled { get; set; } = true;
     public bool AmarrEnabled { get; set; } = true;
@@ -32,6 +32,11 @@ public sealed class MiningDashboardPreferences
 
     public bool UseFleetTileWall { get; set; } = true;
     public bool AutoShowFleetOverview { get; set; } = true;
+    public bool AutoSizeFleetOverview { get; set; } = true;
+
+    // Filters the market and sell-timing tables only. Mining totals/history remain complete.
+    // Default is the high-sec set used by this mining fleet.
+    public string MarketOreFilter { get; set; } = "myhs";
     public bool FleetOverviewTopmost { get; set; } = true;
     public double? FleetOverviewX { get; set; }
     public double? FleetOverviewY { get; set; }
@@ -107,8 +112,18 @@ public static class MiningDashboardPreferencesStore
                 changed = true;
             }
 
+            if (storedVersion < 6)
+            {
+                prefs.AutoSizeFleetOverview = true;
+                prefs.MarketOreFilter = "myhs";
+                changed = true;
+            }
+
             prefs.AlarmMutedCharacters ??= new List<string>();
-            prefs.PreferencesVersion = 5;
+            if (string.IsNullOrWhiteSpace(prefs.MarketOreFilter))
+                prefs.MarketOreFilter = "myhs";
+
+            prefs.PreferencesVersion = 6;
             prefs.DashboardOpacityPercent = Math.Clamp(prefs.DashboardOpacityPercent, 55, 100);
             prefs.FleetOverviewOpacityPercent = Math.Clamp(prefs.FleetOverviewOpacityPercent, 55, 100);
 

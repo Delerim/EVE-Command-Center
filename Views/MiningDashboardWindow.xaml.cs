@@ -106,6 +106,9 @@ public partial class MiningDashboardWindow : Window
 
             AutoOverviewCheck.IsChecked = _prefs.AutoShowFleetOverview;
             TileWallCheck.IsChecked = _prefs.UseFleetTileWall;
+            AutoSizeWallCheck.IsChecked = _prefs.AutoSizeFleetOverview;
+            SelectComboTag(MarketOreFilterCombo, _prefs.MarketOreFilter);
+            SelectComboTag(SellTimingOreFilterCombo, _prefs.MarketOreFilter);
             DashboardOpacityText.Text = Math.Clamp(_prefs.DashboardOpacityPercent, 55, 100).ToString(CultureInfo.InvariantCulture);
             OverviewOpacityText.Text = Math.Clamp(_prefs.FleetOverviewOpacityPercent, 55, 100).ToString(CultureInfo.InvariantCulture);
         }
@@ -136,6 +139,11 @@ public partial class MiningDashboardWindow : Window
         AutoOverviewCheck.Unchecked += (_, _) => SaveSettingsFromControls();
         TileWallCheck.Checked += (_, _) => SaveSettingsFromControls();
         TileWallCheck.Unchecked += (_, _) => SaveSettingsFromControls();
+        AutoSizeWallCheck.Checked += (_, _) => SaveSettingsFromControls();
+        AutoSizeWallCheck.Unchecked += (_, _) => SaveSettingsFromControls();
+
+        MarketOreFilterCombo.SelectionChanged += OreFilterCombo_SelectionChanged;
+        SellTimingOreFilterCombo.SelectionChanged += OreFilterCombo_SelectionChanged;
 
         BuybackPercentText.LostFocus += (_, _) => SaveSettingsFromControls();
         IdleSecondsText.LostFocus += (_, _) => SaveSettingsFromControls();
@@ -152,6 +160,31 @@ public partial class MiningDashboardWindow : Window
         OverviewOpacityText.KeyDown += NumericTextBox_KeyDown;
 
         ToggleOverviewButton.Click += (_, _) => _toggleOverviewRequested?.Invoke();
+    }
+
+    private void OreFilterCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_syncingSettings || sender is not System.Windows.Controls.ComboBox source)
+            return;
+
+        string filter = GetComboTag(source, "myhs");
+
+        _syncingSettings = true;
+        try
+        {
+            SelectComboTag(MarketOreFilterCombo, filter);
+            SelectComboTag(SellTimingOreFilterCombo, filter);
+        }
+        finally
+        {
+            _syncingSettings = false;
+        }
+
+        SaveSettingsFromControls();
+        _ = RefreshDashboardAsync();
+
+        if (ProfitTab.IsSelected)
+            _ = RefreshProfitAsync();
     }
 
     private void NumericTextBox_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
@@ -198,6 +231,8 @@ public partial class MiningDashboardWindow : Window
         _prefs.YieldDropHoldSeconds = dropSeconds;
         _prefs.AutoShowFleetOverview = AutoOverviewCheck.IsChecked == true;
         _prefs.UseFleetTileWall = TileWallCheck.IsChecked == true;
+        _prefs.AutoSizeFleetOverview = AutoSizeWallCheck.IsChecked == true;
+        _prefs.MarketOreFilter = GetComboTag(MarketOreFilterCombo, "myhs");
         _prefs.DashboardOpacityPercent = dashboardOpacity;
         _prefs.FleetOverviewOpacityPercent = overviewOpacity;
         Opacity = dashboardOpacity / 100.0;
@@ -337,23 +372,38 @@ public partial class MiningDashboardWindow : Window
         SummaryBuybackText.Text = Isk(totalCorpToday);
         SummaryCritText.Text = FleetCritText();
 
-        var knownOres = _tracker.GetKnownMiningOres()
+        var allKnownOres = _tracker.GetKnownMiningOres()
             .Concat(fleetOre.Keys)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .OrderBy(o => o, StringComparer.OrdinalIgnoreCase)
             .ToList();
 
-        foreach (var ore in knownOres)
+        var marketOres = allKnownOres
+            .Where(o => OreMatchesFilter(o, _prefs.MarketOreFilter))
+            .ToList();
+
+        // Always include today's actively mined ores in the pricing set so the
+        // Overview remains complete even when the Market tab is filtered.
+        var pricingOres = marketOres
+            .Concat(fleetOre.Keys)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(o => o, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        foreach (var ore in pricingOres)
         {
             _ = _tracker.EnsureMiningQuoteAsync(ore);
 
-            if (MarketTab.IsSelected)
+            if (MarketTab.IsSelected &&
+                marketOres.Contains(ore, StringComparer.OrdinalIgnoreCase))
+            {
                 _ = _tracker.EnsureMiningMarketHistoryAsync(ore);
+            }
         }
 
         var marketRows = new List<MarketOreRow>();
 
-        foreach (var ore in knownOres)
+        foreach (var ore in pricingOres)
         {
             fleetOre.TryGetValue(ore, out double unitsToday);
 
@@ -431,7 +481,11 @@ public partial class MiningDashboardWindow : Window
             });
         }
 
-        MarketGrid.ItemsSource = marketRows;
+        MarketGrid.ItemsSource = marketRows
+            .Where(r => marketOres.Contains(
+                r.Ore,
+                StringComparer.OrdinalIgnoreCase))
+            .ToList();
 
         OverviewOreGrid.ItemsSource = marketRows
             .Where(r => r.Units > 0)
@@ -494,7 +548,7 @@ public partial class MiningDashboardWindow : Window
             : "drop off";
 
         LastRefreshText.Text =
-            $"{_tracker.GetMiningDayLabel()} day | ESI {DateTime.Now:HH:mm:ss} | {knownOres.Count} priced ore(s) | {watchdogText} | {dropText}";
+            $"{_tracker.GetMiningDayLabel()} day | ESI {DateTime.Now:HH:mm:ss} | {marketOres.Count}/{allKnownOres.Count} market ore(s) | {watchdogText} | {dropText}";
     }
 
 
@@ -784,8 +838,11 @@ public partial class MiningDashboardWindow : Window
             await System.Threading.Tasks.Task.WhenAll(
                 ores.Select(o => _tracker.EnsureMiningQuoteAsync(o)));
 
-            foreach (var ore in ores)
+            foreach (var ore in ores.Where(
+                         o => OreMatchesFilter(o, _prefs.MarketOreFilter)))
+            {
                 _ = _tracker.EnsureMiningMarketHistoryAsync(ore);
+            }
         }
 
         double totalUnits = aggregates.Sum(r => r.Units);
@@ -919,6 +976,9 @@ public partial class MiningDashboardWindow : Window
 
         foreach (var group in aggregates
                      .GroupBy(r => r.Ore, StringComparer.OrdinalIgnoreCase)
+                     .Where(g => OreMatchesFilter(
+                         g.Key,
+                         _prefs.MarketOreFilter))
                      .OrderByDescending(g => g.Sum(r => r.Units)))
         {
             string ore = group.Key;
@@ -1023,6 +1083,92 @@ public partial class MiningDashboardWindow : Window
         foreach (var c in _tracker.GetMiningDashboardCharacters())
             result += selector(_tracker.GetSnapshot(c));
         return result;
+    }
+
+    private static bool OreContainsAny(string ore, params string[] baseNames)
+    {
+        if (string.IsNullOrWhiteSpace(ore))
+            return false;
+
+        return baseNames.Any(name =>
+            ore.IndexOf(
+                name,
+                StringComparison.OrdinalIgnoreCase) >= 0);
+    }
+
+    private static bool OreMatchesFilter(string ore, string filter)
+    {
+        filter = string.IsNullOrWhiteSpace(filter)
+            ? "myhs"
+            : filter.Trim().ToLowerInvariant();
+
+        bool r4 = OreContainsAny(
+            ore,
+            "Zeolites",
+            "Sylvite",
+            "Bitumens",
+            "Coesite");
+
+        bool r8 = OreContainsAny(
+            ore,
+            "Cobaltite",
+            "Euxenite",
+            "Titanite",
+            "Scheelite");
+
+        bool r16 = OreContainsAny(
+            ore,
+            "Otavite",
+            "Sperrylite",
+            "Vanadinite",
+            "Chromite");
+
+        bool r32 = OreContainsAny(
+            ore,
+            "Carnotite",
+            "Zircon",
+            "Pollucite",
+            "Cinnabar");
+
+        bool r64 = OreContainsAny(
+            ore,
+            "Xenotime",
+            "Monazite",
+            "Loparite",
+            "Ytterbite");
+
+        // The useful simple high-sec belt set for this fleet. Plagioclase is
+        // included defensively in case a managed field/site exposes it.
+        bool amarrBelt = OreContainsAny(
+            ore,
+            "Veldspar",
+            "Scordite",
+            "Pyroxeres",
+            "Plagioclase");
+
+        bool omberKernite = OreContainsAny(
+            ore,
+            "Omber",
+            "Kernite");
+
+        bool mordunium = OreContainsAny(
+            ore,
+            "Mordunium");
+
+        return filter switch
+        {
+            "r4" => r4,
+            "r8" => r8,
+            "r16" => r16,
+            "r32" => r32,
+            "r64" => r64,
+            "amarrbelt" => amarrBelt,
+            "omberkernite" => omberKernite,
+            "mordunium" => mordunium,
+            "myhs" => r4 || amarrBelt || omberKernite || mordunium,
+            "all" => true,
+            _ => true
+        };
     }
 
     private static string AgeText(double seconds)

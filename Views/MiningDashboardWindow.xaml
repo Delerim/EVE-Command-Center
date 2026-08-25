@@ -317,6 +317,7 @@
                                    Margin="4,0,8,0" VerticalAlignment="Center"/>
                         <CheckBox x:Name="AutoOverviewCheck" Content="Auto-show"/>
                         <CheckBox x:Name="TileWallCheck" Content="Tile wall"/>
+                        <CheckBox x:Name="AutoSizeWallCheck" Content="Auto-size wall"/>
                         <Button x:Name="ToggleOverviewButton" Content="Show / hide"/>
 
                         <TextBlock Text="Opacity" FontWeight="SemiBold" Foreground="#58D3B4"
@@ -580,16 +581,40 @@
                                 <Grid>
                                     <Grid.RowDefinitions>
                                         <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
                                         <RowDefinition Height="*"/>
                                     </Grid.RowDefinitions>
 
-                                    <TextBlock Grid.Row="0"
+                                    <WrapPanel Grid.Row="0" Margin="4,0,4,7">
+                                        <TextBlock Text="Ore filter" Foreground="#58D3B4"
+                                                   FontWeight="SemiBold"
+                                                   VerticalAlignment="Center"
+                                                   Margin="0,0,7,0"/>
+                                        <ComboBox x:Name="SellTimingOreFilterCombo" MinWidth="165">
+                                            <ComboBoxItem Content="My High-sec" Tag="myhs"/>
+                                            <ComboBoxItem Content="R4 moon" Tag="r4"/>
+                                            <ComboBoxItem Content="R8 moon" Tag="r8"/>
+                                            <ComboBoxItem Content="R16 moon" Tag="r16"/>
+                                            <ComboBoxItem Content="R32 moon" Tag="r32"/>
+                                            <ComboBoxItem Content="R64 moon" Tag="r64"/>
+                                            <ComboBoxItem Content="Amarr belts" Tag="amarrbelt"/>
+                                            <ComboBoxItem Content="Omber / Kernite" Tag="omberkernite"/>
+                                            <ComboBoxItem Content="Mordunium / escalation" Tag="mordunium"/>
+                                            <ComboBoxItem Content="All known ores" Tag="all"/>
+                                        </ComboBox>
+                                        <TextBlock Text="My High-sec = R4 + belts + Omber/Kernite + Mordunium"
+                                                   Foreground="#78958E"
+                                                   FontSize="10"
+                                                   VerticalAlignment="Center"/>
+                                    </WrapPanel>
+
+                                    <TextBlock Grid.Row="1"
                                                Margin="4,1,4,8"
                                                Foreground="#78958E"
                                                FontSize="10.5"
-                                               Text="Heuristic only: current station price vs ESI regional 7d / 30d / 90d market history. SELL means historically expensive; HOLD means historically cheap."/>
+                                               Text="Historical-position heuristic only. SELL = strong current price, HOLD = historically cheap, WAIT = neither extreme."/>
 
-                                    <DataGrid Grid.Row="1" x:Name="SellTimingGrid" AlternationCount="2">
+                                    <DataGrid Grid.Row="2" x:Name="SellTimingGrid" AlternationCount="2">
                                         <DataGrid.Columns>
                                             <DataGridTextColumn Header="Ore" Binding="{Binding Ore}" Width="180"/>
                                             <DataGridTextColumn Header="Units" Binding="{Binding UnitsText}" Width="95"/>
@@ -601,7 +626,30 @@
                                             <DataGridTextColumn Header="90d high" Binding="{Binding High90Text}" Width="95"/>
                                             <DataGridTextColumn Header="vs 30d" Binding="{Binding Vs30Text}" Width="80"/>
                                             <DataGridTextColumn Header="Trend" Binding="{Binding TrendText}" Width="80"/>
-                                            <DataGridTextColumn Header="Signal" Binding="{Binding Signal}" Width="70"/>
+                                            <DataGridTemplateColumn Header="Advice" Width="75">
+                                                <DataGridTemplateColumn.CellTemplate>
+                                                    <DataTemplate>
+                                                        <TextBlock Text="{Binding Signal}" FontWeight="SemiBold">
+                                                            <TextBlock.Style>
+                                                                <Style TargetType="TextBlock">
+                                                                    <Setter Property="Foreground" Value="#78958E"/>
+                                                                    <Style.Triggers>
+                                                                        <DataTrigger Binding="{Binding Signal}" Value="SELL">
+                                                                            <Setter Property="Foreground" Value="#76E39A"/>
+                                                                        </DataTrigger>
+                                                                        <DataTrigger Binding="{Binding Signal}" Value="HOLD">
+                                                                            <Setter Property="Foreground" Value="#58D3B4"/>
+                                                                        </DataTrigger>
+                                                                        <DataTrigger Binding="{Binding Signal}" Value="WAIT">
+                                                                            <Setter Property="Foreground" Value="#E7B85A"/>
+                                                                        </DataTrigger>
+                                                                    </Style.Triggers>
+                                                                </Style>
+                                                            </TextBlock.Style>
+                                                        </TextBlock>
+                                                    </DataTemplate>
+                                                </DataGridTemplateColumn.CellTemplate>
+                                            </DataGridTemplateColumn>
                                             <DataGridTextColumn Header="Why" Binding="{Binding Reason}" Width="*"/>
                                         </DataGrid.Columns>
                                     </DataGrid>
@@ -615,16 +663,40 @@
                     <Grid>
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
                             <RowDefinition Height="*"/>
                         </Grid.RowDefinitions>
 
-                        <TextBlock Grid.Row="0"
+                        <WrapPanel Grid.Row="0" Margin="4,0,4,7">
+                            <TextBlock Text="Ore filter" Foreground="#58D3B4"
+                                       FontWeight="SemiBold"
+                                       VerticalAlignment="Center"
+                                       Margin="0,0,7,0"/>
+                            <ComboBox x:Name="MarketOreFilterCombo" MinWidth="165">
+                                <ComboBoxItem Content="My High-sec" Tag="myhs"/>
+                                <ComboBoxItem Content="R4 moon" Tag="r4"/>
+                                <ComboBoxItem Content="R8 moon" Tag="r8"/>
+                                <ComboBoxItem Content="R16 moon" Tag="r16"/>
+                                <ComboBoxItem Content="R32 moon" Tag="r32"/>
+                                <ComboBoxItem Content="R64 moon" Tag="r64"/>
+                                <ComboBoxItem Content="Amarr belts" Tag="amarrbelt"/>
+                                <ComboBoxItem Content="Omber / Kernite" Tag="omberkernite"/>
+                                <ComboBoxItem Content="Mordunium / escalation" Tag="mordunium"/>
+                                <ComboBoxItem Content="All known ores" Tag="all"/>
+                            </ComboBox>
+                            <TextBlock Text="Only the market table is filtered; mining totals/history stay complete."
+                                       Foreground="#78958E"
+                                       FontSize="10"
+                                       VerticalAlignment="Center"/>
+                        </WrapPanel>
+
+                        <TextBlock Grid.Row="1"
                                    Margin="4,1,4,8"
                                    Foreground="#78958E"
                                    FontSize="10.5"
-                                   Text="Live Jita 4-4 / Amarr station orders. 30d history and timing use ESI regional history (The Forge / Domain)."/>
+                                   Text="Live Jita 4-4 / Amarr station orders. Historical timing uses ESI regional history (The Forge / Domain)."/>
 
-                        <DataGrid Grid.Row="1" x:Name="MarketGrid" AlternationCount="2">
+                        <DataGrid Grid.Row="2" x:Name="MarketGrid" AlternationCount="2">
                             <DataGrid.Columns>
                                 <DataGridTextColumn Header="Ore" Binding="{Binding Ore}" Width="180"/>
                                 <DataGridTextColumn Header="Today units" Binding="{Binding Units, StringFormat={}{0:N0}}" Width="95"/>
@@ -635,7 +707,30 @@
                                 <DataGridTextColumn Header="Best sell" Binding="{Binding BestSellText}" Width="100"/>
                                 <DataGridTextColumn Header="Best market" Binding="{Binding BestMarket}" Width="90"/>
                                 <DataGridTextColumn Header="30d avg" Binding="{Binding Average30Text}" Width="95"/>
-                                <DataGridTextColumn Header="Signal" Binding="{Binding Signal}" Width="70"/>
+                                <DataGridTemplateColumn Header="Advice" Width="75">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding Signal}" FontWeight="SemiBold">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Setter Property="Foreground" Value="#78958E"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding Signal}" Value="SELL">
+                                                                <Setter Property="Foreground" Value="#76E39A"/>
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding Signal}" Value="HOLD">
+                                                                <Setter Property="Foreground" Value="#58D3B4"/>
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding Signal}" Value="WAIT">
+                                                                <Setter Property="Foreground" Value="#E7B85A"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
                                 <DataGridTextColumn Header="Why" Binding="{Binding SignalReason}" Width="*"/>
                             </DataGrid.Columns>
                         </DataGrid>
