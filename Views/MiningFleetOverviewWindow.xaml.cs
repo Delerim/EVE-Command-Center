@@ -124,7 +124,7 @@ public partial class MiningFleetOverviewWindow : Window
         const double cardWidth = 205;
         const double cardGap = 6;
         const double windowChrome = 44;
-        const double fixedHeight = 165;
+        const double fixedHeight = 182;
 
         foreach (var card in ordered)
             card.CardWidth = cardWidth;
@@ -180,8 +180,8 @@ public partial class MiningFleetOverviewWindow : Window
         else
         {
             ResizeMode = ResizeMode.NoResize;
-            MinHeight = 165;
-            MaxHeight = 165;
+            MinHeight = 182;
+            MaxHeight = 182;
 
             if (MinerScroll != null)
             {
