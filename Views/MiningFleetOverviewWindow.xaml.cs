@@ -170,12 +170,26 @@ public partial class MiningFleetOverviewWindow : Window
             ResizeMode = ResizeMode.CanResizeWithGrip;
             MinHeight = 125;
             MaxHeight = double.PositiveInfinity;
+
+            if (MinerScroll != null)
+            {
+                MinerScroll.HorizontalScrollBarVisibility =
+                    System.Windows.Controls.ScrollBarVisibility.Auto;
+            }
         }
         else
         {
             ResizeMode = ResizeMode.NoResize;
             MinHeight = 165;
             MaxHeight = 165;
+
+            if (MinerScroll != null)
+            {
+                // The wall already calculates its exact width. Hiding the scrollbar
+                // also gives the bottom status/alarm row its full vertical space.
+                MinerScroll.HorizontalScrollBarVisibility =
+                    System.Windows.Controls.ScrollBarVisibility.Disabled;
+            }
         }
     }
 

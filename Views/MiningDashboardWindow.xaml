@@ -6,7 +6,8 @@
         Width="1500" Height="830" MinWidth="1120" MinHeight="650"
         WindowStartupLocation="CenterScreen"
         WindowStyle="None" ResizeMode="CanResize"
-        Background="#0A1013" Foreground="#EAF7F4">
+        Background="#0A1013" Foreground="#EAF7F4"
+        UseLayoutRounding="True" SnapsToDevicePixels="True">
 
     <shell:WindowChrome.WindowChrome>
         <shell:WindowChrome CaptionHeight="38"
@@ -22,7 +23,90 @@
         <SolidColorBrush x:Key="Panel2" Color="#162126"/>
         <SolidColorBrush x:Key="Muted" Color="#78958E"/>
         <SolidColorBrush x:Key="Line" Color="#24353A"/>
+        <!-- Dark, compact scrollbars used by every DataGrid and ScrollViewer. -->
+        <Style x:Key="MiningScrollThumb" TargetType="Thumb">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Thumb">
+                        <Border x:Name="ThumbBody"
+                                Background="#315E56"
+                                CornerRadius="5"
+                                Margin="1"/>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="ThumbBody"
+                                        Property="Background"
+                                        Value="#49A58F"/>
+                            </Trigger>
+                            <Trigger Property="IsDragging" Value="True">
+                                <Setter TargetName="ThumbBody"
+                                        Property="Background"
+                                        Value="#58D3B4"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
 
+        <ControlTemplate x:Key="VerticalMiningScrollBar" TargetType="ScrollBar">
+            <Grid Background="#091114">
+                <Track x:Name="PART_Track"
+                       IsDirectionReversed="True"
+                       Focusable="False">
+                    <Track.DecreaseRepeatButton>
+                        <RepeatButton Command="{x:Static ScrollBar.PageUpCommand}"
+                                      Opacity="0"
+                                      Focusable="False"/>
+                    </Track.DecreaseRepeatButton>
+                    <Track.Thumb>
+                        <Thumb Style="{StaticResource MiningScrollThumb}"/>
+                    </Track.Thumb>
+                    <Track.IncreaseRepeatButton>
+                        <RepeatButton Command="{x:Static ScrollBar.PageDownCommand}"
+                                      Opacity="0"
+                                      Focusable="False"/>
+                    </Track.IncreaseRepeatButton>
+                </Track>
+            </Grid>
+        </ControlTemplate>
+
+        <ControlTemplate x:Key="HorizontalMiningScrollBar" TargetType="ScrollBar">
+            <Grid Background="#091114">
+                <Track x:Name="PART_Track"
+                       IsDirectionReversed="False"
+                       Focusable="False">
+                    <Track.DecreaseRepeatButton>
+                        <RepeatButton Command="{x:Static ScrollBar.PageLeftCommand}"
+                                      Opacity="0"
+                                      Focusable="False"/>
+                    </Track.DecreaseRepeatButton>
+                    <Track.Thumb>
+                        <Thumb Style="{StaticResource MiningScrollThumb}"/>
+                    </Track.Thumb>
+                    <Track.IncreaseRepeatButton>
+                        <RepeatButton Command="{x:Static ScrollBar.PageRightCommand}"
+                                      Opacity="0"
+                                      Focusable="False"/>
+                    </Track.IncreaseRepeatButton>
+                </Track>
+            </Grid>
+        </ControlTemplate>
+
+        <Style TargetType="ScrollBar">
+            <Setter Property="Background" Value="#091114"/>
+            <Setter Property="Foreground" Value="#315E56"/>
+            <Setter Property="Width" Value="10"/>
+            <Setter Property="Height" Value="10"/>
+            <Setter Property="Template"
+                    Value="{StaticResource VerticalMiningScrollBar}"/>
+            <Style.Triggers>
+                <Trigger Property="Orientation" Value="Horizontal">
+                    <Setter Property="Template"
+                            Value="{StaticResource HorizontalMiningScrollBar}"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
         <Style TargetType="TextBlock">
             <Setter Property="Foreground" Value="#EAF7F4"/>
         </Style>
@@ -149,6 +233,9 @@
         <Style TargetType="DataGridRow">
             <Setter Property="Margin" Value="0,1,0,1"/>
             <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#162724"/>
+                </Trigger>
                 <Trigger Property="IsSelected" Value="True">
                     <Setter Property="Background" Value="#205C51"/>
                 </Trigger>
@@ -166,8 +253,15 @@
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="*"/>
                             </Grid.RowDefinitions>
-                            <TabPanel Grid.Row="0" IsItemsHost="True"
-                                      Background="Transparent" Margin="0,0,0,7"/>
+                            <Border Grid.Row="0"
+                                    Background="#0A1215"
+                                    CornerRadius="7"
+                                    Padding="3"
+                                    Margin="0,0,0,8">
+                                <TabPanel IsItemsHost="True"
+                                          Background="Transparent"
+                                          Margin="0"/>
+                            </Border>
                             <Border Grid.Row="1" Background="#0D1518"
                                     CornerRadius="8" Padding="8">
                                 <ContentPresenter Content="{TemplateBinding SelectedContent}"
@@ -181,10 +275,12 @@
 
         <Style TargetType="TabItem">
             <Setter Property="Foreground" Value="#AFC5C0"/>
-            <Setter Property="Background" Value="#111A1E"/>
+            <Setter Property="Background" Value="#101A1D"/>
             <Setter Property="BorderBrush" Value="#28463F"/>
-            <Setter Property="Padding" Value="14,6"/>
+            <Setter Property="Padding" Value="13,6"/>
             <Setter Property="Margin" Value="0,0,5,0"/>
+            <Setter Property="MinHeight" Value="31"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="TabItem">
@@ -192,8 +288,10 @@
                                 Background="{TemplateBinding Background}"
                                 BorderBrush="{TemplateBinding BorderBrush}"
                                 BorderThickness="1"
-                                CornerRadius="6"
-                                Padding="{TemplateBinding Padding}">
+                                CornerRadius="7"
+                                Padding="{TemplateBinding Padding}"
+                                Margin="1"
+                                SnapsToDevicePixels="True">
                             <ContentPresenter ContentSource="Header"
                                               HorizontalAlignment="Center"
                                               VerticalAlignment="Center"
@@ -205,7 +303,7 @@
                                 <Setter Property="Foreground" Value="#FFFFFF"/>
                             </Trigger>
                             <Trigger Property="IsSelected" Value="True">
-                                <Setter TargetName="TabBorder" Property="Background" Value="#277D6B"/>
+                                <Setter TargetName="TabBorder" Property="Background" Value="#216B5E"/>
                                 <Setter TargetName="TabBorder" Property="BorderBrush" Value="#58D3B4"/>
                                 <Setter Property="Foreground" Value="#FFFFFF"/>
                                 <Setter Property="FontWeight" Value="SemiBold"/>
@@ -593,16 +691,11 @@
                                                    VerticalAlignment="Center"
                                                    Margin="0,0,7,0"/>
                                         <ComboBox x:Name="SellTimingOreFilterCombo" MinWidth="165">
-                                            <ComboBoxItem Content="My High-sec" Tag="myhs"/>
-                                            <ComboBoxItem Content="R4 moon" Tag="r4"/>
-                                            <ComboBoxItem Content="R8 moon" Tag="r8"/>
-                                            <ComboBoxItem Content="R16 moon" Tag="r16"/>
-                                            <ComboBoxItem Content="R32 moon" Tag="r32"/>
-                                            <ComboBoxItem Content="R64 moon" Tag="r64"/>
-                                            <ComboBoxItem Content="Amarr belts" Tag="amarrbelt"/>
-                                            <ComboBoxItem Content="Omber / Kernite" Tag="omberkernite"/>
-                                            <ComboBoxItem Content="Mordunium / escalation" Tag="mordunium"/>
-                                            <ComboBoxItem Content="All known ores" Tag="all"/>
+                                            <ComboBoxItem Content="All high-sec" Tag="myhs"/>
+                                <ComboBoxItem Content="Moon - R4" Tag="r4"/>
+                                <ComboBoxItem Content="Amarr belts" Tag="amarrbelt"/>
+                                <ComboBoxItem Content="Anomaly - Omber / Kernite" Tag="omberkernite"/>
+                                <ComboBoxItem Content="Escalation - Mordunium" Tag="mordunium"/>
                                         </ComboBox>
                                     </WrapPanel>
 
@@ -671,16 +764,11 @@
                                        VerticalAlignment="Center"
                                        Margin="0,0,7,0"/>
                             <ComboBox x:Name="MarketOreFilterCombo" MinWidth="165">
-                                <ComboBoxItem Content="My High-sec" Tag="myhs"/>
-                                <ComboBoxItem Content="R4 moon" Tag="r4"/>
-                                <ComboBoxItem Content="R8 moon" Tag="r8"/>
-                                <ComboBoxItem Content="R16 moon" Tag="r16"/>
-                                <ComboBoxItem Content="R32 moon" Tag="r32"/>
-                                <ComboBoxItem Content="R64 moon" Tag="r64"/>
+                                <ComboBoxItem Content="All high-sec" Tag="myhs"/>
+                                <ComboBoxItem Content="Moon - R4" Tag="r4"/>
                                 <ComboBoxItem Content="Amarr belts" Tag="amarrbelt"/>
-                                <ComboBoxItem Content="Omber / Kernite" Tag="omberkernite"/>
-                                <ComboBoxItem Content="Mordunium / escalation" Tag="mordunium"/>
-                                <ComboBoxItem Content="All known ores" Tag="all"/>
+                                <ComboBoxItem Content="Anomaly - Omber / Kernite" Tag="omberkernite"/>
+                                <ComboBoxItem Content="Escalation - Mordunium" Tag="mordunium"/>
                             </ComboBox>
                             <TextBlock Text="Filters the market decision tables only."
                                        Foreground="#78958E"
@@ -749,16 +837,11 @@
                                        VerticalAlignment="Center"
                                        Margin="0,0,7,0"/>
                             <ComboBox x:Name="WhatToMineOreFilterCombo" MinWidth="165">
-                                <ComboBoxItem Content="My High-sec" Tag="myhs"/>
-                                <ComboBoxItem Content="R4 moon" Tag="r4"/>
-                                <ComboBoxItem Content="R8 moon" Tag="r8"/>
-                                <ComboBoxItem Content="R16 moon" Tag="r16"/>
-                                <ComboBoxItem Content="R32 moon" Tag="r32"/>
-                                <ComboBoxItem Content="R64 moon" Tag="r64"/>
+                                <ComboBoxItem Content="All high-sec" Tag="myhs"/>
+                                <ComboBoxItem Content="Moon - R4" Tag="r4"/>
                                 <ComboBoxItem Content="Amarr belts" Tag="amarrbelt"/>
-                                <ComboBoxItem Content="Omber / Kernite" Tag="omberkernite"/>
-                                <ComboBoxItem Content="Mordunium / escalation" Tag="mordunium"/>
-                                <ComboBoxItem Content="All known ores" Tag="all"/>
+                                <ComboBoxItem Content="Anomaly - Omber / Kernite" Tag="omberkernite"/>
+                                <ComboBoxItem Content="Escalation - Mordunium" Tag="mordunium"/>
                             </ComboBox>
                             <TextBlock Text="Sorted by current best sell ISK/m3. Liquidity is shown separately so thin markets are obvious."
                                        Foreground="#78958E"

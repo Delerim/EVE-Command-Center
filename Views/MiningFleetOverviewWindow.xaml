@@ -80,9 +80,11 @@
                         Margin="5,0,0,0"/>
             </Grid>
 
-            <ScrollViewer Grid.Row="1"
-                          HorizontalScrollBarVisibility="Auto"
-                          VerticalScrollBarVisibility="Disabled">
+            <ScrollViewer x:Name="MinerScroll"
+                          Grid.Row="1"
+                          HorizontalScrollBarVisibility="Disabled"
+                          VerticalScrollBarVisibility="Disabled"
+                          CanContentScroll="False">
                 <ItemsControl x:Name="MinerItems">
                     <ItemsControl.ItemsPanel>
                         <ItemsPanelTemplate>
@@ -92,9 +94,10 @@
 
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
-                            <Border Width="{Binding CardWidth}" MinHeight="101"
+                            <Border Width="{Binding CardWidth}" Height="112"
+                                    VerticalAlignment="Top"
                                     CornerRadius="7" BorderThickness="1.5"
-                                    Padding="8,6" Margin="0,0,6,6">
+                                    Padding="8,6" Margin="0,0,6,0">
                                 <Border.Style>
                                     <Style TargetType="Border">
                                         <Setter Property="BorderBrush" Value="#39796C"/>
@@ -128,7 +131,7 @@
                                         <RowDefinition Height="Auto"/>
                                         <RowDefinition Height="Auto"/>
                                         <RowDefinition Height="Auto"/>
-                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="20"/>
                                     </Grid.RowDefinitions>
 
                                     <DockPanel Grid.Row="0">
@@ -172,39 +175,18 @@
                                         <TextBlock Text="{Binding CritText}" Foreground="#C8D8D4" FontSize="9.5"/>
                                     </DockPanel>
 
-                                    <DockPanel Grid.Row="3" Margin="0,3,0,0" LastChildFill="True">
-                                        <Button DockPanel.Dock="Right"
-                                                Content="{Binding AlarmButtonText}"
-                                                Tag="{Binding Character}"
-                                                Click="AlarmToggle_Click"
-                                                ToolTip="{Binding AlarmToolTip}"
-                                                FontSize="8"
-                                                MinWidth="46"
-                                                Height="18"
-                                                Padding="4,0"
-                                                Margin="5,0,0,0">
-                                            <Button.Style>
-                                                <Style TargetType="Button">
-                                                    <Setter Property="Background" Value="#17312D"/>
-                                                    <Setter Property="Foreground" Value="#58D3B4"/>
-                                                    <Setter Property="BorderBrush" Value="#39796C"/>
-                                                    <Setter Property="BorderThickness" Value="1"/>
-                                                    <Setter Property="Cursor" Value="Hand"/>
-                                                    <Style.Triggers>
-                                                        <DataTrigger Binding="{Binding AlarmMuted}" Value="True">
-                                                            <Setter Property="Background" Value="#2A2020"/>
-                                                            <Setter Property="Foreground" Value="#E7A5A5"/>
-                                                            <Setter Property="BorderBrush" Value="#8D5555"/>
-                                                        </DataTrigger>
-                                                    </Style.Triggers>
-                                                </Style>
-                                            </Button.Style>
-                                        </Button>
+                                    <Grid Grid.Row="3" Margin="0,2,0,0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
 
-                                        <TextBlock Text="{Binding StatusText}"
-                                                   FontSize="9.5"
+                                        <TextBlock Grid.Column="0"
+                                                   Text="{Binding StatusText}"
+                                                   FontSize="9"
                                                    VerticalAlignment="Center"
-                                                   TextTrimming="CharacterEllipsis">
+                                                   TextTrimming="CharacterEllipsis"
+                                                   Margin="0,0,5,0">
                                             <TextBlock.Style>
                                                 <Style TargetType="TextBlock">
                                                     <Setter Property="Foreground" Value="#38BE91"/>
@@ -228,7 +210,36 @@
                                                 </Style>
                                             </TextBlock.Style>
                                         </TextBlock>
-                                    </DockPanel>
+
+                                        <Button Grid.Column="1"
+                                                Content="{Binding AlarmButtonText}"
+                                                Tag="{Binding Character}"
+                                                Click="AlarmToggle_Click"
+                                                ToolTip="{Binding AlarmToolTip}"
+                                                FontSize="7.5"
+                                                MinWidth="57"
+                                                Height="18"
+                                                Padding="5,0"
+                                                HorizontalAlignment="Right"
+                                                VerticalAlignment="Center">
+                                            <Button.Style>
+                                                <Style TargetType="Button">
+                                                    <Setter Property="Background" Value="#17312D"/>
+                                                    <Setter Property="Foreground" Value="#58D3B4"/>
+                                                    <Setter Property="BorderBrush" Value="#39796C"/>
+                                                    <Setter Property="BorderThickness" Value="1"/>
+                                                    <Setter Property="Cursor" Value="Hand"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding AlarmMuted}" Value="True">
+                                                            <Setter Property="Background" Value="#2A2020"/>
+                                                            <Setter Property="Foreground" Value="#E7A5A5"/>
+                                                            <Setter Property="BorderBrush" Value="#8D5555"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Button.Style>
+                                        </Button>
+                                    </Grid>
                                 </Grid>
                             </Border>
                         </DataTemplate>

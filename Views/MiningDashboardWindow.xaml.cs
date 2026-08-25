@@ -107,6 +107,9 @@ public partial class MiningDashboardWindow : Window
             AutoOverviewCheck.IsChecked = _prefs.AutoShowFleetOverview;
             TileWallCheck.IsChecked = _prefs.UseFleetTileWall;
             AllowResizeWallCheck.IsChecked = _prefs.AllowFleetOverviewResize;
+            _prefs.MarketOreFilter =
+                NormalizeHighSecOreFilter(_prefs.MarketOreFilter);
+
             SelectComboTag(MarketOreFilterCombo, _prefs.MarketOreFilter);
             SelectComboTag(SellTimingOreFilterCombo, _prefs.MarketOreFilter);
             SelectComboTag(WhatToMineOreFilterCombo, _prefs.MarketOreFilter);
@@ -1290,6 +1293,18 @@ public partial class MiningDashboardWindow : Window
         return result;
     }
 
+    private static string NormalizeHighSecOreFilter(string? filter)
+    {
+        return (filter ?? "").Trim().ToLowerInvariant() switch
+        {
+            "r4" => "r4",
+            "amarrbelt" => "amarrbelt",
+            "omberkernite" => "omberkernite",
+            "mordunium" => "mordunium",
+            _ => "myhs"
+        };
+    }
+
     private static bool OreContainsAny(string ore, params string[] baseNames)
     {
         if (string.IsNullOrWhiteSpace(ore))
@@ -1361,7 +1376,7 @@ public partial class MiningDashboardWindow : Window
             "Veldspar",
             "Scordite",
             "Pyroxeres",
-            "Plagioclase"
+            "Kernite"
         };
 
         var coherent = new[]
@@ -1471,14 +1486,13 @@ public partial class MiningDashboardWindow : Window
             "Loparite",
             "Ytterbite");
 
-        // The useful simple high-sec belt set for this fleet. Plagioclase is
-        // included defensively in case a managed field/site exposes it.
+        // The high-sec Amarr belt set this fleet actually cares about.
         bool amarrBelt = OreContainsAny(
             ore,
             "Veldspar",
             "Scordite",
             "Pyroxeres",
-            "Plagioclase");
+            "Kernite");
 
         bool omberKernite = OreContainsAny(
             ore,
