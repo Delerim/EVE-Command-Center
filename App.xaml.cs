@@ -929,7 +929,10 @@ public partial class App : Application
             {
                 Checked = name == _settings.Settings.LastUsedProfile
             };
-            item.Click += (_, _) =>\n            {\n                _settings.SwitchProfile(name);   // ProfileSwitched applies it (#101)\n            };
+            item.Click += (_, _) =>
+            {
+                _settings.SwitchProfile(name);   // ProfileSwitched applies it (#101)
+            };
             profileMenu.DropDownItems.Add(item);
         }
     }
@@ -964,7 +967,8 @@ public partial class App : Application
         }
 
         var newProfile = profileNames[nextIdx];
-        _settings.SwitchProfile(newProfile);   // ProfileSwitched applies it (#101)\n\n
+        _settings.SwitchProfile(newProfile);   // ProfileSwitched applies it (#101)
+
 
         // Tooltip feedback (AHK L705: ToolTip("Profile: " newProfile))
         _thumbnailManager?.ShowTooltipFeedback($"Profile: {newProfile}");
