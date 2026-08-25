@@ -8,7 +8,7 @@ namespace EveMultiPreview.Services;
 
 public sealed class MiningDashboardPreferences
 {
-    public int PreferencesVersion { get; set; } = 4;
+    public int PreferencesVersion { get; set; } = 5;
 
     public bool JitaEnabled { get; set; } = true;
     public bool AmarrEnabled { get; set; } = true;
@@ -25,6 +25,10 @@ public sealed class MiningDashboardPreferences
     public bool YieldDropEnabled { get; set; } = true;
     public int YieldDropPercent { get; set; } = 35;
     public int YieldDropHoldSeconds { get; set; } = 30;
+
+    // Per-character watchdog mute. Useful for Orcas/mining drones where a very
+    // long drone travel time can legitimately exceed the normal no-pull timer.
+    public List<string> AlarmMutedCharacters { get; set; } = new();
 
     public bool UseFleetTileWall { get; set; } = true;
     public bool AutoShowFleetOverview { get; set; } = true;
@@ -97,7 +101,14 @@ public static class MiningDashboardPreferencesStore
                 changed = true;
             }
 
-            prefs.PreferencesVersion = 4;
+            if (storedVersion < 5)
+            {
+                prefs.AlarmMutedCharacters ??= new List<string>();
+                changed = true;
+            }
+
+            prefs.AlarmMutedCharacters ??= new List<string>();
+            prefs.PreferencesVersion = 5;
             prefs.DashboardOpacityPercent = Math.Clamp(prefs.DashboardOpacityPercent, 55, 100);
             prefs.FleetOverviewOpacityPercent = Math.Clamp(prefs.FleetOverviewOpacityPercent, 55, 100);
 
@@ -133,7 +144,8 @@ public enum MiningIdleKind
     Mining,
     Late,
     Degraded,
-    Idle
+    Idle,
+    Muted
 }
 
 public readonly record struct MiningIdleState(
@@ -148,6 +160,7 @@ public readonly record struct MiningIdleState(
         MiningIdleKind.Late => "LATE",
         MiningIdleKind.Degraded => "DEGRADED",
         MiningIdleKind.Idle => "IDLE",
+        MiningIdleKind.Muted => "MUTED",
         _ => "WAITING"
     };
 }
@@ -211,6 +224,56 @@ public sealed class MiningIdleWatchdogService : IDisposable
     public void SavePreferences() =>
         MiningDashboardPreferencesStore.Save(Preferences);
 
+    public bool IsCharacterAlarmMuted(string character)
+    {
+        if (string.IsNullOrWhiteSpace(character))
+            return false;
+
+        return Preferences.AlarmMutedCharacters.Exists(
+            x => string.Equals(
+                x,
+                character,
+                StringComparison.OrdinalIgnoreCase));
+    }
+
+    public void SetCharacterAlarmMuted(string character, bool muted)
+    {
+        if (string.IsNullOrWhiteSpace(character))
+            return;
+
+        if (muted)
+        {
+            if (!IsCharacterAlarmMuted(character))
+                Preferences.AlarmMutedCharacters.Add(character);
+
+            // Stop any watchdog state from carrying on while this miner is muted.
+            _idleAlerted.Remove(character);
+            _dropAlerted.Remove(character);
+            _dropSince.Remove(character);
+            _degraded.Remove(character);
+        }
+        else
+        {
+            Preferences.AlarmMutedCharacters.RemoveAll(
+                x => string.Equals(
+                    x,
+                    character,
+                    StringComparison.OrdinalIgnoreCase));
+
+            // Unmuting starts with a fresh grace period. Do not immediately alarm
+            // just because the miner happened to be idle while muted.
+            _idleAlerted.Remove(character);
+            _dropAlerted.Remove(character);
+            ResetYieldLearning(character);
+
+            var snap = _tracker.GetSnapshot(character);
+            if (snap.MiningCycleCount > 0)
+                _lastActivityUtc[character] = DateTime.UtcNow;
+        }
+
+        SavePreferences();
+    }
+
     public MiningIdleState GetState(string character)
     {
         Observe(character, fireAlert: false);
@@ -224,6 +287,13 @@ public sealed class MiningIdleWatchdogService : IDisposable
 
         double age = Math.Max(0, (DateTime.UtcNow - last).TotalSeconds);
         int idleAfter = Math.Clamp(Preferences.IdleSeconds, 15, 3600);
+
+        if (IsCharacterAlarmMuted(character))
+            return new MiningIdleState(
+                MiningIdleKind.Muted,
+                last,
+                age,
+                snap.MiningCycleCount);
 
         if (age >= idleAfter)
             return new MiningIdleState(MiningIdleKind.Idle, last, age, snap.MiningCycleCount);
@@ -267,9 +337,18 @@ public sealed class MiningIdleWatchdogService : IDisposable
             newPull = true;
         }
 
-        ObserveYield(character, snap, now, fireAlert, newPull);
+        bool muted = IsCharacterAlarmMuted(character);
 
-        if (!Preferences.IdleWatchdogEnabled || !fireAlert)
+        ObserveYield(
+            character,
+            snap,
+            now,
+            fireAlert && !muted,
+            newPull);
+
+        if (muted ||
+            !Preferences.IdleWatchdogEnabled ||
+            !fireAlert)
             return;
 
         if (!_lastActivityUtc.TryGetValue(character, out var last))

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Threading;
 using EveMultiPreview.Services;
@@ -69,6 +70,7 @@ public partial class MiningFleetOverviewWindow : Window
 
             var state = _watchdog.GetState(character);
             var crit = _tracker.GetTodayMiningCritSummary(character);
+            bool alarmMuted = _watchdog.IsCharacterAlarmMuted(character);
 
             cards.Add(new FleetCard
             {
@@ -87,15 +89,24 @@ public partial class MiningFleetOverviewWindow : Window
                 BuybackText = s.SessionBuybackValue > 0
                     ? StatTrackerService.FormatNumber(s.SessionBuybackValue)
                     : "-",
-                Status = state.Label,
-                StatusText = state.Kind switch
-                {
-                    MiningIdleKind.Mining => "Stable",
-                    MiningIdleKind.Late => $"Late - {AgeText(state.AgeSeconds)} since pull",
-                    MiningIdleKind.Degraded => "Yield drop detected - relearning baseline",
-                    MiningIdleKind.Idle => $"Idle - {AgeText(state.AgeSeconds)} since pull",
-                    _ => "Warming up"
-                }
+                AlarmMuted = alarmMuted,
+                AlarmButtonText = alarmMuted ? "ALARM OFF" : "ALARM ON",
+                AlarmToolTip = alarmMuted
+                    ? $"Enable mining alarms for {character}"
+                    : $"Mute mining alarms for {character}",
+                Status = alarmMuted ? "MUTED" : state.Label,
+                StatusText = alarmMuted
+                    ? (state.AgeSeconds > 0
+                        ? $"Muted - {AgeText(state.AgeSeconds)} since pull"
+                        : "Alarm muted")
+                    : state.Kind switch
+                    {
+                        MiningIdleKind.Mining => "Stable",
+                        MiningIdleKind.Late => $"Late - {AgeText(state.AgeSeconds)} since pull",
+                        MiningIdleKind.Degraded => "Yield drop detected - relearning baseline",
+                        MiningIdleKind.Idle => $"Idle - {AgeText(state.AgeSeconds)} since pull",
+                        _ => "Warming up"
+                    }
             });
         }
 
@@ -132,6 +143,23 @@ public partial class MiningFleetOverviewWindow : Window
         }
     }
 
+    private void AlarmToggle_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button button ||
+            button.Tag is not string character ||
+            string.IsNullOrWhiteSpace(character))
+            return;
+
+        bool currentlyMuted =
+            _watchdog.IsCharacterAlarmMuted(character);
+
+        _watchdog.SetCharacterAlarmMuted(
+            character,
+            !currentlyMuted);
+
+        RefreshCards();
+    }
+
     private void Close_Click(object sender, RoutedEventArgs e) => Close();
 
     private sealed class FleetCard
@@ -144,6 +172,9 @@ public partial class MiningFleetOverviewWindow : Window
         public string CritText { get; init; } = "";
         public string ValueText { get; init; } = "";
         public string BuybackText { get; init; } = "";
+        public bool AlarmMuted { get; init; }
+        public string AlarmButtonText { get; init; } = "";
+        public string AlarmToolTip { get; init; } = "";
         public string Status { get; init; } = "";
         public string StatusText { get; init; } = "";
     }

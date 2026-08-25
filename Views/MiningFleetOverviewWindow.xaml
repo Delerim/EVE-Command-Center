@@ -115,6 +115,10 @@
                                                 <Setter Property="BorderBrush" Value="#E85C66"/>
                                                 <Setter Property="Background" Value="#351B20"/>
                                             </DataTrigger>
+                                            <DataTrigger Binding="{Binding Status}" Value="MUTED">
+                                                <Setter Property="BorderBrush" Value="#647D84"/>
+                                                <Setter Property="Background" Value="#162124"/>
+                                            </DataTrigger>
                                         </Style.Triggers>
                                     </Style>
                                 </Border.Style>
@@ -168,28 +172,63 @@
                                         <TextBlock Text="{Binding CritText}" Foreground="#C8D8D4" FontSize="9.5"/>
                                     </DockPanel>
 
-                                    <TextBlock Grid.Row="3" Text="{Binding StatusText}" FontSize="9.5"
-                                               TextTrimming="CharacterEllipsis" Margin="0,3,0,0">
-                                        <TextBlock.Style>
-                                            <Style TargetType="TextBlock">
-                                                <Setter Property="Foreground" Value="#38BE91"/>
-                                                <Style.Triggers>
-                                                    <DataTrigger Binding="{Binding Status}" Value="LATE">
-                                                        <Setter Property="Foreground" Value="#D8A84A"/>
-                                                    </DataTrigger>
-                                                    <DataTrigger Binding="{Binding Status}" Value="DEGRADED">
-                                                        <Setter Property="Foreground" Value="#EF963E"/>
-                                                    </DataTrigger>
-                                                    <DataTrigger Binding="{Binding Status}" Value="IDLE">
-                                                        <Setter Property="Foreground" Value="#E85C66"/>
-                                                    </DataTrigger>
-                                                    <DataTrigger Binding="{Binding Status}" Value="WAITING">
-                                                        <Setter Property="Foreground" Value="#718D87"/>
-                                                    </DataTrigger>
-                                                </Style.Triggers>
-                                            </Style>
-                                        </TextBlock.Style>
-                                    </TextBlock>
+                                    <DockPanel Grid.Row="3" Margin="0,3,0,0" LastChildFill="True">
+                                        <Button DockPanel.Dock="Right"
+                                                Content="{Binding AlarmButtonText}"
+                                                Tag="{Binding Character}"
+                                                Click="AlarmToggle_Click"
+                                                ToolTip="{Binding AlarmToolTip}"
+                                                FontSize="8"
+                                                MinWidth="46"
+                                                Height="18"
+                                                Padding="4,0"
+                                                Margin="5,0,0,0">
+                                            <Button.Style>
+                                                <Style TargetType="Button">
+                                                    <Setter Property="Background" Value="#17312D"/>
+                                                    <Setter Property="Foreground" Value="#58D3B4"/>
+                                                    <Setter Property="BorderBrush" Value="#39796C"/>
+                                                    <Setter Property="BorderThickness" Value="1"/>
+                                                    <Setter Property="Cursor" Value="Hand"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding AlarmMuted}" Value="True">
+                                                            <Setter Property="Background" Value="#2A2020"/>
+                                                            <Setter Property="Foreground" Value="#E7A5A5"/>
+                                                            <Setter Property="BorderBrush" Value="#8D5555"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Button.Style>
+                                        </Button>
+
+                                        <TextBlock Text="{Binding StatusText}"
+                                                   FontSize="9.5"
+                                                   VerticalAlignment="Center"
+                                                   TextTrimming="CharacterEllipsis">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="Foreground" Value="#38BE91"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding Status}" Value="LATE">
+                                                            <Setter Property="Foreground" Value="#D8A84A"/>
+                                                        </DataTrigger>
+                                                        <DataTrigger Binding="{Binding Status}" Value="DEGRADED">
+                                                            <Setter Property="Foreground" Value="#EF963E"/>
+                                                        </DataTrigger>
+                                                        <DataTrigger Binding="{Binding Status}" Value="IDLE">
+                                                            <Setter Property="Foreground" Value="#E85C66"/>
+                                                        </DataTrigger>
+                                                        <DataTrigger Binding="{Binding Status}" Value="WAITING">
+                                                            <Setter Property="Foreground" Value="#718D87"/>
+                                                        </DataTrigger>
+                                                        <DataTrigger Binding="{Binding Status}" Value="MUTED">
+                                                            <Setter Property="Foreground" Value="#91A8AE"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
+                                    </DockPanel>
                                 </Grid>
                             </Border>
                         </DataTemplate>
