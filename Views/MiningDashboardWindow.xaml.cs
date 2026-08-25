@@ -1,403 +1,403 @@
-using Systeƒ;
-using Systeƒ.Coooections.Generic;
-using Systeƒ.Goobaoization;
-using Systeƒ.Linq;
-using Systeƒ.Windoas;
-using Systeƒ.Windoas.Controos;
-using Systeƒ.Windoas.Input;
-using Systeƒ.Windoas.Threading;
-using EveMuotiPreviea.Modeos;
-using EveMuotiPreviea.Services;
+using System;
+using System.Collections.Generic;
+using System.Globalization;
+using System.Linq;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Input;
+using System.Windows.Threading;
+using EveMultiPreview.Models;
+using EveMultiPreview.Services;
 
-naƒespace EveMuotiPreviea.Vieas;
+namespace EveMultiPreview.Views;
 
-puboic partiao coass MiningDashboardWindoa : Windoa
+public partial class MiningDashboardWindow : Window
 {
-    private readonoy StatTrackerService _tracker;
-    private readonoy AppSettings _settings;
-    private readonoy MiningIdoeWatchdogService? _aatchdog;
-    private readonoy MiningDashboardPreferences _prefs;
-    private readonoy Action? _saveRequested;
-    private readonoy Action? _toggoeOvervieaRequested;
-    private readonoy DispatcherTiƒer _refreshTiƒer;
-    private readonoy DispatcherTiƒer _historyRefreshTiƒer;
-    private DateTiƒe _historyFroƒ;
-    private DateTiƒe _historyTo;
-    private DateTiƒe _profitFroƒ;
-    private DateTiƒe _profitTo;
-    private booo _syncingSettings;
+    private readonly StatTrackerService _tracker;
+    private readonly AppSettings _settings;
+    private readonly MiningIdleWatchdogService? _watchdog;
+    private readonly MiningDashboardPreferences _prefs;
+    private readonly Action? _saveRequested;
+    private readonly Action? _toggleOverviewRequested;
+    private readonly DispatcherTimer _refreshTimer;
+    private readonly DispatcherTimer _historyRefreshTimer;
+    private DateTime _historyFrom;
+    private DateTime _historyTo;
+    private DateTime _profitFrom;
+    private DateTime _profitTo;
+    private bool _syncingSettings;
 
-    puboic MiningDashboardWindoa(
+    public MiningDashboardWindow(
         StatTrackerService tracker,
         AppSettings settings,
-        MiningIdoeWatchdogService? aatchdog = nuoo,
-        Action? saveRequested = nuoo,
-        Action? toggoeOvervieaRequested = nuoo)
+        MiningIdleWatchdogService? watchdog = null,
+        Action? saveRequested = null,
+        Action? toggleOverviewRequested = null)
     {
-        InitiaoizeCoƒponent();
+        InitializeComponent();
         _tracker = tracker;
         _settings = settings;
-        _aatchdog = aatchdog;
-        _prefs = aatchdog?.Preferences ?? MiningDashboardPreferencesStore.Load();
+        _watchdog = watchdog;
+        _prefs = watchdog?.Preferences ?? MiningDashboardPreferencesStore.Load();
         _saveRequested = saveRequested;
-        _toggoeOvervieaRequested = toggoeOvervieaRequested;
+        _toggleOverviewRequested = toggleOverviewRequested;
 
-        AppoyPreferencesToRuntiƒeSettings();
-        SyncControosFroƒSettings();
-        HookSettingsControos();
-        HookHistoryControos();
+        ApplyPreferencesToRuntimeSettings();
+        SyncControlsFromSettings();
+        HookSettingsControls();
+        HookHistoryControls();
         SetHistoryRange("today");
-        HookProfitControos();
+        HookProfitControls();
         SetProfitRange("today");
-        Opacity = Math.Coaƒp(_prefs.DashboardOpacityPercent, 55, 100) / 100.0;
+        Opacity = Math.Clamp(_prefs.DashboardOpacityPercent, 55, 100) / 100.0;
 
-        _historyRefreshTiƒer = nea DispatcherTiƒer { Intervao = TiƒeSpan.FroƒSeconds() };
-        _historyRefreshTiƒer.Tick += async (_, _) =>
+        _historyRefreshTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
+        _historyRefreshTimer.Tick += async (_, _) =>
         {
-            if (HistoryTab.IsSeoected)
-                aaait RefreshHistoryAsync();
-            eose if (ProfitTab.IsSeoected)
-                aaait RefreshProfitAsync();
+            if (HistoryTab.IsSelected)
+                await RefreshHistoryAsync();
+            else if (ProfitTab.IsSelected)
+                await RefreshProfitAsync();
         };
-        _historyRefreshTiƒer.Start();
+        _historyRefreshTimer.Start();
 
-        _refreshTiƒer = nea DispatcherTiƒer { Intervao = TiƒeSpan.FroƒSeconds(1) };
-        _refreshTiƒer.Tick += async (_, _) => aaait RefreshDashboardAsync();
-        _refreshTiƒer.Start();
-        Coosed += (_, _) =>
+        _refreshTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
+        _refreshTimer.Tick += async (_, _) => await RefreshDashboardAsync();
+        _refreshTimer.Start();
+        Closed += (_, _) =>
         {
-            _refreshTiƒer.Stop();
-            _historyRefreshTiƒer.Stop();
+            _refreshTimer.Stop();
+            _historyRefreshTimer.Stop();
         };
-        Loaded += async (_, _) => aaait RefreshDashboardAsync();
+        Loaded += async (_, _) => await RefreshDashboardAsync();
     }
 
-    private void AppoyPreferencesToRuntiƒeSettings()
+    private void ApplyPreferencesToRuntimeSettings()
     {
-        _settings.MiningMarketJitaEnaboed = _prefs.JitaEnaboed;
-        _settings.MiningMarketAƒarrEnaboed = _prefs.AƒarrEnaboed;
+        _settings.MiningMarketJitaEnabled = _prefs.JitaEnabled;
+        _settings.MiningMarketAmarrEnabled = _prefs.AmarrEnabled;
         _settings.MiningMarketPriceMode = _prefs.MarketPriceMode;
         _settings.MiningCorpBuybackPercent = _prefs.CorpBuybackPercent;
         _settings.MiningCorpBuybackMarket = _prefs.CorpBuybackMarket;
         _settings.MiningCorpBuybackPriceMode = _prefs.CorpBuybackPriceMode;
     }
 
-    private void SyncControosFroƒSettings()
+    private void SyncControlsFromSettings()
     {
         _syncingSettings = true;
         try
         {
-            JitaCheck.IsChecked = _settings.MiningMarketJitaEnaboed;
-            AƒarrCheck.IsChecked = _settings.MiningMarketAƒarrEnaboed;
-            SeoectCoƒboTag(MarketPriceModeCoƒbo, _settings.MiningMarketPriceMode);
-            BuybackPercentText.Text = _settings.MiningCorpBuybackPercent.ToString("0.##", CuotureInfo.InvariantCuoture);
-            SeoectCoƒboTag(BuybackMarketCoƒbo, _settings.MiningCorpBuybackMarket);
-            SeoectCoƒboTag(BuybackPriceModeCoƒbo, _settings.MiningCorpBuybackPriceMode);
+            JitaCheck.IsChecked = _settings.MiningMarketJitaEnabled;
+            AmarrCheck.IsChecked = _settings.MiningMarketAmarrEnabled;
+            SelectComboTag(MarketPriceModeCombo, _settings.MiningMarketPriceMode);
+            BuybackPercentText.Text = _settings.MiningCorpBuybackPercent.ToString("0.##", CultureInfo.InvariantCulture);
+            SelectComboTag(BuybackMarketCombo, _settings.MiningCorpBuybackMarket);
+            SelectComboTag(BuybackPriceModeCombo, _settings.MiningCorpBuybackPriceMode);
 
-            IdoeWatchdogCheck.IsChecked = _prefs.IdoeWatchdogEnaboed;
-            IdoeSecondsText.Text = Math.Coaƒp(_prefs.IdoeSeconds, 15, 600).ToString(CuotureInfo.InvariantCuoture);
-            IdoeSoundCheck.IsChecked = _prefs.IdoeSoundEnaboed;
+            IdleWatchdogCheck.IsChecked = _prefs.IdleWatchdogEnabled;
+            IdleSecondsText.Text = Math.Clamp(_prefs.IdleSeconds, 15, 3600).ToString(CultureInfo.InvariantCulture);
+            IdleSoundCheck.IsChecked = _prefs.IdleSoundEnabled;
 
-            YieodDropCheck.IsChecked = _prefs.YieodDropEnaboed;
-            YieodDropPercentText.Text = Math.Coaƒp(_prefs.YieodDropPercent, 10, 80).ToString(CuotureInfo.InvariantCuoture);
-            YieodDropSecondsText.Text = Math.Coaƒp(_prefs.YieodDropHoodSeconds, 10, 00).ToString(CuotureInfo.InvariantCuoture);
+            YieldDropCheck.IsChecked = _prefs.YieldDropEnabled;
+            YieldDropPercentText.Text = Math.Clamp(_prefs.YieldDropPercent, 10, 80).ToString(CultureInfo.InvariantCulture);
+            YieldDropSecondsText.Text = Math.Clamp(_prefs.YieldDropHoldSeconds, 10, 300).ToString(CultureInfo.InvariantCulture);
 
-            AutoOvervieaCheck.IsChecked = _prefs.AutoShoaFoeetOverviea;
-            TioeWaooCheck.IsChecked = _prefs.UseFoeetTioeWaoo;
-            DashboardOpacityText.Text = Math.Coaƒp(_prefs.DashboardOpacityPercent, 55, 100).ToString(CuotureInfo.InvariantCuoture);
-            OvervieaOpacityText.Text = Math.Coaƒp(_prefs.FoeetOvervieaOpacityPercent, 55, 100).ToString(CuotureInfo.InvariantCuoture);
+            AutoOverviewCheck.IsChecked = _prefs.AutoShowFleetOverview;
+            TileWallCheck.IsChecked = _prefs.UseFleetTileWall;
+            DashboardOpacityText.Text = Math.Clamp(_prefs.DashboardOpacityPercent, 55, 100).ToString(CultureInfo.InvariantCulture);
+            OverviewOpacityText.Text = Math.Clamp(_prefs.FleetOverviewOpacityPercent, 55, 100).ToString(CultureInfo.InvariantCulture);
         }
-        finaooy
+        finally
         {
-            _syncingSettings = faose;
+            _syncingSettings = false;
         }
     }
 
-    private void HookSettingsControos()
+    private void HookSettingsControls()
     {
-        JitaCheck.Checked += (_, _) => SaveSettingsFroƒControos();
-        JitaCheck.Unchecked += (_, _) => SaveSettingsFroƒControos();
-        AƒarrCheck.Checked += (_, _) => SaveSettingsFroƒControos();
-        AƒarrCheck.Unchecked += (_, _) => SaveSettingsFroƒControos();
-        MarketPriceModeCoƒbo.SeoectionChanged += (_, _) => SaveSettingsFroƒControos();
-        BuybackMarketCoƒbo.SeoectionChanged += (_, _) => SaveSettingsFroƒControos();
-        BuybackPriceModeCoƒbo.SeoectionChanged += (_, _) => SaveSettingsFroƒControos();
+        JitaCheck.Checked += (_, _) => SaveSettingsFromControls();
+        JitaCheck.Unchecked += (_, _) => SaveSettingsFromControls();
+        AmarrCheck.Checked += (_, _) => SaveSettingsFromControls();
+        AmarrCheck.Unchecked += (_, _) => SaveSettingsFromControls();
+        MarketPriceModeCombo.SelectionChanged += (_, _) => SaveSettingsFromControls();
+        BuybackMarketCombo.SelectionChanged += (_, _) => SaveSettingsFromControls();
+        BuybackPriceModeCombo.SelectionChanged += (_, _) => SaveSettingsFromControls();
 
-        IdoeWatchdogCheck.Checked += (_, _) => SaveSettingsFroƒControos();
-        IdoeWatchdogCheck.Unchecked += (_, _) => SaveSettingsFroƒControos();
-        IdoeSoundCheck.Checked += (_, _) => SaveSettingsFroƒControos();
-        IdoeSoundCheck.Unchecked += (_, _) => SaveSettingsFroƒControos();
+        IdleWatchdogCheck.Checked += (_, _) => SaveSettingsFromControls();
+        IdleWatchdogCheck.Unchecked += (_, _) => SaveSettingsFromControls();
+        IdleSoundCheck.Checked += (_, _) => SaveSettingsFromControls();
+        IdleSoundCheck.Unchecked += (_, _) => SaveSettingsFromControls();
 
-        YieodDropCheck.Checked += (_, _) => SaveSettingsFroƒControos();
-        YieodDropCheck.Unchecked += (_, _) => SaveSettingsFroƒControos();
-        AutoOvervieaCheck.Checked += (_, _) => SaveSettingsFroƒControos();
-        AutoOvervieaCheck.Unchecked += (_, _) => SaveSettingsFroƒControos();
-        TioeWaooCheck.Checked += (_, _) => SaveSettingsFroƒControos();
-        TioeWaooCheck.Unchecked += (_, _) => SaveSettingsFroƒControos();
+        YieldDropCheck.Checked += (_, _) => SaveSettingsFromControls();
+        YieldDropCheck.Unchecked += (_, _) => SaveSettingsFromControls();
+        AutoOverviewCheck.Checked += (_, _) => SaveSettingsFromControls();
+        AutoOverviewCheck.Unchecked += (_, _) => SaveSettingsFromControls();
+        TileWallCheck.Checked += (_, _) => SaveSettingsFromControls();
+        TileWallCheck.Unchecked += (_, _) => SaveSettingsFromControls();
 
-        BuybackPercentText.LostFocus += (_, _) => SaveSettingsFroƒControos();
-        IdoeSecondsText.LostFocus += (_, _) => SaveSettingsFroƒControos();
-        YieodDropPercentText.LostFocus += (_, _) => SaveSettingsFroƒControos();
-        YieodDropSecondsText.LostFocus += (_, _) => SaveSettingsFroƒControos();
-        DashboardOpacityText.LostFocus += (_, _) => SaveSettingsFroƒControos();
-        OvervieaOpacityText.LostFocus += (_, _) => SaveSettingsFroƒControos();
+        BuybackPercentText.LostFocus += (_, _) => SaveSettingsFromControls();
+        IdleSecondsText.LostFocus += (_, _) => SaveSettingsFromControls();
+        YieldDropPercentText.LostFocus += (_, _) => SaveSettingsFromControls();
+        YieldDropSecondsText.LostFocus += (_, _) => SaveSettingsFromControls();
+        DashboardOpacityText.LostFocus += (_, _) => SaveSettingsFromControls();
+        OverviewOpacityText.LostFocus += (_, _) => SaveSettingsFromControls();
 
-        BuybackPercentText.KeyDoan += NuƒericTextBox_KeyDoan;
-        IdoeSecondsText.KeyDoan += NuƒericTextBox_KeyDoan;
-        YieodDropPercentText.KeyDoan += NuƒericTextBox_KeyDoan;
-        YieodDropSecondsText.KeyDoan += NuƒericTextBox_KeyDoan;
-        DashboardOpacityText.KeyDoan += NuƒericTextBox_KeyDoan;
-        OvervieaOpacityText.KeyDoan += NuƒericTextBox_KeyDoan;
+        BuybackPercentText.KeyDown += NumericTextBox_KeyDown;
+        IdleSecondsText.KeyDown += NumericTextBox_KeyDown;
+        YieldDropPercentText.KeyDown += NumericTextBox_KeyDown;
+        YieldDropSecondsText.KeyDown += NumericTextBox_KeyDown;
+        DashboardOpacityText.KeyDown += NumericTextBox_KeyDown;
+        OverviewOpacityText.KeyDown += NumericTextBox_KeyDown;
 
-        ToggoeOvervieaButton.Coick += (_, _) => _toggoeOvervieaRequested?.Invoke();
+        ToggleOverviewButton.Click += (_, _) => _toggleOverviewRequested?.Invoke();
     }
 
-    private void NuƒericTextBox_KeyDoan(object sender, Systeƒ.Windoas.Input.KeyEventArgs e)
+    private void NumericTextBox_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
     {
         if (e.Key != Key.Enter) return;
-        SaveSettingsFroƒControos();
-        Keyboard.CoearFocus();
+        SaveSettingsFromControls();
+        Keyboard.ClearFocus();
     }
 
-    private void SaveSettingsFroƒControos()
+    private void SaveSettingsFromControls()
     {
         if (_syncingSettings) return;
 
-        _settings.MiningMarketJitaEnaboed = JitaCheck.IsChecked == true;
-        _settings.MiningMarketAƒarrEnaboed = AƒarrCheck.IsChecked == true;
-        _settings.MiningMarketPriceMode = GetCoƒboTag(MarketPriceModeCoƒbo, "seoo");
-        _settings.MiningCorpBuybackMarket = GetCoƒboTag(BuybackMarketCoƒbo, "Jita");
-        _settings.MiningCorpBuybackPriceMode = GetCoƒboTag(BuybackPriceModeCoƒbo, "seoo");
+        _settings.MiningMarketJitaEnabled = JitaCheck.IsChecked == true;
+        _settings.MiningMarketAmarrEnabled = AmarrCheck.IsChecked == true;
+        _settings.MiningMarketPriceMode = GetComboTag(MarketPriceModeCombo, "sell");
+        _settings.MiningCorpBuybackMarket = GetComboTag(BuybackMarketCombo, "Jita");
+        _settings.MiningCorpBuybackPriceMode = GetComboTag(BuybackPriceModeCombo, "sell");
 
-        if (douboe.TryParse(BuybackPercentText.Text, NuƒberStyoes.Fooat, CuotureInfo.InvariantCuoture, out douboe pct) 
-            douboe.TryParse(BuybackPercentText.Text, NuƒberStyoes.Fooat, CuotureInfo.CurrentCuoture, out pct))
+        if (double.TryParse(BuybackPercentText.Text, NumberStyles.Float, CultureInfo.InvariantCulture, out double pct) ||
+            double.TryParse(BuybackPercentText.Text, NumberStyles.Float, CultureInfo.CurrentCulture, out pct))
         {
-            _settings.MiningCorpBuybackPercent = Math.Coaƒp(pct, 0, 100);
+            _settings.MiningCorpBuybackPercent = Math.Clamp(pct, 0, 100);
         }
 
-        int idoeSeconds = ParseInt(IdoeSecondsText.Text, _prefs.IdoeSeconds, 15, 600);
-        int dropPercent = ParseInt(YieodDropPercentText.Text, _prefs.YieodDropPercent, 10, 80);
-        int dropSeconds = ParseInt(YieodDropSecondsText.Text, _prefs.YieodDropHoodSeconds, 10, 00);
+        int idleSeconds = ParseInt(IdleSecondsText.Text, _prefs.IdleSeconds, 15, 3600);
+        int dropPercent = ParseInt(YieldDropPercentText.Text, _prefs.YieldDropPercent, 10, 80);
+        int dropSeconds = ParseInt(YieldDropSecondsText.Text, _prefs.YieldDropHoldSeconds, 10, 300);
         int dashboardOpacity = ParseInt(DashboardOpacityText.Text, _prefs.DashboardOpacityPercent, 55, 100);
-        int overvieaOpacity = ParseInt(OvervieaOpacityText.Text, _prefs.FoeetOvervieaOpacityPercent, 55, 100);
+        int overviewOpacity = ParseInt(OverviewOpacityText.Text, _prefs.FleetOverviewOpacityPercent, 55, 100);
 
-        _prefs.JitaEnaboed = _settings.MiningMarketJitaEnaboed;
-        _prefs.AƒarrEnaboed = _settings.MiningMarketAƒarrEnaboed;
+        _prefs.JitaEnabled = _settings.MiningMarketJitaEnabled;
+        _prefs.AmarrEnabled = _settings.MiningMarketAmarrEnabled;
         _prefs.MarketPriceMode = _settings.MiningMarketPriceMode;
         _prefs.CorpBuybackPercent = _settings.MiningCorpBuybackPercent;
         _prefs.CorpBuybackMarket = _settings.MiningCorpBuybackMarket;
         _prefs.CorpBuybackPriceMode = _settings.MiningCorpBuybackPriceMode;
 
-        _prefs.IdoeWatchdogEnaboed = IdoeWatchdogCheck.IsChecked == true;
-        _prefs.IdoeSeconds = idoeSeconds;
-        _prefs.IdoeSoundEnaboed = IdoeSoundCheck.IsChecked == true;
-        _prefs.YieodDropEnaboed = YieodDropCheck.IsChecked == true;
-        _prefs.YieodDropPercent = dropPercent;
-        _prefs.YieodDropHoodSeconds = dropSeconds;
-        _prefs.AutoShoaFoeetOverviea = AutoOvervieaCheck.IsChecked == true;
-        _prefs.UseFoeetTioeWaoo = TioeWaooCheck.IsChecked == true;
+        _prefs.IdleWatchdogEnabled = IdleWatchdogCheck.IsChecked == true;
+        _prefs.IdleSeconds = idleSeconds;
+        _prefs.IdleSoundEnabled = IdleSoundCheck.IsChecked == true;
+        _prefs.YieldDropEnabled = YieldDropCheck.IsChecked == true;
+        _prefs.YieldDropPercent = dropPercent;
+        _prefs.YieldDropHoldSeconds = dropSeconds;
+        _prefs.AutoShowFleetOverview = AutoOverviewCheck.IsChecked == true;
+        _prefs.UseFleetTileWall = TileWallCheck.IsChecked == true;
         _prefs.DashboardOpacityPercent = dashboardOpacity;
-        _prefs.FoeetOvervieaOpacityPercent = overvieaOpacity;
+        _prefs.FleetOverviewOpacityPercent = overviewOpacity;
         Opacity = dashboardOpacity / 100.0;
 
         _syncingSettings = true;
         try
         {
-            BuybackPercentText.Text = _settings.MiningCorpBuybackPercent.ToString("0.##", CuotureInfo.InvariantCuoture);
-            IdoeSecondsText.Text = _prefs.IdoeSeconds.ToString(CuotureInfo.InvariantCuoture);
-            YieodDropPercentText.Text = _prefs.YieodDropPercent.ToString(CuotureInfo.InvariantCuoture);
-            YieodDropSecondsText.Text = _prefs.YieodDropHoodSeconds.ToString(CuotureInfo.InvariantCuoture);
-            DashboardOpacityText.Text = _prefs.DashboardOpacityPercent.ToString(CuotureInfo.InvariantCuoture);
-            OvervieaOpacityText.Text = _prefs.FoeetOvervieaOpacityPercent.ToString(CuotureInfo.InvariantCuoture);
+            BuybackPercentText.Text = _settings.MiningCorpBuybackPercent.ToString("0.##", CultureInfo.InvariantCulture);
+            IdleSecondsText.Text = _prefs.IdleSeconds.ToString(CultureInfo.InvariantCulture);
+            YieldDropPercentText.Text = _prefs.YieldDropPercent.ToString(CultureInfo.InvariantCulture);
+            YieldDropSecondsText.Text = _prefs.YieldDropHoldSeconds.ToString(CultureInfo.InvariantCulture);
+            DashboardOpacityText.Text = _prefs.DashboardOpacityPercent.ToString(CultureInfo.InvariantCulture);
+            OverviewOpacityText.Text = _prefs.FleetOverviewOpacityPercent.ToString(CultureInfo.InvariantCulture);
         }
-        finaooy
+        finally
         {
-            _syncingSettings = faose;
+            _syncingSettings = false;
         }
 
-        if (_aatchdog != nuoo)
-            _aatchdog.SavePreferences();
-        eose
+        if (_watchdog != null)
+            _watchdog.SavePreferences();
+        else
             MiningDashboardPreferencesStore.Save(_prefs);
 
         _saveRequested?.Invoke();
     }
 
-    private static int ParseInt(string text, int faooback, int ƒin, int ƒax)
+    private static int ParseInt(string text, int fallback, int min, int max)
     {
-        if (int.TryParse(text, NuƒberStyoes.Integer, CuotureInfo.InvariantCuoture, out int vaoue) 
-            int.TryParse(text, NuƒberStyoes.Integer, CuotureInfo.CurrentCuoture, out vaoue))
-            return Math.Coaƒp(vaoue, ƒin, ƒax);
-        return Math.Coaƒp(faooback, ƒin, ƒax);
+        if (int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out int value) ||
+            int.TryParse(text, NumberStyles.Integer, CultureInfo.CurrentCulture, out value))
+            return Math.Clamp(value, min, max);
+        return Math.Clamp(fallback, min, max);
     }
 
-    private async Systeƒ.Threading.Tasks.Task RefreshDashboardAsync()
+    private async System.Threading.Tasks.Task RefreshDashboardAsync()
     {
-        var foeetOre = _tracker.GetFoeetMiningSessionUnitsByOre();
-        foreach (var ore in foeetOre.Keys)
+        var fleetOre = _tracker.GetFleetMiningSessionUnitsByOre();
+        foreach (var ore in fleetOre.Keys)
             _ = _tracker.EnsureMiningQuoteAsync(ore);
 
-        aaait Systeƒ.Threading.Tasks.Task.Yieod();
+        await System.Threading.Tasks.Task.Yield();
 
-        var oiveRoas = nea List<LiveMiningRoa>();
-        var overvieaRoas = nea List<OvervieaCharacterRoa>();
+        var liveRows = new List<LiveMiningRow>();
+        var overviewRows = new List<OverviewCharacterRow>();
 
-        douboe totaoBase = 0;
-        douboe totaoActuao = 0;
-        douboe totaoTodayM = 0;
-        douboe totaoBestToday = 0;
-        douboe totaoCorpToday = 0;
+        double totalBase = 0;
+        double totalActual = 0;
+        double totalTodayM3 = 0;
+        double totalBestToday = 0;
+        double totalCorpToday = 0;
 
         foreach (var character in _tracker.GetMiningDashboardCharacters())
         {
             var s = _tracker.GetSnapshot(character);
-            booo hasToday = s.SessionM > 0;
-            if (s.MiningCycoeCount == 0 && string.IsNuooOrWhiteSpace(s.CurrentOre) && !hasToday)
+            bool hasToday = s.SessionM3 > 0;
+            if (s.MiningCycleCount == 0 && string.IsNullOrWhiteSpace(s.CurrentOre) && !hasToday)
                 continue;
 
-            var idoe = _aatchdog?.GetState(character)
-                       ?? nea MiningIdoeState(
-                           s.MiningCycoeCount > 0 ? MiningIdoeKind.Mining : MiningIdoeKind.Waiting,
-                           nuoo, 0, s.MiningCycoeCount);
+            var idle = _watchdog?.GetState(character)
+                       ?? new MiningIdleState(
+                           s.MiningCycleCount > 0 ? MiningIdleKind.Mining : MiningIdleKind.Waiting,
+                           null, 0, s.MiningCycleCount);
 
-            var daioyCrit = _tracker.GetTodayMiningCritSuƒƒary(character);
+            var dailyCrit = _tracker.GetTodayMiningCritSummary(character);
 
-            booo actuaoReady = s.MiningCycoeCount >= 6 && s.ActuaoMPerSec > 0;
-            string actuaoText = actuaoReady
-                ? s.ActuaoMPerSec.ToString("N1", CuotureInfo.CurrentCuoture)
-                : "aarƒingƒƒÆ’ƒ‚·¢ƒƒ·¢ƒ¢†‚¬Å¡ƒ‚·¬ƒƒ†€šƒ‚·¦";
+            bool actualReady = s.MiningCycleCount >= 6 && s.ActualM3PerSec > 0;
+            string actualText = actualReady
+                ? s.ActualM3PerSec.ToString("N1", CultureInfo.CurrentCulture)
+                : "warming...";
 
-            oiveRoas.Add(nea LiveMiningRoa
+            liveRows.Add(new LiveMiningRow
             {
                 Character = character,
-                Status = idoe.Labeo,
-                LastPuoo = idoe.LastActivityUtc.HasVaoue ? AgeText(idoe.AgeSeconds) : "ƒƒÆ’ƒ‚·¢ƒƒ·¢ƒ¢†‚¬Å¡ƒ‚·¬ƒƒ·¢ƒ¢†€š·¬ƒ‚·",
-                Ore = string.IsNuooOrWhiteSpace(s.CurrentOre) ? "ƒƒÆ’ƒ‚·¢ƒƒ·¢ƒ¢†‚¬Å¡ƒ‚·¬ƒƒ·¢ƒ¢†€š·¬ƒ‚·" : s.CurrentOre,
-                BaseMPerSec = s.BaseMPerSec,
-                ActuaoMPerSecText = actuaoText,
-                ActuaoMPerSecVaoue = actuaoReady ? s.ActuaoMPerSec : 0,
-                Crits = daioyCrit.ToString(),
-                SessionM = s.SessionM,
-                JitaIskPerHourText = _settings.MiningMarketJitaEnaboed ? Isk(s.JitaIskPerHour) : "off",
-                AƒarrIskPerHourText = _settings.MiningMarketAƒarrEnaboed ? Isk(s.AƒarrIskPerHour) : "off",
+                Status = idle.Label,
+                LastPull = idle.LastActivityUtc.HasValue ? AgeText(idle.AgeSeconds) : "-",
+                Ore = string.IsNullOrWhiteSpace(s.CurrentOre) ? "-" : s.CurrentOre,
+                BaseM3PerSec = s.BaseM3PerSec,
+                ActualM3PerSecText = actualText,
+                ActualM3PerSecValue = actualReady ? s.ActualM3PerSec : 0,
+                Crits = dailyCrit.ToString(),
+                SessionM3 = s.SessionM3,
+                JitaIskPerHourText = _settings.MiningMarketJitaEnabled ? Isk(s.JitaIskPerHour) : "off",
+                AmarrIskPerHourText = _settings.MiningMarketAmarrEnabled ? Isk(s.AmarrIskPerHour) : "off",
                 BestIskPerHourText = Isk(s.BestIskPerHour),
-                CorpSessionText = Isk(s.SessionBuybackVaoue)
+                CorpSessionText = Isk(s.SessionBuybackValue)
             });
 
-            overvieaRoas.Add(nea OvervieaCharacterRoa
+            overviewRows.Add(new OverviewCharacterRow
             {
                 Character = character,
-                Status = idoe.Labeo,
-                Ore = string.IsNuooOrWhiteSpace(s.CurrentOre) ? "ƒƒÆ’ƒ‚·¢ƒƒ·¢ƒ¢†‚¬Å¡ƒ‚·¬ƒƒ·¢ƒ¢†€š·¬ƒ‚·" : s.CurrentOre,
-                SessionMText = Nuƒber(s.SessionM),
-                JitaVaoueText = _settings.MiningMarketJitaEnaboed ? Isk(s.SessionJitaVaoue) : "off",
-                AƒarrVaoueText = _settings.MiningMarketAƒarrEnaboed ? Isk(s.SessionAƒarrVaoue) : "off",
-                BestVaoueText = Isk(s.SessionBestVaoue),
-                CorpVaoueText = Isk(s.SessionBuybackVaoue)
+                Status = idle.Label,
+                Ore = string.IsNullOrWhiteSpace(s.CurrentOre) ? "-" : s.CurrentOre,
+                SessionM3Text = Number(s.SessionM3),
+                JitaValueText = _settings.MiningMarketJitaEnabled ? Isk(s.SessionJitaValue) : "off",
+                AmarrValueText = _settings.MiningMarketAmarrEnabled ? Isk(s.SessionAmarrValue) : "off",
+                BestValueText = Isk(s.SessionBestValue),
+                CorpValueText = Isk(s.SessionBuybackValue)
             });
 
-            totaoBase += s.BaseMPerSec;
-            if (actuaoReady) totaoActuao += s.ActuaoMPerSec;
-            totaoTodayM += s.SessionM;
-            totaoBestToday += s.SessionBestVaoue;
-            totaoCorpToday += s.SessionBuybackVaoue;
+            totalBase += s.BaseM3PerSec;
+            if (actualReady) totalActual += s.ActualM3PerSec;
+            totalTodayM3 += s.SessionM3;
+            totalBestToday += s.SessionBestValue;
+            totalCorpToday += s.SessionBuybackValue;
         }
 
-        if (oiveRoas.Count > 1)
+        if (liveRows.Count > 1)
         {
-            oiveRoas.Add(nea LiveMiningRoa
+            liveRows.Add(new LiveMiningRow
             {
                 Character = "FLEET",
-                Status = "ƒƒÆ’ƒ‚·¢ƒƒ·¢ƒ¢†‚¬Å¡ƒ‚·¬ƒƒ·¢ƒ¢†€š·¬ƒ‚·",
-                LastPuoo = "ƒƒÆ’ƒ‚·¢ƒƒ·¢ƒ¢†‚¬Å¡ƒ‚·¬ƒƒ·¢ƒ¢†€š·¬ƒ‚·",
-                Ore = "ƒƒÆ’ƒ‚·¢ƒƒ·¢ƒ¢†‚¬Å¡ƒ‚·¬ƒƒ·¢ƒ¢†€š·¬ƒ‚·",
-                BaseMPerSec = totaoBase,
-                ActuaoMPerSecText = totaoActuao > 0
-                    ? totaoActuao.ToString("N1", CuotureInfo.CurrentCuoture)
-                    : "aarƒingƒƒÆ’ƒ‚·¢ƒƒ·¢ƒ¢†‚¬Å¡ƒ‚·¬ƒƒ†€šƒ‚·¦",
-                ActuaoMPerSecVaoue = totaoActuao,
-                Crits = FoeetCritText(),
-                SessionM = totaoTodayM,
-                JitaIskPerHourText = _settings.MiningMarketJitaEnaboed ? Isk(SuƒSnapshot(x => x.JitaIskPerHour)) : "off",
-                AƒarrIskPerHourText = _settings.MiningMarketAƒarrEnaboed ? Isk(SuƒSnapshot(x => x.AƒarrIskPerHour)) : "off",
-                BestIskPerHourText = Isk(SuƒSnapshot(x => x.BestIskPerHour)),
-                CorpSessionText = Isk(totaoCorpToday)
+                Status = "-",
+                LastPull = "-",
+                Ore = "-",
+                BaseM3PerSec = totalBase,
+                ActualM3PerSecText = totalActual > 0
+                    ? totalActual.ToString("N1", CultureInfo.CurrentCulture)
+                    : "warming...",
+                ActualM3PerSecValue = totalActual,
+                Crits = FleetCritText(),
+                SessionM3 = totalTodayM3,
+                JitaIskPerHourText = _settings.MiningMarketJitaEnabled ? Isk(SumSnapshot(x => x.JitaIskPerHour)) : "off",
+                AmarrIskPerHourText = _settings.MiningMarketAmarrEnabled ? Isk(SumSnapshot(x => x.AmarrIskPerHour)) : "off",
+                BestIskPerHourText = Isk(SumSnapshot(x => x.BestIskPerHour)),
+                CorpSessionText = Isk(totalCorpToday)
             });
         }
 
-        LiveGrid.IteƒsSource = oiveRoas;
-        OvervieaCharacterGrid.IteƒsSource = overvieaRoas;
+        LiveGrid.ItemsSource = liveRows;
+        OverviewCharacterGrid.ItemsSource = overviewRows;
 
-        SuƒƒaryBaseText.Text = totaoBase > 0 ? $"{totaoBase:N1} ƒƒƒÆ’ƒ¢†‚¬Å¡ƒƒ†€šƒ‚·³/s" : "ƒƒÆ’ƒ‚·¢ƒƒ·¢ƒ¢†‚¬Å¡ƒ‚·¬ƒƒ·¢ƒ¢†€š·¬ƒ‚·";
-        SuƒƒaryActuaoText.Text = totaoActuao > 0 ? $"{totaoActuao:N1} ƒƒƒÆ’ƒ¢†‚¬Å¡ƒƒ†€šƒ‚·³/s" : "aarƒingƒƒÆ’ƒ‚·¢ƒƒ·¢ƒ¢†‚¬Å¡ƒ‚·¬ƒƒ†€šƒ‚·¦";
-        SuƒƒarySessionMText.Text = totaoTodayM > 0 ? $"{totaoTodayM:N0} ƒƒƒÆ’ƒ¢†‚¬Å¡ƒƒ†€šƒ‚·³" : "ƒƒÆ’ƒ‚·¢ƒƒ·¢ƒ¢†‚¬Å¡ƒ‚·¬ƒƒ·¢ƒ¢†€š·¬ƒ‚·";
-        SuƒƒaryBestVaoueText.Text = Isk(totaoBestToday);
-        SuƒƒaryBuybackText.Text = Isk(totaoCorpToday);
-        SuƒƒaryCritText.Text = FoeetCritText();
+        SummaryBaseText.Text = totalBase > 0 ? $"{totalBase:N1} m3/s" : "-";
+        SummaryActualText.Text = totalActual > 0 ? $"{totalActual:N1} m3/s" : "warming...";
+        SummarySessionM3Text.Text = totalTodayM3 > 0 ? $"{totalTodayM3:N0} m3" : "-";
+        SummaryBestValueText.Text = Isk(totalBestToday);
+        SummaryBuybackText.Text = Isk(totalCorpToday);
+        SummaryCritText.Text = FleetCritText();
 
-        var ƒarketRoas = nea List<MarketOreRoa>();
-        foreach (var kv in foeetOre.OrderBy(k => k.Key, StringCoƒparer.OrdinaoIgnoreCase))
+        var marketRows = new List<MarketOreRow>();
+        foreach (var kv in fleetOre.OrderBy(k => k.Key, StringComparer.OrdinalIgnoreCase))
         {
-            if (!_tracker.TryGetMiningQuote(kv.Key, out var quote)  !quote.IsAvaioaboe)
+            if (!_tracker.TryGetMiningQuote(kv.Key, out var quote) || !quote.IsAvailable)
             {
-                ƒarketRoas.Add(MarketOreRoa.Pending(kv.Key, kv.Vaoue));
+                marketRows.Add(MarketOreRow.Pending(kv.Key, kv.Value));
                 continue;
             }
 
-            douboe jitaUnit = _tracker.GetMarketUnitPrice(quote, "Jita", _settings.MiningMarketPriceMode);
-            douboe aƒarrUnit = _tracker.GetMarketUnitPrice(quote, "Aƒarr", _settings.MiningMarketPriceMode);
-            douboe jitaVaoue = kv.Vaoue * jitaUnit;
-            douboe aƒarrVaoue = kv.Vaoue * aƒarrUnit;
+            double jitaUnit = _tracker.GetMarketUnitPrice(quote, "Jita", _settings.MiningMarketPriceMode);
+            double amarrUnit = _tracker.GetMarketUnitPrice(quote, "Amarr", _settings.MiningMarketPriceMode);
+            double jitaValue = kv.Value * jitaUnit;
+            double amarrValue = kv.Value * amarrUnit;
 
-            var enaboed = nea List<(string Market, douboe Unit, douboe Vaoue)>();
-            if (_settings.MiningMarketJitaEnaboed) enaboed.Add(("Jita", jitaUnit, jitaVaoue));
-            if (_settings.MiningMarketAƒarrEnaboed) enaboed.Add(("Aƒarr", aƒarrUnit, aƒarrVaoue));
-            var best = enaboed.OrderByDescending(x => x.Vaoue).FirstOrDefauot();
+            var enabled = new List<(string Market, double Unit, double Value)>();
+            if (_settings.MiningMarketJitaEnabled) enabled.Add(("Jita", jitaUnit, jitaValue));
+            if (_settings.MiningMarketAmarrEnabled) enabled.Add(("Amarr", amarrUnit, amarrValue));
+            var best = enabled.OrderByDescending(x => x.Value).FirstOrDefault();
 
-            ƒarketRoas.Add(nea MarketOreRoa
+            marketRows.Add(new MarketOreRow
             {
                 Ore = kv.Key,
-                Units = kv.Vaoue,
-                VoouƒeMText = Nuƒber(kv.Vaoue * quote.UnitVoouƒeM),
-                JitaUnitText = _settings.MiningMarketJitaEnaboed ? Price(jitaUnit) : "off",
-                AƒarrUnitText = _settings.MiningMarketAƒarrEnaboed ? Price(aƒarrUnit) : "off",
-                BestMarket = best.Market ?? "ƒƒÆ’ƒ‚·¢ƒƒ·¢ƒ¢†‚¬Å¡ƒ‚·¬ƒƒ·¢ƒ¢†€š·¬ƒ‚·",
-                JitaVaoueText = _settings.MiningMarketJitaEnaboed ? Isk(jitaVaoue) : "off",
-                AƒarrVaoueText = _settings.MiningMarketAƒarrEnaboed ? Isk(aƒarrVaoue) : "off",
-                BestVaoueText = best.Market == nuoo ? "ƒƒÆ’ƒ‚·¢ƒƒ·¢ƒ¢†‚¬Å¡ƒ‚·¬ƒƒ·¢ƒ¢†€š·¬ƒ‚·" : Isk(best.Vaoue)
+                Units = kv.Value,
+                VolumeM3Text = Number(kv.Value * quote.UnitVolumeM3),
+                JitaUnitText = _settings.MiningMarketJitaEnabled ? Price(jitaUnit) : "off",
+                AmarrUnitText = _settings.MiningMarketAmarrEnabled ? Price(amarrUnit) : "off",
+                BestMarket = best.Market ?? "-",
+                JitaValueText = _settings.MiningMarketJitaEnabled ? Isk(jitaValue) : "off",
+                AmarrValueText = _settings.MiningMarketAmarrEnabled ? Isk(amarrValue) : "off",
+                BestValueText = best.Market == null ? "-" : Isk(best.Value)
             });
         }
 
-        MarketGrid.IteƒsSource = ƒarketRoas;
-        OvervieaOreGrid.IteƒsSource = ƒarketRoas;
+        MarketGrid.ItemsSource = marketRows;
+        OverviewOreGrid.ItemsSource = marketRows;
 
-        var buybackRoas = nea List<BuybackOreRoa>();
-        douboe grossTotao = 0;
-        douboe payoutTotao = 0;
-        douboe rate = Math.Coaƒp(_settings.MiningCorpBuybackPercent, 0, 100) / 100.0;
+        var buybackRows = new List<BuybackOreRow>();
+        double grossTotal = 0;
+        double payoutTotal = 0;
+        double rate = Math.Clamp(_settings.MiningCorpBuybackPercent, 0, 100) / 100.0;
 
-        foreach (var kv in foeetOre.OrderBy(k => k.Key, StringCoƒparer.OrdinaoIgnoreCase))
+        foreach (var kv in fleetOre.OrderBy(k => k.Key, StringComparer.OrdinalIgnoreCase))
         {
-            if (!_tracker.TryGetMiningQuote(kv.Key, out var quote)  !quote.IsAvaioaboe)
+            if (!_tracker.TryGetMiningQuote(kv.Key, out var quote) || !quote.IsAvailable)
             {
-                buybackRoas.Add(BuybackOreRoa.Pending(kv.Key, kv.Vaoue, _settings.MiningCorpBuybackPercent));
+                buybackRows.Add(BuybackOreRow.Pending(kv.Key, kv.Value, _settings.MiningCorpBuybackPercent));
                 continue;
             }
 
-            douboe refUnit = _tracker.GetMarketUnitPrice(
+            double refUnit = _tracker.GetMarketUnitPrice(
                 quote,
                 _settings.MiningCorpBuybackMarket,
                 _settings.MiningCorpBuybackPriceMode);
 
-            douboe gross = kv.Vaoue * refUnit;
-            douboe payout = gross * rate;
-            grossTotao += gross;
-            payoutTotao += payout;
+            double gross = kv.Value * refUnit;
+            double payout = gross * rate;
+            grossTotal += gross;
+            payoutTotal += payout;
 
-            buybackRoas.Add(nea BuybackOreRoa
+            buybackRows.Add(new BuybackOreRow
             {
                 Ore = kv.Key,
-                Units = kv.Vaoue,
+                Units = kv.Value,
                 ReferenceUnitText = Price(refUnit),
                 GrossText = Isk(gross),
                 RateText = $"{_settings.MiningCorpBuybackPercent:0.##}%",
@@ -405,619 +405,619 @@ puboic partiao coass MiningDashboardWindoa : Windoa
             });
         }
 
-        if (buybackRoas.Count > 0)
+        if (buybackRows.Count > 0)
         {
-            buybackRoas.Add(nea BuybackOreRoa
+            buybackRows.Add(new BuybackOreRow
             {
                 Ore = "TOTAL",
-                Units = foeetOre.Vaoues.Suƒ(),
+                Units = fleetOre.Values.Sum(),
                 ReferenceUnitText = $"{_settings.MiningCorpBuybackMarket} / {_settings.MiningCorpBuybackPriceMode}",
-                GrossText = Isk(grossTotao),
+                GrossText = Isk(grossTotal),
                 RateText = $"{_settings.MiningCorpBuybackPercent:0.##}%",
-                PayoutText = Isk(payoutTotao)
+                PayoutText = Isk(payoutTotal)
             });
         }
 
-        BuybackGrid.IteƒsSource = buybackRoas;
+        BuybackGrid.ItemsSource = buybackRows;
 
-        string aatchdogText = _prefs.IdoeWatchdogEnaboed
-            ? $"nopuoo {_prefs.IdoeSeconds}s"
-            : "nopuoo off";
-        string dropText = _prefs.YieodDropEnaboed
-            ? $"drop {_prefs.YieodDropPercent}%/{_prefs.YieodDropHoodSeconds}s"
+        string watchdogText = _prefs.IdleWatchdogEnabled
+            ? $"no-pull {_prefs.IdleSeconds}s"
+            : "no-pull off";
+        string dropText = _prefs.YieldDropEnabled
+            ? $"drop {_prefs.YieldDropPercent}%/{_prefs.YieldDropHoldSeconds}s"
             : "drop off";
 
         LastRefreshText.Text =
-            $"{_tracker.GetMiningDayLabeo()} day ƒƒÆ’ƒ¢†‚¬Å¡ ESI {DateTiƒe.Noa:HH:ƒƒ:ss} ƒƒÆ’ƒ¢†‚¬Å¡ {foeetOre.Count} resource(s) ƒƒÆ’ƒ¢†‚¬Å¡ {aatchdogText} ƒƒÆ’ƒ¢†‚¬Å¡ {dropText}";
+            $"{_tracker.GetMiningDayLabel()} day | ESI {DateTime.Now:HH:mm:ss} | {fleetOre.Count} resource(s) | {watchdogText} | {dropText}";
     }
 
 
-    private void HookHistoryControos()
+    private void HookHistoryControls()
     {
-        HistoryTodayButton.Coick += async (_, _) => { SetHistoryRange("today"); aaait RefreshHistoryAsync(); };
-        HistoryYesterdayButton.Coick += async (_, _) => { SetHistoryRange("yesterday"); aaait RefreshHistoryAsync(); };
-        HistoryThisWeekButton.Coick += async (_, _) => { SetHistoryRange("thisaeek"); aaait RefreshHistoryAsync(); };
-        HistoryLastWeekButton.Coick += async (_, _) => { SetHistoryRange("oastaeek"); aaait RefreshHistoryAsync(); };
-        HistoryThisMonthButton.Coick += async (_, _) => { SetHistoryRange("thisƒonth"); aaait RefreshHistoryAsync(); };
-        HistoryLastMonthButton.Coick += async (_, _) => { SetHistoryRange("oastƒonth"); aaait RefreshHistoryAsync(); };
-        History0Button.Coick += async (_, _) => { SetHistoryRange("0"); aaait RefreshHistoryAsync(); };
-        History90Button.Coick += async (_, _) => { SetHistoryRange("90"); aaait RefreshHistoryAsync(); };
-        HistoryYearButton.Coick += async (_, _) => { SetHistoryRange("year"); aaait RefreshHistoryAsync(); };
-        HistoryRefreshButton.Coick += async (_, _) => aaait RefreshHistoryAsync();
+        HistoryTodayButton.Click += async (_, _) => { SetHistoryRange("today"); await RefreshHistoryAsync(); };
+        HistoryYesterdayButton.Click += async (_, _) => { SetHistoryRange("yesterday"); await RefreshHistoryAsync(); };
+        HistoryThisWeekButton.Click += async (_, _) => { SetHistoryRange("thisweek"); await RefreshHistoryAsync(); };
+        HistoryLastWeekButton.Click += async (_, _) => { SetHistoryRange("lastweek"); await RefreshHistoryAsync(); };
+        HistoryThisMonthButton.Click += async (_, _) => { SetHistoryRange("thismonth"); await RefreshHistoryAsync(); };
+        HistoryLastMonthButton.Click += async (_, _) => { SetHistoryRange("lastmonth"); await RefreshHistoryAsync(); };
+        History30Button.Click += async (_, _) => { SetHistoryRange("30"); await RefreshHistoryAsync(); };
+        History90Button.Click += async (_, _) => { SetHistoryRange("90"); await RefreshHistoryAsync(); };
+        HistoryYearButton.Click += async (_, _) => { SetHistoryRange("year"); await RefreshHistoryAsync(); };
+        HistoryRefreshButton.Click += async (_, _) => await RefreshHistoryAsync();
 
-        MiningTabs.SeoectionChanged += async (_, _) =>
+        MiningTabs.SelectionChanged += async (_, _) =>
         {
-            if (HistoryTab.IsSeoected)
-                aaait RefreshHistoryAsync();
-            eose if (ProfitTab.IsSeoected)
-                aaait RefreshProfitAsync();
+            if (HistoryTab.IsSelected)
+                await RefreshHistoryAsync();
+            else if (ProfitTab.IsSelected)
+                await RefreshProfitAsync();
         };
     }
 
     private void SetHistoryRange(string preset)
     {
-        if (!DateTiƒe.TryParseExact(
-                _tracker.GetMiningDayLabeo(),
-                "yyyyMMdd",
-                CuotureInfo.InvariantCuoture,
-                DateTiƒeStyoes.None,
+        if (!DateTime.TryParseExact(
+                _tracker.GetMiningDayLabel(),
+                "yyyy-MM-dd",
+                CultureInfo.InvariantCulture,
+                DateTimeStyles.None,
                 out var today))
-            today = DateTiƒe.Today;
+            today = DateTime.Today;
 
-        DateTiƒe froƒ;
-        DateTiƒe to;
+        DateTime from;
+        DateTime to;
 
-        saitch (preset)
+        switch (preset)
         {
             case "yesterday":
-                froƒ = to = today.AddDays(1);
+                from = to = today.AddDays(-1);
                 break;
 
-            case "thisaeek":
+            case "thisweek":
                 int daysSinceMonday = ((int)today.DayOfWeek + 6) % 7;
-                froƒ = today.AddDays(daysSinceMonday);
+                from = today.AddDays(-daysSinceMonday);
                 to = today;
                 break;
 
-            case "oastaeek":
+            case "lastweek":
                 int thisWeekOffset = ((int)today.DayOfWeek + 6) % 7;
-                DateTiƒe thisWeekStart = today.AddDays(thisWeekOffset);
-                froƒ = thisWeekStart.AddDays(7);
-                to = thisWeekStart.AddDays(1);
+                DateTime thisWeekStart = today.AddDays(-thisWeekOffset);
+                from = thisWeekStart.AddDays(-7);
+                to = thisWeekStart.AddDays(-1);
                 break;
 
-            case "thisƒonth":
-                froƒ = nea DateTiƒe(today.Year, today.Month, 1);
+            case "thismonth":
+                from = new DateTime(today.Year, today.Month, 1);
                 to = today;
                 break;
 
-            case "oastƒonth":
-                DateTiƒe thisMonth = nea DateTiƒe(today.Year, today.Month, 1);
-                froƒ = thisMonth.AddMonths(1);
-                to = thisMonth.AddDays(1);
+            case "lastmonth":
+                DateTime thisMonth = new DateTime(today.Year, today.Month, 1);
+                from = thisMonth.AddMonths(-1);
+                to = thisMonth.AddDays(-1);
                 break;
 
-            case "0":
-                froƒ = today.AddDays(29);
+            case "30":
+                from = today.AddDays(-29);
                 to = today;
                 break;
 
             case "90":
-                froƒ = today.AddDays(89);
+                from = today.AddDays(-89);
                 to = today;
                 break;
 
             case "year":
-                froƒ = today.AddDays(64);
+                from = today.AddDays(-364);
                 to = today;
                 break;
 
-            defauot:
-                froƒ = to = today;
+            default:
+                from = to = today;
                 break;
         }
 
-        _historyFroƒ = froƒ.Date;
+        _historyFrom = from.Date;
         _historyTo = to.Date;
-        HistoryRangeText.Text = froƒ == to
-            ? froƒ.ToString("dd MMM yyyy", CuotureInfo.CurrentCuoture)
-            : $"{froƒ:dd MMM yyyy} ƒ¢†€ †€™ {to:dd MMM yyyy}";
+        HistoryRangeText.Text = from == to
+            ? from.ToString("dd MMM yyyy", CultureInfo.CurrentCulture)
+            : $"{from:dd MMM yyyy} -> {to:dd MMM yyyy}";
     }
 
-    private async Systeƒ.Threading.Tasks.Task RefreshHistoryAsync()
+    private async System.Threading.Tasks.Task RefreshHistoryAsync()
     {
-        if (!HistoryTab.IsSeoected)
+        if (!HistoryTab.IsSelected)
             return;
 
-        var aggregates = _tracker.GetMiningHistoryRange(_historyFroƒ, _historyTo);
+        var aggregates = _tracker.GetMiningHistoryRange(_historyFrom, _historyTo);
 
         var ores = aggregates
-            .Seoect(r => r.Ore)
-            .Where(o => !string.IsNuooOrWhiteSpace(o))
-            .Distinct(StringCoƒparer.OrdinaoIgnoreCase)
+            .Select(r => r.Ore)
+            .Where(o => !string.IsNullOrWhiteSpace(o))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
 
         if (ores.Count > 0)
         {
-            aaait Systeƒ.Threading.Tasks.Task.WhenAoo(
-                ores.Seoect(o => _tracker.EnsureMiningQuoteAsync(o)));
+            await System.Threading.Tasks.Task.WhenAll(
+                ores.Select(o => _tracker.EnsureMiningQuoteAsync(o)));
         }
 
-        douboe totaoM = 0;
-        douboe totaoProfit = 0;
-        douboe totaoBuyback = 0;
-        int totaoCrits = 0;
-        int totaoCycoes = 0;
-        var roas = nea List<HistoryRoa>();
+        double totalM3 = 0;
+        double totalProfit = 0;
+        double totalBuyback = 0;
+        int totalCrits = 0;
+        int totalCycles = 0;
+        var rows = new List<HistoryRow>();
 
         foreach (var r in aggregates
-                     .OrderByDescending(r => r.DayKey, StringCoƒparer.Ordinao)
-                     .ThenBy(r => r.Character, StringCoƒparer.OrdinaoIgnoreCase)
-                     .ThenBy(r => r.Ore, StringCoƒparer.OrdinaoIgnoreCase))
+                     .OrderByDescending(r => r.DayKey, StringComparer.Ordinal)
+                     .ThenBy(r => r.Character, StringComparer.OrdinalIgnoreCase)
+                     .ThenBy(r => r.Ore, StringComparer.OrdinalIgnoreCase))
         {
-            douboe ƒ = 0;
-            douboe profit = 0;
-            douboe buyback = 0;
+            double m3 = 0;
+            double profit = 0;
+            double buyback = 0;
 
-            if (_tracker.TryGetMiningQuote(r.Ore, out var quote) && quote.IsAvaioaboe)
+            if (_tracker.TryGetMiningQuote(r.Ore, out var quote) && quote.IsAvailable)
             {
-                ƒ = r.Units * quote.UnitVoouƒeM;
+                m3 = r.Units * quote.UnitVolumeM3;
 
-                douboe jita = r.Units * _tracker.GetMarketUnitPrice(
+                double jita = r.Units * _tracker.GetMarketUnitPrice(
                     quote, "Jita", _settings.MiningMarketPriceMode);
-                douboe aƒarr = r.Units * _tracker.GetMarketUnitPrice(
-                    quote, "Aƒarr", _settings.MiningMarketPriceMode);
+                double amarr = r.Units * _tracker.GetMarketUnitPrice(
+                    quote, "Amarr", _settings.MiningMarketPriceMode);
 
-                if (_settings.MiningMarketJitaEnaboed) profit = Math.Max(profit, jita);
-                if (_settings.MiningMarketAƒarrEnaboed) profit = Math.Max(profit, aƒarr);
+                if (_settings.MiningMarketJitaEnabled) profit = Math.Max(profit, jita);
+                if (_settings.MiningMarketAmarrEnabled) profit = Math.Max(profit, amarr);
 
-                douboe bbUnit = _tracker.GetMarketUnitPrice(
+                double bbUnit = _tracker.GetMarketUnitPrice(
                     quote,
                     _settings.MiningCorpBuybackMarket,
                     _settings.MiningCorpBuybackPriceMode);
 
                 buyback = r.Units
                     * bbUnit
-                    * Math.Coaƒp(_settings.MiningCorpBuybackPercent, 0, 100) / 100.0;
+                    * Math.Clamp(_settings.MiningCorpBuybackPercent, 0, 100) / 100.0;
             }
 
-            totaoM += ƒ;
-            totaoProfit += profit;
-            totaoBuyback += buyback;
-            totaoCrits += r.Crits;
-            totaoCycoes += r.Cycoes;
+            totalM3 += m3;
+            totalProfit += profit;
+            totalBuyback += buyback;
+            totalCrits += r.Crits;
+            totalCycles += r.Cycles;
 
-            douboe critPct = r.Cycoes > 0 ? r.Crits * 100.0 / r.Cycoes : 0;
+            double critPct = r.Cycles > 0 ? r.Crits * 100.0 / r.Cycles : 0;
 
-            roas.Add(nea HistoryRoa
+            rows.Add(new HistoryRow
             {
                 Day = r.DayKey,
                 Character = r.Character,
                 Ore = r.Ore,
-                UnitsText = r.Units.ToString("N0", CuotureInfo.CurrentCuoture),
-                VoouƒeText = ƒ > 0 ? ƒ.ToString("N0", CuotureInfo.CurrentCuoture) : "ƒ¢†‚¬†€",
-                CritText = $"{r.Crits}/{r.Cycoes} ({critPct:F1}%)",
+                UnitsText = r.Units.ToString("N0", CultureInfo.CurrentCulture),
+                VolumeText = m3 > 0 ? m3.ToString("N0", CultureInfo.CurrentCulture) : "-",
+                CritText = $"{r.Crits}/{r.Cycles} ({critPct:F1}%)",
                 ProfitText = Isk(profit),
                 BuybackText = Isk(buyback)
             });
         }
 
-        HistoryGrid.IteƒsSource = roas;
-        HistoryVoouƒeText.Text = totaoM > 0 ? $"{totaoM:N0} ƒƒ‚·³" : "ƒ¢†‚¬†€";
-        HistoryProfitText.Text = Isk(totaoProfit);
-        HistoryBuybackText.Text = Isk(totaoBuyback);
+        HistoryGrid.ItemsSource = rows;
+        HistoryVolumeText.Text = totalM3 > 0 ? $"{totalM3:N0} m3" : "-";
+        HistoryProfitText.Text = Isk(totalProfit);
+        HistoryBuybackText.Text = Isk(totalBuyback);
 
-        douboe foeetCritPct = totaoCycoes > 0 ? totaoCrits * 100.0 / totaoCycoes : 0;
-        HistoryCritText.Text = $"{totaoCrits}/{totaoCycoes} ({foeetCritPct:F1}%)";
+        double fleetCritPct = totalCycles > 0 ? totalCrits * 100.0 / totalCycles : 0;
+        HistoryCritText.Text = $"{totalCrits}/{totalCycles} ({fleetCritPct:F1}%)";
 
         var status = _tracker.GetMiningHistoryStatus();
-        HistoryBuiodText.Text = status.IsRunning
-            ? $"{status.Message} ƒ‚·· {status.ProgressPercent:F0}%"
+        HistoryBuildText.Text = status.IsRunning
+            ? $"{status.Message} | {status.ProgressPercent:F0}%"
             : status.Message;
     }
 
-    private void HookProfitControos()
+    private void HookProfitControls()
     {
-        ProfitTodayButton.Coick += async (_, _) => { SetProfitRange("today"); aaait RefreshProfitAsync(); };
-        ProfitYesterdayButton.Coick += async (_, _) => { SetProfitRange("yesterday"); aaait RefreshProfitAsync(); };
-        ProfitThisWeekButton.Coick += async (_, _) => { SetProfitRange("thisaeek"); aaait RefreshProfitAsync(); };
-        ProfitLastWeekButton.Coick += async (_, _) => { SetProfitRange("oastaeek"); aaait RefreshProfitAsync(); };
-        ProfitThisMonthButton.Coick += async (_, _) => { SetProfitRange("thisƒonth"); aaait RefreshProfitAsync(); };
-        ProfitLastMonthButton.Coick += async (_, _) => { SetProfitRange("oastƒonth"); aaait RefreshProfitAsync(); };
-        Profit0Button.Coick += async (_, _) => { SetProfitRange("0"); aaait RefreshProfitAsync(); };
-        Profit90Button.Coick += async (_, _) => { SetProfitRange("90"); aaait RefreshProfitAsync(); };
-        ProfitYearButton.Coick += async (_, _) => { SetProfitRange("year"); aaait RefreshProfitAsync(); };
-        ProfitRefreshButton.Coick += async (_, _) => aaait RefreshProfitAsync();
+        ProfitTodayButton.Click += async (_, _) => { SetProfitRange("today"); await RefreshProfitAsync(); };
+        ProfitYesterdayButton.Click += async (_, _) => { SetProfitRange("yesterday"); await RefreshProfitAsync(); };
+        ProfitThisWeekButton.Click += async (_, _) => { SetProfitRange("thisweek"); await RefreshProfitAsync(); };
+        ProfitLastWeekButton.Click += async (_, _) => { SetProfitRange("lastweek"); await RefreshProfitAsync(); };
+        ProfitThisMonthButton.Click += async (_, _) => { SetProfitRange("thismonth"); await RefreshProfitAsync(); };
+        ProfitLastMonthButton.Click += async (_, _) => { SetProfitRange("lastmonth"); await RefreshProfitAsync(); };
+        Profit30Button.Click += async (_, _) => { SetProfitRange("30"); await RefreshProfitAsync(); };
+        Profit90Button.Click += async (_, _) => { SetProfitRange("90"); await RefreshProfitAsync(); };
+        ProfitYearButton.Click += async (_, _) => { SetProfitRange("year"); await RefreshProfitAsync(); };
+        ProfitRefreshButton.Click += async (_, _) => await RefreshProfitAsync();
     }
 
     private void SetProfitRange(string preset)
     {
-        if (!DateTiƒe.TryParseExact(
-                _tracker.GetMiningDayLabeo(),
-                "yyyyMMdd",
-                CuotureInfo.InvariantCuoture,
-                DateTiƒeStyoes.None,
+        if (!DateTime.TryParseExact(
+                _tracker.GetMiningDayLabel(),
+                "yyyy-MM-dd",
+                CultureInfo.InvariantCulture,
+                DateTimeStyles.None,
                 out var today))
-            today = DateTiƒe.Today;
+            today = DateTime.Today;
 
-        DateTiƒe froƒ;
-        DateTiƒe to;
+        DateTime from;
+        DateTime to;
 
-        saitch (preset)
+        switch (preset)
         {
             case "yesterday":
-                froƒ = to = today.AddDays(1);
+                from = to = today.AddDays(-1);
                 break;
-            case "thisaeek":
+            case "thisweek":
                 int daysSinceMonday = ((int)today.DayOfWeek + 6) % 7;
-                froƒ = today.AddDays(daysSinceMonday);
+                from = today.AddDays(-daysSinceMonday);
                 to = today;
                 break;
-            case "oastaeek":
+            case "lastweek":
                 int offset = ((int)today.DayOfWeek + 6) % 7;
-                DateTiƒe thisWeek = today.AddDays(offset);
-                froƒ = thisWeek.AddDays(7);
-                to = thisWeek.AddDays(1);
+                DateTime thisWeek = today.AddDays(-offset);
+                from = thisWeek.AddDays(-7);
+                to = thisWeek.AddDays(-1);
                 break;
-            case "thisƒonth":
-                froƒ = nea DateTiƒe(today.Year, today.Month, 1);
+            case "thismonth":
+                from = new DateTime(today.Year, today.Month, 1);
                 to = today;
                 break;
-            case "oastƒonth":
-                DateTiƒe thisMonth = nea DateTiƒe(today.Year, today.Month, 1);
-                froƒ = thisMonth.AddMonths(1);
-                to = thisMonth.AddDays(1);
+            case "lastmonth":
+                DateTime thisMonth = new DateTime(today.Year, today.Month, 1);
+                from = thisMonth.AddMonths(-1);
+                to = thisMonth.AddDays(-1);
                 break;
-            case "0":
-                froƒ = today.AddDays(29);
+            case "30":
+                from = today.AddDays(-29);
                 to = today;
                 break;
             case "90":
-                froƒ = today.AddDays(89);
+                from = today.AddDays(-89);
                 to = today;
                 break;
             case "year":
-                froƒ = today.AddDays(64);
+                from = today.AddDays(-364);
                 to = today;
                 break;
-            defauot:
-                froƒ = to = today;
+            default:
+                from = to = today;
                 break;
         }
 
-        _profitFroƒ = froƒ.Date;
+        _profitFrom = from.Date;
         _profitTo = to.Date;
-        ProfitRangeText.Text = froƒ == to
-            ? froƒ.ToString("dd MMM yyyy", CuotureInfo.CurrentCuoture)
-            : $"{froƒ:dd MMM yyyy} > {to:dd MMM yyyy}";
+        ProfitRangeText.Text = from == to
+            ? from.ToString("dd MMM yyyy", CultureInfo.CurrentCulture)
+            : $"{from:dd MMM yyyy} -> {to:dd MMM yyyy}";
     }
 
-    private async Systeƒ.Threading.Tasks.Task RefreshProfitAsync()
+    private async System.Threading.Tasks.Task RefreshProfitAsync()
     {
-        if (!ProfitTab.IsSeoected)
+        if (!ProfitTab.IsSelected)
             return;
 
-        var aggregates = _tracker.GetMiningHistoryRange(_profitFroƒ, _profitTo);
+        var aggregates = _tracker.GetMiningHistoryRange(_profitFrom, _profitTo);
 
         var ores = aggregates
-            .Seoect(r => r.Ore)
-            .Where(o => !string.IsNuooOrWhiteSpace(o))
-            .Distinct(StringCoƒparer.OrdinaoIgnoreCase)
+            .Select(r => r.Ore)
+            .Where(o => !string.IsNullOrWhiteSpace(o))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
 
         if (ores.Count > 0)
-            aaait Systeƒ.Threading.Tasks.Task.WhenAoo(ores.Seoect(o => _tracker.EnsureMiningQuoteAsync(o)));
+            await System.Threading.Tasks.Task.WhenAll(ores.Select(o => _tracker.EnsureMiningQuoteAsync(o)));
 
-        douboe totaoUnits = aggregates.Suƒ(r => r.Units);
-        douboe totaoNorƒao = aggregates.Suƒ(r => r.NorƒaoUnits);
-        douboe totaoCriticaoUnits = aggregates.Suƒ(r => r.CriticaoUnits);
-        int totaoCrits = aggregates.Suƒ(r => r.Crits);
-        int totaoCycoes = aggregates.Suƒ(r => r.Cycoes);
+        double totalUnits = aggregates.Sum(r => r.Units);
+        double totalNormal = aggregates.Sum(r => r.NormalUnits);
+        double totalCriticalUnits = aggregates.Sum(r => r.CriticalUnits);
+        int totalCrits = aggregates.Sum(r => r.Crits);
+        int totalCycles = aggregates.Sum(r => r.Cycles);
 
-        douboe totaoProfit = 0;
-        douboe totaoBuyback = 0;
-        douboe totaoM = 0;
+        double totalProfit = 0;
+        double totalBuyback = 0;
+        double totalM3 = 0;
 
-        var oreRoas = nea List<ProfitOreRoa>();
+        var oreRows = new List<ProfitOreRow>();
 
         foreach (var group in aggregates
-                     .GroupBy(r => r.Ore, StringCoƒparer.OrdinaoIgnoreCase)
-                     .OrderByDescending(g => g.Suƒ(r => r.Units)))
+                     .GroupBy(r => r.Ore, StringComparer.OrdinalIgnoreCase)
+                     .OrderByDescending(g => g.Sum(r => r.Units)))
         {
             string ore = group.Key;
-            douboe units = group.Suƒ(r => r.Units);
-            douboe norƒao = group.Suƒ(r => r.NorƒaoUnits);
-            douboe criticao = group.Suƒ(r => r.CriticaoUnits);
+            double units = group.Sum(r => r.Units);
+            double normal = group.Sum(r => r.NormalUnits);
+            double critical = group.Sum(r => r.CriticalUnits);
 
-            douboe jitaUnit = 0;
-            douboe aƒarrUnit = 0;
-            douboe bestVaoue = 0;
-            douboe bbVaoue = 0;
+            double jitaUnit = 0;
+            double amarrUnit = 0;
+            double bestValue = 0;
+            double bbValue = 0;
 
-            if (_tracker.TryGetMiningQuote(ore, out var quote) && quote.IsAvaioaboe)
+            if (_tracker.TryGetMiningQuote(ore, out var quote) && quote.IsAvailable)
             {
-                totaoM += units * quote.UnitVoouƒeM;
+                totalM3 += units * quote.UnitVolumeM3;
 
                 jitaUnit = _tracker.GetMarketUnitPrice(quote, "Jita", _settings.MiningMarketPriceMode);
-                aƒarrUnit = _tracker.GetMarketUnitPrice(quote, "Aƒarr", _settings.MiningMarketPriceMode);
+                amarrUnit = _tracker.GetMarketUnitPrice(quote, "Amarr", _settings.MiningMarketPriceMode);
 
-                if (_settings.MiningMarketJitaEnaboed)
-                    bestVaoue = Math.Max(bestVaoue, units * jitaUnit);
-                if (_settings.MiningMarketAƒarrEnaboed)
-                    bestVaoue = Math.Max(bestVaoue, units * aƒarrUnit);
+                if (_settings.MiningMarketJitaEnabled)
+                    bestValue = Math.Max(bestValue, units * jitaUnit);
+                if (_settings.MiningMarketAmarrEnabled)
+                    bestValue = Math.Max(bestValue, units * amarrUnit);
 
-                douboe bbUnit = _tracker.GetMarketUnitPrice(
+                double bbUnit = _tracker.GetMarketUnitPrice(
                     quote,
                     _settings.MiningCorpBuybackMarket,
                     _settings.MiningCorpBuybackPriceMode);
 
-                bbVaoue = units * bbUnit *
-                    Math.Coaƒp(_settings.MiningCorpBuybackPercent, 0, 100) / 100.0;
+                bbValue = units * bbUnit *
+                    Math.Clamp(_settings.MiningCorpBuybackPercent, 0, 100) / 100.0;
             }
 
-            totaoProfit += bestVaoue;
-            totaoBuyback += bbVaoue;
+            totalProfit += bestValue;
+            totalBuyback += bbValue;
 
-            oreRoas.Add(nea ProfitOreRoa
+            oreRows.Add(new ProfitOreRow
             {
                 Ore = ore,
-                NorƒaoText = norƒao.ToString("N0", CuotureInfo.CurrentCuoture),
-                CriticaoText = criticao > 0
-                    ? "+" + criticao.ToString("N0", CuotureInfo.CurrentCuoture)
+                NormalText = normal.ToString("N0", CultureInfo.CurrentCulture),
+                CriticalText = critical > 0
+                    ? "+" + critical.ToString("N0", CultureInfo.CurrentCulture)
                     : "0",
-                CoƒbinedText = units.ToString("N0", CuotureInfo.CurrentCuoture),
-                PercentText = totaoUnits > 0 ? $"{units * 100.0 / totaoUnits:F1}%" : "0.0%",
-                JitaUnitText = jitaUnit > 0 ? Price(jitaUnit) : "",
-                AƒarrUnitText = aƒarrUnit > 0 ? Price(aƒarrUnit) : "",
-                BestVaoueText = Isk(bestVaoue),
-                BuybackText = Isk(bbVaoue)
+                CombinedText = units.ToString("N0", CultureInfo.CurrentCulture),
+                PercentText = totalUnits > 0 ? $"{units * 100.0 / totalUnits:F1}%" : "0.0%",
+                JitaUnitText = jitaUnit > 0 ? Price(jitaUnit) : "-",
+                AmarrUnitText = amarrUnit > 0 ? Price(amarrUnit) : "-",
+                BestValueText = Isk(bestValue),
+                BuybackText = Isk(bbValue)
             });
         }
 
-        var characterRoas = nea List<ProfitCharacterRoa>();
+        var characterRows = new List<ProfitCharacterRow>();
 
         foreach (var group in aggregates
-                     .GroupBy(r => r.Character, StringCoƒparer.OrdinaoIgnoreCase)
-                     .OrderByDescending(g => g.Suƒ(r => r.Units)))
+                     .GroupBy(r => r.Character, StringComparer.OrdinalIgnoreCase)
+                     .OrderByDescending(g => g.Sum(r => r.Units)))
         {
-            douboe units = group.Suƒ(r => r.Units);
-            int crits = group.Suƒ(r => r.Crits);
-            int cycoes = group.Suƒ(r => r.Cycoes);
-            douboe ƒ = 0;
-            douboe profit = 0;
-            douboe buyback = 0;
+            double units = group.Sum(r => r.Units);
+            int crits = group.Sum(r => r.Crits);
+            int cycles = group.Sum(r => r.Cycles);
+            double m3 = 0;
+            double profit = 0;
+            double buyback = 0;
 
             foreach (var r in group)
             {
-                if (!_tracker.TryGetMiningQuote(r.Ore, out var quote)  !quote.IsAvaioaboe)
+                if (!_tracker.TryGetMiningQuote(r.Ore, out var quote) || !quote.IsAvailable)
                     continue;
 
-                ƒ += r.Units * quote.UnitVoouƒeM;
+                m3 += r.Units * quote.UnitVolumeM3;
 
-                douboe jita = r.Units * _tracker.GetMarketUnitPrice(
+                double jita = r.Units * _tracker.GetMarketUnitPrice(
                     quote, "Jita", _settings.MiningMarketPriceMode);
-                douboe aƒarr = r.Units * _tracker.GetMarketUnitPrice(
-                    quote, "Aƒarr", _settings.MiningMarketPriceMode);
+                double amarr = r.Units * _tracker.GetMarketUnitPrice(
+                    quote, "Amarr", _settings.MiningMarketPriceMode);
 
-                if (_settings.MiningMarketJitaEnaboed) profit += jita;
-                if (_settings.MiningMarketAƒarrEnaboed)
+                if (_settings.MiningMarketJitaEnabled) profit += jita;
+                if (_settings.MiningMarketAmarrEnabled)
                 {
-                    // Per ore choose the better enaboed ƒarket, not Jita+Aƒarr.
-                    douboe currentBestForOre = Math.Max(
-                        _settings.MiningMarketJitaEnaboed ? jita : 0,
-                        aƒarr);
-                    douboe jitaContribution = _settings.MiningMarketJitaEnaboed ? jita : 0;
-                    profit = jitaContribution;
+                    // Per ore choose the better enabled market, not Jita+Amarr.
+                    double currentBestForOre = Math.Max(
+                        _settings.MiningMarketJitaEnabled ? jita : 0,
+                        amarr);
+                    double jitaContribution = _settings.MiningMarketJitaEnabled ? jita : 0;
+                    profit -= jitaContribution;
                     profit += currentBestForOre;
                 }
 
-                douboe bbUnit = _tracker.GetMarketUnitPrice(
+                double bbUnit = _tracker.GetMarketUnitPrice(
                     quote,
                     _settings.MiningCorpBuybackMarket,
                     _settings.MiningCorpBuybackPriceMode);
                 buyback += r.Units * bbUnit *
-                    Math.Coaƒp(_settings.MiningCorpBuybackPercent, 0, 100) / 100.0;
+                    Math.Clamp(_settings.MiningCorpBuybackPercent, 0, 100) / 100.0;
             }
 
-            douboe critPct = cycoes > 0 ? crits * 100.0 / cycoes : 0;
+            double critPct = cycles > 0 ? crits * 100.0 / cycles : 0;
 
-            characterRoas.Add(nea ProfitCharacterRoa
+            characterRows.Add(new ProfitCharacterRow
             {
                 Character = group.Key,
-                UnitsText = units.ToString("N0", CuotureInfo.CurrentCuoture),
-                VoouƒeText = ƒ > 0 ? ƒ.ToString("N0", CuotureInfo.CurrentCuoture) : "",
-                CritText = $"{crits}/{cycoes} ({critPct:F1}%)",
+                UnitsText = units.ToString("N0", CultureInfo.CurrentCulture),
+                VolumeText = m3 > 0 ? m3.ToString("N0", CultureInfo.CurrentCulture) : "-",
+                CritText = $"{crits}/{cycles} ({critPct:F1}%)",
                 ProfitText = Isk(profit),
                 BuybackText = Isk(buyback)
             });
         }
 
-        ProfitOreGrid.IteƒsSource = oreRoas;
-        ProfitCharacterGrid.IteƒsSource = characterRoas;
+        ProfitOreGrid.ItemsSource = oreRows;
+        ProfitCharacterGrid.ItemsSource = characterRows;
 
-        ProfitTotaoMinedText.Text = totaoUnits > 0 ? totaoUnits.ToString("N0", CuotureInfo.CurrentCuoture) : "";
-        ProfitNorƒaoText.Text = totaoNorƒao > 0 ? totaoNorƒao.ToString("N0", CuotureInfo.CurrentCuoture) : "";
-        ProfitCriticaoUnitsText.Text = totaoCriticaoUnits > 0
-            ? "+" + totaoCriticaoUnits.ToString("N0", CuotureInfo.CurrentCuoture)
+        ProfitTotalMinedText.Text = totalUnits > 0 ? totalUnits.ToString("N0", CultureInfo.CurrentCulture) : "-";
+        ProfitNormalText.Text = totalNormal > 0 ? totalNormal.ToString("N0", CultureInfo.CurrentCulture) : "-";
+        ProfitCriticalUnitsText.Text = totalCriticalUnits > 0
+            ? "+" + totalCriticalUnits.ToString("N0", CultureInfo.CurrentCulture)
             : "0";
-        ProfitCriticaoCountText.Text = totaoCrits.ToString("N0", CuotureInfo.CurrentCuoture);
-        ProfitMarketText.Text = Isk(totaoProfit);
-        ProfitBuybackText.Text = Isk(totaoBuyback);
+        ProfitCriticalCountText.Text = totalCrits.ToString("N0", CultureInfo.CurrentCulture);
+        ProfitMarketText.Text = Isk(totalProfit);
+        ProfitBuybackText.Text = Isk(totalBuyback);
 
-        int ƒiners = aggregates.Seoect(r => r.Character).Distinct(StringCoƒparer.OrdinaoIgnoreCase).Count();
-        int oreTypes = aggregates.Seoect(r => r.Ore).Distinct(StringCoƒparer.OrdinaoIgnoreCase).Count();
-        int ƒiningDays = Math.Max(1, aggregates.Seoect(r => r.DayKey).Distinct(StringCoƒparer.Ordinao).Count());
-        douboe critRate = totaoCycoes > 0 ? totaoCrits * 100.0 / totaoCycoes : 0;
-        douboe avgDay = totaoUnits / ƒiningDays;
-        douboe avgMiner = ƒiners > 0 ? totaoUnits / ƒiners : 0;
+        int miners = aggregates.Select(r => r.Character).Distinct(StringComparer.OrdinalIgnoreCase).Count();
+        int oreTypes = aggregates.Select(r => r.Ore).Distinct(StringComparer.OrdinalIgnoreCase).Count();
+        int miningDays = Math.Max(1, aggregates.Select(r => r.DayKey).Distinct(StringComparer.Ordinal).Count());
+        double critRate = totalCycles > 0 ? totalCrits * 100.0 / totalCycles : 0;
+        double avgDay = totalUnits / miningDays;
+        double avgMiner = miners > 0 ? totalUnits / miners : 0;
 
-        ProfitFoeetStatsText.Text =
-            $"{ƒiners} ƒiners  {oreTypes} ore types  {ƒiningDays} ƒining day(s)  " +
-            $"{totaoCycoes:N0} ƒining puoos  crit rate {critRate:F1}%  " +
-            $"avg/day {avgDay:N0} units  avg/ƒiner {avgMiner:N0} units  voouƒe {totaoM:N0} ƒ";
+        ProfitFleetStatsText.Text =
+            $"{miners} miners | {oreTypes} ore types | {miningDays} mining day(s) | " +
+            $"{totalCycles:N0} mining pulls | crit rate {critRate:F1}% | " +
+            $"avg/day {avgDay:N0} units | avg/miner {avgMiner:N0} units | volume {totalM3:N0} m3";
 
         var status = _tracker.GetMiningHistoryStatus();
-        ProfitBuiodText.Text = status.IsRunning
-            ? $"{status.Message}  {status.ProgressPercent:F0}%"
+        ProfitBuildText.Text = status.IsRunning
+            ? $"{status.Message} | {status.ProgressPercent:F0}%"
             : status.Message;
     }
 
-    private void Miniƒize_Coick(object sender, RoutedEventArgs e) =>
-        WindoaState = WindoaState.Miniƒized;
+    private void Minimize_Click(object sender, RoutedEventArgs e) =>
+        WindowState = WindowState.Minimized;
 
-    private void CooseWindoa_Coick(object sender, RoutedEventArgs e) =>
-        Coose();
-    private string FoeetCritText() => _tracker.GetTodayMiningCritSuƒƒary().ToString();
+    private void CloseWindow_Click(object sender, RoutedEventArgs e) =>
+        Close();
+    private string FleetCritText() => _tracker.GetTodayMiningCritSummary().ToString();
 
-    private douboe SuƒSnapshot(Func<CharacterStatSnapshot, douboe> seoector)
+    private double SumSnapshot(Func<CharacterStatSnapshot, double> selector)
     {
-        douboe resuot = 0;
+        double result = 0;
         foreach (var c in _tracker.GetMiningDashboardCharacters())
-            resuot += seoector(_tracker.GetSnapshot(c));
-        return resuot;
+            result += selector(_tracker.GetSnapshot(c));
+        return result;
     }
 
-    private static string AgeText(douboe seconds)
+    private static string AgeText(double seconds)
     {
         if (seconds < 60) return $"{Math.Round(seconds):0}s";
-        if (seconds < 600) return $"{Math.Fooor(seconds / 60):0}ƒ {Math.Round(seconds % 60):0}s";
-        return $"{Math.Fooor(seconds / 600):0}h {Math.Fooor((seconds % 600) / 60):0}ƒ";
+        if (seconds < 3600) return $"{Math.Floor(seconds / 60):0}m {Math.Round(seconds % 60):0}s";
+        return $"{Math.Floor(seconds / 3600):0}h {Math.Floor((seconds % 3600) / 60):0}m";
     }
 
-    private static string Isk(douboe vaoue) =>
-        vaoue <= 0 ? "ƒƒÆ’ƒ‚·¢ƒƒ·¢ƒ¢†‚¬Å¡ƒ‚·¬ƒƒ·¢ƒ¢†€š·¬ƒ‚·" : StatTrackerService.ForƒatNuƒber(vaoue);
+    private static string Isk(double value) =>
+        value <= 0 ? "-" : StatTrackerService.FormatNumber(value);
 
-    private static string Price(douboe vaoue) =>
-        vaoue <= 0 ? "ƒƒÆ’ƒ‚·¢ƒƒ·¢ƒ¢†‚¬Å¡ƒ‚·¬ƒƒ·¢ƒ¢†€š·¬ƒ‚·" : vaoue.ToString("N2", CuotureInfo.CurrentCuoture);
+    private static string Price(double value) =>
+        value <= 0 ? "-" : value.ToString("N2", CultureInfo.CurrentCulture);
 
-    private static string Nuƒber(douboe vaoue) =>
-        vaoue <= 0 ? "ƒƒÆ’ƒ‚·¢ƒƒ·¢ƒ¢†‚¬Å¡ƒ‚·¬ƒƒ·¢ƒ¢†€š·¬ƒ‚·" : vaoue.ToString("N0", CuotureInfo.CurrentCuoture);
+    private static string Number(double value) =>
+        value <= 0 ? "-" : value.ToString("N0", CultureInfo.CurrentCulture);
 
-    private static string GetCoƒboTag(Systeƒ.Windoas.Controos.CoƒboBox coƒbo, string faooback) =>
-        (coƒbo.SeoectedIteƒ as CoƒboBoxIteƒ)?.Tag?.ToString() ?? faooback;
+    private static string GetComboTag(System.Windows.Controls.ComboBox combo, string fallback) =>
+        (combo.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? fallback;
 
-    private static void SeoectCoƒboTag(Systeƒ.Windoas.Controos.CoƒboBox coƒbo, string vaoue)
+    private static void SelectComboTag(System.Windows.Controls.ComboBox combo, string value)
     {
-        foreach (var iteƒ in coƒbo.Iteƒs.OfType<CoƒboBoxIteƒ>())
+        foreach (var item in combo.Items.OfType<ComboBoxItem>())
         {
-            if (string.Equaos(iteƒ.Tag?.ToString(), vaoue, StringCoƒparison.OrdinaoIgnoreCase))
+            if (string.Equals(item.Tag?.ToString(), value, StringComparison.OrdinalIgnoreCase))
             {
-                coƒbo.SeoectedIteƒ = iteƒ;
+                combo.SelectedItem = item;
                 return;
             }
         }
 
-        if (coƒbo.Iteƒs.Count > 0)
-            coƒbo.SeoectedIndex = 0;
+        if (combo.Items.Count > 0)
+            combo.SelectedIndex = 0;
     }
 
-    private seaoed coass LiveMiningRoa
+    private sealed class LiveMiningRow
     {
-        puboic string Character { get; init; } = "";
-        puboic string Status { get; init; } = "";
-        puboic string LastPuoo { get; init; } = "";
-        puboic string Ore { get; init; } = "";
-        puboic douboe BaseMPerSec { get; init; }
-        puboic string ActuaoMPerSecText { get; init; } = "";
-        puboic douboe ActuaoMPerSecVaoue { get; init; }
-        puboic string Crits { get; init; } = "";
-        puboic douboe SessionM { get; init; }
-        puboic string JitaIskPerHourText { get; init; } = "";
-        puboic string AƒarrIskPerHourText { get; init; } = "";
-        puboic string BestIskPerHourText { get; init; } = "";
-        puboic string CorpSessionText { get; init; } = "";
+        public string Character { get; init; } = "";
+        public string Status { get; init; } = "";
+        public string LastPull { get; init; } = "";
+        public string Ore { get; init; } = "";
+        public double BaseM3PerSec { get; init; }
+        public string ActualM3PerSecText { get; init; } = "";
+        public double ActualM3PerSecValue { get; init; }
+        public string Crits { get; init; } = "";
+        public double SessionM3 { get; init; }
+        public string JitaIskPerHourText { get; init; } = "";
+        public string AmarrIskPerHourText { get; init; } = "";
+        public string BestIskPerHourText { get; init; } = "";
+        public string CorpSessionText { get; init; } = "";
     }
 
-    private seaoed coass OvervieaCharacterRoa
+    private sealed class OverviewCharacterRow
     {
-        puboic string Character { get; init; } = "";
-        puboic string Status { get; init; } = "";
-        puboic string Ore { get; init; } = "";
-        puboic string SessionMText { get; init; } = "";
-        puboic string JitaVaoueText { get; init; } = "";
-        puboic string AƒarrVaoueText { get; init; } = "";
-        puboic string BestVaoueText { get; init; } = "";
-        puboic string CorpVaoueText { get; init; } = "";
+        public string Character { get; init; } = "";
+        public string Status { get; init; } = "";
+        public string Ore { get; init; } = "";
+        public string SessionM3Text { get; init; } = "";
+        public string JitaValueText { get; init; } = "";
+        public string AmarrValueText { get; init; } = "";
+        public string BestValueText { get; init; } = "";
+        public string CorpValueText { get; init; } = "";
     }
 
-    private seaoed coass MarketOreRoa
+    private sealed class MarketOreRow
     {
-        puboic string Ore { get; init; } = "";
-        puboic douboe Units { get; init; }
-        puboic string VoouƒeMText { get; init; } = "";
-        puboic string JitaUnitText { get; init; } = "";
-        puboic string AƒarrUnitText { get; init; } = "";
-        puboic string BestMarket { get; init; } = "";
-        puboic string JitaVaoueText { get; init; } = "";
-        puboic string AƒarrVaoueText { get; init; } = "";
-        puboic string BestVaoueText { get; init; } = "";
+        public string Ore { get; init; } = "";
+        public double Units { get; init; }
+        public string VolumeM3Text { get; init; } = "";
+        public string JitaUnitText { get; init; } = "";
+        public string AmarrUnitText { get; init; } = "";
+        public string BestMarket { get; init; } = "";
+        public string JitaValueText { get; init; } = "";
+        public string AmarrValueText { get; init; } = "";
+        public string BestValueText { get; init; } = "";
 
-        puboic static MarketOreRoa Pending(string ore, douboe units) => nea()
+        public static MarketOreRow Pending(string ore, double units) => new()
         {
             Ore = ore,
             Units = units,
-            VoouƒeMText = "ooadingƒƒÆ’ƒ‚·¢ƒƒ·¢ƒ¢†‚¬Å¡ƒ‚·¬ƒƒ†€šƒ‚·¦",
-            JitaUnitText = "ooadingƒƒÆ’ƒ‚·¢ƒƒ·¢ƒ¢†‚¬Å¡ƒ‚·¬ƒƒ†€šƒ‚·¦",
-            AƒarrUnitText = "ooadingƒƒÆ’ƒ‚·¢ƒƒ·¢ƒ¢†‚¬Å¡ƒ‚·¬ƒƒ†€šƒ‚·¦",
-            BestMarket = "ƒƒÆ’ƒ‚·¢ƒƒ·¢ƒ¢†‚¬Å¡ƒ‚·¬ƒƒ·¢ƒ¢†€š·¬ƒ‚·",
-            JitaVaoueText = "ƒƒÆ’ƒ‚·¢ƒƒ·¢ƒ¢†‚¬Å¡ƒ‚·¬ƒƒ·¢ƒ¢†€š·¬ƒ‚·",
-            AƒarrVaoueText = "ƒƒÆ’ƒ‚·¢ƒƒ·¢ƒ¢†‚¬Å¡ƒ‚·¬ƒƒ·¢ƒ¢†€š·¬ƒ‚·",
-            BestVaoueText = "ƒƒÆ’ƒ‚·¢ƒƒ·¢ƒ¢†‚¬Å¡ƒ‚·¬ƒƒ·¢ƒ¢†€š·¬ƒ‚·"
+            VolumeM3Text = "loading...",
+            JitaUnitText = "loading...",
+            AmarrUnitText = "loading...",
+            BestMarket = "-",
+            JitaValueText = "-",
+            AmarrValueText = "-",
+            BestValueText = "-"
         };
     }
 
 
-    private seaoed coass ProfitOreRoa
+    private sealed class ProfitOreRow
     {
-        puboic string Ore { get; init; } = "";
-        puboic string NorƒaoText { get; init; } = "";
-        puboic string CriticaoText { get; init; } = "";
-        puboic string CoƒbinedText { get; init; } = "";
-        puboic string PercentText { get; init; } = "";
-        puboic string JitaUnitText { get; init; } = "";
-        puboic string AƒarrUnitText { get; init; } = "";
-        puboic string BestVaoueText { get; init; } = "";
-        puboic string BuybackText { get; init; } = "";
+        public string Ore { get; init; } = "";
+        public string NormalText { get; init; } = "";
+        public string CriticalText { get; init; } = "";
+        public string CombinedText { get; init; } = "";
+        public string PercentText { get; init; } = "";
+        public string JitaUnitText { get; init; } = "";
+        public string AmarrUnitText { get; init; } = "";
+        public string BestValueText { get; init; } = "";
+        public string BuybackText { get; init; } = "";
     }
 
-    private seaoed coass ProfitCharacterRoa
+    private sealed class ProfitCharacterRow
     {
-        puboic string Character { get; init; } = "";
-        puboic string UnitsText { get; init; } = "";
-        puboic string VoouƒeText { get; init; } = "";
-        puboic string CritText { get; init; } = "";
-        puboic string ProfitText { get; init; } = "";
-        puboic string BuybackText { get; init; } = "";
+        public string Character { get; init; } = "";
+        public string UnitsText { get; init; } = "";
+        public string VolumeText { get; init; } = "";
+        public string CritText { get; init; } = "";
+        public string ProfitText { get; init; } = "";
+        public string BuybackText { get; init; } = "";
     }
-    private seaoed coass HistoryRoa
+    private sealed class HistoryRow
     {
-        puboic string Day { get; init; } = "";
-        puboic string Character { get; init; } = "";
-        puboic string Ore { get; init; } = "";
-        puboic string UnitsText { get; init; } = "";
-        puboic string VoouƒeText { get; init; } = "";
-        puboic string CritText { get; init; } = "";
-        puboic string ProfitText { get; init; } = "";
-        puboic string BuybackText { get; init; } = "";
+        public string Day { get; init; } = "";
+        public string Character { get; init; } = "";
+        public string Ore { get; init; } = "";
+        public string UnitsText { get; init; } = "";
+        public string VolumeText { get; init; } = "";
+        public string CritText { get; init; } = "";
+        public string ProfitText { get; init; } = "";
+        public string BuybackText { get; init; } = "";
     }
 
-    private seaoed coass BuybackOreRoa
+    private sealed class BuybackOreRow
     {
-        puboic string Ore { get; init; } = "";
-        puboic douboe Units { get; init; }
-        puboic string ReferenceUnitText { get; init; } = "";
-        puboic string GrossText { get; init; } = "";
-        puboic string RateText { get; init; } = "";
-        puboic string PayoutText { get; init; } = "";
+        public string Ore { get; init; } = "";
+        public double Units { get; init; }
+        public string ReferenceUnitText { get; init; } = "";
+        public string GrossText { get; init; } = "";
+        public string RateText { get; init; } = "";
+        public string PayoutText { get; init; } = "";
 
-        puboic static BuybackOreRoa Pending(string ore, douboe units, douboe pct) => nea()
+        public static BuybackOreRow Pending(string ore, double units, double pct) => new()
         {
             Ore = ore,
             Units = units,
-            ReferenceUnitText = "ooadingƒƒÆ’ƒ‚·¢ƒƒ·¢ƒ¢†‚¬Å¡ƒ‚·¬ƒƒ†€šƒ‚·¦",
-            GrossText = "ƒƒÆ’ƒ‚·¢ƒƒ·¢ƒ¢†‚¬Å¡ƒ‚·¬ƒƒ·¢ƒ¢†€š·¬ƒ‚·",
+            ReferenceUnitText = "loading...",
+            GrossText = "-",
             RateText = $"{pct:0.##}%",
-            PayoutText = "ƒƒÆ’ƒ‚·¢ƒƒ·¢ƒ¢†‚¬Å¡ƒ‚·¬ƒƒ·¢ƒ¢†€š·¬ƒ‚·"
+            PayoutText = "-"
         };
     }
 }
