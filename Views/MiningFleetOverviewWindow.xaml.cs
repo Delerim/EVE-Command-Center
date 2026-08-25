@@ -15,7 +15,6 @@ public partial class MiningFleetOverviewWindow : Window
     private readonly MiningIdleWatchdogService _watchdog;
     private readonly MiningDashboardPreferences _prefs;
     private readonly DispatcherTimer _timer;
-    private int _lastAutoSizedMinerCount;
 
     public MiningFleetOverviewWindow(
         StatTrackerService tracker,
@@ -40,6 +39,8 @@ public partial class MiningFleetOverviewWindow : Window
         Width = Math.Max(MinWidth, prefs.FleetOverviewWidth);
         Height = Math.Max(MinHeight, prefs.FleetOverviewHeight);
 
+        ApplyResizeMode();
+
         _timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
         _timer.Tick += (_, _) => RefreshCards();
         _timer.Start();
@@ -52,8 +53,12 @@ public partial class MiningFleetOverviewWindow : Window
             _timer.Stop();
             _prefs.FleetOverviewX = Left;
             _prefs.FleetOverviewY = Top;
-            _prefs.FleetOverviewWidth = Width;
-            _prefs.FleetOverviewHeight = Height;
+            if (_prefs.AllowFleetOverviewResize)
+            {
+                _prefs.FleetOverviewWidth = Width;
+                _prefs.FleetOverviewHeight = Height;
+            }
+
             MiningDashboardPreferencesStore.Save(_prefs);
         };
     }
@@ -116,46 +121,62 @@ public partial class MiningFleetOverviewWindow : Window
 
         int minerCount = ordered.Count;
 
-        // Keep the compact one-row wall readable when additional clients begin
-        // mining. Grow only when the miner count increases; never shrink a window
-        // the user deliberately resized.
-        if (_prefs.AutoSizeFleetOverview &&
-            minerCount > _lastAutoSizedMinerCount &&
-            minerCount > 0)
-        {
-            const double preferredCardWidth = 205;
-            const double outerChrome = 34;
-            const double gapPerCard = 6;
-            const double maxAutoWidth = 2400;
-
-            double desiredWidth =
-                outerChrome +
-                minerCount * preferredCardWidth +
-                Math.Max(0, minerCount - 1) * gapPerCard;
-
-            desiredWidth = Math.Clamp(
-                desiredWidth,
-                MinWidth,
-                maxAutoWidth);
-
-            if (desiredWidth > Width + 2)
-                Width = desiredWidth;
-        }
-
-        _lastAutoSizedMinerCount = minerCount;
-
-        double available = Math.Max(500, ActualWidth - 28);
-        int count = Math.Max(1, ordered.Count);
-        double ideal = (available - Math.Max(0, count - 1) * 6) / count;
-        double cardWidth = Math.Clamp(Math.Floor(ideal), 150, 205);
+        const double cardWidth = 205;
+        const double cardGap = 6;
+        const double windowChrome = 44;
+        const double fixedHeight = 165;
 
         foreach (var card in ordered)
             card.CardWidth = cardWidth;
+
+        ApplyResizeMode();
+
+        if (!_prefs.AllowFleetOverviewResize)
+        {
+            double desiredWidth = minerCount > 0
+                ? windowChrome +
+                  minerCount * (cardWidth + cardGap)
+                : 620;
+
+            desiredWidth = Math.Max(620, desiredWidth);
+
+            if (Math.Abs(Width - desiredWidth) > 1)
+                Width = desiredWidth;
+
+            if (Math.Abs(Height - fixedHeight) > 1)
+                Height = fixedHeight;
+
+            // If the wall grows near the right edge of the Windows virtual desktop,
+            // slide it left instead of clipping the new miner tile.
+            double virtualLeft = SystemParameters.VirtualScreenLeft;
+            double virtualRight =
+                SystemParameters.VirtualScreenLeft +
+                SystemParameters.VirtualScreenWidth;
+
+            if (Left + Width > virtualRight)
+                Left = Math.Max(virtualLeft, virtualRight - Width);
+        }
 
         MinerItems.ItemsSource = ordered;
 
         DayText.Text = $"DAY {_tracker.GetMiningDayLabel()}";
         UpdatedText.Text = $"{cards.Count} miners | {DateTime.Now:HH:mm:ss}";
+    }
+
+    private void ApplyResizeMode()
+    {
+        if (_prefs.AllowFleetOverviewResize)
+        {
+            ResizeMode = ResizeMode.CanResizeWithGrip;
+            MinHeight = 125;
+            MaxHeight = double.PositiveInfinity;
+        }
+        else
+        {
+            ResizeMode = ResizeMode.NoResize;
+            MinHeight = 165;
+            MaxHeight = 165;
+        }
     }
 
     private static string AgeText(double seconds)

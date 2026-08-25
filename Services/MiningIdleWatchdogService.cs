@@ -8,7 +8,7 @@ namespace EveMultiPreview.Services;
 
 public sealed class MiningDashboardPreferences
 {
-    public int PreferencesVersion { get; set; } = 6;
+    public int PreferencesVersion { get; set; } = 7;
 
     public bool JitaEnabled { get; set; } = true;
     public bool AmarrEnabled { get; set; } = true;
@@ -32,7 +32,13 @@ public sealed class MiningDashboardPreferences
 
     public bool UseFleetTileWall { get; set; } = true;
     public bool AutoShowFleetOverview { get; set; } = true;
+
+    // Legacy preference retained for compatibility. V1.11 auto-fits by default.
     public bool AutoSizeFleetOverview { get; set; } = true;
+
+    // False = one fixed horizontal row that exactly fits the miner tiles.
+    // True = user may manually resize the wall; cards still never wrap vertically.
+    public bool AllowFleetOverviewResize { get; set; } = false;
 
     // Filters the market and sell-timing tables only. Mining totals/history remain complete.
     // Default is the high-sec set used by this mining fleet.
@@ -119,11 +125,17 @@ public static class MiningDashboardPreferencesStore
                 changed = true;
             }
 
+            if (storedVersion < 7)
+            {
+                prefs.AllowFleetOverviewResize = false;
+                changed = true;
+            }
+
             prefs.AlarmMutedCharacters ??= new List<string>();
             if (string.IsNullOrWhiteSpace(prefs.MarketOreFilter))
                 prefs.MarketOreFilter = "myhs";
 
-            prefs.PreferencesVersion = 6;
+            prefs.PreferencesVersion = 7;
             prefs.DashboardOpacityPercent = Math.Clamp(prefs.DashboardOpacityPercent, 55, 100);
             prefs.FleetOverviewOpacityPercent = Math.Clamp(prefs.FleetOverviewOpacityPercent, 55, 100);
 

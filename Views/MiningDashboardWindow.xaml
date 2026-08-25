@@ -317,7 +317,7 @@
                                    Margin="4,0,8,0" VerticalAlignment="Center"/>
                         <CheckBox x:Name="AutoOverviewCheck" Content="Auto-show"/>
                         <CheckBox x:Name="TileWallCheck" Content="Tile wall"/>
-                        <CheckBox x:Name="AutoSizeWallCheck" Content="Auto-size wall"/>
+                        <CheckBox x:Name="AllowResizeWallCheck" Content="Allow wall resize"/>
                         <Button x:Name="ToggleOverviewButton" Content="Show / hide"/>
 
                         <TextBlock Text="Opacity" FontWeight="SemiBold" Foreground="#58D3B4"
@@ -447,6 +447,8 @@
                             <DataGridTextColumn Header="ACTUAL m3/s" Binding="{Binding ActualM3PerSecText}" Width="105"/>
                             <DataGridTextColumn Header="Today crits" Binding="{Binding Crits}" Width="105"/>
                             <DataGridTextColumn Header="Today m3" Binding="{Binding SessionM3, StringFormat={}{0:N0}}" Width="105"/>
+                            <DataGridTextColumn Header="Continuity" Binding="{Binding ContinuityText}" Width="88"/>
+                            <DataGridTextColumn Header="Breaks >3m" Binding="{Binding BreaksText}" Width="88"/>
                             <DataGridTextColumn Header="Jita ISK/h" Binding="{Binding JitaIskPerHourText}" Width="105"/>
                             <DataGridTextColumn Header="Amarr ISK/h" Binding="{Binding AmarrIskPerHourText}" Width="105"/>
                             <DataGridTextColumn Header="Best ISK/h" Binding="{Binding BestIskPerHourText}" Width="105"/>
@@ -602,17 +604,13 @@
                                             <ComboBoxItem Content="Mordunium / escalation" Tag="mordunium"/>
                                             <ComboBoxItem Content="All known ores" Tag="all"/>
                                         </ComboBox>
-                                        <TextBlock Text="My High-sec = R4 + belts + Omber/Kernite + Mordunium"
-                                                   Foreground="#78958E"
-                                                   FontSize="10"
-                                                   VerticalAlignment="Center"/>
                                     </WrapPanel>
 
                                     <TextBlock Grid.Row="1"
                                                Margin="4,1,4,8"
                                                Foreground="#78958E"
                                                FontSize="10.5"
-                                               Text="Historical-position heuristic only. SELL = strong current price, HOLD = historically cheap, WAIT = neither extreme."/>
+                                               Text="Historical-position heuristic only. SELL = strong price, HOLD = historically cheap, WAIT = neither extreme."/>
 
                                     <DataGrid Grid.Row="2" x:Name="SellTimingGrid" AlternationCount="2">
                                         <DataGrid.Columns>
@@ -684,7 +682,7 @@
                                 <ComboBoxItem Content="Mordunium / escalation" Tag="mordunium"/>
                                 <ComboBoxItem Content="All known ores" Tag="all"/>
                             </ComboBox>
-                            <TextBlock Text="Only the market table is filtered; mining totals/history stay complete."
+                            <TextBlock Text="Filters the market decision tables only."
                                        Foreground="#78958E"
                                        FontSize="10"
                                        VerticalAlignment="Center"/>
@@ -735,7 +733,115 @@
                             </DataGrid.Columns>
                         </DataGrid>
                     </Grid>
-                </TabItem><TabItem Header="Corp Buyback">
+                </TabItem>
+
+                <TabItem x:Name="WhatToMineTab" Header="What should I mine?">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+
+                        <WrapPanel Grid.Row="0" Margin="4,0,4,7">
+                            <TextBlock Text="Ore filter" Foreground="#58D3B4"
+                                       FontWeight="SemiBold"
+                                       VerticalAlignment="Center"
+                                       Margin="0,0,7,0"/>
+                            <ComboBox x:Name="WhatToMineOreFilterCombo" MinWidth="165">
+                                <ComboBoxItem Content="My High-sec" Tag="myhs"/>
+                                <ComboBoxItem Content="R4 moon" Tag="r4"/>
+                                <ComboBoxItem Content="R8 moon" Tag="r8"/>
+                                <ComboBoxItem Content="R16 moon" Tag="r16"/>
+                                <ComboBoxItem Content="R32 moon" Tag="r32"/>
+                                <ComboBoxItem Content="R64 moon" Tag="r64"/>
+                                <ComboBoxItem Content="Amarr belts" Tag="amarrbelt"/>
+                                <ComboBoxItem Content="Omber / Kernite" Tag="omberkernite"/>
+                                <ComboBoxItem Content="Mordunium / escalation" Tag="mordunium"/>
+                                <ComboBoxItem Content="All known ores" Tag="all"/>
+                            </ComboBox>
+                            <TextBlock Text="Sorted by current best sell ISK/m3. Liquidity is shown separately so thin markets are obvious."
+                                       Foreground="#78958E"
+                                       FontSize="10"
+                                       VerticalAlignment="Center"/>
+                        </WrapPanel>
+
+                        <UniformGrid Grid.Row="1" Columns="4" Margin="0,0,0,7">
+                            <Border Style="{StaticResource SummaryCard}">
+                                <StackPanel>
+                                    <TextBlock Text="TOP VALUE ORE" Foreground="#78958E" FontSize="10"/>
+                                    <TextBlock x:Name="WhatToMineTopOreText" Text="-" Foreground="#58D3B4"
+                                               FontSize="17" FontWeight="SemiBold"
+                                               TextTrimming="CharacterEllipsis"/>
+                                </StackPanel>
+                            </Border>
+                            <Border Style="{StaticResource SummaryCard}">
+                                <StackPanel>
+                                    <TextBlock Text="TOP VALUE" Foreground="#78958E" FontSize="10"/>
+                                    <TextBlock x:Name="WhatToMineTopValueText" Text="-" Foreground="#58D3B4"
+                                               FontSize="17" FontWeight="SemiBold"/>
+                                </StackPanel>
+                            </Border>
+                            <Border Style="{StaticResource SummaryCard}">
+                                <StackPanel>
+                                    <TextBlock Text="TODAY BB OPPORTUNITY COST" Foreground="#78958E" FontSize="10"/>
+                                    <TextBlock x:Name="WhatToMineOpportunityText" Text="-" Foreground="#E7B85A"
+                                               FontSize="17" FontWeight="SemiBold"/>
+                                </StackPanel>
+                            </Border>
+                            <Border Style="{StaticResource SummaryCard}">
+                                <StackPanel>
+                                    <TextBlock Text="FLEET CONTINUITY TODAY" Foreground="#78958E" FontSize="10"/>
+                                    <TextBlock x:Name="WhatToMineContinuityText" Text="-" Foreground="#58D3B4"
+                                               FontSize="17" FontWeight="SemiBold"/>
+                                </StackPanel>
+                            </Border>
+                        </UniformGrid>
+
+                        <DataGrid Grid.Row="2" x:Name="WhatToMineGrid" AlternationCount="2">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="#" Binding="{Binding Rank}" Width="40"/>
+                                <DataGridTextColumn Header="Ore" Binding="{Binding Ore}" Width="175"/>
+                                <DataGridTextColumn Header="Type" Binding="{Binding Category}" Width="95"/>
+                                <DataGridTextColumn Header="Best hub" Binding="{Binding BestMarket}" Width="75"/>
+                                <DataGridTextColumn Header="Sell / unit" Binding="{Binding BestSellText}" Width="95"/>
+                                <DataGridTextColumn Header="ISK/m3" Binding="{Binding BestIskM3Text}" Width="90"/>
+                                <DataGridTextColumn Header="Corp BB/m3" Binding="{Binding CorpBbIskM3Text}" Width="95"/>
+                                <DataGridTextColumn Header="BB gap/m3" Binding="{Binding BbGapText}" Width="115"/>
+                                <DataGridTextColumn Header="30d avg" Binding="{Binding Average30Text}" Width="95"/>
+                                <DataGridTextColumn Header="30d m3/day" Binding="{Binding AvgDailyM3Text}" Width="105"/>
+                                <DataGridTextColumn Header="Your load/day" Binding="{Binding MarketLoadText}" Width="95"/>
+                                <DataGridTemplateColumn Header="Advice" Width="75">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding Advice}" FontWeight="SemiBold">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Setter Property="Foreground" Value="#78958E"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding Advice}" Value="SELL">
+                                                                <Setter Property="Foreground" Value="#76E39A"/>
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding Advice}" Value="HOLD">
+                                                                <Setter Property="Foreground" Value="#58D3B4"/>
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding Advice}" Value="WAIT">
+                                                                <Setter Property="Foreground" Value="#E7B85A"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTextColumn Header="Why" Binding="{Binding Why}" Width="*"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Grid>
+                </TabItem>
+
+                <TabItem Header="Corp Buyback">
                     <DataGrid x:Name="BuybackGrid" AlternationCount="2">
                         <DataGrid.Columns>
                             <DataGridTextColumn Header="Ore" Binding="{Binding Ore}" Width="240"/>

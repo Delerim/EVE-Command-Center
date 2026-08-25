@@ -330,50 +330,165 @@ public sealed class MiningMarketService
     {
         try
         {
-            var resolved = await ResolveTypeAsync(oreName, cancellationToken).ConfigureAwait(false);
+            var resolved = await ResolveTypeAsync(
+                oreName,
+                cancellationToken).ConfigureAwait(false);
+
             if (resolved == null)
             {
-                var missing = MiningMarketQuote.Unavailable(oreName, "ESI could not resolve this resource name.");
+                var missing = MiningMarketQuote.Unavailable(
+                    oreName,
+                    "ESI could not resolve this resource name.");
+
                 _quotes[oreName] = missing;
                 return missing;
             }
 
-            var (typeId, canonicalName) = resolved.Value;
-            var volumeTask = FetchTypeVolumeAsync(typeId, cancellationToken);
-            var jitaTask = FetchStationPricesAsync(TheForgeRegionId, Jita44StationId, typeId, cancellationToken);
-            var amarrTask = FetchStationPricesAsync(DomainRegionId, AmarrEmperorFamilyStationId, typeId, cancellationToken);
+            var (rawTypeId, canonicalName) = resolved.Value;
 
-            await Task.WhenAll(volumeTask, jitaTask, amarrTask).ConfigureAwait(false);
+            // EVE's mining log records the UNCOMPRESSED ore name, but in normal
+            // mining operations the ore is compressed before it is sold. Since the
+            // 2022 compression changes, asteroid/moon ore compression preserves the
+            // unit count 1:1. Therefore one mined unit maps to one compressed market
+            // unit, while its mined-space volume must still use the RAW ore volume.
+            //
+            // Pricing raw moon ore is especially dangerous because those order books
+            // can be extremely thin. A single odd raw sell order can make today's
+            // "PROFIT" jump by several hundred million without another mining cycle.
+            int marketTypeId = rawTypeId;
+            string marketItemName = canonicalName;
+            bool usesCompressedMarket = false;
 
-            var volume = await volumeTask.ConfigureAwait(false);
+            if (!canonicalName.StartsWith(
+                    "Compressed ",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                var compressed = await ResolveTypeAsync(
+                    "Compressed " + canonicalName,
+                    cancellationToken).ConfigureAwait(false);
+
+                if (compressed != null)
+                {
+                    marketTypeId = compressed.Value.TypeId;
+                    marketItemName = compressed.Value.Name;
+                    usesCompressedMarket = true;
+                }
+            }
+
+            // Raw volume is intentional. It is used for mined m3 and ISK/m3.
+            var rawVolumeTask = FetchTypeVolumeAsync(
+                rawTypeId,
+                cancellationToken);
+
+            var jitaTask = FetchStationPricesAsync(
+                TheForgeRegionId,
+                Jita44StationId,
+                marketTypeId,
+                cancellationToken);
+
+            var amarrTask = FetchStationPricesAsync(
+                DomainRegionId,
+                AmarrEmperorFamilyStationId,
+                marketTypeId,
+                cancellationToken);
+
+            await Task.WhenAll(
+                rawVolumeTask,
+                jitaTask,
+                amarrTask).ConfigureAwait(false);
+
+            double rawVolume =
+                await rawVolumeTask.ConfigureAwait(false);
+
             var jita = await jitaTask.ConfigureAwait(false);
             var amarr = await amarrTask.ConfigureAwait(false);
 
+            // If ESI resolves a compressed variant but it has no station orders at
+            // either selected hub, fall back to the raw type instead of returning a
+            // blank quote. This mainly protects unusual/new resource types.
+            bool compressedHasAnyPrice =
+                jita.BestSell.HasValue ||
+                jita.BestBuy.HasValue ||
+                amarr.BestSell.HasValue ||
+                amarr.BestBuy.HasValue;
+
+            if (usesCompressedMarket && !compressedHasAnyPrice)
+            {
+                marketTypeId = rawTypeId;
+                marketItemName = canonicalName;
+                usesCompressedMarket = false;
+
+                var rawJitaTask = FetchStationPricesAsync(
+                    TheForgeRegionId,
+                    Jita44StationId,
+                    rawTypeId,
+                    cancellationToken);
+
+                var rawAmarrTask = FetchStationPricesAsync(
+                    DomainRegionId,
+                    AmarrEmperorFamilyStationId,
+                    rawTypeId,
+                    cancellationToken);
+
+                await Task.WhenAll(
+                    rawJitaTask,
+                    rawAmarrTask).ConfigureAwait(false);
+
+                jita = await rawJitaTask.ConfigureAwait(false);
+                amarr = await rawAmarrTask.ConfigureAwait(false);
+            }
+
             var quote = new MiningMarketQuote
             {
+                // Keep the resource name exactly as the mining logs know it.
                 OreName = canonicalName,
-                TypeId = typeId,
-                UnitVolumeM3 = volume,
+
+                // TypeId is the TRADED type. Historical market data therefore
+                // follows the same compressed market used by current valuation.
+                TypeId = marketTypeId,
+
+                // The physical volume is still the raw mined unit volume.
+                UnitVolumeM3 = rawVolume,
+
                 JitaBestSell = jita.BestSell,
                 JitaBestBuy = jita.BestBuy,
                 AmarrBestSell = amarr.BestSell,
                 AmarrBestBuy = amarr.BestBuy,
+                MarketItemName = marketItemName,
+                UsesCompressedMarket = usesCompressedMarket,
                 FetchedAtUtc = DateTime.UtcNow,
                 Error = null
             };
+
+            Debug.WriteLine(
+                $"[MiningMarket] '{canonicalName}' valued as " +
+                $"'{marketItemName}' type={marketTypeId}, " +
+                $"rawVolume={rawVolume:N3}m3, compressed={usesCompressedMarket}");
+
             _quotes[oreName] = quote;
-            if (!oreName.Equals(canonicalName, StringComparison.OrdinalIgnoreCase))
+
+            if (!oreName.Equals(
+                    canonicalName,
+                    StringComparison.OrdinalIgnoreCase))
+            {
                 _quotes[canonicalName] = quote;
+            }
+
             return quote;
         }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        catch (OperationCanceledException)
+            when (cancellationToken.IsCancellationRequested)
         {
             return null;
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[MiningMarket] Quote error for '{oreName}': {ex.Message}");
-            var failed = MiningMarketQuote.Unavailable(oreName, ex.Message);
+            Debug.WriteLine(
+                $"[MiningMarket] Quote error for '{oreName}': {ex.Message}");
+
+            var failed =
+                MiningMarketQuote.Unavailable(oreName, ex.Message);
+
             _quotes[oreName] = failed;
             return failed;
         }
@@ -555,6 +670,12 @@ public sealed record MiningMarketQuote
     public double? JitaBestBuy { get; init; }
     public double? AmarrBestSell { get; init; }
     public double? AmarrBestBuy { get; init; }
+
+    // The EVE log names the raw resource, while market valuation normally follows
+    // its compressed 1:1 trading equivalent.
+    public string MarketItemName { get; init; } = "";
+    public bool UsesCompressedMarket { get; init; }
+
     public DateTime FetchedAtUtc { get; init; }
     public string? Error { get; init; }
 

@@ -255,6 +255,9 @@ public sealed class StatTrackerService
     public MiningDailyCritSummary GetTodayMiningCritSummary(string? character = null) =>
         _dailyMiningStore.GetCritSummary(character);
 
+    public MiningActivitySummary GetTodayMiningActivity(string character) =>
+        _dailyMiningStore.GetActivitySummary(character);
+
     private static string ResolveMiningGameLogPath(string? configuredPath)
     {
         if (!string.IsNullOrWhiteSpace(configuredPath) &&
@@ -355,6 +358,11 @@ public sealed class StatTrackerService
 
     public Task<MiningMarketHistory?> EnsureMiningMarketHistoryAsync(string oreType) =>
         _miningMarket.EnsureHistoryAsync(oreType);
+
+    public bool TryGetMiningMarketHistory(
+        string oreType,
+        out MiningMarketHistory history) =>
+        _miningMarket.TryGetHistory(oreType, out history!);
 
     public MiningMarketTimingSignal GetMiningMarketTiming(
         string oreType,

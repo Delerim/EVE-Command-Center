@@ -106,9 +106,10 @@ public partial class MiningDashboardWindow : Window
 
             AutoOverviewCheck.IsChecked = _prefs.AutoShowFleetOverview;
             TileWallCheck.IsChecked = _prefs.UseFleetTileWall;
-            AutoSizeWallCheck.IsChecked = _prefs.AutoSizeFleetOverview;
+            AllowResizeWallCheck.IsChecked = _prefs.AllowFleetOverviewResize;
             SelectComboTag(MarketOreFilterCombo, _prefs.MarketOreFilter);
             SelectComboTag(SellTimingOreFilterCombo, _prefs.MarketOreFilter);
+            SelectComboTag(WhatToMineOreFilterCombo, _prefs.MarketOreFilter);
             DashboardOpacityText.Text = Math.Clamp(_prefs.DashboardOpacityPercent, 55, 100).ToString(CultureInfo.InvariantCulture);
             OverviewOpacityText.Text = Math.Clamp(_prefs.FleetOverviewOpacityPercent, 55, 100).ToString(CultureInfo.InvariantCulture);
         }
@@ -139,11 +140,12 @@ public partial class MiningDashboardWindow : Window
         AutoOverviewCheck.Unchecked += (_, _) => SaveSettingsFromControls();
         TileWallCheck.Checked += (_, _) => SaveSettingsFromControls();
         TileWallCheck.Unchecked += (_, _) => SaveSettingsFromControls();
-        AutoSizeWallCheck.Checked += (_, _) => SaveSettingsFromControls();
-        AutoSizeWallCheck.Unchecked += (_, _) => SaveSettingsFromControls();
+        AllowResizeWallCheck.Checked += (_, _) => SaveSettingsFromControls();
+        AllowResizeWallCheck.Unchecked += (_, _) => SaveSettingsFromControls();
 
         MarketOreFilterCombo.SelectionChanged += OreFilterCombo_SelectionChanged;
         SellTimingOreFilterCombo.SelectionChanged += OreFilterCombo_SelectionChanged;
+        WhatToMineOreFilterCombo.SelectionChanged += OreFilterCombo_SelectionChanged;
 
         BuybackPercentText.LostFocus += (_, _) => SaveSettingsFromControls();
         IdleSecondsText.LostFocus += (_, _) => SaveSettingsFromControls();
@@ -174,6 +176,7 @@ public partial class MiningDashboardWindow : Window
         {
             SelectComboTag(MarketOreFilterCombo, filter);
             SelectComboTag(SellTimingOreFilterCombo, filter);
+            SelectComboTag(WhatToMineOreFilterCombo, filter);
         }
         finally
         {
@@ -231,7 +234,7 @@ public partial class MiningDashboardWindow : Window
         _prefs.YieldDropHoldSeconds = dropSeconds;
         _prefs.AutoShowFleetOverview = AutoOverviewCheck.IsChecked == true;
         _prefs.UseFleetTileWall = TileWallCheck.IsChecked == true;
-        _prefs.AutoSizeFleetOverview = AutoSizeWallCheck.IsChecked == true;
+        _prefs.AllowFleetOverviewResize = AllowResizeWallCheck.IsChecked == true;
         _prefs.MarketOreFilter = GetComboTag(MarketOreFilterCombo, "myhs");
         _prefs.DashboardOpacityPercent = dashboardOpacity;
         _prefs.FleetOverviewOpacityPercent = overviewOpacity;
@@ -298,6 +301,7 @@ public partial class MiningDashboardWindow : Window
                            null, 0, s.MiningCycleCount);
 
             var dailyCrit = _tracker.GetTodayMiningCritSummary(character);
+            var activity = _tracker.GetTodayMiningActivity(character);
 
             bool actualReady = s.MiningCycleCount >= 6 && s.ActualM3PerSec > 0;
             string actualText = actualReady
@@ -315,6 +319,11 @@ public partial class MiningDashboardWindow : Window
                 ActualM3PerSecValue = actualReady ? s.ActualM3PerSec : 0,
                 Crits = dailyCrit.ToString(),
                 SessionM3 = s.SessionM3,
+                ContinuityText = activity.Pulls >= 2
+                    ? $"{activity.ContinuityPercent:F1}%"
+                    : "-",
+                BreaksText = activity.Breaks.ToString(
+                    CultureInfo.CurrentCulture),
                 JitaIskPerHourText = _settings.MiningMarketJitaEnabled ? Isk(s.JitaIskPerHour) : "off",
                 AmarrIskPerHourText = _settings.MiningMarketAmarrEnabled ? Isk(s.AmarrIskPerHour) : "off",
                 BestIskPerHourText = Isk(s.BestIskPerHour),
@@ -340,6 +349,17 @@ public partial class MiningDashboardWindow : Window
             totalCorpToday += s.SessionBuybackValue;
         }
 
+        var activityRows = _tracker.GetMiningDashboardCharacters()
+            .Select(c => _tracker.GetTodayMiningActivity(c))
+            .Where(a => a.Pulls >= 2)
+            .ToList();
+
+        double fleetContinuity = activityRows.Count > 0
+            ? activityRows.Average(a => a.ContinuityPercent)
+            : 0;
+
+        int fleetBreaks = activityRows.Sum(a => a.Breaks);
+
         if (liveRows.Count > 1)
         {
             liveRows.Add(new LiveMiningRow
@@ -355,6 +375,11 @@ public partial class MiningDashboardWindow : Window
                 ActualM3PerSecValue = totalActual,
                 Crits = FleetCritText(),
                 SessionM3 = totalTodayM3,
+                ContinuityText = activityRows.Count > 0
+                    ? $"{fleetContinuity:F1}%"
+                    : "-",
+                BreaksText = fleetBreaks.ToString(
+                    CultureInfo.CurrentCulture),
                 JitaIskPerHourText = _settings.MiningMarketJitaEnabled ? Isk(SumSnapshot(x => x.JitaIskPerHour)) : "off",
                 AmarrIskPerHourText = _settings.MiningMarketAmarrEnabled ? Isk(SumSnapshot(x => x.AmarrIskPerHour)) : "off",
                 BestIskPerHourText = Isk(SumSnapshot(x => x.BestIskPerHour)),
@@ -374,6 +399,7 @@ public partial class MiningDashboardWindow : Window
 
         var allKnownOres = _tracker.GetKnownMiningOres()
             .Concat(fleetOre.Keys)
+            .Concat(GetOreSeedsForFilter(_prefs.MarketOreFilter))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .OrderBy(o => o, StringComparer.OrdinalIgnoreCase)
             .ToList();
@@ -394,7 +420,7 @@ public partial class MiningDashboardWindow : Window
         {
             _ = _tracker.EnsureMiningQuoteAsync(ore);
 
-            if (MarketTab.IsSelected &&
+            if ((MarketTab.IsSelected || WhatToMineTab.IsSelected) &&
                 marketOres.Contains(ore, StringComparer.OrdinalIgnoreCase))
             {
                 _ = _tracker.EnsureMiningMarketHistoryAsync(ore);
@@ -490,6 +516,185 @@ public partial class MiningDashboardWindow : Window
         OverviewOreGrid.ItemsSource = marketRows
             .Where(r => r.Units > 0)
             .ToList();
+
+        var whatToMineRows = new List<WhatToMineRow>();
+
+        foreach (var ore in marketOres)
+        {
+            fleetOre.TryGetValue(ore, out double unitsToday);
+
+            if (!_tracker.TryGetMiningQuote(ore, out var quote) ||
+                !quote.IsAvailable)
+            {
+                whatToMineRows.Add(
+                    WhatToMineRow.Loading(
+                        ore,
+                        OreCategory(ore),
+                        unitsToday));
+                continue;
+            }
+
+            double jitaSell = quote.JitaBestSell ?? 0;
+            double amarrSell = quote.AmarrBestSell ?? 0;
+
+            string bestMarket = "-";
+            double bestSell = 0;
+
+            if (_settings.MiningMarketJitaEnabled && jitaSell > bestSell)
+            {
+                bestMarket = "Jita";
+                bestSell = jitaSell;
+            }
+
+            if (_settings.MiningMarketAmarrEnabled && amarrSell > bestSell)
+            {
+                bestMarket = "Amarr";
+                bestSell = amarrSell;
+            }
+
+            double bestIskM3 = quote.UnitVolumeM3 > 0
+                ? bestSell / quote.UnitVolumeM3
+                : 0;
+
+            double bbUnit = _tracker.GetMarketUnitPrice(
+                quote,
+                _settings.MiningCorpBuybackMarket,
+                _settings.MiningCorpBuybackPriceMode)
+                * Math.Clamp(
+                    _settings.MiningCorpBuybackPercent,
+                    0,
+                    100) / 100.0;
+
+            double bbIskM3 = quote.UnitVolumeM3 > 0
+                ? bbUnit / quote.UnitVolumeM3
+                : 0;
+
+            double opportunityCostM3 = Math.Max(
+                0,
+                bestIskM3 - bbIskM3);
+
+            double opportunityPct = bestIskM3 > 0
+                ? opportunityCostM3 * 100.0 / bestIskM3
+                : 0;
+
+            double avg30Unit = 0;
+            double avgDailyUnits30 = 0;
+
+            if (_tracker.TryGetMiningMarketHistory(
+                    ore,
+                    out var history) &&
+                history.IsAvailable)
+            {
+                var source = bestMarket == "Amarr"
+                    ? history.Domain
+                    : history.TheForge;
+
+                DateTime cutoff = DateTime.UtcNow.Date.AddDays(-30);
+                var d30 = source
+                    .Where(d => d.DateUtc >= cutoff)
+                    .ToList();
+
+                if (d30.Count > 0)
+                {
+                    double weightedValue = d30.Sum(
+                        d => d.Average * Math.Max(1, d.Volume));
+                    double weight = d30.Sum(
+                        d => (double)Math.Max(1, d.Volume));
+
+                    avg30Unit = weight > 0
+                        ? weightedValue / weight
+                        : 0;
+
+                    // Divide by 30 calendar days, not just active trade days.
+                    avgDailyUnits30 = d30.Sum(
+                        d => (double)Math.Max(0, d.Volume)) / 30.0;
+                }
+            }
+
+            double avgDailyM330 =
+                avgDailyUnits30 * quote.UnitVolumeM3;
+
+            double marketLoadPct = avgDailyUnits30 > 0
+                ? unitsToday * 100.0 / avgDailyUnits30
+                : 0;
+
+            var timing = bestMarket == "-"
+                ? MiningMarketTimingSignal.Unavailable(
+                    "-",
+                    "No enabled market price.")
+                : _tracker.GetMiningMarketTiming(
+                    ore,
+                    bestMarket,
+                    "sell");
+
+            whatToMineRows.Add(new WhatToMineRow
+            {
+                Ore = ore,
+                Category = OreCategory(ore),
+                TodayUnits = unitsToday,
+                BestMarket = bestMarket,
+                BestSellText = Price(bestSell),
+                BestIskM3 = bestIskM3,
+                BestIskM3Text = bestIskM3 > 0
+                    ? bestIskM3.ToString(
+                        "N0",
+                        CultureInfo.CurrentCulture)
+                    : "-",
+                CorpBbIskM3Text = bbIskM3 > 0
+                    ? bbIskM3.ToString(
+                        "N0",
+                        CultureInfo.CurrentCulture)
+                    : "-",
+                BbGapText = opportunityCostM3 > 0
+                    ? $"{opportunityCostM3:N0} ({opportunityPct:F1}%)"
+                    : "-",
+                Average30Text = avg30Unit > 0
+                    ? Price(avg30Unit)
+                    : "loading...",
+                AvgDailyM3Text = avgDailyM330 > 0
+                    ? StatTrackerService.FormatNumber(avgDailyM330)
+                    : "-",
+                MarketLoadText = unitsToday > 0 &&
+                                 avgDailyUnits30 > 0
+                    ? $"{marketLoadPct:F2}%"
+                    : "-",
+                Advice = timing.Signal,
+                Why = timing.Reason
+            });
+        }
+
+        var rankedMineRows = whatToMineRows
+            .OrderByDescending(r => r.BestIskM3)
+            .ThenBy(r => r.Ore, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        for (int i = 0; i < rankedMineRows.Count; i++)
+            rankedMineRows[i].Rank = i + 1;
+
+        WhatToMineGrid.ItemsSource = rankedMineRows;
+
+        var topMine = rankedMineRows.FirstOrDefault(
+            r => r.BestIskM3 > 0);
+
+        WhatToMineTopOreText.Text =
+            topMine?.Ore ?? "loading...";
+
+        WhatToMineTopValueText.Text =
+            topMine != null && topMine.BestIskM3 > 0
+                ? $"{topMine.BestIskM3:N0} ISK/m3"
+                : "-";
+
+        double opportunityCostToday = Math.Max(
+            0,
+            totalBestToday - totalCorpToday);
+
+        WhatToMineOpportunityText.Text =
+            Isk(opportunityCostToday);
+
+        WhatToMineContinuityText.Text =
+            activityRows.Count > 0
+                ? $"{fleetContinuity:F1}%"
+                : "-";
 
         var buybackRows = new List<BuybackOreRow>();
         double grossTotal = 0;
@@ -1096,6 +1301,135 @@ public partial class MiningDashboardWindow : Window
                 StringComparison.OrdinalIgnoreCase) >= 0);
     }
 
+    private static IReadOnlyList<string> GetOreSeedsForFilter(
+        string filter)
+    {
+        filter = string.IsNullOrWhiteSpace(filter)
+            ? "myhs"
+            : filter.Trim().ToLowerInvariant();
+
+        var r4 = new[]
+        {
+            "Zeolites",
+            "Brimful Zeolites",
+            "Glistening Zeolites",
+            "Sylvite",
+            "Brimful Sylvite",
+            "Glistening Sylvite",
+            "Bitumens",
+            "Brimful Bitumens",
+            "Glistening Bitumens",
+            "Coesite",
+            "Brimful Coesite",
+            "Glistening Coesite"
+        };
+
+        var r8 = new[]
+        {
+            "Cobaltite",
+            "Euxenite",
+            "Titanite",
+            "Scheelite"
+        };
+
+        var r16 = new[]
+        {
+            "Otavite",
+            "Sperrylite",
+            "Vanadinite",
+            "Chromite"
+        };
+
+        var r32 = new[]
+        {
+            "Carnotite",
+            "Zircon",
+            "Pollucite",
+            "Cinnabar"
+        };
+
+        var r64 = new[]
+        {
+            "Xenotime",
+            "Monazite",
+            "Loparite",
+            "Ytterbite"
+        };
+
+        var belts = new[]
+        {
+            "Veldspar",
+            "Scordite",
+            "Pyroxeres",
+            "Plagioclase"
+        };
+
+        var coherent = new[]
+        {
+            "Omber",
+            "Kernite"
+        };
+
+        var escalation = new[]
+        {
+            "Mordunium"
+        };
+
+        return filter switch
+        {
+            "r4" => r4,
+            "r8" => r8,
+            "r16" => r16,
+            "r32" => r32,
+            "r64" => r64,
+            "amarrbelt" => belts,
+            "omberkernite" => coherent,
+            "mordunium" => escalation,
+            "myhs" => r4
+                .Concat(belts)
+                .Concat(coherent)
+                .Concat(escalation)
+                .ToList(),
+            "all" => r4
+                .Concat(r8)
+                .Concat(r16)
+                .Concat(r32)
+                .Concat(r64)
+                .Concat(belts)
+                .Concat(coherent)
+                .Concat(escalation)
+                .ToList(),
+            _ => Array.Empty<string>()
+        };
+    }
+
+    private static string OreCategory(string ore)
+    {
+        if (OreContainsAny(
+                ore,
+                "Zeolites",
+                "Sylvite",
+                "Bitumens",
+                "Coesite"))
+            return "R4";
+
+        if (OreContainsAny(ore, "Omber", "Kernite"))
+            return "Omber/Kernite";
+
+        if (OreContainsAny(ore, "Mordunium"))
+            return "Escalation";
+
+        if (OreContainsAny(
+                ore,
+                "Veldspar",
+                "Scordite",
+                "Pyroxeres",
+                "Plagioclase"))
+            return "Amarr belt";
+
+        return "Other";
+    }
+
     private static bool OreMatchesFilter(string ore, string filter)
     {
         filter = string.IsNullOrWhiteSpace(filter)
@@ -1216,6 +1550,8 @@ public partial class MiningDashboardWindow : Window
         public double ActualM3PerSecValue { get; init; }
         public string Crits { get; init; } = "";
         public double SessionM3 { get; init; }
+        public string ContinuityText { get; init; } = "";
+        public string BreaksText { get; init; } = "";
         public string JitaIskPerHourText { get; init; } = "";
         public string AmarrIskPerHourText { get; init; } = "";
         public string BestIskPerHourText { get; init; } = "";
@@ -1337,6 +1673,45 @@ public partial class MiningDashboardWindow : Window
         public string CritText { get; init; } = "";
         public string ProfitText { get; init; } = "";
         public string BuybackText { get; init; } = "";
+    }
+
+    private sealed class WhatToMineRow
+    {
+        public int Rank { get; set; }
+        public string Ore { get; init; } = "";
+        public string Category { get; init; } = "";
+        public double TodayUnits { get; init; }
+        public string BestMarket { get; init; } = "";
+        public string BestSellText { get; init; } = "";
+        public double BestIskM3 { get; init; }
+        public string BestIskM3Text { get; init; } = "";
+        public string CorpBbIskM3Text { get; init; } = "";
+        public string BbGapText { get; init; } = "";
+        public string Average30Text { get; init; } = "";
+        public string AvgDailyM3Text { get; init; } = "";
+        public string MarketLoadText { get; init; } = "";
+        public string Advice { get; init; } = "";
+        public string Why { get; init; } = "";
+
+        public static WhatToMineRow Loading(
+            string ore,
+            string category,
+            double units) => new()
+        {
+            Ore = ore,
+            Category = category,
+            TodayUnits = units,
+            BestMarket = "-",
+            BestSellText = "loading...",
+            BestIskM3Text = "loading...",
+            CorpBbIskM3Text = "loading...",
+            BbGapText = "-",
+            Average30Text = "loading...",
+            AvgDailyM3Text = "loading...",
+            MarketLoadText = "-",
+            Advice = "LOADING",
+            Why = "Loading ESI market data..."
+        };
     }
 
     private sealed class BuybackOreRow
