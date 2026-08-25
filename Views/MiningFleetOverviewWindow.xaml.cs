@@ -61,7 +61,7 @@ public partial class MiningFleetOverviewWindow : Window
     {
         var cards = new List<FleetCard>();
 
-        foreach (var character in _tracker.GetTrackedCharacters())
+        foreach (var character in _tracker.GetMiningDashboardCharacters())
         {
             var s = _tracker.GetSnapshot(character);
             if (s.MiningCycleCount <= 0 && string.IsNullOrWhiteSpace(s.CurrentOre))
