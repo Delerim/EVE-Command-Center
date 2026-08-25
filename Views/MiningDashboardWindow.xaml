@@ -479,10 +479,24 @@
                                     <Button x:Name="ProfitYearButton" Content="1 Year"/>
                                     <Button x:Name="ProfitRefreshButton" Content="Refresh"/>
                                 </WrapPanel>
-                                <DockPanel Margin="3,7,3,0">
-                                    <TextBlock x:Name="ProfitRangeText" Foreground="#DCEAE6" FontWeight="SemiBold"/>
-                                    <TextBlock x:Name="ProfitBuildText" DockPanel.Dock="Right" Foreground="#78958E"/>
-                                </DockPanel>
+                                <Grid Margin="3,7,3,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="18"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock x:Name="ProfitRangeText"
+                                               Grid.Column="0"
+                                               Foreground="#DCEAE6"
+                                               FontWeight="SemiBold"
+                                               VerticalAlignment="Center"/>
+                                    <TextBlock x:Name="ProfitBuildText"
+                                               Grid.Column="2"
+                                               Foreground="#78958E"
+                                               VerticalAlignment="Center"
+                                               HorizontalAlignment="Right"
+                                               TextAlignment="Right"/>
+                                </Grid>
                             </StackPanel>
                         </Border>
 
@@ -620,10 +634,24 @@
                                     <Button x:Name="HistoryYearButton" Content="1 Year"/>
                                     <Button x:Name="HistoryRefreshButton" Content="Refresh"/>
                                 </WrapPanel>
-                                <DockPanel Margin="3,7,3,0">
-                                    <TextBlock x:Name="HistoryRangeText" Foreground="#DCEAE6" FontWeight="SemiBold"/>
-                                    <TextBlock x:Name="HistoryBuildText" DockPanel.Dock="Right" Foreground="#78958E"/>
-                                </DockPanel>
+                                <Grid Margin="3,7,3,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="18"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock x:Name="HistoryRangeText"
+                                               Grid.Column="0"
+                                               Foreground="#DCEAE6"
+                                               FontWeight="SemiBold"
+                                               VerticalAlignment="Center"/>
+                                    <TextBlock x:Name="HistoryBuildText"
+                                               Grid.Column="2"
+                                               Foreground="#78958E"
+                                               VerticalAlignment="Center"
+                                               HorizontalAlignment="Right"
+                                               TextAlignment="Right"/>
+                                </Grid>
                             </StackPanel>
                         </Border>
 
