@@ -337,7 +337,7 @@ public sealed class MiningHistoryService : IDisposable
                 continue;
 
             var rest = trimmed.Substring(key.Length).TrimStart();
-            if (rest.Length == 0 || (rest[0] != ':' && rest[0] != 'ï¼š'))
+            if (rest.Length == 0 || (rest[0] != ':' && rest[0] != '\uFF1A'))
                 continue;
 
             string name = rest.Substring(1).Trim();
