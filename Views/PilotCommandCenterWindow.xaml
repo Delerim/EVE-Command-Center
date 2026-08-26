@@ -69,21 +69,54 @@
             <Setter Property="BorderBrush" Value="#253D39"/>
         </Style>
 
+        <!-- Same adaptive full-width pill rail used by Mining Command Center. -->
         <Style TargetType="TabControl">
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TabControl">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+
+                            <Border Grid.Row="0"
+                                    Background="#0D181B"
+                                    BorderBrush="#1E3B36"
+                                    BorderThickness="1"
+                                    CornerRadius="11"
+                                    Padding="4"
+                                    Margin="0,0,0,8">
+                                <UniformGrid IsItemsHost="True"
+                                             Rows="1"
+                                             HorizontalAlignment="Stretch"/>
+                            </Border>
+
+                            <ContentPresenter x:Name="PART_SelectedContentHost"
+                                              Grid.Row="1"
+                                              ContentSource="SelectedContent"
+                                              HorizontalAlignment="Stretch"
+                                              VerticalAlignment="Stretch"/>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
 
         <Style TargetType="TabItem">
             <Setter Property="Foreground" Value="#8FA9A3"/>
             <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="Padding" Value="18,8"/>
-            <Setter Property="Margin" Value="2,0,4,0"/>
+            <Setter Property="Padding" Value="12,7"/>
+            <Setter Property="Margin" Value="2,0,2,0"/>
             <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="TabItem">
                         <Border x:Name="Pill"
+                                HorizontalAlignment="Stretch"
                                 Background="{TemplateBinding Background}"
                                 BorderBrush="#284840"
                                 BorderThickness="1"
@@ -154,8 +187,13 @@
         <Style x:Key="PilotListItem" TargetType="ListBoxItem">
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Margin" Value="0,0,8,0"/>
+            <Setter Property="Margin" Value="4,0,4,0"/>
             <Setter Property="Padding" Value="0"/>
+            <Setter Property="MinWidth" Value="130"/>
+            <Setter Property="MaxWidth" Value="245"/>
+            <Setter Property="MinHeight" Value="108"/>
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+            <Setter Property="VerticalContentAlignment" Value="Stretch"/>
             <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
             <Setter Property="Template">
                 <Setter.Value>
@@ -165,8 +203,10 @@
                                 BorderBrush="#294A44"
                                 BorderThickness="1"
                                 CornerRadius="10"
+                                MinHeight="108"
                                 Padding="9">
-                            <ContentPresenter/>
+                            <ContentPresenter HorizontalAlignment="Stretch"
+                                              VerticalAlignment="Stretch"/>
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
@@ -189,7 +229,7 @@
         <Grid Margin="16">
             <Grid.RowDefinitions>
                 <RowDefinition Height="44"/>
-                <RowDefinition Height="132"/>
+                <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>
             </Grid.RowDefinitions>
@@ -231,10 +271,15 @@
 
             <Border Grid.Row="1" Background="#0B1518"
                     BorderBrush="#19332E" BorderThickness="1"
-                    CornerRadius="12" Padding="10" Margin="0,0,0,10">
-                <DockPanel>
-                    <Button DockPanel.Dock="Right" Width="138"
-                            Margin="10,0,0,0" Click="AddCharacter_Click">
+                    CornerRadius="12" Padding="10" Margin="0,0,0,10"
+                    MinHeight="132">
+                <DockPanel LastChildFill="True">
+                    <Button DockPanel.Dock="Right"
+                            Width="138"
+                            MinHeight="108"
+                            Margin="10,0,0,0"
+                            VerticalAlignment="Stretch"
+                            Click="AddCharacter_Click">
                         <StackPanel>
                             <TextBlock Text="+" FontSize="24"
                                        Foreground="#58D3B4"
@@ -247,30 +292,33 @@
                         </StackPanel>
                     </Button>
 
-                    <ScrollViewer HorizontalScrollBarVisibility="Auto"
-                                  VerticalScrollBarVisibility="Disabled"
-                                  Background="#0B1518">
-                        <ListBox x:Name="PilotList"
-                                 ItemsSource="{Binding Pilots}"
-                                 SelectionChanged="PilotList_SelectionChanged"
-                                 Background="#0B1518"
-                                 BorderThickness="0"
-                                 ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                                 ItemContainerStyle="{StaticResource PilotListItem}">
-                            <ListBox.ItemsPanel>
-                                <ItemsPanelTemplate>
-                                    <StackPanel Orientation="Horizontal"/>
-                                </ItemsPanelTemplate>
-                            </ListBox.ItemsPanel>
+                    <ListBox x:Name="PilotList"
+                             ItemsSource="{Binding Pilots}"
+                             SelectionChanged="PilotList_SelectionChanged"
+                             Background="#0B1518"
+                             BorderThickness="0"
+                             Padding="0"
+                             MinHeight="108"
+                             HorizontalContentAlignment="Stretch"
+                             VerticalContentAlignment="Stretch"
+                             ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                             ScrollViewer.VerticalScrollBarVisibility="Disabled"
+                             ItemContainerStyle="{StaticResource PilotListItem}">
+                        <ListBox.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <UniformGrid Rows="1"
+                                             HorizontalAlignment="Stretch"/>
+                            </ItemsPanelTemplate>
+                        </ListBox.ItemsPanel>
                             <ListBox.ItemTemplate>
                                 <DataTemplate>
-                                    <Grid Width="245" Height="94">
+                                    <Grid MinHeight="90">
                                         <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="70"/>
+                                            <ColumnDefinition Width="62"/>
                                             <ColumnDefinition Width="*"/>
                                         </Grid.ColumnDefinitions>
 
-                                        <Border Width="60" Height="60"
+                                        <Border Width="54" Height="54"
                                                 CornerRadius="8"
                                                 ClipToBounds="True"
                                                 VerticalAlignment="Top">
@@ -299,9 +347,8 @@
                                         </StackPanel>
                                     </Grid>
                                 </DataTemplate>
-                            </ListBox.ItemTemplate>
-                        </ListBox>
-                    </ScrollViewer>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
                 </DockPanel>
             </Border>
 
