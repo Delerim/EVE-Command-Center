@@ -171,40 +171,135 @@ public sealed class EveFittingView
         Array.Empty<EveShipModuleView>();
 }
 
+public sealed class EveDynamicDogmaItem
+{
+    [JsonPropertyName("created_by")]
+    public long CreatedBy { get; set; }
+
+    [JsonPropertyName("mutator_type_id")]
+    public int MutatorTypeId { get; set; }
+
+    [JsonPropertyName("source_type_id")]
+    public int SourceTypeId { get; set; }
+
+    [JsonPropertyName("dogma_attributes")]
+    public List<EveDogmaAttributeValue> DogmaAttributes { get; set; } = new();
+}
+
+public sealed class EveMiningLaserView
+{
+    public long ItemId { get; init; }
+    public int TypeId { get; init; }
+    public string Slot { get; init; } = "";
+    public string Name { get; init; } = "";
+    public string CrystalClass { get; init; } = "";
+    public double BaseCycleSeconds { get; init; }
+    public bool DynamicCycle { get; init; }
+
+    public string ShortCrystal =>
+        CrystalClass is "A" or "B"
+            ? CrystalClass
+            : "";
+}
+
+public sealed class EveShieldCommandBoostProfile
+{
+    public double ExtensionPercent { get; init; }
+    public double HarmonizingPercent { get; init; }
+    public string SourceText { get; init; } = "";
+
+    public bool Configured =>
+        ExtensionPercent > 0 ||
+        HarmonizingPercent > 0;
+}
 public sealed class EveFitDefenseStats
 {
     public bool Available { get; init; }
     public double ShieldHp { get; init; }
     public double ArmorHp { get; init; }
     public double StructureHp { get; init; }
+
+    public double ShieldAverageResonance { get; init; } = 1;
+    public double ArmorAverageResonance { get; init; } = 1;
+    public double StructureAverageResonance { get; init; } = 1;
+
+    public double ShieldEhp { get; init; }
+    public double ArmorEhp { get; init; }
+    public double StructureEhp { get; init; }
     public double OmniEhp { get; init; }
 
-    public string EhpText
-    {
-        get
-        {
-            if (!Available || OmniEhp <= 0)
-                return "EHP --";
-
-            if (OmniEhp >= 1000000)
-                return $"EHP ~{OmniEhp / 1000000.0:0.00}m";
-
-            if (OmniEhp >= 1000)
-                return $"EHP ~{OmniEhp / 1000.0:0.#}k";
-
-            return $"EHP ~{OmniEhp:0}";
-        }
-    }
+    public string EhpText =>
+        FormatEhp(OmniEhp);
 
     public string ToolTip =>
         !Available
             ? "Fit EHP estimate unavailable."
             : $"Fit EHP estimate: {OmniEhp:N0}\n" +
-              $"Shield: {ShieldHp:N0} HP\n" +
-              $"Armor: {ArmorHp:N0} HP\n" +
-              $"Structure: {StructureHp:N0} HP\n\n" +
-              "Uniform 25/25/25/25 damage profile. Includes common fitted HP/resistance modules and core HP skills. " +
-              "Assumes fitted hardeners are active. Fleet boosts, heat, boosters and most implants are not included yet.";
+              $"Shield: {ShieldHp:N0} HP / {ShieldEhp:N0} EHP\n" +
+              $"Armor: {ArmorHp:N0} HP / {ArmorEhp:N0} EHP\n" +
+              $"Structure: {StructureHp:N0} HP / {StructureEhp:N0} EHP\n\n" +
+              "Uniform 25/25/25/25 damage profile. Includes fitted buffer/resistance modules, duplicate modules, core HP skills and Exhumer shield-resistance skill bonus. " +
+              "Fitted active hardeners are assumed on.";
+
+    public EveFitDefenseStats ApplyShieldCommandBoost(
+        double extensionPercent,
+        double harmonizingPercent)
+    {
+        if (!Available ||
+            (extensionPercent <= 0 &&
+             harmonizingPercent <= 0))
+            return this;
+
+        double boostedShieldHp =
+            ShieldHp *
+            (1.0 +
+             Math.Max(0, extensionPercent) / 100.0);
+
+        double boostedShieldResonance =
+            Math.Clamp(
+                ShieldAverageResonance *
+                (1.0 -
+                 Math.Max(0, harmonizingPercent) / 100.0),
+                0.01,
+                1.0);
+
+        double boostedShieldEhp =
+            boostedShieldHp /
+            boostedShieldResonance;
+
+        return new EveFitDefenseStats
+        {
+            Available = true,
+            ShieldHp = boostedShieldHp,
+            ArmorHp = ArmorHp,
+            StructureHp = StructureHp,
+            ShieldAverageResonance = boostedShieldResonance,
+            ArmorAverageResonance = ArmorAverageResonance,
+            StructureAverageResonance = StructureAverageResonance,
+            ShieldEhp = boostedShieldEhp,
+            ArmorEhp = ArmorEhp,
+            StructureEhp = StructureEhp,
+            OmniEhp =
+                boostedShieldEhp +
+                ArmorEhp +
+                StructureEhp
+        };
+    }
+
+    public static string FormatEhp(
+        double value)
+    {
+        if (value <= 0)
+            return "EHP --";
+
+        if (value >= 1000000)
+            return $"EHP ~{value / 1000000.0:0.00}m";
+
+        if (value >= 1000)
+            return $"EHP ~{value / 1000.0:0.#}k";
+
+        return $"EHP ~{value:0}";
+    }
 }
 public sealed class EveInventorySnapshot
 {
@@ -238,7 +333,12 @@ public sealed class EveMiningShipIntel
     public IReadOnlyList<double> MiningLaserBaseCyclesSeconds { get; init; } =
         Array.Empty<double>();
 
+    public IReadOnlyList<EveMiningLaserView> MiningLasers { get; init; } =
+        Array.Empty<EveMiningLaserView>();
+
     public EveFitDefenseStats Defense { get; init; } = new();
+
+    public EveShieldCommandBoostProfile ShieldBoost { get; init; } = new();
 
     public bool AssetsAvailable { get; init; }
 

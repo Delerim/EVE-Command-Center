@@ -350,6 +350,153 @@ public sealed class StatTrackerService
     }
     public string GetMiningDayLabel() => _dailyMiningStore.CurrentDayKey;
 
+    public ObservedMiningRate GetObservedMiningAverage(
+        string character)
+    {
+        if (!_stats.TryGetValue(
+                character,
+                out var stats))
+            return new ObservedMiningRate();
+
+        DateTime cutoff =
+            DateTime.UtcNow -
+            TimeSpan.FromMinutes(15);
+
+        var recent =
+            stats.MiningCycles
+                .Where(
+                    cycle =>
+                        cycle.MineType == "ore" &&
+                        cycle.Timestamp >= cutoff)
+                .OrderBy(
+                    cycle =>
+                        cycle.Timestamp)
+                .TakeLast(30)
+                .ToList();
+
+        if (recent.Count < 2)
+            return new ObservedMiningRate();
+
+        var baselineUnits =
+            new Dictionary<string, double>(
+                StringComparer.OrdinalIgnoreCase);
+
+        foreach (var group in
+                 recent.GroupBy(
+                     cycle => cycle.OreType,
+                     StringComparer.OrdinalIgnoreCase))
+        {
+            var normal =
+                group
+                    .Where(
+                        cycle =>
+                            !cycle.IsCritical)
+                    .Select(
+                        cycle =>
+                            (double)cycle.Units)
+                    .OrderBy(
+                        value => value)
+                    .ToList();
+
+            if (normal.Count > 0)
+                baselineUnits[group.Key] =
+                    Median(normal);
+        }
+
+        var valued =
+            new List<(
+                DateTime Timestamp,
+                double BaseM3,
+                double ActualM3)>();
+
+        foreach (var cycle in recent)
+        {
+            if (string.IsNullOrWhiteSpace(
+                    cycle.OreType) ||
+                !_miningMarket.TryGetQuote(
+                    cycle.OreType,
+                    out var quote) ||
+                !quote.IsAvailable)
+                continue;
+
+            double actualM3 =
+                cycle.Units *
+                quote.UnitVolumeM3;
+
+            double normalUnits =
+                baselineUnits.TryGetValue(
+                    cycle.OreType,
+                    out double baseline)
+                    ? baseline
+                    : cycle.Units;
+
+            double baseM3 =
+                (cycle.IsCritical
+                    ? normalUnits
+                    : cycle.Units) *
+                quote.UnitVolumeM3;
+
+            valued.Add(
+                (
+                    cycle.Timestamp,
+                    baseM3,
+                    actualM3
+                ));
+        }
+
+        if (valued.Count < 2)
+            return new ObservedMiningRate();
+
+        var gaps =
+            new List<double>();
+
+        for (int i = 1;
+             i < valued.Count;
+             i++)
+        {
+            double gap =
+                (valued[i].Timestamp -
+                 valued[i - 1].Timestamp)
+                .TotalSeconds;
+
+            if (gap > 0.25 &&
+                gap < 600)
+                gaps.Add(gap);
+        }
+
+        if (gaps.Count == 0)
+            return new ObservedMiningRate();
+
+        double typicalGap =
+            Math.Max(
+                0.25,
+                Median(gaps));
+
+        double duration =
+            Math.Max(
+                typicalGap,
+                (valued[^1].Timestamp -
+                 valued[0].Timestamp)
+                .TotalSeconds +
+                typicalGap);
+
+        return new ObservedMiningRate
+        {
+            Ready = true,
+            BaseM3PerSec =
+                valued.Sum(
+                    value =>
+                        value.BaseM3) /
+                duration,
+            ActualM3PerSec =
+                valued.Sum(
+                    value =>
+                        value.ActualM3) /
+                duration,
+            SampleCount =
+                valued.Count
+        };
+    }
     public MiningLaserTiming GetMiningLaserTiming(
         string character,
         double? fittedBaseCycleSeconds = null)
@@ -1508,4 +1655,11 @@ public record CharacterStatSnapshot
     // Legacy compat ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â computed properties for existing callers
     public double Hps => ArmorRepPerSec + ShieldRepPerSec;
     public double HpsOut => ArmorRepPerSec + ShieldRepPerSec;
+}
+public record ObservedMiningRate
+{
+    public bool Ready { get; init; }
+    public double BaseM3PerSec { get; init; }
+    public double ActualM3PerSec { get; init; }
+    public int SampleCount { get; init; }
 }

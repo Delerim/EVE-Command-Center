@@ -203,6 +203,39 @@ public partial class MiningFleetOverviewWindow : Window
     {
         var cards = new List<FleetCard>();
 
+        double fleetShieldExtension =
+            _pilotIntel.Values
+                .Where(
+                    intel =>
+                        intel.IsOrca &&
+                        intel.ShieldBoost.Configured)
+                .Select(
+                    intel =>
+                        intel.ShieldBoost.ExtensionPercent)
+                .DefaultIfEmpty(0)
+                .Max();
+
+        double fleetShieldHarmonizing =
+            _pilotIntel.Values
+                .Where(
+                    intel =>
+                        intel.IsOrca &&
+                        intel.ShieldBoost.Configured)
+                .Select(
+                    intel =>
+                        intel.ShieldBoost.HarmonizingPercent)
+                .DefaultIfEmpty(0)
+                .Max();
+
+        string fleetBoostSource =
+            _pilotIntel.Values
+                .FirstOrDefault(
+                    intel =>
+                        intel.IsOrca &&
+                        intel.ShieldBoost.Configured)
+                ?.ShieldBoost.SourceText ??
+            "";
+
         foreach (var character in _tracker.GetMiningDashboardCharacters())
         {
             var s = _tracker.GetSnapshot(character);
@@ -222,6 +255,29 @@ public partial class MiningFleetOverviewWindow : Window
 
             var state = _watchdog.GetState(character);
             var crit = _tracker.GetTodayMiningCritSummary(character);
+
+            ObservedMiningRate droneAverage =
+                isOrca
+                    ? _tracker.GetObservedMiningAverage(
+                        character)
+                    : new ObservedMiningRate();
+
+            double displayBaseRate =
+                s.BaseM3PerSec > 0
+                    ? s.BaseM3PerSec
+                    : isOrca &&
+                      droneAverage.Ready
+                        ? droneAverage.BaseM3PerSec
+                        : 0;
+
+            double displayActualRate =
+                s.ActualM3PerSec > 0
+                    ? s.ActualM3PerSec
+                    : isOrca &&
+                      droneAverage.Ready
+                        ? droneAverage.ActualM3PerSec
+                        : 0;
+
             var laserTiming =
                 _tracker.GetMiningLaserTiming(
                     character,
@@ -253,6 +309,44 @@ public partial class MiningFleetOverviewWindow : Window
             string laserText;
             string laserToolTip;
 
+            string CrystalForLane(
+                int index)
+            {
+                if (shipIntel == null ||
+                    index < 0 ||
+                    index >= shipIntel.MiningLasers.Count)
+                    return "";
+
+                string crystal =
+                    shipIntel.MiningLasers[index]
+                        .ShortCrystal;
+
+                return string.IsNullOrWhiteSpace(
+                        crystal)
+                    ? ""
+                    : " " + crystal;
+            }
+
+            string fittedLaserDetail =
+                shipIntel == null ||
+                shipIntel.MiningLasers.Count == 0
+                    ? ""
+                    : string.Join(
+                        Environment.NewLine,
+                        shipIntel.MiningLasers.Select(
+                            laser =>
+                                $"{laser.Slot}: {laser.Name}" +
+                                (laser.BaseCycleSeconds > 0
+                                    ? $" | module base {laser.BaseCycleSeconds:F2}s" +
+                                      (laser.DynamicCycle
+                                          ? " (Abyssal dynamic)"
+                                          : "")
+                                    : "") +
+                                (string.IsNullOrWhiteSpace(
+                                    laser.ShortCrystal)
+                                    ? ""
+                                    : $" | crystal {laser.ShortCrystal}")));
+
             if (isOrca)
             {
                 laserText =
@@ -278,26 +372,48 @@ public partial class MiningFleetOverviewWindow : Window
                 laserTiming.Laser2CycleSeconds.HasValue)
             {
                 laserText =
-                    $"L1 {laserTiming.Laser1CycleSeconds.Value:F1}s   " +
-                    $"L2 {laserTiming.Laser2CycleSeconds.Value:F1}s";
+                    $"L1 {laserTiming.Laser1CycleSeconds.Value:F1}s{CrystalForLane(0)}   " +
+                    $"L2 {laserTiming.Laser2CycleSeconds.Value:F1}s{CrystalForLane(1)}";
 
                 laserToolTip =
-                    $"Observed mining cycle lengths from EVE pull timestamps.{Environment.NewLine}" +
-                    $"L1: {laserTiming.Laser1CycleSeconds:F2}s{Environment.NewLine}" +
-                    $"L2: {laserTiming.Laser2CycleSeconds:F2}s{Environment.NewLine}" +
+                    $"Observed effective mining cycle from EVE pull timestamps, constrained by the fitted module's Dogma duration.{Environment.NewLine}" +
+                    $"L1: {laserTiming.Laser1CycleSeconds:F2}s{CrystalForLane(0)}{Environment.NewLine}" +
+                    $"L2: {laserTiming.Laser2CycleSeconds:F2}s{CrystalForLane(1)}{Environment.NewLine}" +
                     $"Fitted mining lasers detected: " +
                     (fittedLaserCount >= 0
                         ? fittedLaserCount.ToString(
                             CultureInfo.InvariantCulture)
                         : "unknown - reconnect for assets") +
                     $"{Environment.NewLine}" +
-                    $"Last pull: {lastPullAge} ago at {lastPullClock}.";
+                    $"Last pull: {lastPullAge} ago at {lastPullClock}." +
+                    (string.IsNullOrWhiteSpace(fittedLaserDetail)
+                        ? ""
+                        : $"{Environment.NewLine}{Environment.NewLine}{fittedLaserDetail}");
             }
             else
             {
+                string crystalSummary =
+                    shipIntel == null
+                        ? ""
+                        : string.Join(
+                            "/",
+                            shipIntel.MiningLasers
+                                .Select(
+                                    laser =>
+                                        laser.ShortCrystal)
+                                .Where(
+                                    crystal =>
+                                        !string.IsNullOrWhiteSpace(
+                                            crystal)));
+
                 laserText =
                     fittedLaserCount > 0
-                        ? $"{fittedLaserCount} LASER(S) | learning cycle"
+                        ? $"{fittedLaserCount} LASER(S)" +
+                          (string.IsNullOrWhiteSpace(
+                              crystalSummary)
+                              ? ""
+                              : $" {crystalSummary}") +
+                          " | learning"
                         : "L1 --   L2 --";
 
                 laserToolTip =
@@ -370,11 +486,11 @@ public partial class MiningFleetOverviewWindow : Window
                               ? $"{Environment.NewLine}Asset/fitting access available."
                               : $"{Environment.NewLine}Reconnect for asset access to identify fitted mining lasers."),
                 Ore = string.IsNullOrWhiteSpace(s.CurrentOre) ? "-" : s.CurrentOre,
-                BaseText = s.BaseM3PerSec > 0
-                    ? $"{s.BaseM3PerSec.ToString("N1", CultureInfo.CurrentCulture)} m3/s"
+                BaseText = displayBaseRate > 0
+                    ? $"{displayBaseRate.ToString("N1", CultureInfo.CurrentCulture)} m3/s"
                     : "warming...",
-                ActualText = s.ActualM3PerSec > 0
-                    ? $"{s.ActualM3PerSec.ToString("N1", CultureInfo.CurrentCulture)} m3/s"
+                ActualText = displayActualRate > 0
+                    ? $"{displayActualRate.ToString("N1", CultureInfo.CurrentCulture)} m3/s"
                     : "warming...",
                 CritText = crit.Cycles > 0 ? crit.ToString() : "-",
                 ValueText = s.SessionBestValue > 0
@@ -401,22 +517,52 @@ public partial class MiningFleetOverviewWindow : Window
                 LaserText = laserText,
                 LaserToolTip = laserToolTip,
                 EhpText =
-                    shipIntel?.Defense.EhpText ??
-                    "EHP --",
+                    shipIntel?.Defense.Available == true
+                        ? shipIntel.Defense
+                            .ApplyShieldCommandBoost(
+                                fleetShieldExtension,
+                                fleetShieldHarmonizing)
+                            .EhpText +
+                          (
+                              fleetShieldExtension > 0 ||
+                              fleetShieldHarmonizing > 0
+                                  ? "*"
+                                  : ""
+                          )
+                        : "EHP --",
                 EhpToolTip =
-                    shipIntel?.Defense.ToolTip ??
-                    "Connect this pilot with asset access to calculate fit EHP.",
+                    shipIntel?.Defense.Available == true
+                        ? shipIntel.Defense
+                            .ApplyShieldCommandBoost(
+                                fleetShieldExtension,
+                                fleetShieldHarmonizing)
+                            .ToolTip +
+                          (
+                              fleetShieldExtension > 0 ||
+                              fleetShieldHarmonizing > 0
+                                  ? $"{Environment.NewLine}{Environment.NewLine}* Fleet shield estimate assumes the detected Orca command burst is ACTIVE, in range, and affecting this pilot. ESI exposes the fit but cannot confirm the live burst state.{Environment.NewLine}" +
+                                    $"Extension: {fleetShieldExtension:F1}% | Harmonizing: {fleetShieldHarmonizing:F1}%{Environment.NewLine}" +
+                                    fleetBoostSource
+                                  : ""
+                          )
+                        : "Connect this pilot with asset access to calculate fit EHP.",
                 IsDroneMining = isOrca,
                 OreToolTip =
                     $"Current ore: {(string.IsNullOrWhiteSpace(s.CurrentOre) ? "-" : s.CurrentOre)}{Environment.NewLine}" +
                     $"Last mining pull: {lastPullAge} ago at {lastPullClock}.",
                 BaseToolTip =
                     $"BASE = recent non-critical mining yield.{Environment.NewLine}" +
-                    $"Current BASE: {s.BaseM3PerSec:F1} m3/s{Environment.NewLine}" +
+                    $"Current BASE: {displayBaseRate:F1} m3/s{Environment.NewLine}" +
+                    (isOrca && s.BaseM3PerSec <= 0 && droneAverage.Ready
+                        ? $"Using longer observed drone-mining average ({droneAverage.SampleCount} pulls).{Environment.NewLine}"
+                        : "") +
                     $"Last mining pull: {lastPullAge} ago at {lastPullClock}.",
                 RealToolTip =
                     $"REAL = observed yield including critical pulls.{Environment.NewLine}" +
-                    $"Current REAL: {s.ActualM3PerSec:F1} m3/s{Environment.NewLine}" +
+                    $"Current REAL: {displayActualRate:F1} m3/s{Environment.NewLine}" +
+                    (isOrca && s.ActualM3PerSec <= 0 && droneAverage.Ready
+                        ? $"Using longer observed drone-mining average ({droneAverage.SampleCount} pulls).{Environment.NewLine}"
+                        : "") +
                     $"Last mining pull: {lastPullAge} ago at {lastPullClock}.",
                 ProfitToolTip =
                     $"Session market-value estimate: {s.SessionBestValue:N0} ISK.{Environment.NewLine}" +
