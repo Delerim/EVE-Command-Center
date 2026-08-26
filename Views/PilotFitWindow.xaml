@@ -216,7 +216,13 @@
                                    Height="390"
                                    Stretch="Uniform"
                                    HorizontalAlignment="Center"
-                                   VerticalAlignment="Center"/>
+                                   VerticalAlignment="Center">
+                                <Image.Clip>
+                                    <EllipseGeometry Center="195,195"
+                                                     RadiusX="195"
+                                                     RadiusY="195"/>
+                                </Image.Clip>
+                            </Image>
 
                             <!-- HIGH slots across upper arc -->
                             <ItemsControl x:Name="HighRingItems"

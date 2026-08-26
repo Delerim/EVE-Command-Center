@@ -1383,7 +1383,7 @@
                                     <StackPanel Grid.Column="1"
                                                 Orientation="Horizontal"
                                                 VerticalAlignment="Center">
-                                        <Button Content="View Current Fit"
+                                        <Button Content="Open Fit Viewer"
                                                 Margin="0,0,8,0"
                                                 Click="ViewCurrentFit_Click"/>
 

@@ -2268,11 +2268,36 @@ public sealed class EveSsoService
         foreach (EveUniverseType module
                  in modules)
         {
+            bool isCoreDefenseFieldExtender =
+                module.Name.Contains(
+                    "Core Defense Field Extender",
+                    StringComparison.OrdinalIgnoreCase);
+
             double shieldCapacityBonus =
                 GetDogmaValue(
                     module,
                     337,
                     0);
+
+            bool usedCdfFallback =
+                false;
+
+            if (shieldCapacityBonus <= 0 &&
+                isCoreDefenseFieldExtender)
+            {
+                // Static ESI normally exposes Dogma 337. If it is absent from
+                // a resolved fitted type, the fitted item name still gives us
+                // the published CDFE effect.
+                shieldCapacityBonus =
+                    module.Name.EndsWith(
+                        " II",
+                        StringComparison.OrdinalIgnoreCase)
+                        ? 20.0
+                        : 15.0;
+
+                usedCdfFallback =
+                    true;
+            }
 
             if (shieldCapacityBonus > 0)
             {
@@ -2282,10 +2307,17 @@ public sealed class EveSsoService
                     100.0;
 
                 applied.Add(
-                    $"{module.Name}: +{shieldCapacityBonus:0.#}% shield capacity");
+                    $"{module.Name}: +{shieldCapacityBonus:0.#}% shield capacity" +
+                    (usedCdfFallback
+                        ? " (CDFE fallback)"
+                        : ""));
+            }
+            else if (isCoreDefenseFieldExtender)
+            {
+                applied.Add(
+                    $"{module.Name}: WARNING - shield capacity bonus unresolved");
             }
         }
-
         // Core character HP skills.
         int shieldManagement =
             GetSkillLevel(

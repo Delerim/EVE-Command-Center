@@ -428,7 +428,7 @@ public partial class MiningFleetOverviewWindow : Window
                         : "L1 --   L2 --";
 
                 laserToolTip =
-                    $"Cycle timing is warming up.{Environment.NewLine}" +
+                    $"Cycle timing is collecting stable samples.{Environment.NewLine}" +
                     $"Last pull: {lastPullAge} ago at {lastPullClock}.{Environment.NewLine}" +
                     (shipIntel?.AssetsAvailable == true
                         ? $"Fitted mining lasers detected: {fittedLaserCount}."
@@ -447,7 +447,7 @@ public partial class MiningFleetOverviewWindow : Window
                     MiningIdleKind.Late => $"Late - {AgeText(state.AgeSeconds)}",
                     MiningIdleKind.Degraded => "Yield drop",
                     MiningIdleKind.Idle => $"Idle - {AgeText(state.AgeSeconds)}",
-                    _ => "Warming up"
+                    _ => "Waiting"
                 };
 
             string statusToolTip = isOrca
@@ -471,7 +471,8 @@ public partial class MiningFleetOverviewWindow : Window
                         $"Mining appears idle.{Environment.NewLine}" +
                         $"Last mining pull: {lastPullAge} ago at {lastPullClock}.",
                     _ =>
-                        $"Mining baseline is warming up.{Environment.NewLine}" +
+                        $"No mining pull has been observed yet.{Environment.NewLine}" +
+                        $"Current displayed rate is zero until a pull arrives.{Environment.NewLine}" +
                         $"Last mining pull: {lastPullAge} ago at {lastPullClock}."
                 };
 
@@ -497,12 +498,10 @@ public partial class MiningFleetOverviewWindow : Window
                               ? $"{Environment.NewLine}Asset/fitting access available."
                               : $"{Environment.NewLine}Reconnect for asset access to identify fitted mining lasers."),
                 Ore = string.IsNullOrWhiteSpace(s.CurrentOre) ? "-" : s.CurrentOre,
-                BaseText = displayBaseRate > 0
-                    ? $"{displayBaseRate.ToString("N1", CultureInfo.CurrentCulture)} m3/s"
-                    : "warming...",
-                ActualText = displayActualRate > 0
-                    ? $"{displayActualRate.ToString("N1", CultureInfo.CurrentCulture)} m3/s"
-                    : "warming...",
+                BaseText =
+                    $"{Math.Max(0, displayBaseRate).ToString("N1", CultureInfo.CurrentCulture)} m3/s",
+                ActualText =
+                    $"{Math.Max(0, displayActualRate).ToString("N1", CultureInfo.CurrentCulture)} m3/s",
                 CritText = crit.Cycles > 0 ? crit.ToString() : "-",
                 ValueText = s.SessionBestValue > 0
                     ? StatTrackerService.FormatNumber(s.SessionBestValue)

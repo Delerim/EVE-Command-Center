@@ -26,6 +26,131 @@
         <SolidColorBrush x:Key="TextPrimaryBrush" Color="{StaticResource TextPrimary}"/>
         <SolidColorBrush x:Key="TextSecondaryBrush" Color="{StaticResource TextSecondary}"/>
         <SolidColorBrush x:Key="BorderBrush" Color="{StaticResource BorderColor}"/>
+
+        <!-- EVE Command Center global dark scrollbars -->
+        <Style x:Key="EccScrollThumb"
+               TargetType="{x:Type Thumb}">
+            <Setter Property="Focusable" Value="False"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type Thumb}">
+                        <Border x:Name="ThumbBody"
+                                Background="#355C55"
+                                CornerRadius="5"
+                                Margin="2"/>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver"
+                                     Value="True">
+                                <Setter TargetName="ThumbBody"
+                                        Property="Background"
+                                        Value="#58D3B4"/>
+                            </Trigger>
+                            <Trigger Property="IsDragging"
+                                     Value="True">
+                                <Setter TargetName="ThumbBody"
+                                        Property="Background"
+                                        Value="#7BE7CF"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled"
+                                     Value="False">
+                                <Setter TargetName="ThumbBody"
+                                        Property="Opacity"
+                                        Value="0.35"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <ControlTemplate x:Key="EccVerticalScrollBarTemplate"
+                         TargetType="{x:Type ScrollBar}">
+            <Border Background="#091315"
+                    BorderBrush="#18302C"
+                    BorderThickness="1"
+                    CornerRadius="6"
+                    Width="11">
+                <Track x:Name="PART_Track"
+                       Orientation="Vertical"
+                       IsDirectionReversed="True"
+                       Focusable="False">
+                    <Track.DecreaseRepeatButton>
+                        <RepeatButton Command="{x:Static ScrollBar.PageUpCommand}"
+                                      Background="Transparent"
+                                      BorderThickness="0"
+                                      Focusable="False"/>
+                    </Track.DecreaseRepeatButton>
+
+                    <Track.Thumb>
+                        <Thumb Style="{StaticResource EccScrollThumb}"
+                               MinHeight="26"/>
+                    </Track.Thumb>
+
+                    <Track.IncreaseRepeatButton>
+                        <RepeatButton Command="{x:Static ScrollBar.PageDownCommand}"
+                                      Background="Transparent"
+                                      BorderThickness="0"
+                                      Focusable="False"/>
+                    </Track.IncreaseRepeatButton>
+                </Track>
+            </Border>
+        </ControlTemplate>
+
+        <ControlTemplate x:Key="EccHorizontalScrollBarTemplate"
+                         TargetType="{x:Type ScrollBar}">
+            <Border Background="#091315"
+                    BorderBrush="#18302C"
+                    BorderThickness="1"
+                    CornerRadius="6"
+                    Height="11">
+                <Track x:Name="PART_Track"
+                       Orientation="Horizontal"
+                       IsDirectionReversed="False"
+                       Focusable="False">
+                    <Track.DecreaseRepeatButton>
+                        <RepeatButton Command="{x:Static ScrollBar.PageLeftCommand}"
+                                      Background="Transparent"
+                                      BorderThickness="0"
+                                      Focusable="False"/>
+                    </Track.DecreaseRepeatButton>
+
+                    <Track.Thumb>
+                        <Thumb Style="{StaticResource EccScrollThumb}"
+                               MinWidth="26"/>
+                    </Track.Thumb>
+
+                    <Track.IncreaseRepeatButton>
+                        <RepeatButton Command="{x:Static ScrollBar.PageRightCommand}"
+                                      Background="Transparent"
+                                      BorderThickness="0"
+                                      Focusable="False"/>
+                    </Track.IncreaseRepeatButton>
+                </Track>
+            </Border>
+        </ControlTemplate>
+
+        <Style TargetType="{x:Type ScrollBar}">
+            <Setter Property="Background"
+                    Value="#091315"/>
+            <Setter Property="Foreground"
+                    Value="#58D3B4"/>
+            <Setter Property="Width"
+                    Value="11"/>
+            <Setter Property="Template"
+                    Value="{StaticResource EccVerticalScrollBarTemplate}"/>
+
+            <Style.Triggers>
+                <Trigger Property="Orientation"
+                         Value="Horizontal">
+                    <Setter Property="Width"
+                            Value="Auto"/>
+                    <Setter Property="Height"
+                            Value="11"/>
+                    <Setter Property="Template"
+                            Value="{StaticResource EccHorizontalScrollBarTemplate}"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
         </ResourceDictionary>
     </Application.Resources>
 </Application>
