@@ -63,110 +63,162 @@ public partial class PilotFitWindow : Window
                         "EHP ",
                         "");
 
-            BufferText.Text =
-                $"Shield {FormatCompact(defense.ShieldHp)} | " +
-                $"Armor {FormatCompact(defense.ArmorHp)} | " +
-                $"Hull {FormatCompact(defense.StructureHp)}";
+            ShieldHpText.Text =
+                FormatCompact(
+                    defense.ShieldHp) +
+                " HP";
+
+            ArmorHpText.Text =
+                FormatCompact(
+                    defense.ArmorHp) +
+                " HP";
+
+            HullHpText.Text =
+                FormatCompact(
+                    defense.StructureHp) +
+                " HP";
 
             EhpNoteText.Text =
-                "Fit/skill omni EHP estimate. Active fitted hardeners assumed; fleet boosts, heat, boosters and most implant effects are not included yet.";
+                "Uniform-damage EHP estimate from the live hull, fit and character skills. Active fitted hardeners are assumed on.";
         }
         else
         {
             EhpValueText.Text = "--";
-            BufferText.Text =
-                "Shield -- | Armor -- | Hull --";
+            ShieldHpText.Text = "--";
+            ArmorHpText.Text = "--";
+            HullHpText.Text = "--";
+
             EhpNoteText.Text =
-                "Defense stats are calculated for the character's current live fit. Saved-fit calculation will be added after the full Dogma effect pass.";
+                "Defense stats are available for the character's current live fit. Saved-fit full Dogma simulation is still approximate.";
         }
 
-        BindSection(
-            HighSection,
-            HighItems,
+        EveShipModuleView[] high =
             rows.Where(
-                row =>
-                    row.Slot.StartsWith(
-                        "High",
-                        StringComparison.OrdinalIgnoreCase)));
+                    row =>
+                        row.Slot.StartsWith(
+                            "High",
+                            StringComparison.OrdinalIgnoreCase))
+                .ToArray();
 
-        BindSection(
-            MidSection,
-            MidItems,
+        EveShipModuleView[] mid =
             rows.Where(
-                row =>
-                    row.Slot.StartsWith(
-                        "Mid",
-                        StringComparison.OrdinalIgnoreCase)));
+                    row =>
+                        row.Slot.StartsWith(
+                            "Mid",
+                            StringComparison.OrdinalIgnoreCase))
+                .ToArray();
 
-        BindSection(
-            LowSection,
-            LowItems,
+        EveShipModuleView[] low =
             rows.Where(
-                row =>
-                    row.Slot.StartsWith(
-                        "Low",
-                        StringComparison.OrdinalIgnoreCase)));
+                    row =>
+                        row.Slot.StartsWith(
+                            "Low",
+                            StringComparison.OrdinalIgnoreCase))
+                .ToArray();
 
-        BindSection(
-            RigSection,
-            RigItems,
+        EveShipModuleView[] rigs =
             rows.Where(
-                row =>
-                    row.Slot.StartsWith(
-                        "Rig",
-                        StringComparison.OrdinalIgnoreCase)));
+                    row =>
+                        row.Slot.StartsWith(
+                            "Rig",
+                            StringComparison.OrdinalIgnoreCase))
+                .ToArray();
 
-        BindSection(
-            DroneSection,
-            DroneItems,
+        EveShipModuleView[] drones =
             rows.Where(
-                row =>
-                    row.Slot.Contains(
-                        "Drone",
-                        StringComparison.OrdinalIgnoreCase) ||
-                    row.Slot.Contains(
-                        "Fighter",
-                        StringComparison.OrdinalIgnoreCase)));
+                    row =>
+                        row.Slot.Contains(
+                            "Drone",
+                            StringComparison.OrdinalIgnoreCase) ||
+                        row.Slot.Contains(
+                            "Fighter",
+                            StringComparison.OrdinalIgnoreCase))
+                .ToArray();
 
-        BindSection(
-            OtherSection,
-            OtherItems,
-            rows.Where(
-                row =>
-                    !row.Slot.StartsWith(
-                        "High",
-                        StringComparison.OrdinalIgnoreCase) &&
-                    !row.Slot.StartsWith(
-                        "Mid",
-                        StringComparison.OrdinalIgnoreCase) &&
-                    !row.Slot.StartsWith(
-                        "Low",
-                        StringComparison.OrdinalIgnoreCase) &&
-                    !row.Slot.StartsWith(
-                        "Rig",
-                        StringComparison.OrdinalIgnoreCase) &&
-                    !row.Slot.Contains(
-                        "Drone",
-                        StringComparison.OrdinalIgnoreCase) &&
-                    !row.Slot.Contains(
-                        "Fighter",
-                        StringComparison.OrdinalIgnoreCase)));
-    }
+        EveShipModuleView[] other =
+            rows.Except(
+                    high
+                        .Concat(mid)
+                        .Concat(low)
+                        .Concat(rigs)
+                        .Concat(drones))
+                .ToArray();
 
-    private static void BindSection(
-        FrameworkElement section,
-        System.Windows.Controls.ItemsControl items,
-        IEnumerable<EveShipModuleView> source)
-    {
-        EveShipModuleView[] rows =
-            source.ToArray();
+        BindRing(
+            HighRingItems,
+            high);
 
-        section.Visibility =
-            rows.Length > 0
+        BindRing(
+            MidRingItems,
+            mid);
+
+        BindRing(
+            LowRingItems,
+            low);
+
+        BindRing(
+            RigRingItems,
+            rigs);
+
+        BindRing(
+            DroneRingItems,
+            drones);
+
+        DroneTray.Visibility =
+            drones.Length > 0
                 ? Visibility.Visible
                 : Visibility.Collapsed;
 
-        items.ItemsSource =
+        BindDetail(
+            HighDetailSection,
+            HighDetailItems,
+            high);
+
+        BindDetail(
+            MidDetailSection,
+            MidDetailItems,
+            mid);
+
+        BindDetail(
+            LowDetailSection,
+            LowDetailItems,
+            low);
+
+        BindDetail(
+            RigDetailSection,
+            RigDetailItems,
+            rigs);
+
+        BindDetail(
+            DroneDetailSection,
+            DroneDetailItems,
+            drones);
+
+        BindDetail(
+            OtherDetailSection,
+            OtherDetailItems,
+            other);
+    }
+
+    private static void BindRing(
+        System.Windows.Controls.ItemsControl target,
+        IReadOnlyList<EveShipModuleView> rows)
+    {
+        target.ItemsSource =
+            rows;
+    }
+
+    private static void BindDetail(
+        FrameworkElement section,
+        System.Windows.Controls.ItemsControl target,
+        IReadOnlyList<EveShipModuleView> rows)
+    {
+        section.Visibility =
+            rows.Count > 0
+                ? Visibility.Visible
+                : Visibility.Collapsed;
+
+        target.ItemsSource =
             rows;
     }
 
