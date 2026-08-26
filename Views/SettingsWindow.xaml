@@ -1,4 +1,4 @@
-﻿<Window x:Class="EveMultiPreview.Views.SettingsWindow"
+<Window x:Class="EveMultiPreview.Views.SettingsWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="{DynamicResource L.SettingsTitle}"
@@ -1659,7 +1659,7 @@
                 <!-- ══ 14. ABOUT ══ -->
                 <StackPanel x:Name="PanelAbout" Visibility="Collapsed">
                     <TextBlock Text="{DynamicResource L.About.Title}" FontSize="18" FontWeight="Bold" Foreground="{StaticResource AccentBrush}" Margin="0,0,0,12"/>
-                    <TextBlock x:Name="TxtAppVersion" Text="EVE MultiPreview vX.X.X" FontSize="16" Loaded="OnAboutLoaded"/>
+                    <TextBlock x:Name="TxtAppVersion" Text="EVE Command Center vX.X.X" FontSize="16" Loaded="OnAboutLoaded"/>
                     <TextBlock Text="{DynamicResource L.About.Edition}" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,4,0,8"/>
                     <TextBlock TextWrapping="Wrap"
                                Text="{DynamicResource L.About.Desc}"/>

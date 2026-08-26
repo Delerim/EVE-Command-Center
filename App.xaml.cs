@@ -41,6 +41,7 @@ public partial class App : Application
     private CropManager? _cropManager;
     private SettingsWindow? _settingsWindow;
     private MiningDashboardWindow? _miningDashboardWindow;
+    private PilotCommandCenterWindow? _pilotCommandCenterWindow;
     private MiningFleetOverviewWindow? _miningFleetOverviewWindow;
     private MiningIdleWatchdogService? _miningIdleWatchdog;
     private ToolStripMenuItem? _miningOverviewTrayItem;
@@ -90,7 +91,7 @@ public partial class App : Application
             // by calling ReleaseMutex on an unowned mutex.
             _singleInstanceMutex.Dispose();
             _singleInstanceMutex = null;
-            MessageBox.Show("EVE MultiPreview is already running.", "EVE MultiPreview",
+            MessageBox.Show("EVE Command Center is already running.", "EVE Command Center",
                 MessageBoxButton.OK, MessageBoxImage.Information);
             Shutdown();
             return;
@@ -701,7 +702,7 @@ public partial class App : Application
 
         _trayIcon = new NotifyIcon
         {
-            Text = "EVE MultiPreview",
+            Text = "EVE Command Center",
             Icon = trayIco,
             Visible = true,
             ContextMenuStrip = new ContextMenuStrip()
@@ -735,7 +736,7 @@ public partial class App : Application
         }
 
         // Header (product name ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â not localized)
-        var header = menu.Items.Add("EVE MultiPreview");
+        var header = menu.Items.Add("EVE Command Center");
         header.Enabled = false;
         menu.Items.Add(new ToolStripSeparator());
 
@@ -752,14 +753,14 @@ public partial class App : Application
 
         // Dedicated crit-aware mining dashboard. Kept separate from the thumbnail
         // overview so the compact multi-client layout remains untouched.
-        var miningItem = menu.Items.Add("Mining Dashboard", null, (_, _) =>
+        var miningItem = menu.Items.Add("Mining Command Center", null, (_, _) =>
         {
             Application.Current?.Dispatcher.BeginInvoke(new Action(OpenMiningDashboard));
         });
 
         // Compact fleet mining bar, inspired by the standalone tracker but fed
         // from MultiPreview's own live parser/watchdog.
-        _miningOverviewTrayItem = new ToolStripMenuItem("Mining Overview")
+        _miningOverviewTrayItem = new ToolStripMenuItem("Mining Overview Bar")
         {
             CheckOnClick = true,
             Checked = false
@@ -772,6 +773,19 @@ public partial class App : Application
                 _miningFleetOverviewWindow?.Close();
         };
         menu.Items.Add(_miningOverviewTrayItem);
+
+        // Character SSO / wallet / skills. This is intentionally independent
+        // from the preview and mining services.
+        var pilotItem = menu.Items.Add(
+            "Pilot Command Center",
+            null,
+            (_, _) =>
+            {
+                Application.Current?.Dispatcher.BeginInvoke(
+                    new Action(OpenPilotCommandCenter));
+            });
+
+        menu.Items.Add(new ToolStripSeparator());
 
         // Profile submenu (dynamically rebuilt to sync checks and profile list)
         var profileMenu = new ToolStripMenuItem();
@@ -822,12 +836,12 @@ public partial class App : Application
         var savePosItem = posMenu.DropDownItems.Add("", null, (_, _) =>
         {
             _thumbnailManager?.SaveClientPositions();
-            _trayIcon?.ShowBalloonTip(2000, "EVE MultiPreview", LocalizationService.Str("L.Tray.PosSaved", "Client positions saved"), ToolTipIcon.Info);
+            _trayIcon?.ShowBalloonTip(2000, "EVE Command Center", LocalizationService.Str("L.Tray.PosSaved", "Client positions saved"), ToolTipIcon.Info);
         });
         L(savePosItem, "L.Tray.SavePositions", "Save Positions");
         var restorePosItem = posMenu.DropDownItems.Add("", null, (_, _) =>
         {
-            _trayIcon?.ShowBalloonTip(2000, "EVE MultiPreview", LocalizationService.Str("L.Tray.PosRestored", "Positions restored on next discovery cycle"), ToolTipIcon.Info);
+            _trayIcon?.ShowBalloonTip(2000, "EVE Command Center", LocalizationService.Str("L.Tray.PosRestored", "Positions restored on next discovery cycle"), ToolTipIcon.Info);
         });
         L(restorePosItem, "L.Tray.RestorePositions", "Restore Positions");
         menu.Items.Add(posMenu);
@@ -1008,7 +1022,7 @@ public partial class App : Application
             _alertHub.ShowToast(charName, alertType, severity);
 
         if (trayEnabled)
-            _trayIcon?.ShowBalloonTip(3500, "EVE MultiPreview", message, ToolTipIcon.Warning);
+            _trayIcon?.ShowBalloonTip(3500, "EVE Command Center", message, ToolTipIcon.Warning);
 
         PlayAlertSound(charName, alertType, severity);
     }
@@ -1051,6 +1065,32 @@ public partial class App : Application
         _miningFleetOverviewWindow.Show();
     }
 
+    private void OpenPilotCommandCenter()
+    {
+        if (_pilotCommandCenterWindow != null)
+        {
+            if (_pilotCommandCenterWindow.WindowState ==
+                WindowState.Minimized)
+            {
+                _pilotCommandCenterWindow.WindowState =
+                    WindowState.Normal;
+            }
+
+            _pilotCommandCenterWindow.Show();
+            _pilotCommandCenterWindow.Activate();
+            return;
+        }
+
+        _pilotCommandCenterWindow =
+            new PilotCommandCenterWindow();
+
+        _pilotCommandCenterWindow.Closed += (_, _) =>
+            _pilotCommandCenterWindow = null;
+
+        _pilotCommandCenterWindow.Show();
+        _pilotCommandCenterWindow.Activate();
+    }
+
     private void OpenMiningDashboard()
     {
         if (_statTracker == null || _settings == null) return;
@@ -1090,7 +1130,12 @@ public partial class App : Application
             return;
         }
 
-        _settingsWindow = new SettingsWindow(_settings!, _thumbnailManager!, _cropManager);
+        _settingsWindow = new SettingsWindow(
+            _settings!,
+            _thumbnailManager!,
+            _cropManager);
+        _settingsWindow.Title =
+            "EVE Command Center - Settings";
         // Set initial WindowState BEFORE Show() so WPF commits the restore rect
         // with the saved Width/Height already applied. Setting WindowState after
         // Show() can race the HWND map and corrupt the restore rect.

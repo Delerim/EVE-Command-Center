@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
@@ -16,7 +16,9 @@
     <AssemblyName>EVE MultiPreview</AssemblyName>
     <RootNamespace>EveMultiPreview</RootNamespace>
     <Version>2.3.27</Version>
-    <Description>EVE Online multi-client thumbnail preview manager</Description>
+    <Title>EVE Command Center</Title>
+    <Product>EVE Command Center</Product>
+    <Description>EVE Online command center for multi-client preview, mining and pilot intelligence</Description>
 
     <!-- Publish settings -->
     <SelfContained>true</SelfContained>
