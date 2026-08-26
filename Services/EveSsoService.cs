@@ -57,8 +57,12 @@ public sealed class EveSsoService
         _http = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
         _http.DefaultRequestHeaders.UserAgent.ParseAdd(
             "EVE-Command-Center/0.1 (+https://github.com/Delerim/EVE-MultiPreview)");
+        // Compatibility dates switch at 11:00 UTC. Pin to a reviewed,
+        // already-valid date rather than using the local calendar date:
+        // a "today" value before 11:00 UTC is treated by ESI as future
+        // and produces HTTP 400.
         _http.DefaultRequestHeaders.TryAddWithoutValidation(
-            "X-Compatibility-Date", "2026-08-26");
+            "X-Compatibility-Date", "2026-08-25");
 
         _json = new JsonSerializerOptions
         {
@@ -611,9 +615,18 @@ public sealed class EveSsoService
             await response.Content.ReadAsStringAsync(cancellationToken);
 
         if (!response.IsSuccessStatusCode)
+        {
+            string detail = string.IsNullOrWhiteSpace(json)
+                ? ""
+                : " - " + (json.Length > 500
+                    ? json[..500] + "..."
+                    : json);
+
             throw new InvalidOperationException(
                 $"ESI {relativePath} failed: " +
-                $"{(int)response.StatusCode} {response.ReasonPhrase}");
+                $"{(int)response.StatusCode} {response.ReasonPhrase}" +
+                detail);
+        }
 
         return JsonSerializer.Deserialize<T>(json, _json)
                ?? throw new InvalidOperationException(

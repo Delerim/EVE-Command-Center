@@ -253,7 +253,7 @@
                         <ListBox x:Name="PilotList"
                                  ItemsSource="{Binding Pilots}"
                                  SelectionChanged="PilotList_SelectionChanged"
-                                 Background="Transparent"
+                                 Background="#0B1518"
                                  BorderThickness="0"
                                  ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                                  ItemContainerStyle="{StaticResource PilotListItem}">
