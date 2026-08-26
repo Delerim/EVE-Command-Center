@@ -1,4 +1,4 @@
-name: Build Mining Dashboard EXE
+name: Build EVE Command Center
 
 on:
   workflow_dispatch:
@@ -20,12 +20,12 @@ jobs:
       - name: Restore
         run: dotnet restore EveMultiPreview.csproj
 
-      - name: Publish single-file Windows EXE
+      - name: Publish EVE Command Center EXE
         run: dotnet publish EveMultiPreview.csproj -c Release -r win-x64 --self-contained true /p:PublishSingleFile=true /p:IncludeNativeLibrariesForSelfExtract=true -o artifacts/publish
 
-      - name: Upload EXE artifact
+      - name: Upload EVE Command Center artifact
         uses: actions/upload-artifact@v4
         with:
-          name: EVE-MultiPreview-Mining-Dashboard
+          name: EVE-Command-Center-Windows-x64
           path: artifacts/publish/**
           if-no-files-found: error

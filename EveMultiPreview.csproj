@@ -13,7 +13,7 @@
          per monitor. Requires DIP/physical conversions anywhere the two meet
          (see Interop/DpiHelper.cs). -->
     <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
-    <AssemblyName>EVE MultiPreview</AssemblyName>
+    <AssemblyName>EVE Command Center</AssemblyName>
     <RootNamespace>EveMultiPreview</RootNamespace>
     <Version>2.3.27</Version>
     <Title>EVE Command Center</Title>
