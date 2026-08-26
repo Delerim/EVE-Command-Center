@@ -707,8 +707,10 @@ public partial class PilotCommandCenterWindow : Window
         OpenFitWindow(
             "CURRENT FIT",
             _currentInventory.CurrentShip.DisplayName,
+            _currentInventory.CurrentShip.ShipTypeId,
             _currentInventory.CurrentShipModules,
-            "");
+            "",
+            _currentInventory.CurrentFitStats);
     }
 
     private void ViewSavedFit_Click(
@@ -722,29 +724,34 @@ public partial class PilotCommandCenterWindow : Window
         OpenFitWindow(
             fitting.Name,
             fitting.Ship,
+            fitting.ShipTypeId,
             fitting.Modules,
-            fitting.Description);
+            fitting.Description,
+            new EveFitDefenseStats());
     }
 
     private void OpenFitWindow(
         string fitName,
         string shipName,
+        int shipTypeId,
         IReadOnlyList<EveShipModuleView> modules,
-        string description)
+        string description,
+        EveFitDefenseStats defense)
     {
         var window =
             new PilotFitWindow(
                 fitName,
                 shipName,
+                shipTypeId,
                 modules,
-                description)
+                description,
+                defense)
             {
                 Owner = this
             };
 
         window.Show();
     }
-
     private void AttributeAlignmentToggle_Click(
         object sender,
         RoutedEventArgs e)

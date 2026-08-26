@@ -1335,8 +1335,7 @@
                         <Grid Margin="0,6,0,0">
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="0.9*"/>
-                                <RowDefinition Height="1.1*"/>
+                                <RowDefinition Height="*"/>
                             </Grid.RowDefinitions>
 
                             <Border Grid.Row="0"
@@ -1356,22 +1355,29 @@
                                         <TextBlock Text="CURRENT SHIP"
                                                    Foreground="#78958E"
                                                    FontSize="9"/>
+
                                         <TextBlock x:Name="CurrentShipDetailText"
                                                    Text="-"
                                                    Foreground="#58D3B4"
                                                    FontSize="18"
                                                    FontWeight="SemiBold"
                                                    Margin="0,2,0,0"/>
-                                        <TextBlock x:Name="CurrentShipItemText"
-                                                   Text=""
-                                                   Foreground="#78958E"
-                                                   FontSize="9"
-                                                   Margin="0,2,0,0"/>
-                                        <TextBlock x:Name="ShipAssetsStatusText"
-                                                   Text="Open this tab to sync ship and asset data."
-                                                   Foreground="#E7B85A"
-                                                   FontSize="9.5"
-                                                   Margin="0,5,0,0"/>
+
+                                        <StackPanel Orientation="Horizontal"
+                                                    Margin="0,3,0,0">
+                                            <TextBlock x:Name="CurrentShipItemText"
+                                                       Text=""
+                                                       Foreground="#78958E"
+                                                       FontSize="9"/>
+
+                                            <TextBlock Text="   "
+                                                       FontSize="9"/>
+
+                                            <TextBlock x:Name="ShipAssetsStatusText"
+                                                       Text="Open this tab to sync ship and asset data."
+                                                       Foreground="#E7B85A"
+                                                       FontSize="9.5"/>
+                                        </StackPanel>
                                     </StackPanel>
 
                                     <StackPanel Grid.Column="1"
@@ -1380,162 +1386,210 @@
                                         <Button Content="View Current Fit"
                                                 Margin="0,0,8,0"
                                                 Click="ViewCurrentFit_Click"/>
+
                                         <Button Content="Refresh Ship Data"
                                                 Click="RefreshShipAssets_Click"/>
                                     </StackPanel>
                                 </Grid>
                             </Border>
 
-                            <Grid Grid.Row="1"
-                                  Margin="0,0,0,9">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="0.9*"/>
-                                    <ColumnDefinition Width="1.1*"/>
-                                </Grid.ColumnDefinitions>
-
-                                <Border Grid.Column="0"
-                                        Background="#0D171A"
-                                        BorderBrush="#1D3732"
-                                        BorderThickness="1"
-                                        CornerRadius="9"
-                                        Padding="9"
-                                        Margin="0,0,5,0">
-                                    <Grid>
+                            <TabControl Grid.Row="1">
+                                <TabItem Header="Current Fit">
+                                    <Grid Margin="0,6,0,0">
                                         <Grid.RowDefinitions>
                                             <RowDefinition Height="Auto"/>
                                             <RowDefinition Height="*"/>
                                         </Grid.RowDefinitions>
 
-                                        <DockPanel Margin="0,0,0,6">
-                                            <TextBlock Text="CURRENT EQUIPMENT"
-                                                       Foreground="#63CDB2"
-                                                       FontSize="10"
-                                                       FontWeight="Bold"/>
+                                        <DockPanel Margin="6,0,6,8">
+                                            <StackPanel>
+                                                <TextBlock Text="FITTED EQUIPMENT"
+                                                           Foreground="#63CDB2"
+                                                           FontSize="10"
+                                                           FontWeight="Bold"/>
+
+                                                <TextBlock Text="Modules, rigs and drone/fighter bay contents currently attached to this ship."
+                                                           Foreground="#78958E"
+                                                           FontSize="9"
+                                                           Margin="0,2,0,0"/>
+                                            </StackPanel>
+
                                             <TextBlock x:Name="CurrentEquipmentCountText"
                                                        DockPanel.Dock="Right"
                                                        Foreground="#78958E"
-                                                       FontSize="9"/>
+                                                       FontSize="9"
+                                                       VerticalAlignment="Center"/>
                                         </DockPanel>
 
                                         <DataGrid x:Name="CurrentShipModulesGrid"
                                                   Grid.Row="1"
-                                                  RowHeight="30">
+                                                  RowHeight="36"
+                                                  ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                                             <DataGrid.Columns>
-                                                <DataGridTextColumn Header="Slot"
-                                                                    Binding="{Binding Slot}"
-                                                                    Width="95"/>
+                                                <DataGridTemplateColumn Header=""
+                                                                        Width="48">
+                                                    <DataGridTemplateColumn.CellTemplate>
+                                                        <DataTemplate>
+                                                            <Border Width="30"
+                                                                    Height="30"
+                                                                    CornerRadius="5"
+                                                                    Background="#132229"
+                                                                    BorderBrush="{Binding SlotAccent}"
+                                                                    BorderThickness="1"
+                                                                    ClipToBounds="True">
+                                                                <Image Source="{Binding IconUrl}"
+                                                                       Stretch="Uniform"/>
+                                                            </Border>
+                                                        </DataTemplate>
+                                                    </DataGridTemplateColumn.CellTemplate>
+                                                </DataGridTemplateColumn>
+
+                                                <DataGridTemplateColumn Header="Slot"
+                                                                        Width="110">
+                                                    <DataGridTemplateColumn.CellTemplate>
+                                                        <DataTemplate>
+                                                            <Border Background="#132229"
+                                                                    BorderBrush="{Binding SlotAccent}"
+                                                                    BorderThickness="1"
+                                                                    CornerRadius="5"
+                                                                    Padding="6,2"
+                                                                    HorizontalAlignment="Left">
+                                                                <TextBlock Text="{Binding Slot}"
+                                                                           Foreground="{Binding SlotAccent}"
+                                                                           FontSize="9"
+                                                                           FontWeight="SemiBold"/>
+                                                            </Border>
+                                                        </DataTemplate>
+                                                    </DataGridTemplateColumn.CellTemplate>
+                                                </DataGridTemplateColumn>
+
                                                 <DataGridTextColumn Header="Module / Drone"
                                                                     Binding="{Binding Name}"
                                                                     Width="*"/>
+
                                                 <DataGridTextColumn Header="Qty"
                                                                     Binding="{Binding Quantity}"
-                                                                    Width="60"/>
+                                                                    Width="70"/>
                                             </DataGrid.Columns>
                                         </DataGrid>
                                     </Grid>
-                                </Border>
+                                </TabItem>
 
-                                <Border Grid.Column="1"
-                                        Background="#0D171A"
-                                        BorderBrush="#1D3732"
-                                        BorderThickness="1"
-                                        CornerRadius="9"
-                                        Padding="9"
-                                        Margin="5,0,0,0">
-                                    <Grid>
+                                <TabItem Header="Saved Fits">
+                                    <Grid Margin="0,6,0,0">
                                         <Grid.RowDefinitions>
                                             <RowDefinition Height="Auto"/>
                                             <RowDefinition Height="*"/>
                                         </Grid.RowDefinitions>
 
-                                        <DockPanel Margin="0,0,0,6">
-                                            <TextBlock Text="SAVED FITTINGS"
-                                                       Foreground="#63CDB2"
-                                                       FontSize="10"
-                                                       FontWeight="Bold"/>
+                                        <DockPanel Margin="6,0,6,8">
+                                            <StackPanel>
+                                                <TextBlock Text="SAVED PERSONAL FITTINGS"
+                                                           Foreground="#63CDB2"
+                                                           FontSize="10"
+                                                           FontWeight="Bold"/>
+
+                                                <TextBlock Text="Open a fit to inspect it in the visual Workbench-style viewer."
+                                                           Foreground="#78958E"
+                                                           FontSize="9"
+                                                           Margin="0,2,0,0"/>
+                                            </StackPanel>
+
                                             <TextBlock x:Name="FittingCountText"
                                                        DockPanel.Dock="Right"
                                                        Foreground="#78958E"
-                                                       FontSize="9"/>
+                                                       FontSize="9"
+                                                       VerticalAlignment="Center"/>
                                         </DockPanel>
 
                                         <DataGrid x:Name="SavedFittingsGrid"
                                                   Grid.Row="1"
-                                                  RowHeight="30">
+                                                  RowHeight="34"
+                                                  ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                                             <DataGrid.Columns>
                                                 <DataGridTemplateColumn Header=""
-                                                                        Width="62">
+                                                                        Width="68">
                                                     <DataGridTemplateColumn.CellTemplate>
                                                         <DataTemplate>
                                                             <Button Content="VIEW"
-                                                                    Padding="6,1"
-                                                                    MinHeight="22"
+                                                                    Padding="7,2"
+                                                                    MinHeight="24"
                                                                     FontSize="8.5"
                                                                     Click="ViewSavedFit_Click"/>
                                                         </DataTemplate>
                                                     </DataGridTemplateColumn.CellTemplate>
                                                 </DataGridTemplateColumn>
+
                                                 <DataGridTextColumn Header="Fit"
                                                                     Binding="{Binding Name}"
-                                                                    Width="180"/>
+                                                                    Width="230"/>
+
                                                 <DataGridTextColumn Header="Ship"
                                                                     Binding="{Binding Ship}"
-                                                                    Width="150"/>
-                                                <DataGridTextColumn Header="Items"
+                                                                    Width="180"/>
+
+                                                <DataGridTextColumn Header="Preview"
                                                                     Binding="{Binding Items}"
                                                                     Width="*"/>
                                             </DataGrid.Columns>
                                         </DataGrid>
                                     </Grid>
-                                </Border>
-                            </Grid>
+                                </TabItem>
 
-                            <Border Grid.Row="2"
-                                    Background="#0D171A"
-                                    BorderBrush="#1D3732"
-                                    BorderThickness="1"
-                                    CornerRadius="9"
-                                    Padding="9">
-                                <Grid>
-                                    <Grid.RowDefinitions>
-                                        <RowDefinition Height="Auto"/>
-                                        <RowDefinition Height="*"/>
-                                    </Grid.RowDefinitions>
+                                <TabItem Header="Personal Assets">
+                                    <Grid Margin="0,6,0,0">
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="*"/>
+                                        </Grid.RowDefinitions>
 
-                                    <DockPanel Margin="0,0,0,6">
-                                        <TextBlock Text="PERSONAL ASSETS"
-                                                   Foreground="#63CDB2"
-                                                   FontSize="10"
-                                                   FontWeight="Bold"/>
-                                        <TextBlock x:Name="AssetCountText"
-                                                   DockPanel.Dock="Right"
-                                                   Foreground="#78958E"
-                                                   FontSize="9"/>
-                                    </DockPanel>
+                                        <DockPanel Margin="6,0,6,8">
+                                            <StackPanel>
+                                                <TextBlock Text="PERSONAL ASSETS"
+                                                           Foreground="#63CDB2"
+                                                           FontSize="10"
+                                                           FontWeight="Bold"/>
 
-                                    <DataGrid x:Name="PersonalAssetsGrid"
-                                              Grid.Row="1"
-                                              RowHeight="29">
-                                        <DataGrid.Columns>
-                                            <DataGridTextColumn Header="Item"
-                                                                Binding="{Binding Name}"
-                                                                Width="*"/>
-                                            <DataGridTextColumn Header="Qty"
-                                                                Binding="{Binding Quantity}"
-                                                                Width="80"/>
-                                            <DataGridTextColumn Header="Location"
-                                                                Binding="{Binding Location}"
-                                                                Width="240"/>
-                                            <DataGridTextColumn Header="Flag"
-                                                                Binding="{Binding Flag}"
-                                                                Width="150"/>
-                                        </DataGrid.Columns>
-                                    </DataGrid>
-                                </Grid>
-                            </Border>
+                                                <TextBlock Text="Character-owned assets returned by ESI."
+                                                           Foreground="#78958E"
+                                                           FontSize="9"
+                                                           Margin="0,2,0,0"/>
+                                            </StackPanel>
+
+                                            <TextBlock x:Name="AssetCountText"
+                                                       DockPanel.Dock="Right"
+                                                       Foreground="#78958E"
+                                                       FontSize="9"
+                                                       VerticalAlignment="Center"/>
+                                        </DockPanel>
+
+                                        <DataGrid x:Name="PersonalAssetsGrid"
+                                                  Grid.Row="1"
+                                                  RowHeight="31"
+                                                  ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                                            <DataGrid.Columns>
+                                                <DataGridTextColumn Header="Item"
+                                                                    Binding="{Binding Name}"
+                                                                    Width="*"/>
+
+                                                <DataGridTextColumn Header="Qty"
+                                                                    Binding="{Binding Quantity}"
+                                                                    Width="90"/>
+
+                                                <DataGridTextColumn Header="Location"
+                                                                    Binding="{Binding Location}"
+                                                                    Width="260"/>
+
+                                                <DataGridTextColumn Header="Flag"
+                                                                    Binding="{Binding Flag}"
+                                                                    Width="170"/>
+                                            </DataGrid.Columns>
+                                        </DataGrid>
+                                    </Grid>
+                                </TabItem>
+                            </TabControl>
                         </Grid>
                     </TabItem>
-
                     <TabItem Header="Wallet">
                         <Grid Margin="0,4,0,0">
                             <Grid.RowDefinitions>
