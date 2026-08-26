@@ -2462,6 +2462,33 @@ public sealed class EveSsoService
             0.05 *
             shieldManagement;
 
+        // Skiff hull bonus:
+        // Mining Barge gives +6% ship shield hitpoints per level.
+        // This is a capacity multiplier, independent of the Exhumers
+        // shield-resistance bonus already handled below.
+        if (hullTypeId == 22546)
+        {
+            int miningBarge =
+                GetSkillLevel(
+                    skills,
+                    17940);
+
+            if (miningBarge > 0)
+            {
+                double skiffShieldPercent =
+                    miningBarge *
+                    6.0;
+
+                shieldHp *=
+                    1.0 +
+                    skiffShieldPercent /
+                    100.0;
+
+                applied.Add(
+                    $"Mining Barge {miningBarge}: +{skiffShieldPercent:0.#}% Skiff shield HP");
+            }
+        }
+
         armorHp *=
             1.0 +
             0.05 *

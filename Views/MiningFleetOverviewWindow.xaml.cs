@@ -142,7 +142,10 @@ public partial class MiningFleetOverviewWindow : Window
                     "PLEX");
 
             if (quote == null ||
-                !quote.IsAvailable)
+                (
+                    (quote.JitaBestSell ?? 0) <= 0 &&
+                    (quote.JitaBestBuy ?? 0) <= 0
+                ))
             {
                 PlexBuyText.Text = "--";
                 PlexSellText.Text = "--";
@@ -166,7 +169,7 @@ public partial class MiningFleetOverviewWindow : Window
                             103));
 
                 PlexMarketBorder.ToolTip =
-                    "PLEX Jita market unavailable." +
+                    "PLEX Jita market unavailable - no Jita buy/sell orders were returned." +
                     (
                         string.IsNullOrWhiteSpace(
                             quote?.Error)
