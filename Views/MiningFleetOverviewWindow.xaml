@@ -251,13 +251,23 @@
                                         </Grid.ColumnDefinitions>
 
                                         <TextBlock Grid.Column="0"
-                                                   Text="{Binding LaserText}"
                                                    Foreground="#7FDCC5"
                                                    FontSize="10.5"
                                                    FontWeight="SemiBold"
                                                    VerticalAlignment="Center"
                                                    TextTrimming="CharacterEllipsis"
-                                                   ToolTip="{Binding LaserToolTip}"/>
+                                                   ToolTip="{Binding LaserToolTip}">
+                                            <Run Text="{Binding LaserPrimaryText}"
+                                                 Foreground="#7FDCC5"/>
+                                            <Run Text="{Binding LaserPrimaryCrystal}"
+                                                 Foreground="#64C7FF"
+                                                 FontWeight="Bold"/>
+                                            <Run Text="{Binding LaserSecondaryText}"
+                                                 Foreground="#7FDCC5"/>
+                                            <Run Text="{Binding LaserSecondaryCrystal}"
+                                                 Foreground="#64C7FF"
+                                                 FontWeight="Bold"/>
+                                        </TextBlock>
 
                                         <TextBlock Grid.Column="1"
                                                    Text="{Binding EhpText}"

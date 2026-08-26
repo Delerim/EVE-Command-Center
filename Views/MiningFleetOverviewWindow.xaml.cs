@@ -435,6 +435,52 @@ public partial class MiningFleetOverviewWindow : Window
                         : "Reconnect this pilot for asset access to verify the fitted laser count.");
             }
 
+            string laserPrimaryText =
+                laserText;
+
+            string laserPrimaryCrystal =
+                "";
+
+            string laserSecondaryText =
+                "";
+
+            string laserSecondaryCrystal =
+                "";
+
+            if (!isOrca &&
+                fittedLaserCount != 0 &&
+                laserTiming.Ready &&
+                laserTiming.Laser1CycleSeconds.HasValue &&
+                laserTiming.Laser2CycleSeconds.HasValue)
+            {
+                laserPrimaryCrystal =
+                    CrystalForLane(0)
+                        .Trim();
+
+                laserSecondaryCrystal =
+                    CrystalForLane(1)
+                        .Trim();
+
+                laserPrimaryText =
+                    $"L1 {laserTiming.Laser1CycleSeconds.Value:F1}s" +
+                    (
+                        string.IsNullOrWhiteSpace(
+                            laserPrimaryCrystal)
+                            ? ""
+                            : " "
+                    );
+
+                laserSecondaryText =
+                    "   " +
+                    $"L2 {laserTiming.Laser2CycleSeconds.Value:F1}s" +
+                    (
+                        string.IsNullOrWhiteSpace(
+                            laserSecondaryCrystal)
+                            ? ""
+                            : " "
+                    );
+            }
+
             string statusText = isOrca
                 ? "Drone mining"
                 : alarmMuted
@@ -528,6 +574,10 @@ public partial class MiningFleetOverviewWindow : Window
                 StatusText = statusText,
                 StatusToolTip = statusToolTip,
                 LaserText = laserText,
+                LaserPrimaryText = laserPrimaryText,
+                LaserPrimaryCrystal = laserPrimaryCrystal,
+                LaserSecondaryText = laserSecondaryText,
+                LaserSecondaryCrystal = laserSecondaryCrystal,
                 LaserToolTip = laserToolTip,
                 EhpText =
                     shipIntel?.Defense.Available == true
@@ -833,6 +883,10 @@ public partial class MiningFleetOverviewWindow : Window
         public string StatusText { get; init; } = "";
         public string StatusToolTip { get; init; } = "";
         public string LaserText { get; init; } = "";
+        public string LaserPrimaryText { get; init; } = "";
+        public string LaserPrimaryCrystal { get; init; } = "";
+        public string LaserSecondaryText { get; init; } = "";
+        public string LaserSecondaryCrystal { get; init; } = "";
         public string LaserToolTip { get; init; } = "";
         public string EhpText { get; init; } = "";
         public string EhpToolTip { get; init; } = "";

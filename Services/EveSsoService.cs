@@ -2154,12 +2154,15 @@ public sealed class EveSsoService
         foreach (EveUniverseType module
                  in modules)
         {
+            // Permanent shield buffer. ESI exposes Shield Extenders through
+            // Dogma attribute 72 (capacityBonus). Attribute 68 is shield
+            // booster repair amount and must NOT be treated as maximum HP.
             double flatShield =
                 Math.Max(
                     0,
                     GetDogmaValue(
                         module,
-                        68,
+                        72,
                         0));
 
             if (flatShield > 0)
@@ -2203,6 +2206,55 @@ public sealed class EveSsoService
 
                 applied.Add(
                     $"{module.Name}: +{flatStructure:N0} structure HP");
+            }
+        }
+
+        // Active repair modules are useful tank, but not buffer/EHP.
+        foreach (EveUniverseType module
+                 in modules)
+        {
+            bool isShieldBooster =
+                module.Name.Contains(
+                    "Shield Booster",
+                    StringComparison.OrdinalIgnoreCase);
+
+            bool isArmorRepairer =
+                module.Name.Contains(
+                    "Armor Repair",
+                    StringComparison.OrdinalIgnoreCase);
+
+            if (isShieldBooster)
+            {
+                double repairedHp =
+                    Math.Max(
+                        0,
+                        GetDogmaValue(
+                            module,
+                            68,
+                            0));
+
+                double durationMs =
+                    Math.Max(
+                        0,
+                        GetDogmaValue(
+                            module,
+                            73,
+                            0));
+
+                applied.Add(
+                    $"{module.Name}: active shield repair" +
+                    (repairedHp > 0
+                        ? $" {repairedHp:N0} HP"
+                        : "") +
+                    (durationMs > 0
+                        ? $" / {durationMs / 1000.0:0.##}s"
+                        : "") +
+                    " (not included in EHP)");
+            }
+            else if (isArmorRepairer)
+            {
+                applied.Add(
+                    $"{module.Name}: active armor repair (not included in EHP)");
             }
         }
 
@@ -2612,6 +2664,67 @@ public sealed class EveSsoService
                     armorPercentBonuses[i]);
         }
 
+        // Surface fitted defensive modules we did not interpret. This does not
+        // change EHP; it makes future character-specific fits self-diagnosing.
+        foreach (EveUniverseType module
+                 in modules)
+        {
+            bool looksDefensive =
+                module.GroupId == 77 ||
+                module.Name.Contains(
+                    "Shield Extender",
+                    StringComparison.OrdinalIgnoreCase) ||
+                module.Name.Contains(
+                    "Shield Hardener",
+                    StringComparison.OrdinalIgnoreCase) ||
+                module.Name.Contains(
+                    "Shield Resistance",
+                    StringComparison.OrdinalIgnoreCase) ||
+                module.Name.Contains(
+                    "Shield Booster",
+                    StringComparison.OrdinalIgnoreCase) ||
+                module.Name.Contains(
+                    "Armor Plate",
+                    StringComparison.OrdinalIgnoreCase) ||
+                module.Name.Contains(
+                    "Armor Hardener",
+                    StringComparison.OrdinalIgnoreCase) ||
+                module.Name.Contains(
+                    "Armor Repair",
+                    StringComparison.OrdinalIgnoreCase) ||
+                module.Name.Contains(
+                    "Membrane",
+                    StringComparison.OrdinalIgnoreCase) ||
+                module.Name.Contains(
+                    "Coating",
+                    StringComparison.OrdinalIgnoreCase) ||
+                module.Name.Contains(
+                    "Damage Control",
+                    StringComparison.OrdinalIgnoreCase) ||
+                module.Name.Contains(
+                    "Bulkhead",
+                    StringComparison.OrdinalIgnoreCase) ||
+                module.Name.Contains(
+                    "Core Defense",
+                    StringComparison.OrdinalIgnoreCase);
+
+            if (!looksDefensive)
+                continue;
+
+            bool alreadyReported =
+                applied.Any(
+                    line =>
+                        line.StartsWith(
+                            module.Name + ":",
+                            StringComparison.OrdinalIgnoreCase));
+
+            if (!alreadyReported)
+            {
+                applied.Add(
+                    $"{module.Name}: fitted defense module - no direct EHP effect recognized");
+            }
+        }
+
         double shieldAverage =
             Math.Max(
                 0.01,
@@ -2659,8 +2772,14 @@ public sealed class EveSsoService
             StructureEhp = structureEhp,
             AppliedTankEffects =
                 applied
-                    .Distinct(
+                    .GroupBy(
+                        effect => effect,
                         StringComparer.OrdinalIgnoreCase)
+                    .Select(
+                        group =>
+                            group.Count() > 1
+                                ? $"{group.First()} x{group.Count()}"
+                                : group.First())
                     .ToArray(),
             OmniEhp =
                 shieldEhp +
