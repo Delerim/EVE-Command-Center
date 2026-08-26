@@ -28,6 +28,9 @@ public sealed class EveSkillCatalogService
     private const string EsiBase = "https://esi.evetech.net/latest";
     private const int SkillCategoryId = 16;
     private const int SkillTimeConstantAttributeId = 275;
+    private const int PrimaryAttributeDogmaId = 180;
+    private const int SecondaryAttributeDogmaId = 181;
+    private const int CacheSchemaVersion = 2;
     private static readonly TimeSpan CacheLifetime = TimeSpan.FromDays(30);
 
     private readonly HttpClient _http;
@@ -81,7 +84,11 @@ public sealed class EveSkillCatalogService
                 await TryLoadCacheAsync(cancellationToken);
 
             if (diskCache != null &&
+                diskCache.SchemaVersion == CacheSchemaVersion &&
                 diskCache.Entries.Count > 100 &&
+                diskCache.Entries.All(
+                    e => e.PrimaryAttributeId > 0 &&
+                         e.SecondaryAttributeId > 0) &&
                 DateTime.UtcNow - diskCache.GeneratedUtc < CacheLifetime)
             {
                 _memoryCache = diskCache.Entries
@@ -164,6 +171,22 @@ public sealed class EveSkillCatalogService
                                     rankAttribute.Value,
                                     MidpointRounding.AwayFromZero));
 
+                        int primaryAttributeId =
+                            (int)Math.Round(
+                                type.DogmaAttributes
+                                    .FirstOrDefault(
+                                        a => a.AttributeId ==
+                                             PrimaryAttributeDogmaId)
+                                    ?.Value ?? 0);
+
+                        int secondaryAttributeId =
+                            (int)Math.Round(
+                                type.DogmaAttributes
+                                    .FirstOrDefault(
+                                        a => a.AttributeId ==
+                                             SecondaryAttributeDogmaId)
+                                    ?.Value ?? 0);
+
                         return new EveSkillCatalogEntry
                         {
                             SkillId = item.typeId,
@@ -173,7 +196,9 @@ public sealed class EveSkillCatalogService
                             GroupId = item.group.GroupId,
                             GroupName = item.group.Name,
                             Rank = rank,
-                            MaxSp = 256000L * rank
+                            MaxSp = 256000L * rank,
+                            PrimaryAttributeId = primaryAttributeId,
+                            SecondaryAttributeId = secondaryAttributeId
                         };
                     }
                     finally
@@ -215,6 +240,7 @@ public sealed class EveSkillCatalogService
 
             var cache = new EveSkillCatalogCache
             {
+                SchemaVersion = CacheSchemaVersion,
                 GeneratedUtc = DateTime.UtcNow,
                 Entries = entries
             };

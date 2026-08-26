@@ -24,6 +24,8 @@ public partial class PilotCommandCenterWindow : Window
     private bool _loaded;
     private string _skillFilter = "all";
     private List<SkillRowViewModel> _allSkillRows = new();
+    private List<QueueRowViewModel> _queueRows = new();
+    private EveTrainingProfile _trainingProfile = new();
 
     public ObservableCollection<PilotCardViewModel> Pilots { get; } = new();
     public ObservableCollection<SkillGroupViewModel> SkillGroups { get; } = new();
@@ -195,16 +197,38 @@ public partial class PilotCommandCenterWindow : Window
                 data.Summary.CurrentProgressPercent;
             QueueEndsText.Text =
                 data.Summary.QueueEndsIn;
-            SkillQueueGrid.ItemsSource =
-                data.SkillQueue;
             WalletGrid.ItemsSource =
                 data.WalletJournal;
 
+            _trainingProfile = data.TrainingProfile;
+
+            AttributeItems.ItemsSource =
+                data.TrainingProfile.Attributes;
+            ImplantItems.ItemsSource =
+                data.TrainingProfile.Implants;
+
+            RemapSummaryText.Text =
+                $"Bonus remaps: {data.TrainingProfile.BonusRemaps}  â€¢  " +
+                data.TrainingProfile.StandardRemapText;
+
+            ImplantAccessText.Text =
+                data.TrainingProfile.ImplantDataAvailable
+                    ? data.TrainingProfile.Implants.Count > 0
+                        ? $"ACTIVE IMPLANTS  â€¢  {data.TrainingProfile.Implants.Count}"
+                        : "ACTIVE IMPLANTS  â€¢  none"
+                    : "IMPLANT DETAILS LOCKED  â€¢  Add Character again and select this pilot to grant implant access.";
+
             card.Apply(data.Summary);
 
-            await LoadSkillBrowserAsync(
-                data.TrainedSkills,
-                _loadCts.Token);
+            IReadOnlyList<EveSkillCatalogEntry> catalog =
+                await LoadSkillBrowserAsync(
+                    data.TrainedSkills,
+                    _loadCts.Token);
+
+            BuildQueueRows(
+                data.SkillQueue,
+                catalog,
+                data.TrainingProfile);
 
             SetStatus(
                 $"{card.CharacterName} • updated " +
@@ -265,6 +289,12 @@ public partial class PilotCommandCenterWindow : Window
         SkillProgress.Value = 0;
         SkillQueueGrid.ItemsSource = null;
         WalletGrid.ItemsSource = null;
+        AttributeItems.ItemsSource = null;
+        ImplantItems.ItemsSource = null;
+        RemapSummaryText.Text = "-";
+        ImplantAccessText.Text = "";
+        _trainingProfile = new();
+        _queueRows.Clear();
 
         _allSkillRows.Clear();
         SkillGroups.Clear();
@@ -274,7 +304,7 @@ public partial class PilotCommandCenterWindow : Window
         SkillsCatalogStatusText.Text = "";
     }
 
-    private async Task LoadSkillBrowserAsync(
+    private async Task<IReadOnlyList<EveSkillCatalogEntry>> LoadSkillBrowserAsync(
         IReadOnlyList<EveSkillEntry> trainedSkills,
         CancellationToken cancellationToken)
     {
@@ -302,7 +332,9 @@ public partial class PilotCommandCenterWindow : Window
 
                 return new SkillRowViewModel(
                     entry,
-                    trained);
+                    trained,
+                    _trainingProfile,
+                    AttributeAlignmentToggle.IsChecked == true);
             })
             .OrderBy(
                 row => row.GroupName,
@@ -347,7 +379,138 @@ public partial class PilotCommandCenterWindow : Window
 
         SkillsCatalogStatusText.Text =
             $"{catalog.Count:N0} published skills";
+
+        return catalog;
     }
+
+    private void AttributeAlignmentToggle_Click(
+        object sender,
+        RoutedEventArgs e)
+    {
+        bool enabled =
+            AttributeAlignmentToggle.IsChecked == true;
+
+        foreach (SkillRowViewModel row in _allSkillRows)
+            row.HighlightOffMap = enabled;
+
+        foreach (QueueRowViewModel row in _queueRows)
+            row.HighlightOffMap = enabled;
+
+        ApplySkillFilters();
+
+        SkillQueueGrid.ItemsSource = null;
+        SkillQueueGrid.ItemsSource = _queueRows;
+    }
+
+    private void BuildQueueRows(
+        IReadOnlyList<EveSkillQueueView> queue,
+        IReadOnlyList<EveSkillCatalogEntry> catalog,
+        EveTrainingProfile trainingProfile)
+    {
+        var catalogById =
+            catalog.ToDictionary(
+                entry => entry.SkillId);
+
+        bool highlight =
+            AttributeAlignmentToggle.IsChecked == true;
+
+        _queueRows = queue
+            .Select(entry =>
+            {
+                catalogById.TryGetValue(
+                    entry.SkillId,
+                    out EveSkillCatalogEntry? skill);
+
+                return new QueueRowViewModel(
+                    entry,
+                    skill,
+                    trainingProfile,
+                    highlight);
+            })
+            .ToList();
+
+        SkillQueueGrid.ItemsSource = _queueRows;
+    }
+
+    private static AttributePresentation GetAttributePresentation(
+        int dogmaAttributeId)
+    {
+        return dogmaAttributeId switch
+        {
+            164 => new(
+                "Charisma",
+                "CHA",
+                "âœ¦",
+                "#FF8FA6"),
+            165 => new(
+                "Intelligence",
+                "INT",
+                "â—†",
+                "#64C7FF"),
+            166 => new(
+                "Memory",
+                "MEM",
+                "â—",
+                "#9FD67A"),
+            167 => new(
+                "Perception",
+                "PER",
+                "â—‰",
+                "#E7B85A"),
+            168 => new(
+                "Willpower",
+                "WIL",
+                "â–²",
+                "#D693FF"),
+            _ => new(
+                "Unknown",
+                "?",
+                "Â·",
+                "#78958E")
+        };
+    }
+
+    private static AlignmentPresentation GetAlignment(
+        int primaryAttributeId,
+        int secondaryAttributeId,
+        EveTrainingProfile profile)
+    {
+        int primary =
+            profile.GetTotal(primaryAttributeId);
+        int secondary =
+            profile.GetTotal(secondaryAttributeId);
+
+        double rate =
+            primary + secondary / 2.0;
+
+        double best =
+            profile.BestCurrentTrainingRate;
+
+        double alignment =
+            best <= 0
+                ? 1.0
+                : Math.Clamp(rate / best, 0, 1);
+
+        bool offMap =
+            best > 0 &&
+            alignment < 0.90;
+
+        return new AlignmentPresentation(
+            rate,
+            alignment,
+            offMap);
+    }
+
+    private readonly record struct AttributePresentation(
+        string Name,
+        string ShortName,
+        string Symbol,
+        string Accent);
+
+    private readonly record struct AlignmentPresentation(
+        double Rate,
+        double Alignment,
+        bool IsOffMap);
 
     private void SkillSearchBox_TextChanged(
         object sender,
@@ -639,7 +802,9 @@ public partial class PilotCommandCenterWindow : Window
 
         public SkillRowViewModel(
             EveSkillCatalogEntry catalog,
-            EveSkillEntry? trained)
+            EveSkillEntry? trained,
+            EveTrainingProfile trainingProfile,
+            bool highlightOffMap)
         {
             SkillId = catalog.SkillId;
             Name = catalog.Name;
@@ -705,6 +870,37 @@ public partial class PilotCommandCenterWindow : Window
 
                 NextForeground = "#E7B85A";
             }
+
+            PrimaryAttributeId =
+                catalog.PrimaryAttributeId;
+            SecondaryAttributeId =
+                catalog.SecondaryAttributeId;
+
+            AttributePresentation primary =
+                GetAttributePresentation(
+                    PrimaryAttributeId);
+            AttributePresentation secondary =
+                GetAttributePresentation(
+                    SecondaryAttributeId);
+
+            PrimaryBadge =
+                $"{primary.Symbol} {primary.ShortName}";
+            SecondaryBadge =
+                $"{secondary.Symbol} {secondary.ShortName}";
+            PrimaryAccent = primary.Accent;
+            SecondaryAccent = secondary.Accent;
+
+            AlignmentPresentation alignment =
+                GetAlignment(
+                    PrimaryAttributeId,
+                    SecondaryAttributeId,
+                    trainingProfile);
+
+            TrainingRate = alignment.Rate;
+            AlignmentPercent =
+                alignment.Alignment * 100.0;
+            IsOffMap = alignment.IsOffMap;
+            HighlightOffMap = highlightOffMap;
         }
 
         public int SkillId { get; }
@@ -722,6 +918,180 @@ public partial class PilotCommandCenterWindow : Window
         public string NextText { get; }
         public string NextForeground { get; }
         public IReadOnlyList<SkillLevelBlock> LevelBlocks { get; }
+
+        public int PrimaryAttributeId { get; }
+        public int SecondaryAttributeId { get; }
+        public string PrimaryBadge { get; }
+        public string SecondaryBadge { get; }
+        public string PrimaryAccent { get; }
+        public string SecondaryAccent { get; }
+        public double TrainingRate { get; }
+        public double AlignmentPercent { get; }
+        public bool IsOffMap { get; }
+
+        public bool HighlightOffMap { get; set; }
+
+        public string AlignmentText =>
+            $"{TrainingRate:0.0} SP/min  â€¢  {AlignmentPercent:0}%";
+
+        public string AlignmentForeground =>
+            IsOffMap
+                ? "#E7B85A"
+                : "#58D3B4";
+
+        public string RowBackground =>
+            HighlightOffMap && IsOffMap
+                ? "#2A2418"
+                : "#0D171A";
+    }
+
+    public sealed class QueueRowViewModel
+    {
+        public QueueRowViewModel(
+            EveSkillQueueView source,
+            EveSkillCatalogEntry? catalog,
+            EveTrainingProfile trainingProfile,
+            bool highlightOffMap)
+        {
+            Position = source.Position;
+            Skill = source.Skill;
+            LevelText = $"â†’ {source.Level}";
+            Starts = source.Starts;
+            Finishes = source.Finishes;
+            Remaining = source.Remaining;
+
+            int primaryId =
+                catalog?.PrimaryAttributeId ?? 0;
+            int secondaryId =
+                catalog?.SecondaryAttributeId ?? 0;
+
+            AttributePresentation primary =
+                GetAttributePresentation(
+                    primaryId);
+            AttributePresentation secondary =
+                GetAttributePresentation(
+                    secondaryId);
+
+            PrimaryBadge =
+                $"{primary.Symbol} {primary.ShortName}";
+            SecondaryBadge =
+                $"{secondary.Symbol} {secondary.ShortName}";
+            PrimaryAccent = primary.Accent;
+            SecondaryAccent = secondary.Accent;
+
+            AlignmentPresentation alignment =
+                GetAlignment(
+                    primaryId,
+                    secondaryId,
+                    trainingProfile);
+
+            TrainingRate = alignment.Rate;
+            AlignmentPercent =
+                alignment.Alignment * 100.0;
+            IsOffMap = alignment.IsOffMap;
+            HighlightOffMap = highlightOffMap;
+
+            DateTimeOffset now =
+                DateTimeOffset.UtcNow;
+
+            bool current =
+                source.FinishDate.HasValue &&
+                source.FinishDate.Value > now &&
+                (!source.StartDate.HasValue ||
+                 source.StartDate.Value <= now);
+
+            IsCurrent = current;
+
+            if (current &&
+                source.StartDate.HasValue &&
+                source.FinishDate.HasValue &&
+                source.FinishDate.Value >
+                source.StartDate.Value)
+            {
+                double total =
+                    (source.FinishDate.Value -
+                     source.StartDate.Value)
+                    .TotalSeconds;
+
+                double elapsed =
+                    (now -
+                     source.StartDate.Value)
+                    .TotalSeconds;
+
+                ProgressPercent =
+                    Math.Clamp(
+                        elapsed * 100.0 / total,
+                        0,
+                        100);
+            }
+            else
+            {
+                ProgressPercent = 0;
+            }
+        }
+
+        public int Position { get; }
+        public string Skill { get; }
+        public string LevelText { get; }
+        public string Starts { get; }
+        public string Finishes { get; }
+        public string Remaining { get; }
+        public string PrimaryBadge { get; }
+        public string SecondaryBadge { get; }
+        public string PrimaryAccent { get; }
+        public string SecondaryAccent { get; }
+        public double TrainingRate { get; }
+        public double AlignmentPercent { get; }
+        public bool IsOffMap { get; }
+        public bool IsCurrent { get; }
+        public double ProgressPercent { get; }
+
+        public bool HighlightOffMap { get; set; }
+
+        public string AlignmentText =>
+            $"{TrainingRate:0.0} SP/min  â€¢  {AlignmentPercent:0}%";
+
+        public string AlignmentForeground =>
+            IsOffMap
+                ? "#E7B85A"
+                : "#58D3B4";
+
+        public string RowBackground =>
+            HighlightOffMap && IsOffMap
+                ? "#2A2418"
+                : IsCurrent
+                    ? "#102522"
+                    : "#0D171A";
+
+        public string RowBorderBrush =>
+            HighlightOffMap && IsOffMap
+                ? "#8C6A2E"
+                : IsCurrent
+                    ? "#2D7E6C"
+                    : "#15282B";
+
+        public string StatusText =>
+            IsCurrent
+                ? IsOffMap
+                    ? "TRAINING â€¢ OFF-MAP"
+                    : "TRAINING"
+                : IsOffMap
+                    ? "OFF-MAP"
+                    : "QUEUED";
+
+        public string StatusBackground =>
+            IsOffMap
+                ? "#3A2F16"
+                : IsCurrent
+                    ? "#153D34"
+                    : "#162124";
+
+        public string StatusForeground =>
+            IsOffMap
+                ? "#F2C96D"
+                : IsCurrent
+                    ? "#58D3B4"
+                    : "#8FA9A3";
     }
 
     public sealed class SkillGroupViewModel :

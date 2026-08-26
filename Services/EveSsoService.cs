@@ -32,7 +32,8 @@ public sealed class EveSsoService
         "esi-skills.read_skillqueue.v1",
         "esi-wallet.read_character_wallet.v1",
         "esi-location.read_location.v1",
-        "esi-location.read_ship_type.v1"
+        "esi-location.read_ship_type.v1",
+        "esi-clones.read_implants.v1"
     };
 
     private sealed class TokenCache
@@ -59,7 +60,20 @@ public sealed class EveSsoService
     private readonly string _pilotFile;
     private readonly Dictionary<long, TokenCache> _accessTokens = new();
     private readonly Dictionary<int, string> _typeNames = new();
+    private readonly Dictionary<int, EveUniverseType> _typeDetails = new();
     private readonly Dictionary<int, string> _systemNames = new();
+
+    private const int CharismaAttributeId = 164;
+    private const int IntelligenceAttributeId = 165;
+    private const int MemoryAttributeId = 166;
+    private const int PerceptionAttributeId = 167;
+    private const int WillpowerAttributeId = 168;
+
+    private const int CharismaBonusDogmaId = 175;
+    private const int IntelligenceBonusDogmaId = 176;
+    private const int MemoryBonusDogmaId = 177;
+    private const int PerceptionBonusDogmaId = 178;
+    private const int WillpowerBonusDogmaId = 179;
 
     public EveSsoService()
     {
@@ -375,12 +389,19 @@ public sealed class EveSsoService
                 token,
                 cancellationToken);
 
+        Task<EveTrainingProfile> trainingProfileTask =
+            GetTrainingProfileAsync(
+                pilot,
+                token,
+                cancellationToken);
+
         await Task.WhenAll(
             skillsTask,
             queueTask,
             walletTask,
             journalTask,
-            contextTask);
+            contextTask,
+            trainingProfileTask);
 
         List<EveSkillQueueEntry> queue =
             (await queueTask).OrderBy(q => q.QueuePosition).ToList();
@@ -393,6 +414,8 @@ public sealed class EveSsoService
             queueViews.Add(new EveSkillQueueView
             {
                 Position = entry.QueuePosition + 1,
+                SkillId = entry.SkillId,
+                FinishedLevel = entry.FinishedLevel,
                 Skill = name,
                 Level = Roman(entry.FinishedLevel),
                 Starts = entry.StartDate?.ToLocalTime()
@@ -402,7 +425,12 @@ public sealed class EveSsoService
                 Remaining = entry.FinishDate.HasValue
                     ? FormatDuration(
                         entry.FinishDate.Value - DateTimeOffset.UtcNow)
-                    : "-"
+                    : "-",
+                StartDate = entry.StartDate,
+                FinishDate = entry.FinishDate,
+                TrainingStartSp = entry.TrainingStartSp,
+                LevelStartSp = entry.LevelStartSp,
+                LevelEndSp = entry.LevelEndSp
             });
         }
 
@@ -469,11 +497,238 @@ public sealed class EveSsoService
         return new EvePilotDashboard
         {
             Summary = summary,
+            TrainingProfile = await trainingProfileTask,
             TrainedSkills = skills.Skills.ToArray(),
             SkillQueue = queueViews,
             WalletJournal = journal
         };
     }
+
+    private async Task<EveTrainingProfile> GetTrainingProfileAsync(
+        EvePilotProfile pilot,
+        string accessToken,
+        CancellationToken cancellationToken)
+    {
+        EveCharacterAttributesResponse current =
+            await GetEsiAsync<EveCharacterAttributesResponse>(
+                $"/characters/{pilot.CharacterId}/attributes/",
+                accessToken,
+                cancellationToken);
+
+        bool canReadImplants =
+            HasScope(
+                pilot,
+                "esi-clones.read_implants.v1");
+
+        var implantViews = new List<EveImplantView>();
+
+        int charismaBonus = 0;
+        int intelligenceBonus = 0;
+        int memoryBonus = 0;
+        int perceptionBonus = 0;
+        int willpowerBonus = 0;
+
+        if (canReadImplants)
+        {
+            try
+            {
+                List<int> implantIds =
+                    await GetEsiAsync<List<int>>(
+                        $"/characters/{pilot.CharacterId}/implants/",
+                        accessToken,
+                        cancellationToken);
+
+                foreach (int typeId in implantIds)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+
+                    EveUniverseType implant =
+                        await GetUniverseTypeAsync(
+                            typeId,
+                            cancellationToken);
+
+                    int c = GetDogmaInt(
+                        implant,
+                        CharismaBonusDogmaId);
+                    int i = GetDogmaInt(
+                        implant,
+                        IntelligenceBonusDogmaId);
+                    int m = GetDogmaInt(
+                        implant,
+                        MemoryBonusDogmaId);
+                    int p = GetDogmaInt(
+                        implant,
+                        PerceptionBonusDogmaId);
+                    int w = GetDogmaInt(
+                        implant,
+                        WillpowerBonusDogmaId);
+
+                    charismaBonus += c;
+                    intelligenceBonus += i;
+                    memoryBonus += m;
+                    perceptionBonus += p;
+                    willpowerBonus += w;
+
+                    var bonuses = new List<string>();
+                    if (c != 0) bonuses.Add($"+{c} CHA");
+                    if (i != 0) bonuses.Add($"+{i} INT");
+                    if (m != 0) bonuses.Add($"+{m} MEM");
+                    if (p != 0) bonuses.Add($"+{p} PER");
+                    if (w != 0) bonuses.Add($"+{w} WIL");
+
+                    implantViews.Add(
+                        new EveImplantView
+                        {
+                            TypeId = typeId,
+                            Name = string.IsNullOrWhiteSpace(
+                                implant.Name)
+                                ? $"Implant {typeId}"
+                                : implant.Name,
+                            BonusText = bonuses.Count > 0
+                                ? string.Join("  ", bonuses)
+                                : "non-attribute implant"
+                        });
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine(
+                    $"[PilotTraining] Implant lookup failed: {ex.Message}");
+                canReadImplants = false;
+                implantViews.Clear();
+            }
+        }
+
+        EveTrainingAttribute[] attributes =
+        {
+            MakeTrainingAttribute(
+                IntelligenceAttributeId,
+                "Intelligence",
+                "INT",
+                "â—†",
+                "#64C7FF",
+                current.Intelligence,
+                intelligenceBonus,
+                canReadImplants),
+            MakeTrainingAttribute(
+                MemoryAttributeId,
+                "Memory",
+                "MEM",
+                "â—",
+                "#9FD67A",
+                current.Memory,
+                memoryBonus,
+                canReadImplants),
+            MakeTrainingAttribute(
+                PerceptionAttributeId,
+                "Perception",
+                "PER",
+                "â—‰",
+                "#E7B85A",
+                current.Perception,
+                perceptionBonus,
+                canReadImplants),
+            MakeTrainingAttribute(
+                WillpowerAttributeId,
+                "Willpower",
+                "WIL",
+                "â–²",
+                "#D693FF",
+                current.Willpower,
+                willpowerBonus,
+                canReadImplants),
+            MakeTrainingAttribute(
+                CharismaAttributeId,
+                "Charisma",
+                "CHA",
+                "âœ¦",
+                "#FF8FA6",
+                current.Charisma,
+                charismaBonus,
+                canReadImplants)
+        };
+
+        string standardRemapText;
+
+        if (!current.AccruedRemapCooldownDate.HasValue ||
+            current.AccruedRemapCooldownDate.Value <=
+            DateTimeOffset.UtcNow)
+        {
+            standardRemapText = "Standard remap available";
+        }
+        else
+        {
+            standardRemapText =
+                "Standard remap " +
+                current.AccruedRemapCooldownDate.Value
+                    .ToLocalTime()
+                    .ToString("dd MMM yyyy");
+        }
+
+        return new EveTrainingProfile
+        {
+            Attributes = attributes,
+            Implants = implantViews
+                .OrderBy(i => i.Name, StringComparer.OrdinalIgnoreCase)
+                .ToArray(),
+            BonusRemaps = current.BonusRemaps ?? 0,
+            StandardRemapText = standardRemapText,
+            ImplantDataAvailable = canReadImplants
+        };
+    }
+
+    private static EveTrainingAttribute MakeTrainingAttribute(
+        int dogmaAttributeId,
+        string name,
+        string shortName,
+        string symbol,
+        string accent,
+        int total,
+        int implantBonus,
+        bool implantDataAvailable)
+    {
+        return new EveTrainingAttribute
+        {
+            DogmaAttributeId = dogmaAttributeId,
+            Name = name,
+            ShortName = shortName,
+            Symbol = symbol,
+            Accent = accent,
+            Total = total,
+            ImplantBonus = implantBonus,
+            Raw = implantDataAvailable
+                ? Math.Max(0, total - implantBonus)
+                : null
+        };
+    }
+
+    private static int GetDogmaInt(
+        EveUniverseType type,
+        int dogmaAttributeId)
+    {
+        EveDogmaAttributeValue? value =
+            type.DogmaAttributes.FirstOrDefault(
+                a => a.AttributeId == dogmaAttributeId);
+
+        return value == null
+            ? 0
+            : (int)Math.Round(
+                value.Value,
+                MidpointRounding.AwayFromZero);
+    }
+
+    private static bool HasScope(
+        EvePilotProfile pilot,
+        string scope) =>
+        pilot.Scopes.Any(
+            value => string.Equals(
+                value,
+                scope,
+                StringComparison.OrdinalIgnoreCase));
 
     private async Task<string> GetAccessTokenAsync(
         EvePilotProfile pilot,
@@ -798,23 +1053,48 @@ public sealed class EveSsoService
         return name;
     }
 
+    private async Task<EveUniverseType> GetUniverseTypeAsync(
+        int typeId,
+        CancellationToken cancellationToken)
+    {
+        if (_typeDetails.TryGetValue(
+                typeId,
+                out EveUniverseType? cached))
+            return cached;
+
+        EveUniverseType type =
+            await GetEsiAsync<EveUniverseType>(
+                $"/universe/types/{typeId}/",
+                null,
+                cancellationToken);
+
+        _typeDetails[typeId] = type;
+
+        string name = string.IsNullOrWhiteSpace(type.Name)
+            ? $"Type {typeId}"
+            : type.Name;
+
+        _typeNames[typeId] = name;
+        return type;
+    }
+
     private async Task<string> GetTypeNameAsync(
         int typeId,
         CancellationToken cancellationToken)
     {
         if (_typeNames.TryGetValue(
-                typeId, out string? name))
+                typeId,
+                out string? name))
             return name;
 
         EveUniverseType type =
-            await GetEsiAsync<EveUniverseType>(
-                $"/universe/types/{typeId}/",
-                null, cancellationToken);
+            await GetUniverseTypeAsync(
+                typeId,
+                cancellationToken);
 
-        name = string.IsNullOrWhiteSpace(type.Name)
-            ? $"Type {typeId}" : type.Name;
-        _typeNames[typeId] = name;
-        return name;
+        return string.IsNullOrWhiteSpace(type.Name)
+            ? $"Type {typeId}"
+            : type.Name;
     }
 
     private async Task UpsertPilotAsync(

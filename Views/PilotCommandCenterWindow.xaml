@@ -260,6 +260,59 @@
             <Setter Property="BorderBrush" Value="#274740"/>
         </Style>
 
+        <Style x:Key="AttributeToggleButton"
+               TargetType="ToggleButton">
+            <Setter Property="Foreground" Value="#91AAA4"/>
+            <Setter Property="Background" Value="#101F22"/>
+            <Setter Property="BorderBrush" Value="#274740"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="10,5"/>
+            <Setter Property="MinHeight" Value="28"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FontSize" Value="9.5"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ToggleButton">
+                        <Border x:Name="ToggleShell"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="8"
+                                Padding="{TemplateBinding Padding}">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock x:Name="Dot"
+                                           Text="â—"
+                                           Foreground="#526D67"
+                                           Margin="0,0,6,0"/>
+                                <ContentPresenter/>
+                            </StackPanel>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="ToggleShell"
+                                        Property="BorderBrush"
+                                        Value="#4B8A7D"/>
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="ToggleShell"
+                                        Property="Background"
+                                        Value="#3A2F16"/>
+                                <Setter TargetName="ToggleShell"
+                                        Property="BorderBrush"
+                                        Value="#C99B42"/>
+                                <Setter Property="Foreground"
+                                        Value="#F2C96D"/>
+                                <Setter TargetName="Dot"
+                                        Property="Foreground"
+                                        Value="#F2C96D"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <Style x:Key="SkillSearchTextBox" TargetType="TextBox">
             <Setter Property="Height" Value="32"/>
             <Setter Property="Foreground" Value="#EAF7F4"/>
@@ -627,13 +680,25 @@
                     </StackPanel>
                 </Border>
 
-                <StackPanel Grid.Column="4" Orientation="Horizontal"
+                <StackPanel Grid.Column="4"
                             VerticalAlignment="Center">
-                    <Button Content="Refresh" Margin="0,0,8,0"
-                            Click="Refresh_Click"/>
-                    <Button Content="Disconnect"
-                            Background="#342022" BorderBrush="#6B353B"
-                            Click="Disconnect_Click"/>
+                    <StackPanel Orientation="Horizontal">
+                        <Button Content="Refresh" Margin="0,0,8,0"
+                                Click="Refresh_Click"/>
+                        <Button Content="Disconnect"
+                                Background="#342022"
+                                BorderBrush="#6B353B"
+                                Click="Disconnect_Click"/>
+                    </StackPanel>
+
+                    <ToggleButton x:Name="AttributeAlignmentToggle"
+                                  Style="{StaticResource AttributeToggleButton}"
+                                  Content="HIGHLIGHT OFF-MAP"
+                                  IsChecked="True"
+                                  HorizontalAlignment="Stretch"
+                                  Margin="0,7,0,0"
+                                  Click="AttributeAlignmentToggle_Click"
+                                  ToolTip="Highlight skills whose primary/secondary attributes are poorly aligned with the character's current attribute map."/>
                 </StackPanel>
             </Grid>
 
@@ -749,11 +814,12 @@
                                 <Grid>
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="120"/>
-                                        <ColumnDefinition Width="105"/>
-                                        <ColumnDefinition Width="90"/>
-                                        <ColumnDefinition Width="190"/>
-                                        <ColumnDefinition Width="190"/>
+                                        <ColumnDefinition Width="110"/>
+                                        <ColumnDefinition Width="95"/>
+                                        <ColumnDefinition Width="70"/>
+                                        <ColumnDefinition Width="235"/>
+                                        <ColumnDefinition Width="170"/>
+                                        <ColumnDefinition Width="170"/>
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Text="Skill"
                                                Foreground="#63CDB2"
@@ -774,11 +840,16 @@
                                                FontWeight="SemiBold"
                                                HorizontalAlignment="Center"/>
                                     <TextBlock Grid.Column="4"
-                                               Text="Skill Points"
+                                               Text="Attributes / Rate"
                                                Foreground="#63CDB2"
                                                FontWeight="SemiBold"
                                                HorizontalAlignment="Center"/>
                                     <TextBlock Grid.Column="5"
+                                               Text="Skill Points"
+                                               Foreground="#63CDB2"
+                                               FontWeight="SemiBold"
+                                               HorizontalAlignment="Center"/>
+                                    <TextBlock Grid.Column="6"
                                                Text="Next Level"
                                                Foreground="#63CDB2"
                                                FontWeight="SemiBold"
@@ -834,18 +905,19 @@
                                                 <ItemsControl ItemsSource="{Binding Skills}">
                                                     <ItemsControl.ItemTemplate>
                                                         <DataTemplate>
-                                                            <Border Background="#0D171A"
+                                                            <Border Background="{Binding RowBackground}"
                                                                     BorderBrush="#15282B"
                                                                     BorderThickness="0,0,0,1"
                                                                     Padding="10,7">
                                                                 <Grid>
                                                                     <Grid.ColumnDefinitions>
                                                                         <ColumnDefinition Width="*"/>
-                                                                        <ColumnDefinition Width="120"/>
-                                                                        <ColumnDefinition Width="105"/>
-                                                                        <ColumnDefinition Width="90"/>
-                                                                        <ColumnDefinition Width="190"/>
-                                                                        <ColumnDefinition Width="190"/>
+                                                                        <ColumnDefinition Width="110"/>
+                                                                        <ColumnDefinition Width="95"/>
+                                                                        <ColumnDefinition Width="70"/>
+                                                                        <ColumnDefinition Width="235"/>
+                                                                        <ColumnDefinition Width="170"/>
+                                                                        <ColumnDefinition Width="170"/>
                                                                     </Grid.ColumnDefinitions>
 
                                                                     <TextBlock Text="{Binding Name}"
@@ -897,13 +969,49 @@
                                                                                HorizontalAlignment="Center"
                                                                                VerticalAlignment="Center"/>
 
-                                                                    <TextBlock Grid.Column="4"
+                                                                    <StackPanel Grid.Column="4"
+                                                                                HorizontalAlignment="Center"
+                                                                                VerticalAlignment="Center">
+                                                                        <StackPanel Orientation="Horizontal"
+                                                                                    HorizontalAlignment="Center">
+                                                                            <Border Background="#132229"
+                                                                                    BorderBrush="{Binding PrimaryAccent}"
+                                                                                    BorderThickness="1"
+                                                                                    CornerRadius="5"
+                                                                                    Padding="5,2"
+                                                                                    Margin="0,0,4,0">
+                                                                                <TextBlock Text="{Binding PrimaryBadge}"
+                                                                                           Foreground="{Binding PrimaryAccent}"
+                                                                                           FontSize="9"
+                                                                                           FontWeight="SemiBold"/>
+                                                                            </Border>
+
+                                                                            <Border Background="#132229"
+                                                                                    BorderBrush="{Binding SecondaryAccent}"
+                                                                                    BorderThickness="1"
+                                                                                    CornerRadius="5"
+                                                                                    Padding="5,2">
+                                                                                <TextBlock Text="{Binding SecondaryBadge}"
+                                                                                           Foreground="{Binding SecondaryAccent}"
+                                                                                           FontSize="9"
+                                                                                           FontWeight="SemiBold"/>
+                                                                            </Border>
+                                                                        </StackPanel>
+
+                                                                        <TextBlock Text="{Binding AlignmentText}"
+                                                                                   Foreground="{Binding AlignmentForeground}"
+                                                                                   FontSize="8.5"
+                                                                                   HorizontalAlignment="Center"
+                                                                                   Margin="0,3,0,0"/>
+                                                                    </StackPanel>
+
+                                                                    <TextBlock Grid.Column="5"
                                                                                Text="{Binding SpText}"
                                                                                Foreground="#DCEAE6"
                                                                                HorizontalAlignment="Center"
                                                                                VerticalAlignment="Center"/>
 
-                                                                    <TextBlock Grid.Column="5"
+                                                                    <TextBlock Grid.Column="6"
                                                                                Text="{Binding NextText}"
                                                                                Foreground="{Binding NextForeground}"
                                                                                HorizontalAlignment="Center"
@@ -921,17 +1029,289 @@
                         </Grid>
                     </TabItem>
                     <TabItem Header="Skill Queue">
+                        <Grid Margin="0,6,0,0">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
 
-                        <DataGrid x:Name="SkillQueueGrid" Margin="0,10,0,0">
-                            <DataGrid.Columns>
-                                <DataGridTextColumn Header="#" Binding="{Binding Position}" Width="55"/>
-                                <DataGridTextColumn Header="Skill" Binding="{Binding Skill}" Width="*"/>
-                                <DataGridTextColumn Header="Level" Binding="{Binding Level}" Width="85"/>
-                                <DataGridTextColumn Header="Starts" Binding="{Binding Starts}" Width="150"/>
-                                <DataGridTextColumn Header="Finishes" Binding="{Binding Finishes}" Width="150"/>
-                                <DataGridTextColumn Header="Remaining" Binding="{Binding Remaining}" Width="120"/>
-                            </DataGrid.Columns>
-                        </DataGrid>
+                            <Border Grid.Row="0"
+                                    Background="#0E1A1D"
+                                    BorderBrush="#25463F"
+                                    BorderThickness="1"
+                                    CornerRadius="10"
+                                    Padding="12"
+                                    Margin="0,0,0,9">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="420"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <StackPanel Grid.Column="0">
+                                        <DockPanel Margin="0,0,0,7">
+                                            <TextBlock Text="TRAINING PROFILE"
+                                                       Foreground="#63CDB2"
+                                                       FontSize="10"
+                                                       FontWeight="Bold"
+                                                       VerticalAlignment="Center"/>
+                                            <TextBlock x:Name="RemapSummaryText"
+                                                       DockPanel.Dock="Right"
+                                                       Foreground="#8FA9A3"
+                                                       FontSize="9.5"
+                                                       HorizontalAlignment="Right"/>
+                                        </DockPanel>
+
+                                        <ItemsControl x:Name="AttributeItems">
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate>
+                                                    <UniformGrid Rows="1"/>
+                                                </ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Border Background="#111F22"
+                                                            BorderBrush="{Binding Accent}"
+                                                            BorderThickness="1"
+                                                            CornerRadius="8"
+                                                            Padding="9,7"
+                                                            Margin="0,0,6,0">
+                                                        <StackPanel>
+                                                            <StackPanel Orientation="Horizontal">
+                                                                <TextBlock Text="{Binding Symbol}"
+                                                                           Foreground="{Binding Accent}"
+                                                                           FontSize="12"
+                                                                           FontWeight="Bold"/>
+                                                                <TextBlock Text="{Binding ShortName}"
+                                                                           Foreground="{Binding Accent}"
+                                                                           FontSize="9"
+                                                                           FontWeight="Bold"
+                                                                           Margin="5,0,0,0"/>
+                                                            </StackPanel>
+
+                                                            <TextBlock Text="{Binding Total}"
+                                                                       Foreground="#F2F8F6"
+                                                                       FontSize="20"
+                                                                       FontWeight="SemiBold"
+                                                                       Margin="0,2,0,0"/>
+
+                                                            <TextBlock Text="{Binding RawText}"
+                                                                       Foreground="#708F88"
+                                                                       FontSize="8.5"
+                                                                       TextTrimming="CharacterEllipsis"/>
+                                                        </StackPanel>
+                                                    </Border>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </StackPanel>
+
+                                    <Border Grid.Column="1"
+                                            Background="#101B1E"
+                                            BorderBrush="#203D38"
+                                            BorderThickness="1"
+                                            CornerRadius="8"
+                                            Padding="10"
+                                            Margin="10,0,0,0">
+                                        <Grid>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="*"/>
+                                            </Grid.RowDefinitions>
+
+                                            <TextBlock x:Name="ImplantAccessText"
+                                                       Foreground="#E7B85A"
+                                                       FontSize="9.5"
+                                                       TextWrapping="Wrap"
+                                                       Margin="0,0,0,6"/>
+
+                                            <ScrollViewer Grid.Row="1"
+                                                          VerticalScrollBarVisibility="Auto"
+                                                          HorizontalScrollBarVisibility="Disabled"
+                                                          MaxHeight="70">
+                                                <ItemsControl x:Name="ImplantItems">
+                                                    <ItemsControl.ItemTemplate>
+                                                        <DataTemplate>
+                                                            <DockPanel Margin="0,1">
+                                                                <TextBlock Text="{Binding Name}"
+                                                                           Foreground="#DCEAE6"
+                                                                           FontSize="9"
+                                                                           TextTrimming="CharacterEllipsis"/>
+                                                                <TextBlock Text="{Binding BonusText}"
+                                                                           DockPanel.Dock="Right"
+                                                                           Foreground="#58D3B4"
+                                                                           FontSize="8.5"
+                                                                           Margin="8,0,0,0"/>
+                                                            </DockPanel>
+                                                        </DataTemplate>
+                                                    </ItemsControl.ItemTemplate>
+                                                </ItemsControl>
+                                            </ScrollViewer>
+                                        </Grid>
+                                    </Border>
+                                </Grid>
+                            </Border>
+
+                            <Border Grid.Row="1"
+                                    Background="#142125"
+                                    BorderBrush="#203531"
+                                    BorderThickness="0,0,0,1"
+                                    Padding="10,7">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="48"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="235"/>
+                                        <ColumnDefinition Width="150"/>
+                                        <ColumnDefinition Width="150"/>
+                                        <ColumnDefinition Width="125"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <TextBlock Text="#"
+                                               Foreground="#63CDB2"
+                                               FontWeight="SemiBold"
+                                               HorizontalAlignment="Center"/>
+                                    <TextBlock Grid.Column="1"
+                                               Text="Skill / Progress"
+                                               Foreground="#63CDB2"
+                                               FontWeight="SemiBold"/>
+                                    <TextBlock Grid.Column="2"
+                                               Text="Attributes / Alignment"
+                                               Foreground="#63CDB2"
+                                               FontWeight="SemiBold"
+                                               HorizontalAlignment="Center"/>
+                                    <TextBlock Grid.Column="3"
+                                               Text="Starts"
+                                               Foreground="#63CDB2"
+                                               FontWeight="SemiBold"
+                                               HorizontalAlignment="Center"/>
+                                    <TextBlock Grid.Column="4"
+                                               Text="Finishes"
+                                               Foreground="#63CDB2"
+                                               FontWeight="SemiBold"
+                                               HorizontalAlignment="Center"/>
+                                    <TextBlock Grid.Column="5"
+                                               Text="Remaining"
+                                               Foreground="#63CDB2"
+                                               FontWeight="SemiBold"
+                                               HorizontalAlignment="Center"/>
+                                </Grid>
+                            </Border>
+
+                            <ScrollViewer Grid.Row="2"
+                                          VerticalScrollBarVisibility="Auto"
+                                          HorizontalScrollBarVisibility="Disabled">
+                                <ItemsControl x:Name="SkillQueueGrid">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Background="{Binding RowBackground}"
+                                                    BorderBrush="{Binding RowBorderBrush}"
+                                                    BorderThickness="0,0,0,1"
+                                                    Padding="10,7">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="48"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="235"/>
+                                                        <ColumnDefinition Width="150"/>
+                                                        <ColumnDefinition Width="150"/>
+                                                        <ColumnDefinition Width="125"/>
+                                                    </Grid.ColumnDefinitions>
+
+                                                    <TextBlock Text="{Binding Position}"
+                                                               Foreground="#78958E"
+                                                               HorizontalAlignment="Center"
+                                                               VerticalAlignment="Center"/>
+
+                                                    <StackPanel Grid.Column="1"
+                                                                VerticalAlignment="Center">
+                                                        <StackPanel Orientation="Horizontal">
+                                                            <TextBlock Text="{Binding Skill}"
+                                                                       Foreground="#F1F8F6"
+                                                                       FontWeight="SemiBold"/>
+                                                            <TextBlock Text="{Binding LevelText}"
+                                                                       Foreground="#E7B85A"
+                                                                       FontWeight="SemiBold"
+                                                                       Margin="7,0,0,0"/>
+                                                            <Border Background="{Binding StatusBackground}"
+                                                                    CornerRadius="5"
+                                                                    Padding="5,1"
+                                                                    Margin="8,0,0,0">
+                                                                <TextBlock Text="{Binding StatusText}"
+                                                                           Foreground="{Binding StatusForeground}"
+                                                                           FontSize="8"
+                                                                           FontWeight="Bold"/>
+                                                            </Border>
+                                                        </StackPanel>
+
+                                                        <ProgressBar Height="4"
+                                                                     Minimum="0"
+                                                                     Maximum="100"
+                                                                     Value="{Binding ProgressPercent, Mode=OneWay}"
+                                                                     Foreground="#58D3B4"
+                                                                     Background="#1A292C"
+                                                                     Margin="0,5,22,0"/>
+                                                    </StackPanel>
+
+                                                    <StackPanel Grid.Column="2"
+                                                                HorizontalAlignment="Center"
+                                                                VerticalAlignment="Center">
+                                                        <StackPanel Orientation="Horizontal"
+                                                                    HorizontalAlignment="Center">
+                                                            <Border Background="#132229"
+                                                                    BorderBrush="{Binding PrimaryAccent}"
+                                                                    BorderThickness="1"
+                                                                    CornerRadius="5"
+                                                                    Padding="5,2"
+                                                                    Margin="0,0,4,0">
+                                                                <TextBlock Text="{Binding PrimaryBadge}"
+                                                                           Foreground="{Binding PrimaryAccent}"
+                                                                           FontSize="9"
+                                                                           FontWeight="SemiBold"/>
+                                                            </Border>
+                                                            <Border Background="#132229"
+                                                                    BorderBrush="{Binding SecondaryAccent}"
+                                                                    BorderThickness="1"
+                                                                    CornerRadius="5"
+                                                                    Padding="5,2">
+                                                                <TextBlock Text="{Binding SecondaryBadge}"
+                                                                           Foreground="{Binding SecondaryAccent}"
+                                                                           FontSize="9"
+                                                                           FontWeight="SemiBold"/>
+                                                            </Border>
+                                                        </StackPanel>
+
+                                                        <TextBlock Text="{Binding AlignmentText}"
+                                                                   Foreground="{Binding AlignmentForeground}"
+                                                                   FontSize="8.5"
+                                                                   HorizontalAlignment="Center"
+                                                                   Margin="0,3,0,0"/>
+                                                    </StackPanel>
+
+                                                    <TextBlock Grid.Column="3"
+                                                               Text="{Binding Starts}"
+                                                               Foreground="#9DB5AF"
+                                                               HorizontalAlignment="Center"
+                                                               VerticalAlignment="Center"/>
+                                                    <TextBlock Grid.Column="4"
+                                                               Text="{Binding Finishes}"
+                                                               Foreground="#9DB5AF"
+                                                               HorizontalAlignment="Center"
+                                                               VerticalAlignment="Center"/>
+                                                    <TextBlock Grid.Column="5"
+                                                               Text="{Binding Remaining}"
+                                                               Foreground="#E7B85A"
+                                                               FontWeight="SemiBold"
+                                                               HorizontalAlignment="Center"
+                                                               VerticalAlignment="Center"/>
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </ScrollViewer>
+                        </Grid>
                     </TabItem>
 
                     <TabItem Header="Wallet">

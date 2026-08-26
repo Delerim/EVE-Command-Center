@@ -182,10 +182,13 @@ public sealed class EveSkillCatalogEntry
     public string GroupName { get; set; } = "";
     public int Rank { get; set; } = 1;
     public long MaxSp { get; set; } = 256000;
+    public int PrimaryAttributeId { get; set; }
+    public int SecondaryAttributeId { get; set; }
 }
 
 public sealed class EveSkillCatalogCache
 {
+    public int SchemaVersion { get; set; }
     public DateTime GeneratedUtc { get; set; }
     public List<EveSkillCatalogEntry> Entries { get; set; } = new();
 }
@@ -207,11 +210,18 @@ public sealed class EvePilotSummary
 public sealed class EveSkillQueueView
 {
     public int Position { get; init; }
+    public int SkillId { get; init; }
+    public int FinishedLevel { get; init; }
     public string Skill { get; init; } = "";
     public string Level { get; init; } = "";
     public string Starts { get; init; } = "";
     public string Finishes { get; init; } = "";
     public string Remaining { get; init; } = "";
+    public DateTimeOffset? StartDate { get; init; }
+    public DateTimeOffset? FinishDate { get; init; }
+    public long? TrainingStartSp { get; init; }
+    public long? LevelStartSp { get; init; }
+    public long? LevelEndSp { get; init; }
 }
 
 public sealed class EveWalletJournalView
@@ -226,6 +236,7 @@ public sealed class EveWalletJournalView
 public sealed class EvePilotDashboard
 {
     public EvePilotSummary Summary { get; init; } = new();
+    public EveTrainingProfile TrainingProfile { get; init; } = new();
     public IReadOnlyList<EveSkillEntry> TrainedSkills { get; init; } = Array.Empty<EveSkillEntry>();
     public IReadOnlyList<EveSkillQueueView> SkillQueue { get; init; } = Array.Empty<EveSkillQueueView>();
     public IReadOnlyList<EveWalletJournalView> WalletJournal { get; init; } = Array.Empty<EveWalletJournalView>();
