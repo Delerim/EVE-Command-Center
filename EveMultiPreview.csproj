@@ -15,7 +15,7 @@
     <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
     <AssemblyName>EVE Command Center</AssemblyName>
     <RootNamespace>EveMultiPreview</RootNamespace>
-    <Version>2.3.27</Version>
+    <Version>2.3.28</Version>
     <Title>EVE Command Center</Title>
     <Product>EVE Command Center</Product>
     <Description>EVE Online command center for multi-client preview, mining and pilot intelligence</Description>

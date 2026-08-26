@@ -1605,14 +1605,27 @@ public sealed class ThumbnailManager : IDisposable
                 bool charHidden = !string.IsNullOrEmpty(thumb.CharacterName)
                     && s.ThumbnailVisibility.TryGetValue(thumb.CharacterName, out var vf) && vf != 0;
 
+                // The active-thumbnail block below owns the focused client's thumbnail.
+                // Without this the two writers fight: switching INTO a client shows its
+                // thumbnail here and the active block hides it again in the same sweep.
+                bool willHideAsActive =
+                    s.HideActiveThumbnail &&
+                    eveHwnd == fgHwnd;
+
                 if (!appVisibleContext)
                 {
                     if (!_thumbnailsHidden)
                         thumb.HideWithOverlay();
                 }
-                else if (!_thumbnailsHidden && !_primaryHidden && !charHidden)
+                else if (!_thumbnailsHidden &&
+                         !_primaryHidden &&
+                         !charHidden &&
+                         !willHideAsActive)
                 {
-                    thumb.ShowWithOverlay();
+                    // State-guarded so ordinary sweeps do not repeatedly re-show
+                    // thumbnails and create a one-frame active-thumbnail flash.
+                    if (!thumb.IsVisible)
+                        thumb.ShowWithOverlay();
                 }
             }
             _primaryHiddenByFocus = !appVisibleContext && !_thumbnailsHidden;
@@ -1763,7 +1776,13 @@ public sealed class ThumbnailManager : IDisposable
         // Per-character Visibility-tab hides and the global hide-all flags
         // take precedence — this feature never un-hides a thumb the user
         // deliberately hid through those.
-        bool hideActiveNow = s.HideActiveThumbnail && !_thumbnailsHidden && !_primaryHidden;
+        // While focus-hiding owns the thumbnails, active-thumbnail handling must
+        // not immediately re-show them during the same sweep (#102).
+        bool hideActiveNow =
+            s.HideActiveThumbnail &&
+            !_thumbnailsHidden &&
+            !_primaryHidden &&
+            !_primaryHiddenByFocus;
         if (hideActiveNow)
         {
             foreach (var (eveHwnd, thumb) in _thumbnails)
@@ -1785,7 +1804,9 @@ public sealed class ThumbnailManager : IDisposable
             // Feature (or its enabling context) just turned off — restore
             // every thumbnail it may have hidden, minus explicit per-char
             // Visibility-tab hides and the global hide-all states.
-            if (!_thumbnailsHidden && !_primaryHidden)
+            if (!_thumbnailsHidden &&
+                !_primaryHidden &&
+                !_primaryHiddenByFocus)
             {
                 foreach (var (_, thumb) in _thumbnails)
                 {

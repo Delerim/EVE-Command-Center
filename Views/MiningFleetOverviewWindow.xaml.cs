@@ -31,6 +31,13 @@ public partial class MiningFleetOverviewWindow : Window
 
     private bool _pilotIntelRefreshBusy;
 
+    private bool _tileReorderMode;
+    private Point _tileDragStart;
+    private string? _tileDragCharacter;
+
+    private const string FleetTileDragFormat =
+        "EVECommandCenter.FleetTileCharacter";
+
     private const double ManualOrcaShieldBoostPercent = 19.7;
 
     public MiningFleetOverviewWindow(
@@ -656,9 +663,57 @@ public partial class MiningFleetOverviewWindow : Window
             });
         }
 
-        var ordered = cards
-            .OrderBy(x => x.Character, StringComparer.OrdinalIgnoreCase)
-            .ToList();
+        var savedOrder =
+            (_prefs.FleetTileOrder ?? new List<string>())
+                .Where(
+                    name =>
+                        !string.IsNullOrWhiteSpace(name))
+                .Distinct(
+                    StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+        var savedIndex =
+            savedOrder
+                .Select(
+                    (name, index) =>
+                        new
+                        {
+                            Name = name,
+                            Index = index
+                        })
+                .ToDictionary(
+                    item => item.Name,
+                    item => item.Index,
+                    StringComparer.OrdinalIgnoreCase);
+
+        bool hasCustomOrder =
+            savedIndex.Count > 0;
+
+        var ordered =
+            cards
+                .OrderBy(
+                    card =>
+                        savedIndex.ContainsKey(
+                            card.Character)
+                            ? 0
+                            : 1)
+                .ThenBy(
+                    card =>
+                        savedIndex.TryGetValue(
+                            card.Character,
+                            out int index)
+                            ? index
+                            : int.MaxValue)
+                .ThenBy(
+                    card =>
+                        !hasCustomOrder &&
+                        card.IsDroneMining
+                            ? 0
+                            : 1)
+                .ThenBy(
+                    card => card.Character,
+                    StringComparer.OrdinalIgnoreCase)
+                .ToList();
 
         int minerCount = ordered.Count;
 
@@ -702,7 +757,10 @@ public partial class MiningFleetOverviewWindow : Window
         MinerItems.ItemsSource = ordered;
 
         DayText.Text = $"DAY {_tracker.GetMiningDayLabel()}";
-        UpdatedText.Text = $"{cards.Count} miners | {DateTime.Now:HH:mm:ss}";
+        UpdatedText.Text =
+            _tileReorderMode
+                ? "Drag tiles to reorder | click DONE when finished"
+                : $"{cards.Count} miners | {DateTime.Now:HH:mm:ss}";
     }
 
     private void ApplyResizeMode()
@@ -754,6 +812,275 @@ public partial class MiningFleetOverviewWindow : Window
         }
     }
 
+    private void OrderMode_Click(
+        object sender,
+        RoutedEventArgs e)
+    {
+        _tileReorderMode =
+            !_tileReorderMode;
+
+        _tileDragCharacter = null;
+
+        OrderButton.Content =
+            _tileReorderMode
+                ? "DONE"
+                : "ORDER";
+
+        OrderButton.ToolTip =
+            _tileReorderMode
+                ? "Drag miner tiles left/right into the order you want, then click DONE."
+                : "Click to enable tile reordering. Right-click to reset the custom order.";
+
+        RefreshCards();
+    }
+
+    private void OrderButton_MouseRightButtonUp(
+        object sender,
+        MouseButtonEventArgs e)
+    {
+        _prefs.FleetTileOrder.Clear();
+
+        MiningDashboardPreferencesStore.Save(
+            _prefs);
+
+        _tileDragCharacter = null;
+
+        RefreshCards();
+
+        e.Handled = true;
+    }
+
+    private void Tile_PreviewMouseLeftButtonDown(
+        object sender,
+        MouseButtonEventArgs e)
+    {
+        if (!_tileReorderMode ||
+            sender is not FrameworkElement element ||
+            element.DataContext is not FleetCard card)
+        {
+            return;
+        }
+
+        // Do not hijack buttons inside a card.
+        if (FindVisualParent<System.Windows.Controls.Button>(
+                e.OriginalSource as DependencyObject) != null)
+        {
+            _tileDragCharacter = null;
+            return;
+        }
+
+        _tileDragStart =
+            e.GetPosition(this);
+
+        _tileDragCharacter =
+            card.Character;
+    }
+
+    private void Tile_PreviewMouseMove(
+        object sender,
+        MouseEventArgs e)
+    {
+        if (!_tileReorderMode ||
+            e.LeftButton != MouseButtonState.Pressed ||
+            string.IsNullOrWhiteSpace(
+                _tileDragCharacter))
+        {
+            return;
+        }
+
+        Point current =
+            e.GetPosition(this);
+
+        if (Math.Abs(
+                current.X -
+                _tileDragStart.X) <
+                SystemParameters.MinimumHorizontalDragDistance &&
+            Math.Abs(
+                current.Y -
+                _tileDragStart.Y) <
+                SystemParameters.MinimumVerticalDragDistance)
+        {
+            return;
+        }
+
+        string character =
+            _tileDragCharacter;
+
+        _tileDragCharacter = null;
+
+        var data =
+            new DataObject(
+                FleetTileDragFormat,
+                character);
+
+        DragDrop.DoDragDrop(
+            sender as DependencyObject ??
+            this,
+            data,
+            DragDropEffects.Move);
+    }
+
+    private void Tile_DragOver(
+        object sender,
+        DragEventArgs e)
+    {
+        e.Effects =
+            _tileReorderMode &&
+            e.Data.GetDataPresent(
+                FleetTileDragFormat)
+                ? DragDropEffects.Move
+                : DragDropEffects.None;
+
+        e.Handled = true;
+    }
+
+    private void Tile_Drop(
+        object sender,
+        DragEventArgs e)
+    {
+        if (!_tileReorderMode ||
+            !e.Data.GetDataPresent(
+                FleetTileDragFormat) ||
+            sender is not FrameworkElement targetElement ||
+            targetElement.DataContext is not FleetCard targetCard)
+        {
+            return;
+        }
+
+        string? sourceCharacter =
+            e.Data.GetData(
+                FleetTileDragFormat)
+                as string;
+
+        if (string.IsNullOrWhiteSpace(
+                sourceCharacter) ||
+            string.Equals(
+                sourceCharacter,
+                targetCard.Character,
+                StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        bool placeAfter =
+            e.GetPosition(
+                targetElement).X >
+            targetElement.ActualWidth /
+            2.0;
+
+        PersistFleetTileMove(
+            sourceCharacter,
+            targetCard.Character,
+            placeAfter);
+
+        e.Handled = true;
+    }
+
+    private void PersistFleetTileMove(
+        string sourceCharacter,
+        string targetCharacter,
+        bool placeAfter)
+    {
+        if (MinerItems.ItemsSource is not
+            IEnumerable<FleetCard> visibleCards)
+        {
+            return;
+        }
+
+        var visible =
+            visibleCards
+                .Select(
+                    card => card.Character)
+                .Where(
+                    name =>
+                        !string.IsNullOrWhiteSpace(name))
+                .Distinct(
+                    StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+        if (!visible.Contains(
+                sourceCharacter,
+                StringComparer.OrdinalIgnoreCase) ||
+            !visible.Contains(
+                targetCharacter,
+                StringComparer.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        visible.RemoveAll(
+            name =>
+                string.Equals(
+                    name,
+                    sourceCharacter,
+                    StringComparison.OrdinalIgnoreCase));
+
+        int targetIndex =
+            visible.FindIndex(
+                name =>
+                    string.Equals(
+                        name,
+                        targetCharacter,
+                        StringComparison.OrdinalIgnoreCase));
+
+        if (targetIndex < 0)
+            return;
+
+        int insertIndex =
+            placeAfter
+                ? targetIndex + 1
+                : targetIndex;
+
+        visible.Insert(
+            Math.Clamp(
+                insertIndex,
+                0,
+                visible.Count),
+            sourceCharacter);
+
+        // Preserve saved pilots that are temporarily absent, after the visible
+        // fleet's newly-arranged order.
+        var absentSaved =
+            (_prefs.FleetTileOrder ?? new List<string>())
+                .Where(
+                    saved =>
+                        !visible.Contains(
+                            saved,
+                            StringComparer.OrdinalIgnoreCase))
+                .Distinct(
+                    StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+        _prefs.FleetTileOrder =
+            visible
+                .Concat(absentSaved)
+                .ToList();
+
+        MiningDashboardPreferencesStore.Save(
+            _prefs);
+
+        RefreshCards();
+    }
+
+    private static T? FindVisualParent<T>(
+        DependencyObject? child)
+        where T : DependencyObject
+    {
+        DependencyObject? current =
+            child;
+
+        while (current != null)
+        {
+            if (current is T match)
+                return match;
+
+            current =
+                System.Windows.Media.VisualTreeHelper
+                    .GetParent(current);
+        }
+
+        return null;
+    }
     private void AlarmToggle_Click(object sender, RoutedEventArgs e)
     {
         if (sender is not System.Windows.Controls.Button button ||

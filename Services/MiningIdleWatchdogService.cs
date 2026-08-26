@@ -9,7 +9,7 @@ namespace EveMultiPreview.Services;
 
 public sealed class MiningDashboardPreferences
 {
-    public int PreferencesVersion { get; set; } = 8;
+    public int PreferencesVersion { get; set; } = 9;
 
     public bool JitaEnabled { get; set; } = true;
     public bool AmarrEnabled { get; set; } = true;
@@ -35,6 +35,10 @@ public sealed class MiningDashboardPreferences
     // Values: OFF, HARM, EXT, BOTH.
     public Dictionary<string, string> OrcaShieldBoostModes { get; set; } =
         new(StringComparer.OrdinalIgnoreCase);
+
+    // Persistent left-to-right miner wall order.
+    // Characters not yet present in this list append automatically.
+    public List<string> FleetTileOrder { get; set; } = new();
 
     public bool UseFleetTileWall { get; set; } = true;
     public bool AutoShowFleetOverview { get; set; } = true;
@@ -183,14 +187,23 @@ public static class MiningDashboardPreferencesStore
                 changed = true;
             }
 
+            if (storedVersion < 9)
+            {
+                prefs.FleetTileOrder =
+                    new List<string>();
+                changed = true;
+            }
+
             prefs.AlarmMutedCharacters ??= new List<string>();
             prefs.OrcaShieldBoostModes ??=
                 new Dictionary<string, string>(
                     StringComparer.OrdinalIgnoreCase);
+            prefs.FleetTileOrder ??=
+                new List<string>();
             if (string.IsNullOrWhiteSpace(prefs.MarketOreFilter))
                 prefs.MarketOreFilter = "myhs";
 
-            prefs.PreferencesVersion = 8;
+            prefs.PreferencesVersion = 9;
             prefs.DashboardOpacityPercent = Math.Clamp(prefs.DashboardOpacityPercent, 55, 100);
             prefs.FleetOverviewOpacityPercent = Math.Clamp(prefs.FleetOverviewOpacityPercent, 55, 100);
 

@@ -194,8 +194,23 @@ public partial class TextOverlayWindow : Window
 
     public void SetTextMargins(int marginX, int marginY)
     {
-        TextOverlayPanel.Margin = new Thickness(marginX, marginY, marginX, 0);
-        FpsOverlay.Margin = new Thickness(0, marginY, marginX, 0);
+        // TextOverlayPanel is left-aligned. A matching right margin did not
+        // position it; it only reduced usable width and clipped labels (#102).
+        TextOverlayPanel.Margin =
+            new Thickness(
+                marginX,
+                marginY,
+                0,
+                0);
+
+        // FPS is independently right-aligned. Keep a fixed right inset so moving
+        // the left-side text does not drag FPS inward and cause overlap.
+        FpsOverlay.Margin =
+            new Thickness(
+                0,
+                marginY,
+                5,
+                0);
     }
 
     /// <summary>Fade the whole overlay window (text, annotation, all) to match
