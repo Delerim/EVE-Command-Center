@@ -311,7 +311,7 @@ public partial class MiningFleetOverviewWindow : Window
         object sender,
         RoutedEventArgs e)
     {
-        if (Application.Current is EveMultiPreview.App app)
+        if (System.Windows.Application.Current is EveMultiPreview.App app)
             app.ShowMiningCommandCenter();
     }
 
@@ -319,7 +319,7 @@ public partial class MiningFleetOverviewWindow : Window
         object sender,
         RoutedEventArgs e)
     {
-        if (Application.Current is EveMultiPreview.App app)
+        if (System.Windows.Application.Current is EveMultiPreview.App app)
             app.ShowPilotCommandCenter();
     }
 
