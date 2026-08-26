@@ -24,6 +24,9 @@ public sealed class MiningMarketService
     public const long AmarrEmperorFamilyStationId = 60008494;
     public const int DomainRegionId = 10000043;
 
+    public const int GlobalPlexMarketRegionId = 19000001;
+    public const int PlexTypeId = 44992;
+
     private static readonly HttpClient Http = CreateHttpClient();
     private static readonly TimeSpan QuoteTtl = TimeSpan.FromMinutes(5);
     private static readonly TimeSpan ErrorRetryTtl = TimeSpan.FromSeconds(30);
@@ -330,9 +333,17 @@ public sealed class MiningMarketService
     {
         try
         {
-            var resolved = await ResolveTypeAsync(
-                oreName,
-                cancellationToken).ConfigureAwait(false);
+            bool isPlex =
+                oreName.Equals(
+                    "PLEX",
+                    StringComparison.OrdinalIgnoreCase);
+
+            var resolved =
+                isPlex
+                    ? (TypeId: PlexTypeId, Name: "PLEX")
+                    : await ResolveTypeAsync(
+                        oreName,
+                        cancellationToken).ConfigureAwait(false);
 
             if (resolved == null)
             {
@@ -359,7 +370,8 @@ public sealed class MiningMarketService
             string marketItemName = canonicalName;
             bool usesCompressedMarket = false;
 
-            if (!canonicalName.StartsWith(
+            if (!isPlex &&
+                !canonicalName.StartsWith(
                     "Compressed ",
                     StringComparison.OrdinalIgnoreCase))
             {
@@ -380,17 +392,43 @@ public sealed class MiningMarketService
                 rawTypeId,
                 cancellationToken);
 
-            var jitaTask = FetchStationPricesAsync(
-                TheForgeRegionId,
-                Jita44StationId,
-                marketTypeId,
-                cancellationToken);
+            Task<(double? BestSell, double? BestBuy)> jitaTask;
+            Task<(double? BestSell, double? BestBuy)> amarrTask;
 
-            var amarrTask = FetchStationPricesAsync(
-                DomainRegionId,
-                AmarrEmperorFamilyStationId,
-                marketTypeId,
-                cancellationToken);
+            if (isPlex)
+            {
+                // PLEX uses the global market introduced by CCP.
+                // stationId 0 means "do not filter by location".
+                jitaTask =
+                    FetchStationPricesAsync(
+                        GlobalPlexMarketRegionId,
+                        0,
+                        PlexTypeId,
+                        cancellationToken);
+
+                amarrTask =
+                    Task.FromResult(
+                        (
+                            BestSell: (double?)null,
+                            BestBuy: (double?)null
+                        ));
+            }
+            else
+            {
+                jitaTask =
+                    FetchStationPricesAsync(
+                        TheForgeRegionId,
+                        Jita44StationId,
+                        marketTypeId,
+                        cancellationToken);
+
+                amarrTask =
+                    FetchStationPricesAsync(
+                        DomainRegionId,
+                        AmarrEmperorFamilyStationId,
+                        marketTypeId,
+                        cancellationToken);
+            }
 
             await Task.WhenAll(
                 rawVolumeTask,
@@ -412,7 +450,9 @@ public sealed class MiningMarketService
                 amarr.BestSell.HasValue ||
                 amarr.BestBuy.HasValue;
 
-            if (usesCompressedMarket && !compressedHasAnyPrice)
+            if (!isPlex &&
+                usesCompressedMarket &&
+                !compressedHasAnyPrice)
             {
                 marketTypeId = rawTypeId;
                 marketItemName = canonicalName;
@@ -559,8 +599,16 @@ public sealed class MiningMarketService
             using var doc = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken).ConfigureAwait(false);
             foreach (var order in doc.RootElement.EnumerateArray())
             {
-                if (!order.TryGetProperty("location_id", out var loc) || loc.GetInt64() != stationId)
+                if (stationId > 0 &&
+                    (
+                        !order.TryGetProperty(
+                            "location_id",
+                            out var loc) ||
+                        loc.GetInt64() != stationId
+                    ))
+                {
                     continue;
+                }
 
                 bool isBuy = order.TryGetProperty("is_buy_order", out var buyEl) && buyEl.GetBoolean();
                 if (!order.TryGetProperty("price", out var priceEl) || !priceEl.TryGetDouble(out double price))

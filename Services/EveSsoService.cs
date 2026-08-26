@@ -2168,6 +2168,179 @@ public sealed class EveSsoService
                     : "")
         };
     }
+    private static void ApplyHullCapacityBonuses(
+        int shipTypeId,
+        EveUniverseType hull,
+        EveSkillsResponse skills,
+        ref double shieldHp,
+        ref double armorHp,
+        ref double structureHp,
+        List<string> applied)
+    {
+        // Skiff: Mining Barge +6% ship shield HP per level.
+        //
+        // Keep this as a multiplier after flat fitted HP and generic
+        // Shield Management, matching EVE dogma's percentage stage.
+        if (shipTypeId == 22546)
+        {
+            ApplyHullHpPercentBonus(
+                ref shieldHp,
+                GetSkillLevel(
+                    skills,
+                    17940),
+                6.0,
+                "Mining Barge",
+                "Skiff shield HP",
+                applied);
+        }
+    }
+
+    private static void ApplyHullResistanceBonuses(
+        int shipTypeId,
+        EveUniverseType hull,
+        EveSkillsResponse skills,
+        double[] shieldResonance,
+        double[] armorResonance,
+        double[] structureResonance,
+        List<string> applied)
+    {
+        // All Exhumers: +4% shield resistance per Exhumers level.
+        if (hull.GroupId == 543)
+        {
+            ApplyHullResistancePercentBonus(
+                shieldResonance,
+                GetSkillLevel(
+                    skills,
+                    22551),
+                4.0,
+                "Exhumers",
+                "shield resistance",
+                applied);
+        }
+
+        switch (shipTypeId)
+        {
+            // Gila: Caldari Cruiser +4% all shield resistance / level.
+            case 17715:
+                ApplyHullResistancePercentBonus(
+                    shieldResonance,
+                    GetSkillLevel(
+                        skills,
+                        3334),
+                    4.0,
+                    "Caldari Cruiser",
+                    "Gila shield resistance",
+                    applied);
+                break;
+
+            // Astero: Amarr Frigate +4% all armor resistance / level.
+            case 33468:
+                ApplyHullResistancePercentBonus(
+                    armorResonance,
+                    GetSkillLevel(
+                        skills,
+                        3331),
+                    4.0,
+                    "Amarr Frigate",
+                    "Astero armor resistance",
+                    applied);
+                break;
+
+            // Shield-tanked Deep Space Transports:
+            // Bustard, Mastodon, Torrent.
+            case 12731:
+            case 12747:
+            case 81047:
+                ApplyHullResistancePercentBonus(
+                    shieldResonance,
+                    GetSkillLevel(
+                        skills,
+                        19719),
+                    4.0,
+                    "Transport Ships",
+                    "shield resistance",
+                    applied);
+                break;
+
+            // Armor-tanked Deep Space Transports:
+            // Occator, Impel.
+            case 12745:
+            case 12753:
+                ApplyHullResistancePercentBonus(
+                    armorResonance,
+                    GetSkillLevel(
+                        skills,
+                        19719),
+                    4.0,
+                    "Transport Ships",
+                    "armor resistance",
+                    applied);
+                break;
+        }
+    }
+
+    private static void ApplyHullHpPercentBonus(
+        ref double hp,
+        int skillLevel,
+        double percentPerLevel,
+        string skillName,
+        string effectName,
+        List<string> applied)
+    {
+        if (skillLevel <= 0 ||
+            percentPerLevel == 0)
+            return;
+
+        double totalPercent =
+            skillLevel *
+            percentPerLevel;
+
+        hp *=
+            1.0 +
+            totalPercent /
+            100.0;
+
+        applied.Add(
+            $"{skillName} {skillLevel}: +{totalPercent:0.#}% {effectName}");
+    }
+
+    private static void ApplyHullResistancePercentBonus(
+        double[] resonance,
+        int skillLevel,
+        double resistancePercentPerLevel,
+        string skillName,
+        string effectName,
+        List<string> applied)
+    {
+        if (skillLevel <= 0 ||
+            resistancePercentPerLevel <= 0)
+            return;
+
+        double totalPercent =
+            skillLevel *
+            resistancePercentPerLevel;
+
+        double multiplier =
+            Math.Clamp(
+                1.0 -
+                totalPercent /
+                100.0,
+                0.01,
+                1.0);
+
+        for (int i = 0;
+             i < resonance.Length;
+             i++)
+        {
+            resonance[i] =
+                ClampResonance(
+                    resonance[i] *
+                    multiplier);
+        }
+
+        applied.Add(
+            $"{skillName} {skillLevel}: +{totalPercent:0.#}% {effectName}");
+    }
     private async Task<EveFitDefenseStats> CalculateFitDefenseAsync(
         int shipTypeId,
         IEnumerable<int> fittedTypeIds,
@@ -2461,33 +2634,14 @@ public sealed class EveSsoService
             1.0 +
             0.05 *
             shieldManagement;
-
-        // Skiff hull bonus:
-        // Mining Barge gives +6% ship shield hitpoints per level.
-        // This is a capacity multiplier, independent of the Exhumers
-        // shield-resistance bonus already handled below.
-        if (shipTypeId == 22546)
-        {
-            int miningBarge =
-                GetSkillLevel(
-                    skills,
-                    17940);
-
-            if (miningBarge > 0)
-            {
-                double skiffShieldPercent =
-                    miningBarge *
-                    6.0;
-
-                shieldHp *=
-                    1.0 +
-                    skiffShieldPercent /
-                    100.0;
-
-                applied.Add(
-                    $"Mining Barge {miningBarge}: +{skiffShieldPercent:0.#}% Skiff shield HP");
-            }
-        }
+        ApplyHullCapacityBonuses(
+            shipTypeId,
+            hull,
+            skills,
+            ref shieldHp,
+            ref armorHp,
+            ref structureHp,
+            applied);
 
         armorHp *=
             1.0 +
@@ -2538,39 +2692,15 @@ public sealed class EveSsoService
             ClampResonance(GetDogmaValue(hull, 109, 1)),
             ClampResonance(GetDogmaValue(hull, 110, 1))
         };
+        ApplyHullResistanceBonuses(
+            shipTypeId,
+            hull,
+            skills,
+            shieldResonance,
+            armorResonance,
+            structureResonance,
+            applied);
 
-        // Mackinaw/Hulk/Skiff group bonus: 4% shield resistance per Exhumers
-        // level. A per-level Dogma bonus is level * 4%, i.e. V = 20%
-        // resonance reduction.
-        if (hull.GroupId == 543)
-        {
-            int exhumersLevel =
-                GetSkillLevel(
-                    skills,
-                    22551);
-
-            double exhumerMultiplier =
-                Math.Clamp(
-                    1.0 -
-                    0.04 *
-                    exhumersLevel,
-                    0.01,
-                    1.0);
-
-            for (int i = 0;
-                 i < 4;
-                 i++)
-            {
-                shieldResonance[i] *=
-                    exhumerMultiplier;
-            }
-
-            if (exhumersLevel > 0)
-            {
-                applied.Add(
-                    $"Exhumers {exhumersLevel}: +{exhumersLevel * 4}% shield resistance");
-            }
-        }
 
         // -------------------------------------------------------------------
         // Damage Control.

@@ -169,7 +169,7 @@ public partial class MiningFleetOverviewWindow : Window
                             103));
 
                 PlexMarketBorder.ToolTip =
-                    "PLEX Jita market unavailable - no Jita buy/sell orders were returned." +
+                    "Global PLEX market unavailable - no PLEX buy/sell orders were returned." +
                     (
                         string.IsNullOrWhiteSpace(
                             quote?.Error)
@@ -258,9 +258,9 @@ public partial class MiningFleetOverviewWindow : Window
                         .TotalSeconds));
 
             PlexMarketBorder.ToolTip =
-                $"PLEX - Jita 4-4{Environment.NewLine}" +
-                $"BUY PLEX: {buyPrice:N0} ISK (lowest sell order){Environment.NewLine}" +
-                $"SELL PLEX: {sellPrice:N0} ISK (highest buy order){Environment.NewLine}" +
+                $"PLEX - Global PLEX Market{Environment.NewLine}" +
+                $"BUY PLEX: {buyPrice:N0} ISK (global lowest sell order){Environment.NewLine}" +
+                $"SELL PLEX: {sellPrice:N0} ISK (global highest buy order){Environment.NewLine}" +
                 $"Buy-zone highlight: {PlexBuyHighlightThreshold:N0} ISK or lower{Environment.NewLine}" +
                 $"Market quote refreshed {age} ago.";
         }
