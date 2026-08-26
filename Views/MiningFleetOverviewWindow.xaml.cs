@@ -75,7 +75,72 @@ public partial class MiningFleetOverviewWindow : Window
 
             var state = _watchdog.GetState(character);
             var crit = _tracker.GetTodayMiningCritSummary(character);
+            var laserTiming = _tracker.GetMiningLaserTiming(character);
             bool alarmMuted = _watchdog.IsCharacterAlarmMuted(character);
+
+            string lastPullAge = laserTiming.LastPullUtc.HasValue
+                ? AgeText(Math.Max(
+                    0,
+                    (DateTime.UtcNow - laserTiming.LastPullUtc.Value).TotalSeconds))
+                : "not seen";
+
+            string lastPullClock = laserTiming.LastPullUtc.HasValue
+                ? laserTiming.LastPullUtc.Value.ToLocalTime()
+                    .ToString("HH:mm:ss.fff", CultureInfo.InvariantCulture)
+                : "-";
+
+            string laserText =
+                laserTiming.Ready &&
+                laserTiming.Laser1RemainingSeconds.HasValue &&
+                laserTiming.Laser2RemainingSeconds.HasValue
+                    ? $"L1 {laserTiming.Laser1RemainingSeconds.Value:F1}s   " +
+                      $"L2 {laserTiming.Laser2RemainingSeconds.Value:F1}s"
+                    : "L1 --   L2 --";
+
+            string laserToolTip = laserTiming.Ready
+                ? $"Estimated dual-strip countdown from EVE mining pull timestamps.{Environment.NewLine}" +
+                  $"Observed cycle: {laserTiming.EstimatedCycleSeconds:F1}s{Environment.NewLine}" +
+                  $"Stable samples: {laserTiming.SampleCount}{Environment.NewLine}" +
+                  $"Last pull: {lastPullAge} ago at {lastPullClock}{Environment.NewLine}" +
+                  $"L1/L2 are inferred timing lanes; EVE logs do not identify the physical module."
+                : $"Laser countdown warming up.{Environment.NewLine}" +
+                  $"Last pull: {lastPullAge} ago at {lastPullClock}{Environment.NewLine}" +
+                  $"Needs several alternating pulls and assumes two active mining lasers/strip miners.";
+
+            string statusText = alarmMuted
+                ? (state.AgeSeconds > 0
+                    ? $"Muted - {AgeText(state.AgeSeconds)}"
+                    : "Muted")
+                : state.Kind switch
+                {
+                    MiningIdleKind.Mining => "Stable",
+                    MiningIdleKind.Late => $"Late - {AgeText(state.AgeSeconds)}",
+                    MiningIdleKind.Degraded => "Yield drop",
+                    MiningIdleKind.Idle => $"Idle - {AgeText(state.AgeSeconds)}",
+                    _ => "Warming up"
+                };
+
+            string statusToolTip = alarmMuted
+                ? $"Alarm is muted for {character}.{Environment.NewLine}" +
+                  $"Last mining pull: {lastPullAge} ago at {lastPullClock}."
+                : state.Kind switch
+                {
+                    MiningIdleKind.Mining =>
+                        $"Mining is stable.{Environment.NewLine}" +
+                        $"Last mining pull: {lastPullAge} ago at {lastPullClock}.",
+                    MiningIdleKind.Late =>
+                        $"Mining pull is late.{Environment.NewLine}" +
+                        $"Last mining pull: {lastPullAge} ago at {lastPullClock}.",
+                    MiningIdleKind.Degraded =>
+                        $"Yield drop detected; baseline is being relearned.{Environment.NewLine}" +
+                        $"Last mining pull: {lastPullAge} ago at {lastPullClock}.",
+                    MiningIdleKind.Idle =>
+                        $"Mining appears idle.{Environment.NewLine}" +
+                        $"Last mining pull: {lastPullAge} ago at {lastPullClock}.",
+                    _ =>
+                        $"Mining baseline is warming up.{Environment.NewLine}" +
+                        $"Last mining pull: {lastPullAge} ago at {lastPullClock}."
+                };
 
             cards.Add(new FleetCard
             {
@@ -100,18 +165,30 @@ public partial class MiningFleetOverviewWindow : Window
                     ? $"Enable mining alarms for {character}"
                     : $"Mute mining alarms for {character}",
                 Status = alarmMuted ? "MUTED" : state.Label,
-                StatusText = alarmMuted
-                    ? (state.AgeSeconds > 0
-                        ? $"Muted - {AgeText(state.AgeSeconds)} since pull"
-                        : "Alarm muted")
-                    : state.Kind switch
-                    {
-                        MiningIdleKind.Mining => "Stable",
-                        MiningIdleKind.Late => $"Late - {AgeText(state.AgeSeconds)} since pull",
-                        MiningIdleKind.Degraded => "Yield drop detected - relearning baseline",
-                        MiningIdleKind.Idle => $"Idle - {AgeText(state.AgeSeconds)} since pull",
-                        _ => "Warming up"
-                    }
+                StatusText = statusText,
+                StatusToolTip = statusToolTip,
+                LaserText = laserText,
+                LaserToolTip = laserToolTip,
+                OreToolTip =
+                    $"Current ore: {(string.IsNullOrWhiteSpace(s.CurrentOre) ? "-" : s.CurrentOre)}{Environment.NewLine}" +
+                    $"Last mining pull: {lastPullAge} ago at {lastPullClock}.",
+                BaseToolTip =
+                    $"BASE = recent non-critical mining yield.{Environment.NewLine}" +
+                    $"Current BASE: {s.BaseM3PerSec:F1} m3/s{Environment.NewLine}" +
+                    $"Last mining pull: {lastPullAge} ago at {lastPullClock}.",
+                RealToolTip =
+                    $"REAL = observed yield including critical pulls.{Environment.NewLine}" +
+                    $"Current REAL: {s.ActualM3PerSec:F1} m3/s{Environment.NewLine}" +
+                    $"Last mining pull: {lastPullAge} ago at {lastPullClock}.",
+                ProfitToolTip =
+                    $"Session market-value estimate: {s.SessionBestValue:N0} ISK.{Environment.NewLine}" +
+                    $"Open Mining Command Center for the detailed market breakdown.",
+                BuybackToolTip =
+                    $"Session buyback-value estimate: {s.SessionBuybackValue:N0} ISK.",
+                CritToolTip = crit.Cycles > 0
+                    ? $"Critical mining today: {crit}.{Environment.NewLine}" +
+                      $"Estimated critical bonus volume: {s.MiningCritBonusM3:N1} m3."
+                    : "No mining pulls recorded for today's critical summary yet."
             });
         }
 
@@ -230,6 +307,22 @@ public partial class MiningFleetOverviewWindow : Window
         RefreshCards();
     }
 
+    private void OpenMiningCommandCenter_Click(
+        object sender,
+        RoutedEventArgs e)
+    {
+        if (Application.Current is EveMultiPreview.App app)
+            app.ShowMiningCommandCenter();
+    }
+
+    private void OpenPilotCommandCenter_Click(
+        object sender,
+        RoutedEventArgs e)
+    {
+        if (Application.Current is EveMultiPreview.App app)
+            app.ShowPilotCommandCenter();
+    }
+
     private void Close_Click(object sender, RoutedEventArgs e) => Close();
 
     private sealed class FleetCard
@@ -247,5 +340,14 @@ public partial class MiningFleetOverviewWindow : Window
         public string AlarmToolTip { get; init; } = "";
         public string Status { get; init; } = "";
         public string StatusText { get; init; } = "";
+        public string StatusToolTip { get; init; } = "";
+        public string LaserText { get; init; } = "";
+        public string LaserToolTip { get; init; } = "";
+        public string OreToolTip { get; init; } = "";
+        public string BaseToolTip { get; init; } = "";
+        public string RealToolTip { get; init; } = "";
+        public string ProfitToolTip { get; init; } = "";
+        public string BuybackToolTip { get; init; } = "";
+        public string CritToolTip { get; init; } = "";
     }
 }

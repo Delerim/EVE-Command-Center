@@ -350,6 +350,130 @@ public sealed class StatTrackerService
     }
     public string GetMiningDayLabel() => _dailyMiningStore.CurrentDayKey;
 
+    public MiningLaserTiming GetMiningLaserTiming(string character)
+    {
+        if (!_stats.TryGetValue(character, out var stats))
+            return new MiningLaserTiming();
+
+        var now = DateTime.UtcNow;
+
+        var recent = stats.MiningCycles
+            .Where(c =>
+                c.MineType == "ore" &&
+                c.Timestamp >= now - TimeSpan.FromMinutes(4))
+            .OrderBy(c => c.Timestamp)
+            .TakeLast(40)
+            .ToList();
+
+        DateTime? lastPullUtc =
+            recent.Count > 0 ? recent[^1].Timestamp : null;
+
+        if (recent.Count < 6)
+        {
+            return new MiningLaserTiming
+            {
+                LastPullUtc = lastPullUtc,
+                SampleCount = recent.Count
+            };
+        }
+
+        // With two active lasers/strip miners, every second raw pull belongs to
+        // roughly the same timing lane. t[i] - t[i-2] therefore estimates the
+        // full cycle even when the two lasers are heavily staggered.
+        var cadenceSamples = new List<double>();
+
+        for (int i = 2; i < recent.Count; i++)
+        {
+            double seconds =
+                (recent[i].Timestamp - recent[i - 2].Timestamp)
+                .TotalSeconds;
+
+            // Broad enough for boosted strips through slow mining cycles, while
+            // rejecting obviously unrelated gaps.
+            if (seconds >= 5.0 && seconds <= 180.0)
+                cadenceSamples.Add(seconds);
+        }
+
+        if (cadenceSamples.Count < 3)
+        {
+            return new MiningLaserTiming
+            {
+                LastPullUtc = lastPullUtc,
+                SampleCount = cadenceSamples.Count
+            };
+        }
+
+        double initialMedian = Median(cadenceSamples);
+        double tolerance = Math.Max(2.0, initialMedian * 0.25);
+
+        var stableSamples = cadenceSamples
+            .Where(v => Math.Abs(v - initialMedian) <= tolerance)
+            .ToList();
+
+        // If fewer than half the observations agree, don't pretend the timer is
+        // trustworthy. This also suppresses many mixed drone/laser streams.
+        if (stableSamples.Count < 3 ||
+            stableSamples.Count * 2 < cadenceSamples.Count)
+        {
+            return new MiningLaserTiming
+            {
+                LastPullUtc = lastPullUtc,
+                EstimatedCycleSeconds = initialMedian,
+                SampleCount = stableSamples.Count
+            };
+        }
+
+        double cycleSeconds = Median(stableSamples);
+
+        if (recent.Count < 2 || cycleSeconds <= 0)
+        {
+            return new MiningLaserTiming
+            {
+                LastPullUtc = lastPullUtc,
+                EstimatedCycleSeconds = cycleSeconds,
+                SampleCount = stableSamples.Count
+            };
+        }
+
+        DateTime phaseA = recent[^1].Timestamp;
+        DateTime phaseB = recent[^2].Timestamp;
+
+        double ageA = Math.Max(0, (now - phaseA).TotalSeconds);
+        double ageB = Math.Max(0, (now - phaseB).TotalSeconds);
+
+        // Once both phases are far overdue, stop showing a fake repeating timer.
+        if (ageA > cycleSeconds * 1.75 ||
+            ageB > cycleSeconds * 1.75)
+        {
+            return new MiningLaserTiming
+            {
+                LastPullUtc = lastPullUtc,
+                EstimatedCycleSeconds = cycleSeconds,
+                SampleCount = stableSamples.Count
+            };
+        }
+
+        double[] remaining =
+        {
+            Math.Max(0, cycleSeconds - ageA),
+            Math.Max(0, cycleSeconds - ageB)
+        };
+
+        // L1 is always the next inferred pull and L2 the later one. The labels
+        // intentionally describe timing lanes, not a physical high-slot module.
+        Array.Sort(remaining);
+
+        return new MiningLaserTiming
+        {
+            Ready = true,
+            LastPullUtc = lastPullUtc,
+            EstimatedCycleSeconds = cycleSeconds,
+            Laser1RemainingSeconds = remaining[0],
+            Laser2RemainingSeconds = remaining[1],
+            SampleCount = stableSamples.Count
+        };
+    }
+
     public bool TryGetMiningQuote(string oreType, out MiningMarketQuote quote) =>
         _miningMarket.TryGetQuote(oreType, out quote!);
 
@@ -1135,6 +1259,16 @@ public sealed class StatTrackerService
     }
 
     private record TimedValue(DateTime Timestamp, double Value);
+}
+
+public record MiningLaserTiming
+{
+    public bool Ready { get; init; }
+    public DateTime? LastPullUtc { get; init; }
+    public double EstimatedCycleSeconds { get; init; }
+    public double? Laser1RemainingSeconds { get; init; }
+    public double? Laser2RemainingSeconds { get; init; }
+    public int SampleCount { get; init; }
 }
 
 /// <summary>All stat values for a single character at a point in time (AHK parity).</summary>

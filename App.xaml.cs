@@ -1065,6 +1065,16 @@ public partial class App : Application
         _miningFleetOverviewWindow.Show();
     }
 
+    internal void ShowMiningCommandCenter()
+    {
+        OpenMiningDashboard();
+    }
+
+    internal void ShowPilotCommandCenter()
+    {
+        OpenPilotCommandCenter();
+    }
+
     private void OpenPilotCommandCenter()
     {
         if (_pilotCommandCenterWindow != null)

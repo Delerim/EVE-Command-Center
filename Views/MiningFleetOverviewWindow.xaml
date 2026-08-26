@@ -33,6 +33,7 @@
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
 
                 <TextBlock Grid.Column="0"
@@ -64,15 +65,39 @@
                            TextTrimming="CharacterEllipsis"
                            TextAlignment="Left"/>
 
+                <StackPanel Grid.Column="4"
+                            Orientation="Horizontal"
+                            VerticalAlignment="Center"
+                            Margin="12,0,2,0">
+                    <Button Content="MINING"
+                            MinWidth="58"
+                            Height="21"
+                            Padding="7,1"
+                            FontSize="10"
+                            FontWeight="SemiBold"
+                            Click="OpenMiningCommandCenter_Click"
+                            ToolTip="Open Mining Command Center"/>
+
+                    <Button Content="PILOTS"
+                            MinWidth="58"
+                            Height="21"
+                            Padding="7,1"
+                            FontSize="10"
+                            FontWeight="SemiBold"
+                            Margin="4,0,0,0"
+                            Click="OpenPilotCommandCenter_Click"
+                            ToolTip="Open Pilot Command Center"/>
+                </StackPanel>
+
                 <TextBlock x:Name="UpdatedText"
-                           Grid.Column="4"
+                           Grid.Column="5"
                            Foreground="#6F8F88"
                            FontSize="12"
                            VerticalAlignment="Center"
                            Margin="12,0,4,0"
                            TextAlignment="Right"/>
 
-                <Button Grid.Column="5"
+                <Button Grid.Column="6"
                         Content="X"
                         Width="25"
                         Height="21"
@@ -132,6 +157,7 @@
                                         <RowDefinition Height="Auto"/>
                                         <RowDefinition Height="Auto"/>
                                         <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
                                     </Grid.RowDefinitions>
 
                                     <DockPanel Grid.Row="0">
@@ -140,7 +166,8 @@
                                                    TextTrimming="CharacterEllipsis"/>
                                         <TextBlock Text="{Binding Ore}" DockPanel.Dock="Right"
                                                    Foreground="#58D3B4" FontSize="11.5"
-                                                   Margin="6,0,0,0" TextTrimming="CharacterEllipsis"/>
+                                                   Margin="6,0,0,0" TextTrimming="CharacterEllipsis"
+                                                   ToolTip="{Binding OreToolTip}"/>
                                     </DockPanel>
 
                                     <Grid Grid.Row="1" Margin="0,3,0,0">
@@ -152,30 +179,43 @@
                                         <StackPanel Grid.Column="0">
                                             <TextBlock Foreground="#718D87" FontSize="10.5" Text="BASE"/>
                                             <TextBlock Text="{Binding BaseText}" Foreground="#FFFFFF"
-                                                       FontWeight="Bold" FontSize="13.5"/>
+                                                       FontWeight="Bold" FontSize="13.5"
+                                                       ToolTip="{Binding BaseToolTip}"/>
                                             <TextBlock Foreground="#718D87" FontSize="10.5" Text="PROFIT"
                                                        Margin="0,3,0,0"/>
                                             <TextBlock Text="{Binding ValueText}" Foreground="#58D3B4"
-                                                       FontWeight="SemiBold" FontSize="12.5"/>
+                                                       FontWeight="SemiBold" FontSize="12.5"
+                                                       ToolTip="{Binding ProfitToolTip}"/>
                                         </StackPanel>
 
                                         <StackPanel Grid.Column="1" Margin="8,0,0,0">
                                             <TextBlock Foreground="#718D87" FontSize="10.5" Text="REAL"/>
                                             <TextBlock Text="{Binding ActualText}" Foreground="#EAF7F4"
-                                                       FontWeight="Bold" FontSize="13.5"/>
+                                                       FontWeight="Bold" FontSize="13.5"
+                                                       ToolTip="{Binding RealToolTip}"/>
                                             <TextBlock Foreground="#718D87" FontSize="10.5" Text="BB"
                                                        Margin="0,3,0,0"/>
                                             <TextBlock Text="{Binding BuybackText}" Foreground="#58D3B4"
-                                                       FontWeight="SemiBold" FontSize="12.5"/>
+                                                       FontWeight="SemiBold" FontSize="12.5"
+                                                       ToolTip="{Binding BuybackToolTip}"/>
                                         </StackPanel>
                                     </Grid>
 
-                                    <DockPanel Grid.Row="2" Margin="0,3,0,0">
+                                    <DockPanel Grid.Row="2" Margin="0,3,0,0"
+                                               ToolTip="{Binding CritToolTip}">
                                         <TextBlock Text="CRIT " Foreground="#718D87" FontSize="10.5"/>
                                         <TextBlock Text="{Binding CritText}" Foreground="#C8D8D4" FontSize="11.5"/>
                                     </DockPanel>
 
-                                    <Grid Grid.Row="3" Margin="0,2,0,0">
+                                    <TextBlock Grid.Row="3"
+                                               Text="{Binding LaserText}"
+                                               Foreground="#7FDCC5"
+                                               FontSize="10.5"
+                                               FontWeight="SemiBold"
+                                               Margin="0,2,0,0"
+                                               ToolTip="{Binding LaserToolTip}"/>
+
+                                    <Grid Grid.Row="4" Margin="0,2,0,0">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*"/>
                                             <ColumnDefinition Width="Auto"/>
@@ -186,6 +226,7 @@
                                                    FontSize="11"
                                                    VerticalAlignment="Center"
                                                    TextTrimming="CharacterEllipsis"
+                                                   ToolTip="{Binding StatusToolTip}"
                                                    Margin="0,0,5,0">
                                             <TextBlock.Style>
                                                 <Style TargetType="TextBlock">
