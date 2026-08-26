@@ -150,6 +150,30 @@ public sealed class EveUniverseGroup
     public List<int> Types { get; set; } = new();
 }
 
+public sealed class EveCharacterLocationResponse
+{
+    [JsonPropertyName("solar_system_id")]
+    public int SolarSystemId { get; set; }
+}
+
+public sealed class EveCharacterShipResponse
+{
+    [JsonPropertyName("ship_type_id")]
+    public int ShipTypeId { get; set; }
+
+    [JsonPropertyName("ship_item_id")]
+    public long ShipItemId { get; set; }
+
+    [JsonPropertyName("ship_name")]
+    public string ShipName { get; set; } = "";
+}
+
+public sealed class EveUniverseSystem
+{
+    [JsonPropertyName("name")]
+    public string Name { get; set; } = "";
+}
+
 public sealed class EveSkillCatalogEntry
 {
     public int SkillId { get; set; }
@@ -176,6 +200,8 @@ public sealed class EvePilotSummary
     public string CurrentSkillRemaining { get; init; } = "";
     public string QueueEndsIn { get; init; } = "";
     public double CurrentProgressPercent { get; init; }
+    public string CurrentSystem { get; init; } = "";
+    public string CurrentShip { get; init; } = "";
 }
 
 public sealed class EveSkillQueueView

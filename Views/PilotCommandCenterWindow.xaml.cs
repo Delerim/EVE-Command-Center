@@ -369,7 +369,7 @@ public partial class PilotCommandCenterWindow : Window
         object sender,
         RoutedEventArgs e)
     {
-        if (sender is not Button button ||
+        if (sender is not System.Windows.Controls.Button button ||
             button.Tag is not string filter)
             return;
 
@@ -442,7 +442,7 @@ public partial class PilotCommandCenterWindow : Window
 
     private void UpdateSkillFilterVisuals()
     {
-        Button[] buttons =
+        System.Windows.Controls.Button[] buttons =
         {
             SkillFilterAll,
             SkillFilterTrained,
@@ -456,19 +456,19 @@ public partial class PilotCommandCenterWindow : Window
 
         var activeBackground =
             new SolidColorBrush(
-                Color.FromRgb(28, 90, 79));
+                System.Windows.Media.Color.FromRgb(28, 90, 79));
         var idleBackground =
             new SolidColorBrush(
-                Color.FromRgb(16, 31, 34));
+                System.Windows.Media.Color.FromRgb(16, 31, 34));
 
         var activeBorder =
             new SolidColorBrush(
-                Color.FromRgb(88, 211, 180));
+                System.Windows.Media.Color.FromRgb(88, 211, 180));
         var idleBorder =
             new SolidColorBrush(
-                Color.FromRgb(39, 71, 64));
+                System.Windows.Media.Color.FromRgb(39, 71, 64));
 
-        foreach (Button button in buttons)
+        foreach (System.Windows.Controls.Button button in buttons)
         {
             bool active =
                 string.Equals(
@@ -792,6 +792,9 @@ public partial class PilotCommandCenterWindow : Window
         private string _walletText = "Loading...";
         private string _spText = "Loading...";
         private string _trainingText = "Loading...";
+        private string _locationText = "System: loading...";
+        private string _shipText = "Ship: loading...";
+        private string _queueText = "Q ...";
 
         public PilotCardViewModel(
             EvePilotProfile profile)
@@ -841,12 +844,61 @@ public partial class PilotCommandCenterWindow : Window
             }
         }
 
+        public string LocationText
+        {
+            get => _locationText;
+            set
+            {
+                _locationText = value;
+                OnPropertyChanged();
+            }
+        }
+
+        public string ShipText
+        {
+            get => _shipText;
+            set
+            {
+                _shipText = value;
+                OnPropertyChanged();
+            }
+        }
+
+        public string QueueText
+        {
+            get => _queueText;
+            set
+            {
+                _queueText = value;
+                OnPropertyChanged();
+            }
+        }
+
         public void Apply(EvePilotSummary summary)
         {
             WalletText =
                 EveSsoService.FormatIsk(
                     summary.WalletBalance);
             SpText = $"{summary.TotalSp:N0} SP";
+
+            LocationText =
+                string.IsNullOrWhiteSpace(summary.CurrentSystem)
+                    ? "System: -"
+                    : "System: " + summary.CurrentSystem;
+
+            ShipText =
+                string.IsNullOrWhiteSpace(summary.CurrentShip)
+                    ? "Ship: -"
+                    : "Ship: " + summary.CurrentShip;
+
+            QueueText =
+                string.Equals(
+                    summary.QueueEndsIn,
+                    "Empty",
+                    StringComparison.OrdinalIgnoreCase)
+                    ? "Q empty"
+                    : "Q " + summary.QueueEndsIn;
+
             TrainingText =
                 summary.CurrentSkill == "Queue empty"
                     ? "Queue empty"

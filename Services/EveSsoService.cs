@@ -30,7 +30,9 @@ public sealed class EveSsoService
     {
         "esi-skills.read_skills.v1",
         "esi-skills.read_skillqueue.v1",
-        "esi-wallet.read_character_wallet.v1"
+        "esi-wallet.read_character_wallet.v1",
+        "esi-location.read_location.v1",
+        "esi-location.read_ship_type.v1"
     };
 
     private sealed class TokenCache
@@ -46,11 +48,18 @@ public sealed class EveSsoService
         public string[] Scopes { get; set; } = Array.Empty<string>();
     }
 
+    private sealed class PilotContext
+    {
+        public string SystemName { get; init; } = "";
+        public string ShipName { get; init; } = "";
+    }
+
     private readonly HttpClient _http;
     private readonly JsonSerializerOptions _json;
     private readonly string _pilotFile;
     private readonly Dictionary<long, TokenCache> _accessTokens = new();
     private readonly Dictionary<int, string> _typeNames = new();
+    private readonly Dictionary<int, string> _systemNames = new();
 
     public EveSsoService()
     {
@@ -275,12 +284,23 @@ public sealed class EveSsoService
                 $"/characters/{pilot.CharacterId}/wallet/",
                 token, cancellationToken);
 
-        await Task.WhenAll(skillsTask, queueTask, walletTask);
+        Task<PilotContext> contextTask =
+            GetPilotContextAsync(
+                pilot,
+                token,
+                cancellationToken);
+
+        await Task.WhenAll(
+            skillsTask,
+            queueTask,
+            walletTask,
+            contextTask);
 
         EveSkillsResponse skills = await skillsTask;
         List<EveSkillQueueEntry> queue =
             (await queueTask).OrderBy(q => q.QueuePosition).ToList();
         decimal wallet = await walletTask;
+        PilotContext context = await contextTask;
 
         EveSkillQueueEntry? current = queue.FirstOrDefault(q =>
             q.FinishDate.HasValue &&
@@ -316,7 +336,9 @@ public sealed class EveSsoService
             QueueEndsIn = queueEnd.HasValue
                 ? FormatDuration(queueEnd.Value - DateTimeOffset.UtcNow)
                 : "Empty",
-            CurrentProgressPercent = progress
+            CurrentProgressPercent = progress,
+            CurrentSystem = context.SystemName,
+            CurrentShip = context.ShipName
         };
     }
 
@@ -347,8 +369,18 @@ public sealed class EveSsoService
                 $"/characters/{pilot.CharacterId}/wallet/journal/",
                 token, cancellationToken);
 
+        Task<PilotContext> contextTask =
+            GetPilotContextAsync(
+                pilot,
+                token,
+                cancellationToken);
+
         await Task.WhenAll(
-            skillsTask, queueTask, walletTask, journalTask);
+            skillsTask,
+            queueTask,
+            walletTask,
+            journalTask,
+            contextTask);
 
         List<EveSkillQueueEntry> queue =
             (await queueTask).OrderBy(q => q.QueuePosition).ToList();
@@ -376,6 +408,7 @@ public sealed class EveSsoService
 
         EveSkillsResponse skills = await skillsTask;
         decimal wallet = await walletTask;
+        PilotContext context = await contextTask;
 
         EveSkillQueueEntry? current = queue.FirstOrDefault(q =>
             q.FinishDate.HasValue &&
@@ -411,7 +444,9 @@ public sealed class EveSsoService
             QueueEndsIn = queueEnd.HasValue
                 ? FormatDuration(queueEnd.Value - DateTimeOffset.UtcNow)
                 : "Empty",
-            CurrentProgressPercent = currentProgress
+            CurrentProgressPercent = currentProgress,
+            CurrentSystem = context.SystemName,
+            CurrentShip = context.ShipName
         };
 
         EveWalletJournalView[] journal =
@@ -632,6 +667,135 @@ public sealed class EveSsoService
         return JsonSerializer.Deserialize<T>(json, _json)
                ?? throw new InvalidOperationException(
                    $"ESI returned no data for {relativePath}.");
+    }
+
+    private async Task<PilotContext> GetPilotContextAsync(
+        EvePilotProfile pilot,
+        string accessToken,
+        CancellationToken cancellationToken)
+    {
+        bool canReadLocation =
+            pilot.Scopes.Any(
+                scope => string.Equals(
+                    scope,
+                    "esi-location.read_location.v1",
+                    StringComparison.OrdinalIgnoreCase));
+
+        bool canReadShip =
+            pilot.Scopes.Any(
+                scope => string.Equals(
+                    scope,
+                    "esi-location.read_ship_type.v1",
+                    StringComparison.OrdinalIgnoreCase));
+
+        Task<string> systemTask =
+            canReadLocation
+                ? GetCurrentSystemAsync(
+                    pilot.CharacterId,
+                    accessToken,
+                    cancellationToken)
+                : Task.FromResult("Reconnect for system");
+
+        Task<string> shipTask =
+            canReadShip
+                ? GetCurrentShipAsync(
+                    pilot.CharacterId,
+                    accessToken,
+                    cancellationToken)
+                : Task.FromResult("Reconnect for ship");
+
+        await Task.WhenAll(systemTask, shipTask);
+
+        return new PilotContext
+        {
+            SystemName = await systemTask,
+            ShipName = await shipTask
+        };
+    }
+
+    private async Task<string> GetCurrentSystemAsync(
+        long characterId,
+        string accessToken,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            EveCharacterLocationResponse location =
+                await GetEsiAsync<EveCharacterLocationResponse>(
+                    $"/characters/{characterId}/location/",
+                    accessToken,
+                    cancellationToken);
+
+            return await GetSystemNameAsync(
+                location.SolarSystemId,
+                cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine(
+                $"[PilotContext] System lookup failed: {ex.Message}");
+            return "System unavailable";
+        }
+    }
+
+    private async Task<string> GetCurrentShipAsync(
+        long characterId,
+        string accessToken,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            EveCharacterShipResponse ship =
+                await GetEsiAsync<EveCharacterShipResponse>(
+                    $"/characters/{characterId}/ship/",
+                    accessToken,
+                    cancellationToken);
+
+            return await GetTypeNameAsync(
+                ship.ShipTypeId,
+                cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine(
+                $"[PilotContext] Ship lookup failed: {ex.Message}");
+            return "Ship unavailable";
+        }
+    }
+
+    private async Task<string> GetSystemNameAsync(
+        int systemId,
+        CancellationToken cancellationToken)
+    {
+        if (systemId <= 0)
+            return "Unknown system";
+
+        if (_systemNames.TryGetValue(
+                systemId,
+                out string? cached))
+            return cached;
+
+        EveUniverseSystem system =
+            await GetEsiAsync<EveUniverseSystem>(
+                $"/universe/systems/{systemId}/",
+                null,
+                cancellationToken);
+
+        string name =
+            string.IsNullOrWhiteSpace(system.Name)
+                ? $"System {systemId}"
+                : system.Name;
+
+        _systemNames[systemId] = name;
+        return name;
     }
 
     private async Task<string> GetTypeNameAsync(

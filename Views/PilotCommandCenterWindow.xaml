@@ -69,7 +69,7 @@
             <Setter Property="BorderBrush" Value="#253D39"/>
         </Style>
 
-        <!-- Same adaptive full-width pill rail used by Mining Command Center. -->
+        <!-- Exact copy of the Mining Command Center tab rail/pill templates. -->
         <Style TargetType="TabControl">
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="BorderThickness" Value="0"/>
@@ -83,21 +83,28 @@
                             </Grid.RowDefinitions>
 
                             <Border Grid.Row="0"
-                                    Background="#0D181B"
-                                    BorderBrush="#1E3B36"
+                                    Background="#091215"
+                                    BorderBrush="#182D2A"
                                     BorderThickness="1"
-                                    CornerRadius="11"
-                                    Padding="4"
-                                    Margin="0,0,0,8">
-                                <TabPanel IsItemsHost="True"
-                                          HorizontalAlignment="Left"/>
+                                    CornerRadius="12"
+                                    Padding="5"
+                                    Margin="0,0,0,10">
+                                <UniformGrid IsItemsHost="True"
+                                             Rows="1"
+                                             Background="Transparent"
+                                             Margin="0"
+                                             ClipToBounds="False"/>
                             </Border>
 
-                            <ContentPresenter x:Name="PART_SelectedContentHost"
-                                              Grid.Row="1"
-                                              ContentSource="SelectedContent"
-                                              HorizontalAlignment="Stretch"
-                                              VerticalAlignment="Stretch"/>
+                            <Border Grid.Row="1"
+                                    Background="#0B1518"
+                                    BorderBrush="#19332E"
+                                    BorderThickness="1"
+                                    CornerRadius="12"
+                                    Padding="10">
+                                <ContentPresenter Content="{TemplateBinding SelectedContent}"
+                                                  ContentTemplate="{TemplateBinding SelectedContentTemplate}"/>
+                            </Border>
                         </Grid>
                     </ControlTemplate>
                 </Setter.Value>
@@ -107,33 +114,53 @@
         <Style TargetType="TabItem">
             <Setter Property="Foreground" Value="#8FA9A3"/>
             <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="Padding" Value="16,7"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+            <Setter Property="Padding" Value="12,7"/>
             <Setter Property="Margin" Value="2,0,2,0"/>
+            <Setter Property="MinHeight" Value="35"/>
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
             <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="TabItem">
-                        <Border x:Name="Pill"
-                                HorizontalAlignment="Left"
+                        <Border x:Name="TabPill"
                                 Background="{TemplateBinding Background}"
-                                BorderBrush="#284840"
+                                BorderBrush="{TemplateBinding BorderBrush}"
                                 BorderThickness="1"
                                 CornerRadius="9"
-                                Padding="{TemplateBinding Padding}">
+                                Padding="{TemplateBinding Padding}"
+                                HorizontalAlignment="Stretch"
+                                SnapsToDevicePixels="True">
                             <ContentPresenter ContentSource="Header"
                                               HorizontalAlignment="Center"
-                                              VerticalAlignment="Center"/>
+                                              VerticalAlignment="Center"
+                                              TextElement.Foreground="{TemplateBinding Foreground}"/>
                         </Border>
+
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Pill" Property="Background" Value="#142A26"/>
+                                <Setter TargetName="TabPill"
+                                        Property="Background"
+                                        Value="#122724"/>
+                                <Setter TargetName="TabPill"
+                                        Property="BorderBrush"
+                                        Value="#294E47"/>
+                                <Setter Property="Foreground"
+                                        Value="#DCEAE6"/>
                             </Trigger>
                             <Trigger Property="IsSelected" Value="True">
-                                <Setter TargetName="Pill" Property="Background" Value="#1C5A4F"/>
-                                <Setter TargetName="Pill" Property="BorderBrush" Value="#58D3B4"/>
-                                <Setter Property="Foreground" Value="White"/>
-                                <Setter Property="FontWeight" Value="SemiBold"/>
+                                <Setter TargetName="TabPill"
+                                        Property="Background"
+                                        Value="#1C5A4F"/>
+                                <Setter TargetName="TabPill"
+                                        Property="BorderBrush"
+                                        Value="#4BB99F"/>
+                                <Setter Property="Foreground"
+                                        Value="#FFFFFF"/>
+                                <Setter Property="FontWeight"
+                                        Value="SemiBold"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -189,9 +216,9 @@
             <Setter Property="Margin" Value="4,0,4,0"/>
             <Setter Property="Padding" Value="0"/>
             <Setter Property="Width" Value="245"/>
-            <Setter Property="MinHeight" Value="108"/>
+            <Setter Property="MinHeight" Value="122"/>
             <Setter Property="HorizontalAlignment" Value="Left"/>
-            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
             <Setter Property="VerticalContentAlignment" Value="Stretch"/>
             <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
             <Setter Property="Template">
@@ -481,22 +508,40 @@
                         </ListBox.ItemsPanel>
                             <ListBox.ItemTemplate>
                                 <DataTemplate>
-                                    <Grid MinHeight="90">
+                                    <Grid MinHeight="104">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="62"/>
                                             <ColumnDefinition Width="*"/>
                                         </Grid.ColumnDefinitions>
 
-                                        <Border Width="54" Height="54"
-                                                CornerRadius="8"
-                                                ClipToBounds="True"
-                                                HorizontalAlignment="Left"
-                                                VerticalAlignment="Top">
-                                            <Image Source="{Binding PortraitUrl}"
-                                                   Stretch="UniformToFill"/>
-                                        </Border>
+                                        <StackPanel Grid.Column="0"
+                                                    HorizontalAlignment="Left"
+                                                    VerticalAlignment="Top">
+                                            <Border Width="54" Height="54"
+                                                    CornerRadius="8"
+                                                    ClipToBounds="True"
+                                                    HorizontalAlignment="Left">
+                                                <Image Source="{Binding PortraitUrl}"
+                                                       Stretch="UniformToFill"/>
+                                            </Border>
 
-                                        <StackPanel Grid.Column="1" Margin="8,0,0,0">
+                                            <Border Margin="0,7,0,0"
+                                                    Padding="5,3"
+                                                    Background="#12332D"
+                                                    BorderBrush="#2A5F54"
+                                                    BorderThickness="1"
+                                                    CornerRadius="6"
+                                                    HorizontalAlignment="Left">
+                                                <TextBlock Text="{Binding QueueText}"
+                                                           Foreground="#58D3B4"
+                                                           FontSize="8.5"
+                                                           FontWeight="SemiBold"/>
+                                            </Border>
+                                        </StackPanel>
+
+                                        <StackPanel Grid.Column="1"
+                                                    Margin="8,0,0,0"
+                                                    VerticalAlignment="Top">
                                             <TextBlock Text="{Binding CharacterName}"
                                                        FontSize="13"
                                                        FontWeight="SemiBold"
@@ -509,10 +554,19 @@
                                             <TextBlock Text="{Binding SpText}"
                                                        Foreground="#9DB5AF"
                                                        FontSize="10"/>
+                                            <TextBlock Text="{Binding LocationText}"
+                                                       Foreground="#8DA9A2"
+                                                       FontSize="9"
+                                                       Margin="0,3,0,0"
+                                                       TextTrimming="CharacterEllipsis"/>
+                                            <TextBlock Text="{Binding ShipText}"
+                                                       Foreground="#8DA9A2"
+                                                       FontSize="9"
+                                                       TextTrimming="CharacterEllipsis"/>
                                             <TextBlock Text="{Binding TrainingText}"
                                                        Foreground="#E7B85A"
                                                        FontSize="9.5"
-                                                       Margin="0,5,0,0"
+                                                       Margin="0,4,0,0"
                                                        TextTrimming="CharacterEllipsis"/>
                                         </StackPanel>
                                     </Grid>
@@ -583,10 +637,7 @@
                 </StackPanel>
             </Grid>
 
-            <Border Grid.Row="3" Background="#0B1518"
-                    BorderBrush="#19332E" BorderThickness="1"
-                    CornerRadius="12" Padding="10">
-                <TabControl>
+            <TabControl Grid.Row="3">
                     <TabItem Header="Skills">
                         <Grid Margin="0,2,0,0">
                             <Grid.RowDefinitions>
@@ -917,8 +968,7 @@
                             </DataGrid>
                         </Grid>
                     </TabItem>
-                </TabControl>
-            </Border>
+            </TabControl>
         </Grid>
     </Border>
 </Window>
