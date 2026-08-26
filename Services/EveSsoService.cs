@@ -24,7 +24,6 @@ public sealed class EveSsoService
 
     private const string AuthorizeEndpoint = "https://login.eveonline.com/v2/oauth/authorize";
     private const string TokenEndpoint = "https://login.eveonline.com/v2/oauth/token";
-    private const string VerifyEndpoint = "https://login.eveonline.com/v2/oauth/verify";
     private const string EsiBase = "https://esi.evetech.net/latest";
 
     public static readonly string[] InitialScopes =
@@ -527,29 +526,16 @@ public sealed class EveSsoService
                    "EVE SSO returned an empty token response.");
     }
 
-    private async Task<VerifyResponse> VerifyIdentityAsync(
+    private Task<VerifyResponse> VerifyIdentityAsync(
         string accessToken,
         CancellationToken cancellationToken)
     {
-        using var request =
-            new HttpRequestMessage(HttpMethod.Get, VerifyEndpoint);
-        request.Headers.Authorization =
-            new AuthenticationHeaderValue("Bearer", accessToken);
-
-        using HttpResponseMessage response =
-            await _http.SendAsync(request, cancellationToken);
-
-        if (response.IsSuccessStatusCode)
-        {
-            string json =
-                await response.Content.ReadAsStringAsync(cancellationToken);
-            VerifyResponse? verified =
-                JsonSerializer.Deserialize<VerifyResponse>(json, _json);
-            if (verified != null && verified.CharacterID > 0)
-                return verified;
-        }
-
-        return DecodeJwtIdentity(accessToken);
+        // EVE SSO v2 returns a JWT. Character identity and granted scopes are
+        // already carried by the token as `sub`, `name`, and `scp` claims.
+        // Reading them directly also avoids the old /verify response shape,
+        // where Scopes may be a single JSON string rather than string[].
+        cancellationToken.ThrowIfCancellationRequested();
+        return Task.FromResult(DecodeJwtIdentity(accessToken));
     }
 
     private static VerifyResponse DecodeJwtIdentity(

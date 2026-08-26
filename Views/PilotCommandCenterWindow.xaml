@@ -248,7 +248,8 @@
                     </Button>
 
                     <ScrollViewer HorizontalScrollBarVisibility="Auto"
-                                  VerticalScrollBarVisibility="Disabled">
+                                  VerticalScrollBarVisibility="Disabled"
+                                  Background="#0B1518">
                         <ListBox x:Name="PilotList"
                                  ItemsSource="{Binding Pilots}"
                                  SelectionChanged="PilotList_SelectionChanged"
