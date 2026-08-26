@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text.Json;
+using System.Threading.Tasks;
 using System.Windows.Threading;
 
 namespace EveMultiPreview.Services;
@@ -196,6 +197,13 @@ public sealed class MiningIdleWatchdogService : IDisposable
 {
     private readonly StatTrackerService _tracker;
     private readonly DispatcherTimer _timer;
+    private readonly DispatcherTimer _shipTimer;
+    private readonly EveSsoService _pilotSso = new();
+
+    private readonly HashSet<string> _automaticAlarmSuppression =
+        new(StringComparer.OrdinalIgnoreCase);
+
+    private bool _shipRefreshBusy;
 
     private readonly Dictionary<string, int> _lastCycleCounts =
         new(StringComparer.OrdinalIgnoreCase);
@@ -238,14 +246,30 @@ public sealed class MiningIdleWatchdogService : IDisposable
         _tracker = tracker;
         Preferences = MiningDashboardPreferencesStore.Load();
 
-        _timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
+        _timer = new DispatcherTimer
+        {
+            Interval = TimeSpan.FromSeconds(1)
+        };
         _timer.Tick += (_, _) => Tick();
+
+        _shipTimer = new DispatcherTimer
+        {
+            Interval = TimeSpan.FromMinutes(5)
+        };
+        _shipTimer.Tick +=
+            async (_, _) =>
+                await RefreshAutomaticSuppressionAsync();
     }
 
     public void Start()
     {
         if (!_timer.IsEnabled)
             _timer.Start();
+
+        if (!_shipTimer.IsEnabled)
+            _shipTimer.Start();
+
+        _ = RefreshAutomaticSuppressionAsync();
     }
 
     public void SavePreferences() =>
@@ -261,6 +285,101 @@ public sealed class MiningIdleWatchdogService : IDisposable
                 x,
                 character,
                 StringComparison.OrdinalIgnoreCase));
+    }
+
+    public bool IsCharacterAlarmAutomaticallySuppressed(
+        string character)
+    {
+        if (string.IsNullOrWhiteSpace(character))
+            return false;
+
+        return _automaticAlarmSuppression.Contains(
+            character);
+    }
+
+    private bool IsCharacterAlarmSuppressed(
+        string character) =>
+        IsCharacterAlarmMuted(character) ||
+        IsCharacterAlarmAutomaticallySuppressed(
+            character);
+
+    private async Task RefreshAutomaticSuppressionAsync()
+    {
+        if (_shipRefreshBusy)
+            return;
+
+        _shipRefreshBusy = true;
+
+        try
+        {
+            var pilots =
+                await _pilotSso.LoadPilotsAsync();
+
+            var next =
+                new HashSet<string>(
+                    StringComparer.OrdinalIgnoreCase);
+
+            foreach (var pilot in pilots)
+            {
+                try
+                {
+                    var ship =
+                        await _pilotSso
+                            .GetCurrentShipIdentityAsync(
+                                pilot);
+
+                    if (ship.IsOrca)
+                        next.Add(
+                            pilot.CharacterName);
+                }
+                catch (Exception)
+                {
+                    // Ship classification is advisory. Never let an ESI failure
+                    // interfere with the ordinary mining watchdog.
+                }
+            }
+
+            foreach (string character in next)
+            {
+                if (_automaticAlarmSuppression.Add(
+                        character))
+                {
+                    _idleAlerted.Remove(character);
+                    _dropAlerted.Remove(character);
+                    _dropSince.Remove(character);
+                    _degraded.Remove(character);
+                }
+            }
+
+            string[] noLongerSuppressed =
+                _automaticAlarmSuppression
+                    .Where(
+                        character =>
+                            !next.Contains(character))
+                    .ToArray();
+
+            foreach (string character
+                     in noLongerSuppressed)
+            {
+                _automaticAlarmSuppression.Remove(
+                    character);
+
+                _idleAlerted.Remove(character);
+                _dropAlerted.Remove(character);
+                ResetYieldLearning(character);
+
+                var snap =
+                    _tracker.GetSnapshot(character);
+
+                if (snap.MiningCycleCount > 0)
+                    _lastActivityUtc[character] =
+                        DateTime.UtcNow;
+            }
+        }
+        finally
+        {
+            _shipRefreshBusy = false;
+        }
     }
 
     public void SetCharacterAlarmMuted(string character, bool muted)
@@ -315,7 +434,7 @@ public sealed class MiningIdleWatchdogService : IDisposable
         double age = Math.Max(0, (DateTime.UtcNow - last).TotalSeconds);
         int idleAfter = Math.Clamp(Preferences.IdleSeconds, 15, 3600);
 
-        if (IsCharacterAlarmMuted(character))
+        if (IsCharacterAlarmSuppressed(character))
             return new MiningIdleState(
                 MiningIdleKind.Muted,
                 last,
@@ -364,7 +483,8 @@ public sealed class MiningIdleWatchdogService : IDisposable
             newPull = true;
         }
 
-        bool muted = IsCharacterAlarmMuted(character);
+        bool muted =
+            IsCharacterAlarmSuppressed(character);
 
         ObserveYield(
             character,
@@ -565,5 +685,6 @@ public sealed class MiningIdleWatchdogService : IDisposable
     public void Dispose()
     {
         _timer.Stop();
+        _shipTimer.Stop();
     }
 }

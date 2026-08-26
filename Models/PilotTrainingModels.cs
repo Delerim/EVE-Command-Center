@@ -57,6 +57,7 @@ public sealed class EveImplantView
     public int TypeId { get; init; }
     public string Name { get; init; } = "";
     public string BonusText { get; init; } = "";
+    public bool IsTrainingRelevant { get; init; }
 }
 
 public sealed class EveTrainingProfile

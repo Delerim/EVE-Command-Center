@@ -33,7 +33,9 @@ public sealed class EveSsoService
         "esi-wallet.read_character_wallet.v1",
         "esi-location.read_location.v1",
         "esi-location.read_ship_type.v1",
-        "esi-clones.read_implants.v1"
+        "esi-clones.read_implants.v1",
+        "esi-assets.read_assets.v1",
+        "esi-fittings.read_fittings.v1"
     };
 
     private sealed class TokenCache
@@ -62,6 +64,13 @@ public sealed class EveSsoService
     private readonly Dictionary<int, string> _typeNames = new();
     private readonly Dictionary<int, EveUniverseType> _typeDetails = new();
     private readonly Dictionary<int, string> _systemNames = new();
+    private readonly Dictionary<long, AssetCacheEntry> _assetCache = new();
+
+    private sealed class AssetCacheEntry
+    {
+        public DateTimeOffset ExpiresAt { get; init; }
+        public List<EveAssetItem> Items { get; init; } = new();
+    }
 
     private const int CharismaAttributeId = 164;
     private const int IntelligenceAttributeId = 165;
@@ -270,10 +279,273 @@ public sealed class EveSsoService
     {
         EveCredentialStore.Delete(characterId);
         _accessTokens.Remove(characterId);
+        _assetCache.Remove(characterId);
 
         var pilots = (await LoadPilotsAsync()).ToList();
         pilots.RemoveAll(p => p.CharacterId == characterId);
         await SavePilotsAsync(pilots);
+    }
+
+    public async Task<EveCurrentShipView> GetCurrentShipIdentityAsync(
+        EvePilotProfile pilot,
+        CancellationToken cancellationToken = default)
+    {
+        string token =
+            await GetAccessTokenAsync(
+                pilot,
+                cancellationToken);
+
+        EveCharacterShipResponse ship =
+            await GetEsiAsync<EveCharacterShipResponse>(
+                $"/characters/{pilot.CharacterId}/ship/",
+                token,
+                cancellationToken);
+
+        string typeName =
+            await GetTypeNameAsync(
+                ship.ShipTypeId,
+                cancellationToken);
+
+        return new EveCurrentShipView
+        {
+            TypeName = typeName,
+            CustomName = ship.ShipName,
+            ShipItemId = ship.ShipItemId,
+            ShipTypeId = ship.ShipTypeId
+        };
+    }
+
+    public async Task<EveMiningShipIntel> GetMiningShipIntelAsync(
+        EvePilotProfile pilot,
+        CancellationToken cancellationToken = default)
+    {
+        EveCurrentShipView ship =
+            await GetCurrentShipIdentityAsync(
+                pilot,
+                cancellationToken);
+
+        bool canReadAssets =
+            HasScope(
+                pilot,
+                "esi-assets.read_assets.v1");
+
+        int laserCount = -1;
+
+        if (canReadAssets &&
+            ship.ShipItemId > 0)
+        {
+            string token =
+                await GetAccessTokenAsync(
+                    pilot,
+                    cancellationToken);
+
+            List<EveAssetItem> assets =
+                await GetCharacterAssetsCachedAsync(
+                    pilot.CharacterId,
+                    token,
+                    cancellationToken);
+
+            EveAssetItem[] fittedHighs =
+                assets
+                    .Where(a =>
+                        a.LocationId == ship.ShipItemId &&
+                        a.LocationFlag.StartsWith(
+                            "HighSlot",
+                            StringComparison.OrdinalIgnoreCase))
+                    .ToArray();
+
+            IReadOnlyDictionary<int, string> names =
+                await GetTypeNamesBatchAsync(
+                    fittedHighs.Select(a => a.TypeId),
+                    cancellationToken);
+
+            laserCount =
+                fittedHighs.Count(a =>
+                    names.TryGetValue(
+                        a.TypeId,
+                        out string? name) &&
+                    IsMiningLaserName(name));
+        }
+
+        return new EveMiningShipIntel
+        {
+            CharacterId = pilot.CharacterId,
+            CharacterName = pilot.CharacterName,
+            CurrentShip = ship,
+            MiningLaserCount = laserCount,
+            AssetsAvailable = canReadAssets
+        };
+    }
+
+    public async Task<EveInventorySnapshot> GetInventoryAsync(
+        EvePilotProfile pilot,
+        CancellationToken cancellationToken = default)
+    {
+        string token =
+            await GetAccessTokenAsync(
+                pilot,
+                cancellationToken);
+
+        EveCurrentShipView ship =
+            await GetCurrentShipIdentityAsync(
+                pilot,
+                cancellationToken);
+
+        bool canReadAssets =
+            HasScope(
+                pilot,
+                "esi-assets.read_assets.v1");
+
+        bool canReadFittings =
+            HasScope(
+                pilot,
+                "esi-fittings.read_fittings.v1");
+
+        List<EveAssetItem> assets =
+            canReadAssets
+                ? await GetCharacterAssetsCachedAsync(
+                    pilot.CharacterId,
+                    token,
+                    cancellationToken)
+                : new List<EveAssetItem>();
+
+        List<EveFitting> fittings =
+            canReadFittings
+                ? await GetEsiAsync<List<EveFitting>>(
+                    $"/characters/{pilot.CharacterId}/fittings/",
+                    token,
+                    cancellationToken)
+                : new List<EveFitting>();
+
+        int[] typeIds =
+            assets.Select(a => a.TypeId)
+                .Concat(
+                    fittings.Select(f => f.ShipTypeId))
+                .Concat(
+                    fittings.SelectMany(
+                        f => f.Items.Select(i => i.TypeId)))
+                .Append(ship.ShipTypeId)
+                .Where(id => id > 0)
+                .Distinct()
+                .ToArray();
+
+        IReadOnlyDictionary<int, string> typeNames =
+            await GetTypeNamesBatchAsync(
+                typeIds,
+                cancellationToken);
+
+        string NameFor(int typeId)
+        {
+            if (typeId <= 0)
+                return "-";
+
+            return typeNames.TryGetValue(
+                    typeId,
+                    out string? resolved)
+                ? resolved
+                : $"Type {typeId}";
+        }
+
+        EveShipModuleView[] currentModules =
+            assets
+                .Where(a =>
+                    ship.ShipItemId > 0 &&
+                    a.LocationId == ship.ShipItemId &&
+                    IsShipEquipmentFlag(a.LocationFlag))
+                .OrderBy(a => SlotSortKey(a.LocationFlag))
+                .ThenBy(
+                    a => NameFor(a.TypeId),
+                    StringComparer.OrdinalIgnoreCase)
+                .Select(a =>
+                    new EveShipModuleView
+                    {
+                        Slot = FriendlySlot(a.LocationFlag),
+                        Name = NameFor(a.TypeId),
+                        Quantity = a.Quantity
+                    })
+                .ToArray();
+
+        EveAssetView[] assetViews =
+            assets
+                .OrderBy(
+                    a => NameFor(a.TypeId),
+                    StringComparer.OrdinalIgnoreCase)
+                .ThenBy(
+                    a => a.LocationFlag,
+                    StringComparer.OrdinalIgnoreCase)
+                .Select(a =>
+                    new EveAssetView
+                    {
+                        ItemId = a.ItemId,
+                        Name = NameFor(a.TypeId),
+                        Quantity = a.Quantity.ToString("N0"),
+                        Location =
+                            ship.ShipItemId > 0 &&
+                            a.LocationId == ship.ShipItemId
+                                ? "Current ship"
+                                : a.LocationType.Equals(
+                                    "item",
+                                    StringComparison.OrdinalIgnoreCase)
+                                    ? $"Inside item {a.LocationId}"
+                                    : $"{a.LocationType} {a.LocationId}",
+                        Flag = FriendlySlot(a.LocationFlag)
+                    })
+                .ToArray();
+
+        EveFittingView[] fittingViews =
+            fittings
+                .OrderBy(
+                    f => f.Name,
+                    StringComparer.OrdinalIgnoreCase)
+                .Select(f =>
+                {
+                    string preview =
+                        string.Join(
+                            ", ",
+                            f.Items
+                                .OrderBy(i => SlotSortKey(i.Flag))
+                                .Take(6)
+                                .Select(i => NameFor(i.TypeId)));
+
+                    if (f.Items.Count > 6)
+                        preview += $" +{f.Items.Count - 6} more";
+
+                    return new EveFittingView
+                    {
+                        FittingId = f.FittingId,
+                        Name = f.Name,
+                        Ship = NameFor(f.ShipTypeId),
+                        Items = preview,
+                        Description = f.Description
+                    };
+                })
+                .ToArray();
+
+        var missing = new List<string>();
+
+        if (!canReadAssets)
+            missing.Add("assets");
+        if (!canReadFittings)
+            missing.Add("saved fittings");
+
+        string accessMessage =
+            missing.Count == 0
+                ? $"Synced {assetViews.Length:N0} assets | " +
+                  $"{fittingViews.Length:N0} saved fittings"
+                : "Reconnect this pilot for " +
+                  string.Join(" + ", missing) +
+                  " access.";
+
+        return new EveInventorySnapshot
+        {
+            CurrentShip = ship,
+            CurrentShipModules = currentModules,
+            Assets = assetViews,
+            Fittings = fittingViews,
+            AssetsAvailable = canReadAssets,
+            FittingsAvailable = canReadFittings,
+            AccessMessage = accessMessage
+        };
     }
 
     public async Task<EvePilotSummary> GetSummaryAsync(
@@ -586,7 +858,8 @@ public sealed class EveSsoService
                                 : implant.Name,
                             BonusText = bonuses.Count > 0
                                 ? string.Join("  ", bonuses)
-                                : "non-attribute implant"
+                                : "non-training implant",
+                            IsTrainingRelevant = bonuses.Count > 0
                         });
                 }
             }
@@ -609,7 +882,7 @@ public sealed class EveSsoService
                 IntelligenceAttributeId,
                 "Intelligence",
                 "INT",
-                "â—†",
+                "",
                 "#64C7FF",
                 current.Intelligence,
                 intelligenceBonus,
@@ -618,7 +891,7 @@ public sealed class EveSsoService
                 MemoryAttributeId,
                 "Memory",
                 "MEM",
-                "â—",
+                "",
                 "#9FD67A",
                 current.Memory,
                 memoryBonus,
@@ -627,7 +900,7 @@ public sealed class EveSsoService
                 PerceptionAttributeId,
                 "Perception",
                 "PER",
-                "â—‰",
+                "",
                 "#E7B85A",
                 current.Perception,
                 perceptionBonus,
@@ -636,7 +909,7 @@ public sealed class EveSsoService
                 WillpowerAttributeId,
                 "Willpower",
                 "WIL",
-                "â–²",
+                "",
                 "#D693FF",
                 current.Willpower,
                 willpowerBonus,
@@ -645,7 +918,7 @@ public sealed class EveSsoService
                 CharismaAttributeId,
                 "Charisma",
                 "CHA",
-                "âœ¦",
+                "",
                 "#FF8FA6",
                 current.Charisma,
                 charismaBonus,
@@ -882,6 +1155,410 @@ public sealed class EveSsoService
             CharacterName = name,
             Scopes = scopes.ToArray()
         };
+    }
+
+    private async Task<List<EveAssetItem>> GetCharacterAssetsCachedAsync(
+        long characterId,
+        string accessToken,
+        CancellationToken cancellationToken)
+    {
+        if (_assetCache.TryGetValue(
+                characterId,
+                out AssetCacheEntry? cached) &&
+            cached.ExpiresAt > DateTimeOffset.UtcNow)
+        {
+            return cached.Items;
+        }
+
+        List<EveAssetItem> items =
+            await GetCharacterAssetsAsync(
+                characterId,
+                accessToken,
+                cancellationToken);
+
+        _assetCache[characterId] =
+            new AssetCacheEntry
+            {
+                ExpiresAt =
+                    DateTimeOffset.UtcNow.AddMinutes(3),
+                Items = items
+            };
+
+        return items;
+    }
+
+    private async Task<List<EveAssetItem>> GetCharacterAssetsAsync(
+        long characterId,
+        string accessToken,
+        CancellationToken cancellationToken)
+    {
+        var all = new List<EveAssetItem>();
+
+        int page = 1;
+        int pages = 1;
+
+        do
+        {
+            using var request =
+                new HttpRequestMessage(
+                    HttpMethod.Get,
+                    EsiBase +
+                    $"/characters/{characterId}/assets/?page={page}");
+
+            request.Headers.Accept.Add(
+                new MediaTypeWithQualityHeaderValue(
+                    "application/json"));
+
+            request.Headers.Authorization =
+                new AuthenticationHeaderValue(
+                    "Bearer",
+                    accessToken);
+
+            using HttpResponseMessage response =
+                await _http.SendAsync(
+                    request,
+                    cancellationToken);
+
+            string json =
+                await response.Content.ReadAsStringAsync(
+                    cancellationToken);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                throw new InvalidOperationException(
+                    $"ESI character assets page {page} failed: " +
+                    $"{(int)response.StatusCode} {response.ReasonPhrase}");
+            }
+
+            List<EveAssetItem> items =
+                JsonSerializer.Deserialize<List<EveAssetItem>>(
+                    json,
+                    _json)
+                ?? new List<EveAssetItem>();
+
+            all.AddRange(items);
+
+            if (page == 1 &&
+                response.Headers.TryGetValues(
+                    "X-Pages",
+                    out IEnumerable<string>? values))
+            {
+                string? value =
+                    values.FirstOrDefault();
+
+                if (!int.TryParse(
+                        value,
+                        out pages))
+                    pages = 1;
+
+                pages = Math.Clamp(
+                    pages,
+                    1,
+                    100);
+            }
+
+            page++;
+        }
+        while (page <= pages);
+
+        return all;
+    }
+
+    private async Task<IReadOnlyDictionary<int, string>>
+        GetTypeNamesBatchAsync(
+            IEnumerable<int> typeIds,
+            CancellationToken cancellationToken)
+    {
+        int[] allIds =
+            typeIds
+                .Where(id => id > 0)
+                .Distinct()
+                .ToArray();
+
+        int[] unresolved =
+            allIds
+                .Where(id => !_typeNames.ContainsKey(id))
+                .ToArray();
+
+        for (int offset = 0;
+             offset < unresolved.Length;
+             offset += 500)
+        {
+            int[] batch =
+                unresolved
+                    .Skip(offset)
+                    .Take(500)
+                    .ToArray();
+
+            if (batch.Length == 0)
+                continue;
+
+            try
+            {
+                List<EveUniverseName> names =
+                    await PostPublicAsync<List<EveUniverseName>>(
+                        "/universe/names/",
+                        batch,
+                        cancellationToken);
+
+                foreach (EveUniverseName item in names)
+                {
+                    if (item.Id <= 0 ||
+                        string.IsNullOrWhiteSpace(item.Name))
+                        continue;
+
+                    _typeNames[item.Id] =
+                        item.Name;
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine(
+                    $"[PilotInventory] Batch name lookup failed: {ex.Message}");
+            }
+        }
+
+        return allIds.ToDictionary(
+            id => id,
+            id => _typeNames.TryGetValue(
+                id,
+                out string? name)
+                ? name
+                : $"Type {id}");
+    }
+
+    private async Task<T> PostPublicAsync<T>(
+        string relativePath,
+        object body,
+        CancellationToken cancellationToken)
+    {
+        string bodyJson =
+            JsonSerializer.Serialize(
+                body,
+                _json);
+
+        using var request =
+            new HttpRequestMessage(
+                HttpMethod.Post,
+                EsiBase + relativePath);
+
+        request.Headers.Accept.Add(
+            new MediaTypeWithQualityHeaderValue(
+                "application/json"));
+
+        request.Content =
+            new StringContent(
+                bodyJson,
+                Encoding.UTF8,
+                "application/json");
+
+        using HttpResponseMessage response =
+            await _http.SendAsync(
+                request,
+                cancellationToken);
+
+        string json =
+            await response.Content.ReadAsStringAsync(
+                cancellationToken);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            throw new InvalidOperationException(
+                $"ESI {relativePath} failed: " +
+                $"{(int)response.StatusCode} {response.ReasonPhrase}");
+        }
+
+        return JsonSerializer.Deserialize<T>(
+                   json,
+                   _json)
+               ?? throw new InvalidOperationException(
+                   $"ESI returned no data for {relativePath}.");
+    }
+
+    private static bool IsMiningLaserName(
+        string name)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+            return false;
+
+        return name.Contains(
+                   "Strip Miner",
+                   StringComparison.OrdinalIgnoreCase) ||
+               name.Contains(
+                   "Mining Laser",
+                   StringComparison.OrdinalIgnoreCase) ||
+               name.Contains(
+                   "Ice Harvester",
+                   StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsShipEquipmentFlag(
+        string flag)
+    {
+        if (string.IsNullOrWhiteSpace(flag))
+            return false;
+
+        return flag.StartsWith(
+                   "HighSlot",
+                   StringComparison.OrdinalIgnoreCase) ||
+               flag.StartsWith(
+                   "MedSlot",
+                   StringComparison.OrdinalIgnoreCase) ||
+               flag.StartsWith(
+                   "LowSlot",
+                   StringComparison.OrdinalIgnoreCase) ||
+               flag.StartsWith(
+                   "RigSlot",
+                   StringComparison.OrdinalIgnoreCase) ||
+               flag.StartsWith(
+                   "SubSystemSlot",
+                   StringComparison.OrdinalIgnoreCase) ||
+               flag.StartsWith(
+                   "ServiceSlot",
+                   StringComparison.OrdinalIgnoreCase) ||
+               flag.Equals(
+                   "DroneBay",
+                   StringComparison.OrdinalIgnoreCase) ||
+               flag.Equals(
+                   "FighterBay",
+                   StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static int SlotSortKey(
+        string flag)
+    {
+        int group =
+            flag.StartsWith(
+                "HighSlot",
+                StringComparison.OrdinalIgnoreCase) ? 100 :
+            flag.StartsWith(
+                "MedSlot",
+                StringComparison.OrdinalIgnoreCase) ? 200 :
+            flag.StartsWith(
+                "LowSlot",
+                StringComparison.OrdinalIgnoreCase) ? 300 :
+            flag.StartsWith(
+                "RigSlot",
+                StringComparison.OrdinalIgnoreCase) ? 400 :
+            flag.StartsWith(
+                "SubSystemSlot",
+                StringComparison.OrdinalIgnoreCase) ? 500 :
+            flag.StartsWith(
+                "ServiceSlot",
+                StringComparison.OrdinalIgnoreCase) ? 600 :
+            flag.Equals(
+                "DroneBay",
+                StringComparison.OrdinalIgnoreCase) ? 700 :
+            flag.Equals(
+                "FighterBay",
+                StringComparison.OrdinalIgnoreCase) ? 800 :
+            900;
+
+        int number = 0;
+
+        for (int i = flag.Length - 1;
+             i >= 0;
+             i--)
+        {
+            if (!char.IsDigit(flag[i]))
+            {
+                if (i < flag.Length - 1)
+                    int.TryParse(
+                        flag[(i + 1)..],
+                        out number);
+
+                break;
+            }
+        }
+
+        return group + number;
+    }
+
+    private static string FriendlySlot(
+        string flag)
+    {
+        if (string.IsNullOrWhiteSpace(flag))
+            return "-";
+
+        if (flag.Equals(
+                "DroneBay",
+                StringComparison.OrdinalIgnoreCase))
+            return "Drone Bay";
+
+        if (flag.Equals(
+                "FighterBay",
+                StringComparison.OrdinalIgnoreCase))
+            return "Fighter Bay";
+
+        static string WithNumber(
+            string value,
+            string prefix,
+            string label)
+        {
+            string suffix =
+                value[prefix.Length..];
+
+            if (int.TryParse(
+                    suffix,
+                    out int slot))
+                return $"{label} {slot + 1}";
+
+            return label;
+        }
+
+        if (flag.StartsWith(
+                "HighSlot",
+                StringComparison.OrdinalIgnoreCase))
+            return WithNumber(
+                flag,
+                "HighSlot",
+                "High");
+
+        if (flag.StartsWith(
+                "MedSlot",
+                StringComparison.OrdinalIgnoreCase))
+            return WithNumber(
+                flag,
+                "MedSlot",
+                "Mid");
+
+        if (flag.StartsWith(
+                "LowSlot",
+                StringComparison.OrdinalIgnoreCase))
+            return WithNumber(
+                flag,
+                "LowSlot",
+                "Low");
+
+        if (flag.StartsWith(
+                "RigSlot",
+                StringComparison.OrdinalIgnoreCase))
+            return WithNumber(
+                flag,
+                "RigSlot",
+                "Rig");
+
+        if (flag.StartsWith(
+                "SubSystemSlot",
+                StringComparison.OrdinalIgnoreCase))
+            return WithNumber(
+                flag,
+                "SubSystemSlot",
+                "Subsystem");
+
+        if (flag.StartsWith(
+                "ServiceSlot",
+                StringComparison.OrdinalIgnoreCase))
+            return WithNumber(
+                flag,
+                "ServiceSlot",
+                "Service");
+
+        return flag;
     }
 
     private async Task<T> GetEsiAsync<T>(

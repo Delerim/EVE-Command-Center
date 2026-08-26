@@ -161,13 +161,27 @@
                                     </Grid.RowDefinitions>
 
                                     <DockPanel Grid.Row="0">
-                                        <TextBlock Text="{Binding Character}" Foreground="#F4F8F7"
-                                                   FontWeight="SemiBold" FontSize="13.5"
-                                                   TextTrimming="CharacterEllipsis"/>
-                                        <TextBlock Text="{Binding Ore}" DockPanel.Dock="Right"
-                                                   Foreground="#58D3B4" FontSize="11.5"
-                                                   Margin="6,0,0,0" TextTrimming="CharacterEllipsis"
+                                        <TextBlock Text="{Binding Ore}"
+                                                   DockPanel.Dock="Right"
+                                                   Foreground="#58D3B4"
+                                                   FontSize="11.5"
+                                                   Margin="6,0,0,0"
+                                                   TextTrimming="CharacterEllipsis"
                                                    ToolTip="{Binding OreToolTip}"/>
+
+                                        <StackPanel>
+                                            <TextBlock Text="{Binding Character}"
+                                                       Foreground="#F4F8F7"
+                                                       FontWeight="SemiBold"
+                                                       FontSize="13.5"
+                                                       TextTrimming="CharacterEllipsis"/>
+                                            <TextBlock Text="{Binding ShipText}"
+                                                       Foreground="#8DA9A2"
+                                                       FontSize="9.5"
+                                                       Margin="0,1,0,0"
+                                                       TextTrimming="CharacterEllipsis"
+                                                       ToolTip="{Binding ShipToolTip}"/>
+                                        </StackPanel>
                                     </DockPanel>
 
                                     <Grid Grid.Row="1" Margin="0,3,0,0">
@@ -257,6 +271,7 @@
                                                 Tag="{Binding Character}"
                                                 Click="AlarmToggle_Click"
                                                 ToolTip="{Binding AlarmToolTip}"
+                                                IsEnabled="{Binding AlarmEnabled}"
                                                 FontSize="9.5"
                                                 MinWidth="57"
                                                 MinHeight="21"

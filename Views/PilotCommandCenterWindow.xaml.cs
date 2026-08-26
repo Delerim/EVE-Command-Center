@@ -26,6 +26,7 @@ public partial class PilotCommandCenterWindow : Window
     private List<SkillRowViewModel> _allSkillRows = new();
     private List<QueueRowViewModel> _queueRows = new();
     private EveTrainingProfile _trainingProfile = new();
+    private long _inventoryLoadedForCharacterId;
 
     public ObservableCollection<PilotCardViewModel> Pilots { get; } = new();
     public ObservableCollection<SkillGroupViewModel> SkillGroups { get; } = new();
@@ -148,7 +149,16 @@ public partial class PilotCommandCenterWindow : Window
         System.Windows.Controls.SelectionChangedEventArgs e)
     {
         if (PilotList.SelectedItem is PilotCardViewModel card)
+        {
+            _inventoryLoadedForCharacterId = 0;
+
             await LoadSelectedPilotAsync(card);
+
+            if (ShipAssetsTab.IsSelected)
+                await LoadInventoryAsync(
+                    card,
+                    force: true);
+        }
     }
 
     private async void Refresh_Click(
@@ -204,20 +214,13 @@ public partial class PilotCommandCenterWindow : Window
 
             AttributeItems.ItemsSource =
                 data.TrainingProfile.Attributes;
-            ImplantItems.ItemsSource =
-                data.TrainingProfile.Implants;
 
             RemapSummaryText.Text =
-                $"Bonus remaps: {data.TrainingProfile.BonusRemaps}  â€¢  " +
+                $"Bonus remaps: {data.TrainingProfile.BonusRemaps} | " +
                 data.TrainingProfile.StandardRemapText;
 
-            ImplantAccessText.Text =
-                data.TrainingProfile.ImplantDataAvailable
-                    ? data.TrainingProfile.Implants.Count > 0
-                        ? $"ACTIVE IMPLANTS  â€¢  {data.TrainingProfile.Implants.Count}"
-                        : "ACTIVE IMPLANTS  â€¢  none"
-                    : "IMPLANT DETAILS LOCKED  â€¢  Add Character again and select this pilot to grant implant access.";
-
+            ShowAllImplantsToggle.IsChecked = false;
+            RefreshImplantItems();
             card.Apply(data.Summary);
 
             IReadOnlyList<EveSkillCatalogEntry> catalog =
@@ -293,8 +296,21 @@ public partial class PilotCommandCenterWindow : Window
         ImplantItems.ItemsSource = null;
         RemapSummaryText.Text = "-";
         ImplantAccessText.Text = "";
+        ShowAllImplantsToggle.IsChecked = false;
         _trainingProfile = new();
         _queueRows.Clear();
+
+        _inventoryLoadedForCharacterId = 0;
+        CurrentShipDetailText.Text = "-";
+        CurrentShipItemText.Text = "";
+        ShipAssetsStatusText.Text =
+            "Open this tab to sync ship and asset data.";
+        CurrentEquipmentCountText.Text = "";
+        FittingCountText.Text = "";
+        AssetCountText.Text = "";
+        CurrentShipModulesGrid.ItemsSource = null;
+        SavedFittingsGrid.ItemsSource = null;
+        PersonalAssetsGrid.ItemsSource = null;
 
         _allSkillRows.Clear();
         SkillGroups.Clear();
@@ -383,6 +399,168 @@ public partial class PilotCommandCenterWindow : Window
         return catalog;
     }
 
+    private void RefreshImplantItems()
+    {
+        if (!_trainingProfile.ImplantDataAvailable)
+        {
+            ImplantItems.ItemsSource = null;
+            ShowAllImplantsToggle.Visibility =
+                Visibility.Collapsed;
+            ImplantAccessText.Text =
+                "IMPLANTS LOCKED | Add Character again and select this pilot to grant implant access.";
+            return;
+        }
+
+        int total =
+            _trainingProfile.Implants.Count;
+
+        int trainingCount =
+            _trainingProfile.Implants.Count(
+                implant => implant.IsTrainingRelevant);
+
+        bool showAll =
+            ShowAllImplantsToggle.IsChecked == true;
+
+        ImplantItems.ItemsSource =
+            showAll
+                ? _trainingProfile.Implants
+                : _trainingProfile.Implants
+                    .Where(
+                        implant => implant.IsTrainingRelevant)
+                    .ToArray();
+
+        int hidden =
+            Math.Max(
+                0,
+                total - trainingCount);
+
+        ImplantAccessText.Text =
+            trainingCount > 0
+                ? $"TRAINING IMPLANTS | {trainingCount} active" +
+                  (hidden > 0
+                      ? $" | {hidden} other hidden"
+                      : "")
+                : "TRAINING IMPLANTS | none";
+
+        ShowAllImplantsToggle.Visibility =
+            hidden > 0
+                ? Visibility.Visible
+                : Visibility.Collapsed;
+
+        ShowAllImplantsToggle.Content =
+            showAll
+                ? "TRAINING ONLY"
+                : $"SHOW ALL ({total})";
+    }
+
+    private void ShowAllImplantsToggle_Click(
+        object sender,
+        RoutedEventArgs e)
+    {
+        RefreshImplantItems();
+    }
+
+    private async void ShipAssetsTab_Selected(
+        object sender,
+        RoutedEventArgs e)
+    {
+        if (PilotList.SelectedItem
+            is not PilotCardViewModel card)
+            return;
+
+        await LoadInventoryAsync(
+            card,
+            force: false);
+    }
+
+    private async void RefreshShipAssets_Click(
+        object sender,
+        RoutedEventArgs e)
+    {
+        if (PilotList.SelectedItem
+            is not PilotCardViewModel card)
+            return;
+
+        await LoadInventoryAsync(
+            card,
+            force: true);
+    }
+
+    private async Task LoadInventoryAsync(
+        PilotCardViewModel card,
+        bool force)
+    {
+        if (!force &&
+            _inventoryLoadedForCharacterId ==
+            card.CharacterId)
+            return;
+
+        try
+        {
+            ShipAssetsStatusText.Text =
+                $"Syncing {card.CharacterName} ship, assets and fittings...";
+
+            CancellationToken token =
+                _loadCts?.Token ??
+                CancellationToken.None;
+
+            EveInventorySnapshot inventory =
+                await _sso.GetInventoryAsync(
+                    card.Profile,
+                    token);
+
+            if (PilotList.SelectedItem
+                    is not PilotCardViewModel selected ||
+                selected.CharacterId !=
+                card.CharacterId)
+                return;
+
+            _inventoryLoadedForCharacterId =
+                card.CharacterId;
+
+            CurrentShipDetailText.Text =
+                string.IsNullOrWhiteSpace(
+                    inventory.CurrentShip.DisplayName)
+                    ? "-"
+                    : inventory.CurrentShip.DisplayName;
+
+            CurrentShipItemText.Text =
+                inventory.CurrentShip.DetailText;
+
+            ShipAssetsStatusText.Text =
+                inventory.AccessMessage;
+
+            CurrentEquipmentCountText.Text =
+                $"{inventory.CurrentShipModules.Count:N0} fitted/bay item(s)";
+
+            FittingCountText.Text =
+                inventory.FittingsAvailable
+                    ? $"{inventory.Fittings.Count:N0} fitting(s)"
+                    : "permission required";
+
+            AssetCountText.Text =
+                inventory.AssetsAvailable
+                    ? $"{inventory.Assets.Count:N0} asset row(s)"
+                    : "permission required";
+
+            CurrentShipModulesGrid.ItemsSource =
+                inventory.CurrentShipModules;
+            SavedFittingsGrid.ItemsSource =
+                inventory.Fittings;
+            PersonalAssetsGrid.ItemsSource =
+                inventory.Assets;
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        catch (Exception ex)
+        {
+            ShipAssetsStatusText.Text =
+                "Ship/assets sync failed: " +
+                ex.Message;
+        }
+    }
+
     private void AttributeAlignmentToggle_Click(
         object sender,
         RoutedEventArgs e)
@@ -440,36 +618,35 @@ public partial class PilotCommandCenterWindow : Window
             164 => new(
                 "Charisma",
                 "CHA",
-                "âœ¦",
+                "",
                 "#FF8FA6"),
             165 => new(
                 "Intelligence",
                 "INT",
-                "â—†",
+                "",
                 "#64C7FF"),
             166 => new(
                 "Memory",
                 "MEM",
-                "â—",
+                "",
                 "#9FD67A"),
             167 => new(
                 "Perception",
                 "PER",
-                "â—‰",
+                "",
                 "#E7B85A"),
             168 => new(
                 "Willpower",
                 "WIL",
-                "â–²",
+                "",
                 "#D693FF"),
             _ => new(
                 "Unknown",
                 "?",
-                "Â·",
+                "",
                 "#78958E")
         };
     }
-
     private static AlignmentPresentation GetAlignment(
         int primaryAttributeId,
         int secondaryAttributeId,
@@ -884,9 +1061,9 @@ public partial class PilotCommandCenterWindow : Window
                     SecondaryAttributeId);
 
             PrimaryBadge =
-                $"{primary.Symbol} {primary.ShortName}";
+                primary.ShortName;
             SecondaryBadge =
-                $"{secondary.Symbol} {secondary.ShortName}";
+                secondary.ShortName;
             PrimaryAccent = primary.Accent;
             SecondaryAccent = secondary.Accent;
 
@@ -973,9 +1150,9 @@ public partial class PilotCommandCenterWindow : Window
                     secondaryId);
 
             PrimaryBadge =
-                $"{primary.Symbol} {primary.ShortName}";
+                primary.ShortName;
             SecondaryBadge =
-                $"{secondary.Symbol} {secondary.ShortName}";
+                secondary.ShortName;
             PrimaryAccent = primary.Accent;
             SecondaryAccent = secondary.Accent;
 
