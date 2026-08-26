@@ -222,7 +222,10 @@ public partial class MiningFleetOverviewWindow : Window
 
             var state = _watchdog.GetState(character);
             var crit = _tracker.GetTodayMiningCritSummary(character);
-            var laserTiming = _tracker.GetMiningLaserTiming(character);
+            var laserTiming =
+                _tracker.GetMiningLaserTiming(
+                    character,
+                    shipIntel?.RepresentativeLaserBaseCycleSeconds);
             bool manualAlarmMuted =
                 _watchdog.IsCharacterAlarmMuted(
                     character);
@@ -253,12 +256,12 @@ public partial class MiningFleetOverviewWindow : Window
             if (isOrca)
             {
                 laserText =
-                    "DRONES | variable travel cycle";
+                    "DRONE MINING";
 
                 laserToolTip =
                     $"Orca detected from ESI.{Environment.NewLine}" +
-                    $"No strip-miner cycle is shown because this ship mines with drones.{Environment.NewLine}" +
-                    $"The idle-pull alarm is automatically suppressed.";
+                    $"This tile uses drone-mining mode; strip-miner timing is hidden.{Environment.NewLine}" +
+                    $"Mining alarm suppression is automatic while this pilot is in the Orca.";
             }
             else if (fittedLaserCount == 0)
             {
@@ -306,7 +309,7 @@ public partial class MiningFleetOverviewWindow : Window
             }
 
             string statusText = isOrca
-                ? "Drone mining | alarm suppressed"
+                ? "Drone mining"
                 : alarmMuted
                     ? (state.AgeSeconds > 0
                         ? $"Muted - {AgeText(state.AgeSeconds)}"
@@ -383,7 +386,7 @@ public partial class MiningFleetOverviewWindow : Window
                 AlarmMuted = alarmMuted,
                 AlarmEnabled = !isOrca,
                 AlarmButtonText = isOrca
-                    ? "DRONE ONLY"
+                    ? "DRONE"
                     : manualAlarmMuted
                         ? "ALARM OFF"
                         : "ALARM ON",
@@ -397,6 +400,13 @@ public partial class MiningFleetOverviewWindow : Window
                 StatusToolTip = statusToolTip,
                 LaserText = laserText,
                 LaserToolTip = laserToolTip,
+                EhpText =
+                    shipIntel?.Defense.EhpText ??
+                    "EHP --",
+                EhpToolTip =
+                    shipIntel?.Defense.ToolTip ??
+                    "Connect this pilot with asset access to calculate fit EHP.",
+                IsDroneMining = isOrca,
                 OreToolTip =
                     $"Current ore: {(string.IsNullOrWhiteSpace(s.CurrentOre) ? "-" : s.CurrentOre)}{Environment.NewLine}" +
                     $"Last mining pull: {lastPullAge} ago at {lastPullClock}.",
@@ -575,6 +585,9 @@ public partial class MiningFleetOverviewWindow : Window
         public string StatusToolTip { get; init; } = "";
         public string LaserText { get; init; } = "";
         public string LaserToolTip { get; init; } = "";
+        public string EhpText { get; init; } = "";
+        public string EhpToolTip { get; init; } = "";
+        public bool IsDroneMining { get; init; }
         public string OreToolTip { get; init; } = "";
         public string BaseToolTip { get; init; } = "";
         public string RealToolTip { get; init; } = "";

@@ -243,13 +243,31 @@
                                         <TextBlock Text="{Binding CritText}" Foreground="#C8D8D4" FontSize="11.5"/>
                                     </DockPanel>
 
-                                    <TextBlock Grid.Row="3"
-                                               Text="{Binding LaserText}"
-                                               Foreground="#7FDCC5"
-                                               FontSize="10.5"
-                                               FontWeight="SemiBold"
-                                               Margin="0,2,0,0"
-                                               ToolTip="{Binding LaserToolTip}"/>
+                                    <Grid Grid.Row="3"
+                                          Margin="0,2,0,0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+
+                                        <TextBlock Grid.Column="0"
+                                                   Text="{Binding LaserText}"
+                                                   Foreground="#7FDCC5"
+                                                   FontSize="10.5"
+                                                   FontWeight="SemiBold"
+                                                   VerticalAlignment="Center"
+                                                   TextTrimming="CharacterEllipsis"
+                                                   ToolTip="{Binding LaserToolTip}"/>
+
+                                        <TextBlock Grid.Column="1"
+                                                   Text="{Binding EhpText}"
+                                                   Foreground="#8EC9E8"
+                                                   FontSize="10.5"
+                                                   FontWeight="SemiBold"
+                                                   Margin="7,0,0,0"
+                                                   VerticalAlignment="Center"
+                                                   ToolTip="{Binding EhpToolTip}"/>
+                                    </Grid>
 
                                     <Grid Grid.Row="4" Margin="0,2,0,0">
                                         <Grid.ColumnDefinitions>
@@ -312,6 +330,13 @@
                                                             <Setter Property="Background" Value="#2A2020"/>
                                                             <Setter Property="Foreground" Value="#E7A5A5"/>
                                                             <Setter Property="BorderBrush" Value="#8D5555"/>
+                                                        </DataTrigger>
+
+                                                        <DataTrigger Binding="{Binding IsDroneMining}" Value="True">
+                                                            <Setter Property="Background" Value="#183047"/>
+                                                            <Setter Property="Foreground" Value="#8DD8FF"/>
+                                                            <Setter Property="BorderBrush" Value="#397B9E"/>
+                                                            <Setter Property="Opacity" Value="1"/>
                                                         </DataTrigger>
                                                     </Style.Triggers>
                                                 </Style>

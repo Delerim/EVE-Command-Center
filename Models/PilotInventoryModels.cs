@@ -102,9 +102,15 @@ public sealed class EveCurrentShipView
 
 public sealed class EveShipModuleView
 {
+    public int TypeId { get; init; }
     public string Slot { get; init; } = "";
     public string Name { get; init; } = "";
     public long Quantity { get; init; }
+
+    public string IconUrl =>
+        TypeId > 0
+            ? $"https://images.evetech.net/types/{TypeId}/icon?size=64"
+            : "";
 
     public string SlotAccent
     {
@@ -165,6 +171,41 @@ public sealed class EveFittingView
         Array.Empty<EveShipModuleView>();
 }
 
+public sealed class EveFitDefenseStats
+{
+    public bool Available { get; init; }
+    public double ShieldHp { get; init; }
+    public double ArmorHp { get; init; }
+    public double StructureHp { get; init; }
+    public double OmniEhp { get; init; }
+
+    public string EhpText
+    {
+        get
+        {
+            if (!Available || OmniEhp <= 0)
+                return "EHP --";
+
+            if (OmniEhp >= 1000000)
+                return $"EHP ~{OmniEhp / 1000000.0:0.00}m";
+
+            if (OmniEhp >= 1000)
+                return $"EHP ~{OmniEhp / 1000.0:0.#}k";
+
+            return $"EHP ~{OmniEhp:0}";
+        }
+    }
+
+    public string ToolTip =>
+        !Available
+            ? "Fit EHP estimate unavailable."
+            : $"Fit EHP estimate: {OmniEhp:N0}\n" +
+              $"Shield: {ShieldHp:N0} HP\n" +
+              $"Armor: {ArmorHp:N0} HP\n" +
+              $"Structure: {StructureHp:N0} HP\n\n" +
+              "Uniform 25/25/25/25 damage profile. Includes common fitted HP/resistance modules and core HP skills. " +
+              "Assumes fitted hardeners are active. Fleet boosts, heat, boosters and most implants are not included yet.";
+}
 public sealed class EveInventorySnapshot
 {
     public EveCurrentShipView CurrentShip { get; init; } = new();
@@ -177,6 +218,8 @@ public sealed class EveInventorySnapshot
 
     public IReadOnlyList<EveFittingView> Fittings { get; init; } =
         Array.Empty<EveFittingView>();
+
+    public EveFitDefenseStats CurrentFitStats { get; init; } = new();
 
     public bool AssetsAvailable { get; init; }
     public bool FittingsAvailable { get; init; }
@@ -191,7 +234,18 @@ public sealed class EveMiningShipIntel
 
     // -1 = asset permission unavailable, so fitted laser count is unknown.
     public int MiningLaserCount { get; init; } = -1;
+
+    public IReadOnlyList<double> MiningLaserBaseCyclesSeconds { get; init; } =
+        Array.Empty<double>();
+
+    public EveFitDefenseStats Defense { get; init; } = new();
+
     public bool AssetsAvailable { get; init; }
 
     public bool IsOrca => CurrentShip.IsOrca;
+
+    public double? RepresentativeLaserBaseCycleSeconds =>
+        MiningLaserBaseCyclesSeconds.Count == 0
+            ? null
+            : MiningLaserBaseCyclesSeconds.Average();
 }

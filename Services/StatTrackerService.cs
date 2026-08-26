@@ -350,91 +350,228 @@ public sealed class StatTrackerService
     }
     public string GetMiningDayLabel() => _dailyMiningStore.CurrentDayKey;
 
-    public MiningLaserTiming GetMiningLaserTiming(string character)
+    public MiningLaserTiming GetMiningLaserTiming(
+        string character,
+        double? fittedBaseCycleSeconds = null)
     {
         if (!_stats.TryGetValue(character, out var stats))
             return new MiningLaserTiming();
 
-        // Keep enough raw pulls for robust medians, but do not make the visible
-        // value depend on DateTime.UtcNow. The tile is a learned cycle DURATION,
-        // not a countdown clock.
-        var pulls = stats.MiningCycles
-            .Where(c => c.MineType == "ore")
-            .OrderBy(c => c.Timestamp)
-            .TakeLast(50)
-            .ToList();
+        var allPulls =
+            stats.MiningCycles
+                .Where(c => c.MineType == "ore")
+                .OrderBy(c => c.Timestamp)
+                .TakeLast(100)
+                .ToList();
 
         DateTime? lastPullUtc =
-            pulls.Count > 0 ? pulls[^1].Timestamp : null;
+            allPulls.Count > 0
+                ? allPulls[^1].Timestamp
+                : null;
 
-        var laneA = new List<double>();
-        var laneB = new List<double>();
-
-        // With two active strips, every second pull is approximately the same
-        // timing lane. We do not care which physical strip is called L1/L2.
-        for (int i = 2; i < pulls.Count; i++)
+        if (allPulls.Count < 4)
         {
-            double seconds =
-                (pulls[i].Timestamp - pulls[i - 2].Timestamp)
-                .TotalSeconds;
-
-            // Reject obvious session gaps and implausible timings.
-            if (seconds < 5.0 || seconds > 180.0)
-                continue;
-
-            if ((i & 1) == 0)
-                laneA.Add(seconds);
-            else
-                laneB.Add(seconds);
+            return new MiningLaserTiming
+            {
+                LastPullUtc = lastPullUtc,
+                SampleCount = allPulls.Count
+            };
         }
 
-        double candidateA = RobustCycleMedian(laneA);
-        double candidateB = RobustCycleMedian(laneB);
+        // Use only the current/recent ore stream so unit counts remain
+        // comparable. Mining drone returns are normally much smaller than a
+        // strip-miner pull; the fit tells us whether lasers actually exist.
+        string recentOre =
+            allPulls[^1].OreType;
 
-        // Sorting makes L1/L2 stable display lanes rather than pretending they
-        // map to a specific high-slot module.
-        var candidates = new[] { candidateA, candidateB }
-            .Where(v => v > 0)
-            .OrderBy(v => v)
-            .ToArray();
+        var pulls =
+            allPulls
+                .Where(
+                    c =>
+                        string.Equals(
+                            c.OreType,
+                            recentOre,
+                            StringComparison.OrdinalIgnoreCase))
+                .TakeLast(60)
+                .ToList();
 
-        // Reconsider the learned value only when a NEW mining pull arrives.
-        // This is what stops the tile changing every second.
-        if (lastPullUtc.HasValue &&
-            lastPullUtc.Value != stats.LaserTimingLastProcessedPullUtc)
+        if (fittedBaseCycleSeconds.HasValue &&
+            fittedBaseCycleSeconds.Value > 0 &&
+            pulls.Count >= 6)
         {
-            if (candidates.Length >= 2)
-            {
-                UpdateCycleEstimate(stats.LaserCycleLow, candidates[0]);
-                UpdateCycleEstimate(stats.LaserCycleHigh, candidates[1]);
-            }
+            int maxUnits =
+                pulls.Max(c => c.Units);
 
-            stats.LaserTimingLastProcessedPullUtc = lastPullUtc.Value;
+            int largePullThreshold =
+                Math.Max(
+                    1,
+                    (int)Math.Round(
+                        maxUnits * 0.40));
+
+            var largePulls =
+                pulls
+                    .Where(
+                        c =>
+                            c.Units >=
+                            largePullThreshold)
+                    .ToList();
+
+            if (largePulls.Count >= 4)
+                pulls = largePulls;
+        }
+
+        double candidate =
+            EstimateObservedLaserCycle(
+                pulls,
+                fittedBaseCycleSeconds);
+
+        if (candidate > 0 &&
+            lastPullUtc.HasValue &&
+            lastPullUtc.Value !=
+            stats.LaserTimingLastProcessedPullUtc)
+        {
+            UpdateCycleEstimate(
+                stats.LaserCycleLow,
+                candidate);
+
+            UpdateCycleEstimate(
+                stats.LaserCycleHigh,
+                candidate);
+
+            stats.LaserTimingLastProcessedPullUtc =
+                lastPullUtc.Value;
         }
 
         bool ready =
-            stats.LaserCycleLow.Value > 0 &&
-            stats.LaserCycleHigh.Value > 0;
+            stats.LaserCycleLow.Value > 0;
 
-        double estimated =
+        double estimate =
             ready
-                ? (stats.LaserCycleLow.Value +
-                   stats.LaserCycleHigh.Value) / 2.0
+                ? stats.LaserCycleLow.Value
                 : 0;
 
         return new MiningLaserTiming
         {
             Ready = ready,
             LastPullUtc = lastPullUtc,
-            EstimatedCycleSeconds = estimated,
+            EstimatedCycleSeconds = estimate,
             Laser1CycleSeconds =
-                ready ? stats.LaserCycleLow.Value : null,
+                ready ? estimate : null,
             Laser2CycleSeconds =
-                ready ? stats.LaserCycleHigh.Value : null,
-            SampleCount = laneA.Count + laneB.Count
+                ready ? estimate : null,
+            SampleCount = pulls.Count
         };
     }
 
+    private static double EstimateObservedLaserCycle(
+        IReadOnlyList<MiningCycleRecord> pulls,
+        double? fittedBaseCycleSeconds)
+    {
+        if (pulls.Count < 4)
+            return 0;
+
+        var candidates =
+            new List<double>();
+
+        double minimum =
+            fittedBaseCycleSeconds.HasValue &&
+            fittedBaseCycleSeconds.Value > 0
+                ? Math.Max(
+                    5.0,
+                    fittedBaseCycleSeconds.Value * 0.16)
+                : 5.0;
+
+        double maximum =
+            fittedBaseCycleSeconds.HasValue &&
+            fittedBaseCycleSeconds.Value > 0
+                ? fittedBaseCycleSeconds.Value * 1.10
+                : 180.0;
+
+        // Pairwise recurrence is much more resistant to drone returns than
+        // assuming every second ore log line belongs to the same strip miner.
+        for (int right = 1;
+             right < pulls.Count;
+             right++)
+        {
+            for (int left = right - 1;
+                 left >= 0;
+                 left--)
+            {
+                double seconds =
+                    (pulls[right].Timestamp -
+                     pulls[left].Timestamp)
+                    .TotalSeconds;
+
+                if (seconds > maximum)
+                    break;
+
+                if (seconds >= minimum)
+                    candidates.Add(seconds);
+            }
+        }
+
+        if (candidates.Count < 3)
+            return 0;
+
+        var clusters =
+            candidates
+                .GroupBy(
+                    value =>
+                        Math.Round(
+                            value * 2.0) /
+                        2.0)
+                .Select(
+                    group =>
+                        new
+                        {
+                            Center = group.Key,
+                            Count = group.Count(),
+                            Values = group.ToArray()
+                        })
+                .Where(group => group.Count >= 2)
+                .OrderByDescending(group => group.Count)
+                .ThenBy(group => group.Center)
+                .ToList();
+
+        if (clusters.Count == 0)
+            return 0;
+
+        var best =
+            clusters[0];
+
+        var nearby =
+            candidates
+                .Where(
+                    value =>
+                        Math.Abs(
+                            value -
+                            best.Center) <=
+                        1.5)
+                .ToList();
+
+        if (nearby.Count < 2)
+            return 0;
+
+        double result =
+            Median(nearby);
+
+        if (fittedBaseCycleSeconds.HasValue &&
+            fittedBaseCycleSeconds.Value > 0)
+        {
+            double baseCycle =
+                fittedBaseCycleSeconds.Value;
+
+            if (result <
+                    Math.Max(
+                        5.0,
+                        baseCycle * 0.16) ||
+                result >
+                    baseCycle * 1.10)
+                return 0;
+        }
+
+        return result;
+    }
     private static double RobustCycleMedian(IReadOnlyList<double> values)
     {
         if (values.Count < 2)

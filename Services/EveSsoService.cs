@@ -366,42 +366,100 @@ public sealed class EveSsoService
                 pilot,
                 "esi-assets.read_assets.v1");
 
-        int laserCount = -1;
-
-        if (canReadAssets &&
-            ship.ShipItemId > 0)
+        if (!canReadAssets ||
+            ship.ShipItemId <= 0)
         {
-            string token =
-                await GetAccessTokenAsync(
-                    pilot,
-                    cancellationToken);
+            return new EveMiningShipIntel
+            {
+                CharacterId = pilot.CharacterId,
+                CharacterName = pilot.CharacterName,
+                CurrentShip = ship,
+                MiningLaserCount = -1,
+                AssetsAvailable = false
+            };
+        }
 
-            List<EveAssetItem> assets =
-                await GetCharacterAssetsCachedAsync(
-                    pilot.CharacterId,
-                    token,
-                    cancellationToken);
+        string token =
+            await GetAccessTokenAsync(
+                pilot,
+                cancellationToken);
 
-            EveAssetItem[] fittedHighs =
-                assets
-                    .Where(a =>
-                        a.LocationId == ship.ShipItemId &&
-                        a.LocationFlag.StartsWith(
-                            "HighSlot",
-                            StringComparison.OrdinalIgnoreCase))
-                    .ToArray();
+        List<EveAssetItem> assets =
+            await GetCharacterAssetsCachedAsync(
+                pilot.CharacterId,
+                token,
+                cancellationToken);
 
-            IReadOnlyDictionary<int, string> names =
-                await GetTypeNamesBatchAsync(
-                    fittedHighs.Select(a => a.TypeId),
-                    cancellationToken);
+        EveAssetItem[] fitted =
+            assets
+                .Where(a =>
+                    a.LocationId == ship.ShipItemId &&
+                    IsShipEquipmentFlag(a.LocationFlag))
+                .ToArray();
 
-            laserCount =
-                fittedHighs.Count(a =>
+        IReadOnlyDictionary<int, string> names =
+            await GetTypeNamesBatchAsync(
+                fitted.Select(a => a.TypeId),
+                cancellationToken);
+
+        EveAssetItem[] laserAssets =
+            fitted
+                .Where(a =>
+                    a.LocationFlag.StartsWith(
+                        "HighSlot",
+                        StringComparison.OrdinalIgnoreCase) &&
                     names.TryGetValue(
                         a.TypeId,
                         out string? name) &&
-                    IsMiningLaserName(name));
+                    IsMiningLaserName(name))
+                .ToArray();
+
+        var baseCycles =
+            new List<double>();
+
+        foreach (EveAssetItem laser in laserAssets)
+        {
+            EveUniverseType type =
+                await GetUniverseTypeAsync(
+                    laser.TypeId,
+                    cancellationToken);
+
+            double milliseconds =
+                GetDogmaValue(
+                    type,
+                    73,
+                    0);
+
+            if (milliseconds > 0)
+                baseCycles.Add(milliseconds / 1000.0);
+        }
+
+        EveFitDefenseStats defense =
+            new();
+
+        try
+        {
+            EveSkillsResponse skills =
+                await GetEsiAsync<EveSkillsResponse>(
+                    $"/characters/{pilot.CharacterId}/skills/",
+                    token,
+                    cancellationToken);
+
+            defense =
+                await CalculateFitDefenseAsync(
+                    ship.ShipTypeId,
+                    fitted.Select(a => a.TypeId),
+                    skills,
+                    cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine(
+                $"[PilotFit] EHP estimate failed for {pilot.CharacterName}: {ex.Message}");
         }
 
         return new EveMiningShipIntel
@@ -409,11 +467,13 @@ public sealed class EveSsoService
             CharacterId = pilot.CharacterId,
             CharacterName = pilot.CharacterName,
             CurrentShip = ship,
-            MiningLaserCount = laserCount,
-            AssetsAvailable = canReadAssets
+            MiningLaserCount = laserAssets.Length,
+            MiningLaserBaseCyclesSeconds =
+                baseCycles.ToArray(),
+            Defense = defense,
+            AssetsAvailable = true
         };
     }
-
     public async Task<EveInventorySnapshot> GetInventoryAsync(
         EvePilotProfile pilot,
         CancellationToken cancellationToken = default)
@@ -496,11 +556,48 @@ public sealed class EveSsoService
                 .Select(a =>
                     new EveShipModuleView
                     {
+                        TypeId = a.TypeId,
                         Slot = FriendlySlot(a.LocationFlag),
                         Name = NameFor(a.TypeId),
                         Quantity = a.Quantity
                     })
                 .ToArray();
+
+        EveFitDefenseStats currentFitStats =
+            new();
+
+        if (canReadAssets)
+        {
+            try
+            {
+                EveSkillsResponse fitSkills =
+                    await GetEsiAsync<EveSkillsResponse>(
+                        $"/characters/{pilot.CharacterId}/skills/",
+                        token,
+                        cancellationToken);
+
+                currentFitStats =
+                    await CalculateFitDefenseAsync(
+                        ship.ShipTypeId,
+                        assets
+                            .Where(a =>
+                                ship.ShipItemId > 0 &&
+                                a.LocationId == ship.ShipItemId &&
+                                IsShipEquipmentFlag(a.LocationFlag))
+                            .Select(a => a.TypeId),
+                        fitSkills,
+                        cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine(
+                    $"[PilotFit] Current fit EHP estimate failed: {ex.Message}");
+            }
+        }
 
         EveAssetView[] assetViews =
             assets
@@ -545,6 +642,7 @@ public sealed class EveSsoService
                             .Select(i =>
                                 new EveShipModuleView
                                 {
+                                    TypeId = i.TypeId,
                                     Slot = FriendlySlot(i.Flag),
                                     Name = NameFor(i.TypeId),
                                     Quantity = i.Quantity
@@ -595,6 +693,7 @@ public sealed class EveSsoService
             CurrentShipModules = currentModules,
             Assets = assetViews,
             Fittings = fittingViews,
+            CurrentFitStats = currentFitStats,
             AssetsAvailable = canReadAssets,
             FittingsAvailable = canReadFittings,
             AccessMessage = accessMessage
@@ -1629,6 +1728,405 @@ public sealed class EveSsoService
                    $"ESI returned no data for {relativePath}.");
     }
 
+    private async Task<EveFitDefenseStats> CalculateFitDefenseAsync(
+        int shipTypeId,
+        IEnumerable<int> fittedTypeIds,
+        EveSkillsResponse skills,
+        CancellationToken cancellationToken)
+    {
+        if (shipTypeId <= 0)
+            return new EveFitDefenseStats();
+
+        EveUniverseType hull =
+            await GetUniverseTypeAsync(
+                shipTypeId,
+                cancellationToken);
+
+        var modules =
+            new List<EveUniverseType>();
+
+        foreach (int typeId in fittedTypeIds
+                     .Where(id => id > 0)
+                     .Distinct())
+        {
+            modules.Add(
+                await GetUniverseTypeAsync(
+                    typeId,
+                    cancellationToken));
+        }
+
+        double shieldHp =
+            GetDogmaValue(
+                hull,
+                263,
+                0);
+
+        double armorHp =
+            GetDogmaValue(
+                hull,
+                265,
+                0);
+
+        double structureHp =
+            GetDogmaValue(
+                hull,
+                9,
+                0);
+
+        // Flat buffer modules.
+        shieldHp +=
+            modules.Sum(
+                module =>
+                    Math.Max(
+                        0,
+                        GetDogmaValue(
+                            module,
+                            72,
+                            0)));
+
+        armorHp +=
+            modules.Sum(
+                module =>
+                    Math.Max(
+                        0,
+                        GetDogmaValue(
+                            module,
+                            1159,
+                            0)));
+
+        // Percentage buffer modules and rigs.
+        foreach (EveUniverseType module in modules)
+        {
+            shieldHp *=
+                SafePositiveMultiplier(
+                    GetDogmaValue(
+                        module,
+                        146,
+                        1));
+
+            armorHp *=
+                SafePositiveMultiplier(
+                    GetDogmaValue(
+                        module,
+                        148,
+                        1));
+
+            structureHp *=
+                SafePositiveMultiplier(
+                    GetDogmaValue(
+                        module,
+                        150,
+                        1));
+        }
+
+        // Core character HP skills.
+        shieldHp *=
+            1.0 +
+            0.05 *
+            GetSkillLevel(
+                skills,
+                3419); // Shield Management
+
+        armorHp *=
+            1.0 +
+            0.05 *
+            GetSkillLevel(
+                skills,
+                3394); // Hull Upgrades
+
+        structureHp *=
+            1.0 +
+            0.05 *
+            GetSkillLevel(
+                skills,
+                3392); // Mechanics
+
+        double[] shieldResonance =
+        {
+            ClampResonance(GetDogmaValue(hull, 271, 1)),
+            ClampResonance(GetDogmaValue(hull, 272, 1)),
+            ClampResonance(GetDogmaValue(hull, 273, 1)),
+            ClampResonance(GetDogmaValue(hull, 274, 1))
+        };
+
+        double[] armorResonance =
+        {
+            ClampResonance(GetDogmaValue(hull, 267, 1)),
+            ClampResonance(GetDogmaValue(hull, 268, 1)),
+            ClampResonance(GetDogmaValue(hull, 269, 1)),
+            ClampResonance(GetDogmaValue(hull, 270, 1))
+        };
+
+        double[] structureResonance =
+        {
+            ClampResonance(GetDogmaValue(hull, 113, 1)),
+            ClampResonance(GetDogmaValue(hull, 111, 1)),
+            ClampResonance(GetDogmaValue(hull, 109, 1)),
+            ClampResonance(GetDogmaValue(hull, 110, 1))
+        };
+
+        var shieldPercentBonuses =
+            new[]
+            {
+                new List<double>(),
+                new List<double>(),
+                new List<double>(),
+                new List<double>()
+            };
+
+        var armorPercentBonuses =
+            new[]
+            {
+                new List<double>(),
+                new List<double>(),
+                new List<double>(),
+                new List<double>()
+            };
+
+        int[] percentBonusIds =
+        {
+            984,
+            985,
+            986,
+            987
+        };
+
+        int[] dcShieldIds =
+        {
+            271,
+            272,
+            273,
+            274
+        };
+
+        int[] dcArmorIds =
+        {
+            267,
+            268,
+            269,
+            270
+        };
+
+        int[] dcHullIds =
+        {
+            974,
+            975,
+            976,
+            977
+        };
+
+        foreach (EveUniverseType module in modules)
+        {
+            bool isDamageControl =
+                module.Name.Contains(
+                    "Damage Control",
+                    StringComparison.OrdinalIgnoreCase);
+
+            if (isDamageControl)
+            {
+                for (int i = 0; i < 4; i++)
+                {
+                    shieldResonance[i] *=
+                        ClampResonance(
+                            GetDogmaValue(
+                                module,
+                                dcShieldIds[i],
+                                1));
+
+                    armorResonance[i] *=
+                        ClampResonance(
+                            GetDogmaValue(
+                                module,
+                                dcArmorIds[i],
+                                1));
+
+                    structureResonance[i] *=
+                        ClampResonance(
+                            GetDogmaValue(
+                                module,
+                                dcHullIds[i],
+                                1));
+                }
+            }
+
+            bool appliesToShield =
+                module.Name.Contains(
+                    "Shield",
+                    StringComparison.OrdinalIgnoreCase) ||
+                module.Name.Contains(
+                    "Core Defense",
+                    StringComparison.OrdinalIgnoreCase);
+
+            bool appliesToArmor =
+                module.Name.Contains(
+                    "Armor",
+                    StringComparison.OrdinalIgnoreCase) ||
+                module.Name.Contains(
+                    "Membrane",
+                    StringComparison.OrdinalIgnoreCase) ||
+                module.Name.Contains(
+                    "Coating",
+                    StringComparison.OrdinalIgnoreCase);
+
+            for (int i = 0; i < 4; i++)
+            {
+                double bonus =
+                    GetDogmaValue(
+                        module,
+                        percentBonusIds[i],
+                        0);
+
+                if (bonus >= 0)
+                    continue;
+
+                if (appliesToShield)
+                    shieldPercentBonuses[i].Add(bonus);
+
+                if (appliesToArmor)
+                    armorPercentBonuses[i].Add(bonus);
+            }
+        }
+
+        for (int i = 0; i < 4; i++)
+        {
+            shieldResonance[i] =
+                ApplyStackedResistanceBonuses(
+                    shieldResonance[i],
+                    shieldPercentBonuses[i]);
+
+            armorResonance[i] =
+                ApplyStackedResistanceBonuses(
+                    armorResonance[i],
+                    armorPercentBonuses[i]);
+        }
+
+        double shieldAverage =
+            Math.Max(
+                0.01,
+                shieldResonance.Average());
+
+        double armorAverage =
+            Math.Max(
+                0.01,
+                armorResonance.Average());
+
+        double structureAverage =
+            Math.Max(
+                0.01,
+                structureResonance.Average());
+
+        double omniEhp =
+            shieldHp / shieldAverage +
+            armorHp / armorAverage +
+            structureHp / structureAverage;
+
+        return new EveFitDefenseStats
+        {
+            Available =
+                shieldHp > 0 ||
+                armorHp > 0 ||
+                structureHp > 0,
+            ShieldHp = shieldHp,
+            ArmorHp = armorHp,
+            StructureHp = structureHp,
+            OmniEhp = omniEhp
+        };
+    }
+
+    private static int GetSkillLevel(
+        EveSkillsResponse skills,
+        int skillTypeId)
+    {
+        EveSkillEntry? skill =
+            skills.Skills.FirstOrDefault(
+                value =>
+                    value.SkillId == skillTypeId);
+
+        return skill?.ActiveSkillLevel ?? 0;
+    }
+
+    private static double GetDogmaValue(
+        EveUniverseType type,
+        int attributeId,
+        double fallback)
+    {
+        EveDogmaAttributeValue? value =
+            type.DogmaAttributes.FirstOrDefault(
+                attribute =>
+                    attribute.AttributeId == attributeId);
+
+        return value?.Value ?? fallback;
+    }
+
+    private static double SafePositiveMultiplier(
+        double value)
+    {
+        if (double.IsNaN(value) ||
+            double.IsInfinity(value) ||
+            value <= 0 ||
+            value > 10)
+            return 1;
+
+        return value;
+    }
+
+    private static double ClampResonance(
+        double value) =>
+        Math.Clamp(
+            value,
+            0.01,
+            1.0);
+
+    private static double ApplyStackedResistanceBonuses(
+        double baseResonance,
+        IReadOnlyList<double> bonuses)
+    {
+        if (bonuses.Count == 0)
+            return ClampResonance(baseResonance);
+
+        double[] penalties =
+        {
+            1.0,
+            0.86911998,
+            0.57058314,
+            0.28295515,
+            0.10599265,
+            0.02999117
+        };
+
+        double result =
+            ClampResonance(baseResonance);
+
+        double[] strongestFirst =
+            bonuses
+                .Where(value => value < 0)
+                .OrderBy(value => value)
+                .ToArray();
+
+        for (int i = 0;
+             i < strongestFirst.Length &&
+             i < penalties.Length;
+             i++)
+        {
+            double strength =
+                Math.Abs(
+                    strongestFirst[i]) /
+                100.0;
+
+            double multiplier =
+                1.0 -
+                strength *
+                penalties[i];
+
+            result *=
+                Math.Clamp(
+                    multiplier,
+                    0.01,
+                    1.0);
+        }
+
+        return ClampResonance(result);
+    }
     private static bool IsMiningLaserName(
         string name)
     {
