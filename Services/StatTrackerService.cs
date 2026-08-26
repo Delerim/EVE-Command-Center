@@ -355,123 +355,154 @@ public sealed class StatTrackerService
         if (!_stats.TryGetValue(character, out var stats))
             return new MiningLaserTiming();
 
-        var now = DateTime.UtcNow;
-
-        var recent = stats.MiningCycles
-            .Where(c =>
-                c.MineType == "ore" &&
-                c.Timestamp >= now - TimeSpan.FromMinutes(4))
+        // Keep enough raw pulls for robust medians, but do not make the visible
+        // value depend on DateTime.UtcNow. The tile is a learned cycle DURATION,
+        // not a countdown clock.
+        var pulls = stats.MiningCycles
+            .Where(c => c.MineType == "ore")
             .OrderBy(c => c.Timestamp)
-            .TakeLast(40)
+            .TakeLast(50)
             .ToList();
 
         DateTime? lastPullUtc =
-            recent.Count > 0 ? recent[^1].Timestamp : null;
+            pulls.Count > 0 ? pulls[^1].Timestamp : null;
 
-        if (recent.Count < 6)
-        {
-            return new MiningLaserTiming
-            {
-                LastPullUtc = lastPullUtc,
-                SampleCount = recent.Count
-            };
-        }
+        var laneA = new List<double>();
+        var laneB = new List<double>();
 
-        // With two active lasers/strip miners, every second raw pull belongs to
-        // roughly the same timing lane. t[i] - t[i-2] therefore estimates the
-        // full cycle even when the two lasers are heavily staggered.
-        var cadenceSamples = new List<double>();
-
-        for (int i = 2; i < recent.Count; i++)
+        // With two active strips, every second pull is approximately the same
+        // timing lane. We do not care which physical strip is called L1/L2.
+        for (int i = 2; i < pulls.Count; i++)
         {
             double seconds =
-                (recent[i].Timestamp - recent[i - 2].Timestamp)
+                (pulls[i].Timestamp - pulls[i - 2].Timestamp)
                 .TotalSeconds;
 
-            // Broad enough for boosted strips through slow mining cycles, while
-            // rejecting obviously unrelated gaps.
-            if (seconds >= 5.0 && seconds <= 180.0)
-                cadenceSamples.Add(seconds);
+            // Reject obvious session gaps and implausible timings.
+            if (seconds < 5.0 || seconds > 180.0)
+                continue;
+
+            if ((i & 1) == 0)
+                laneA.Add(seconds);
+            else
+                laneB.Add(seconds);
         }
 
-        if (cadenceSamples.Count < 3)
+        double candidateA = RobustCycleMedian(laneA);
+        double candidateB = RobustCycleMedian(laneB);
+
+        // Sorting makes L1/L2 stable display lanes rather than pretending they
+        // map to a specific high-slot module.
+        var candidates = new[] { candidateA, candidateB }
+            .Where(v => v > 0)
+            .OrderBy(v => v)
+            .ToArray();
+
+        // Reconsider the learned value only when a NEW mining pull arrives.
+        // This is what stops the tile changing every second.
+        if (lastPullUtc.HasValue &&
+            lastPullUtc.Value != stats.LaserTimingLastProcessedPullUtc)
         {
-            return new MiningLaserTiming
+            if (candidates.Length >= 2)
             {
-                LastPullUtc = lastPullUtc,
-                SampleCount = cadenceSamples.Count
-            };
+                UpdateCycleEstimate(stats.LaserCycleLow, candidates[0]);
+                UpdateCycleEstimate(stats.LaserCycleHigh, candidates[1]);
+            }
+
+            stats.LaserTimingLastProcessedPullUtc = lastPullUtc.Value;
         }
 
-        double initialMedian = Median(cadenceSamples);
-        double tolerance = Math.Max(2.0, initialMedian * 0.25);
+        bool ready =
+            stats.LaserCycleLow.Value > 0 &&
+            stats.LaserCycleHigh.Value > 0;
 
-        var stableSamples = cadenceSamples
-            .Where(v => Math.Abs(v - initialMedian) <= tolerance)
-            .ToList();
-
-        // If fewer than half the observations agree, don't pretend the timer is
-        // trustworthy. This also suppresses many mixed drone/laser streams.
-        if (stableSamples.Count < 3 ||
-            stableSamples.Count * 2 < cadenceSamples.Count)
-        {
-            return new MiningLaserTiming
-            {
-                LastPullUtc = lastPullUtc,
-                EstimatedCycleSeconds = initialMedian,
-                SampleCount = stableSamples.Count
-            };
-        }
-
-        double cycleSeconds = Median(stableSamples);
-
-        if (recent.Count < 2 || cycleSeconds <= 0)
-        {
-            return new MiningLaserTiming
-            {
-                LastPullUtc = lastPullUtc,
-                EstimatedCycleSeconds = cycleSeconds,
-                SampleCount = stableSamples.Count
-            };
-        }
-
-        DateTime phaseA = recent[^1].Timestamp;
-        DateTime phaseB = recent[^2].Timestamp;
-
-        double ageA = Math.Max(0, (now - phaseA).TotalSeconds);
-        double ageB = Math.Max(0, (now - phaseB).TotalSeconds);
-
-        // Once both phases are far overdue, stop showing a fake repeating timer.
-        if (ageA > cycleSeconds * 1.75 ||
-            ageB > cycleSeconds * 1.75)
-        {
-            return new MiningLaserTiming
-            {
-                LastPullUtc = lastPullUtc,
-                EstimatedCycleSeconds = cycleSeconds,
-                SampleCount = stableSamples.Count
-            };
-        }
-
-        double[] remaining =
-        {
-            Math.Max(0, cycleSeconds - ageA),
-            Math.Max(0, cycleSeconds - ageB)
-        };
-
-        // L1 is always the next inferred pull and L2 the later one. The labels
-        // intentionally describe timing lanes, not a physical high-slot module.
-        Array.Sort(remaining);
+        double estimated =
+            ready
+                ? (stats.LaserCycleLow.Value +
+                   stats.LaserCycleHigh.Value) / 2.0
+                : 0;
 
         return new MiningLaserTiming
         {
-            Ready = true,
+            Ready = ready,
             LastPullUtc = lastPullUtc,
-            EstimatedCycleSeconds = cycleSeconds,
-            Laser1RemainingSeconds = remaining[0],
-            Laser2RemainingSeconds = remaining[1],
-            SampleCount = stableSamples.Count
+            EstimatedCycleSeconds = estimated,
+            Laser1CycleSeconds =
+                ready ? stats.LaserCycleLow.Value : null,
+            Laser2CycleSeconds =
+                ready ? stats.LaserCycleHigh.Value : null,
+            SampleCount = laneA.Count + laneB.Count
         };
+    }
+
+    private static double RobustCycleMedian(IReadOnlyList<double> values)
+    {
+        if (values.Count < 2)
+            return 0;
+
+        double median = Median(values);
+        double tolerance = Math.Max(1.5, median * 0.15);
+
+        var stable = values
+            .Where(v => Math.Abs(v - median) <= tolerance)
+            .ToList();
+
+        return stable.Count >= 2 ? Median(stable) : 0;
+    }
+
+    private static void UpdateCycleEstimate(
+        MiningCycleEstimateState state,
+        double candidate)
+    {
+        if (candidate <= 0)
+            return;
+
+        if (state.Value <= 0)
+        {
+            state.Value = candidate;
+            state.PendingValue = 0;
+            state.PendingCount = 0;
+            return;
+        }
+
+        double difference = Math.Abs(candidate - state.Value);
+
+        // Normal jitter: gently nudge the learned cycle instead of replacing it.
+        // A 1-second candidate change therefore only moves the tile by ~0.2s.
+        if (difference <= 2.0)
+        {
+            state.Value =
+                (state.Value * 0.80) +
+                (candidate * 0.20);
+
+            state.PendingValue = 0;
+            state.PendingCount = 0;
+            return;
+        }
+
+        // A large change can be real (boost/fitting change), but one odd pull
+        // should not reset the tile. Require three NEW-pull confirmations.
+        if (state.PendingCount > 0 &&
+            Math.Abs(candidate - state.PendingValue) <= 1.0)
+        {
+            state.PendingValue =
+                ((state.PendingValue * state.PendingCount) + candidate) /
+                (state.PendingCount + 1);
+
+            state.PendingCount++;
+        }
+        else
+        {
+            state.PendingValue = candidate;
+            state.PendingCount = 1;
+        }
+
+        if (state.PendingCount >= 3)
+        {
+            state.Value = state.PendingValue;
+            state.PendingValue = 0;
+            state.PendingCount = 0;
+        }
     }
 
     public bool TryGetMiningQuote(string oreType, out MiningMarketQuote quote) =>
@@ -1217,6 +1248,13 @@ public sealed class StatTrackerService
         public int MiningCritCount { get; set; } = 0;
         public int MiningCycleCount { get; set; } = 0;
 
+        // Stable inferred dual-strip timing. These are display lanes, not
+        // physical module identities.
+        public MiningCycleEstimateState LaserCycleLow { get; } = new();
+        public MiningCycleEstimateState LaserCycleHigh { get; } = new();
+        public DateTime LaserTimingLastProcessedPullUtc { get; set; } =
+            DateTime.MinValue;
+
         // Mining ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â Gas
         public ConcurrentBag<TimedValue> GasMining { get; } = new();
         public double GasMined { get; set; } = 0;
@@ -1231,6 +1269,13 @@ public sealed class StatTrackerService
         public ConcurrentBag<TimedValue> BountyTicks { get; } = new();
         public double BountySession { get; set; } = 0;
         public double LastBountyTick { get; set; } = 0;
+    }
+
+    private sealed class MiningCycleEstimateState
+    {
+        public double Value { get; set; }
+        public double PendingValue { get; set; }
+        public int PendingCount { get; set; }
     }
 
     private record MiningCycleRecord(DateTime Timestamp, int Units, string OreType, string MineType, bool IsCritical);
@@ -1266,8 +1311,8 @@ public record MiningLaserTiming
     public bool Ready { get; init; }
     public DateTime? LastPullUtc { get; init; }
     public double EstimatedCycleSeconds { get; init; }
-    public double? Laser1RemainingSeconds { get; init; }
-    public double? Laser2RemainingSeconds { get; init; }
+    public double? Laser1CycleSeconds { get; init; }
+    public double? Laser2CycleSeconds { get; init; }
     public int SampleCount { get; init; }
 }
 

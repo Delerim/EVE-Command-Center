@@ -42,7 +42,15 @@ public partial class MiningFleetOverviewWindow : Window
         ApplyResizeMode();
 
         _timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
-        _timer.Tick += (_, _) => RefreshCards();
+        _timer.Tick += (_, _) =>
+        {
+            // RefreshCards replaces the ItemsSource with fresh card objects.
+            // Doing that while the mouse is over a card destroys the tooltip
+            // owner before WPF can keep the tooltip open. Pause VISUAL refresh
+            // while hovering; the parser/tracker continues recording normally.
+            if (!IsMouseOver)
+                RefreshCards();
+        };
         _timer.Start();
 
         Loaded += (_, _) => RefreshCards();
@@ -91,21 +99,23 @@ public partial class MiningFleetOverviewWindow : Window
 
             string laserText =
                 laserTiming.Ready &&
-                laserTiming.Laser1RemainingSeconds.HasValue &&
-                laserTiming.Laser2RemainingSeconds.HasValue
-                    ? $"L1 {laserTiming.Laser1RemainingSeconds.Value:F1}s   " +
-                      $"L2 {laserTiming.Laser2RemainingSeconds.Value:F1}s"
+                laserTiming.Laser1CycleSeconds.HasValue &&
+                laserTiming.Laser2CycleSeconds.HasValue
+                    ? $"L1 {laserTiming.Laser1CycleSeconds.Value:F1}s   " +
+                      $"L2 {laserTiming.Laser2CycleSeconds.Value:F1}s"
                     : "L1 --   L2 --";
 
             string laserToolTip = laserTiming.Ready
-                ? $"Estimated dual-strip countdown from EVE mining pull timestamps.{Environment.NewLine}" +
-                  $"Observed cycle: {laserTiming.EstimatedCycleSeconds:F1}s{Environment.NewLine}" +
-                  $"Stable samples: {laserTiming.SampleCount}{Environment.NewLine}" +
+                ? $"Learned dual-strip cycle duration from EVE mining pull timestamps.{Environment.NewLine}" +
+                  $"L1: {laserTiming.Laser1CycleSeconds:F2}s{Environment.NewLine}" +
+                  $"L2: {laserTiming.Laser2CycleSeconds:F2}s{Environment.NewLine}" +
+                  $"Combined estimate: {laserTiming.EstimatedCycleSeconds:F2}s{Environment.NewLine}" +
+                  $"Timing samples: {laserTiming.SampleCount}{Environment.NewLine}" +
                   $"Last pull: {lastPullAge} ago at {lastPullClock}{Environment.NewLine}" +
-                  $"L1/L2 are inferred timing lanes; EVE logs do not identify the physical module."
-                : $"Laser countdown warming up.{Environment.NewLine}" +
+                  $"Values only adjust when new pulls arrive; L1/L2 are inferred lanes, not physical module IDs."
+                : $"Cycle timing is warming up.{Environment.NewLine}" +
                   $"Last pull: {lastPullAge} ago at {lastPullClock}{Environment.NewLine}" +
-                  $"Needs several alternating pulls and assumes two active mining lasers/strip miners.";
+                  $"Needs several alternating pulls from two active mining lasers/strip miners.";
 
             string statusText = alarmMuted
                 ? (state.AgeSeconds > 0
