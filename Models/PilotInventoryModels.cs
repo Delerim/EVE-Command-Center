@@ -228,6 +228,9 @@ public sealed class EveFitDefenseStats
     public double StructureEhp { get; init; }
     public double OmniEhp { get; init; }
 
+    public IReadOnlyList<string> AppliedTankEffects { get; init; } =
+        Array.Empty<string>();
+
     public string EhpText =>
         FormatEhp(OmniEhp);
 
@@ -238,8 +241,16 @@ public sealed class EveFitDefenseStats
               $"Shield: {ShieldHp:N0} HP / {ShieldEhp:N0} EHP\n" +
               $"Armor: {ArmorHp:N0} HP / {ArmorEhp:N0} EHP\n" +
               $"Structure: {StructureHp:N0} HP / {StructureEhp:N0} EHP\n\n" +
-              "Uniform 25/25/25/25 damage profile. Includes fitted buffer/resistance modules, duplicate modules, core HP skills and Exhumer shield-resistance skill bonus. " +
-              "Fitted active hardeners are assumed on.";
+              (
+                  AppliedTankEffects.Count > 0
+                      ? "Applied fit effects:\n- " +
+                        string.Join(
+                            "\n- ",
+                            AppliedTankEffects) +
+                        "\n\n"
+                      : ""
+              ) +
+              "Uniform 25/25/25/25 damage profile. Active fitted shield hardeners and Damage Control are assumed ON.";
 
     public EveFitDefenseStats ApplyShieldCommandBoost(
         double extensionPercent,
@@ -279,6 +290,7 @@ public sealed class EveFitDefenseStats
             ShieldEhp = boostedShieldEhp,
             ArmorEhp = ArmorEhp,
             StructureEhp = StructureEhp,
+            AppliedTankEffects = AppliedTankEffects,
             OmniEhp =
                 boostedShieldEhp +
                 ArmorEhp +

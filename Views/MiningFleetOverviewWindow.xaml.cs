@@ -31,6 +31,8 @@ public partial class MiningFleetOverviewWindow : Window
 
     private bool _pilotIntelRefreshBusy;
 
+    private const double ManualOrcaShieldBoostPercent = 19.7;
+
     public MiningFleetOverviewWindow(
         StatTrackerService tracker,
         MiningIdleWatchdogService watchdog,
@@ -203,39 +205,42 @@ public partial class MiningFleetOverviewWindow : Window
     {
         var cards = new List<FleetCard>();
 
-        double fleetShieldExtension =
-            _pilotIntel.Values
-                .Where(
-                    intel =>
-                        intel.IsOrca &&
-                        intel.ShieldBoost.Configured)
-                .Select(
-                    intel =>
-                        intel.ShieldBoost.ExtensionPercent)
-                .DefaultIfEmpty(0)
-                .Max();
+        double fleetShieldExtension = 0;
+        double fleetShieldHarmonizing = 0;
+        string fleetBoostSource = "";
 
-        double fleetShieldHarmonizing =
-            _pilotIntel.Values
-                .Where(
-                    intel =>
-                        intel.IsOrca &&
-                        intel.ShieldBoost.Configured)
-                .Select(
-                    intel =>
-                        intel.ShieldBoost.HarmonizingPercent)
-                .DefaultIfEmpty(0)
-                .Max();
+        foreach (KeyValuePair<string, EveMiningShipIntel> pair
+                 in _pilotIntel)
+        {
+            if (!pair.Value.IsOrca)
+                continue;
 
-        string fleetBoostSource =
-            _pilotIntel.Values
-                .FirstOrDefault(
-                    intel =>
-                        intel.IsOrca &&
-                        intel.ShieldBoost.Configured)
-                ?.ShieldBoost.SourceText ??
-            "";
+            string mode =
+                GetOrcaBoostMode(
+                    pair.Key);
 
+            if (mode is "EXT" or "BOTH")
+            {
+                fleetShieldExtension =
+                    Math.Max(
+                        fleetShieldExtension,
+                        ManualOrcaShieldBoostPercent);
+            }
+
+            if (mode is "HARM" or "BOTH")
+            {
+                fleetShieldHarmonizing =
+                    Math.Max(
+                        fleetShieldHarmonizing,
+                        ManualOrcaShieldBoostPercent);
+            }
+
+            if (mode != "OFF")
+            {
+                fleetBoostSource =
+                    $"{pair.Key}: manual {mode} boost";
+            }
+        }
         foreach (var character in _tracker.GetMiningDashboardCharacters())
         {
             var s = _tracker.GetSnapshot(character);
@@ -249,6 +254,12 @@ public partial class MiningFleetOverviewWindow : Window
 
             bool isOrca =
                 shipIntel?.IsOrca == true;
+
+            string orcaBoostMode =
+                isOrca
+                    ? GetOrcaBoostMode(
+                        character)
+                    : "OFF";
 
             int fittedLaserCount =
                 shipIntel?.MiningLaserCount ?? -1;
@@ -500,14 +511,17 @@ public partial class MiningFleetOverviewWindow : Window
                     ? StatTrackerService.FormatNumber(s.SessionBuybackValue)
                     : "-",
                 AlarmMuted = alarmMuted,
-                AlarmEnabled = !isOrca,
+                // Keep the DRONE badge enabled so WPF does not wash out the
+                // intentionally bright blue/cyan style. Orca clicks are
+                // ignored by AlarmToggle_Click.
+                AlarmEnabled = true,
                 AlarmButtonText = isOrca
                     ? "DRONE"
                     : manualAlarmMuted
                         ? "ALARM OFF"
                         : "ALARM ON",
                 AlarmToolTip = isOrca
-                    ? "Orca uses mining drones; idle-pull alarm is automatically suppressed."
+                    ? "DRONE MINING: idle-pull alarm is automatically suppressed. This is an indicator, not an alarm toggle."
                     : manualAlarmMuted
                         ? $"Enable mining alarms for {character}"
                         : $"Mute mining alarms for {character}",
@@ -540,13 +554,30 @@ public partial class MiningFleetOverviewWindow : Window
                           (
                               fleetShieldExtension > 0 ||
                               fleetShieldHarmonizing > 0
-                                  ? $"{Environment.NewLine}{Environment.NewLine}* Fleet shield estimate assumes the detected Orca command burst is ACTIVE, in range, and affecting this pilot. ESI exposes the fit but cannot confirm the live burst state.{Environment.NewLine}" +
-                                    $"Extension: {fleetShieldExtension:F1}% | Harmonizing: {fleetShieldHarmonizing:F1}%{Environment.NewLine}" +
+                                  ? $"{Environment.NewLine}{Environment.NewLine}* Manual Orca shield boost is ON. The fleet estimate assumes that burst is active, in range and affecting this pilot.{Environment.NewLine}" +
+                                    $"Extension/HP: {fleetShieldExtension:F1}% | Harmonizing/RES: {fleetShieldHarmonizing:F1}%{Environment.NewLine}" +
                                     fleetBoostSource
                                   : ""
                           )
                         : "Connect this pilot with asset access to calculate fit EHP.",
                 IsDroneMining = isOrca,
+                BoostMode = orcaBoostMode,
+                BoostButtonText =
+                    orcaBoostMode switch
+                    {
+                        "HARM" => "RES 19.7",
+                        "EXT" => "HP 19.7",
+                        "BOTH" => "BOTH 19.7",
+                        _ => "BOOST -"
+                    },
+                BoostToolTip =
+                    isOrca
+                        ? "Manual live shield-command state.\n" +
+                          "Click cycles: OFF -> RES 19.7 -> HP 19.7 -> BOTH 19.7 -> OFF.\n\n" +
+                          "RES = Shield Harmonizing: 19.7% resonance reduction.\n" +
+                          "HP = Shield Extension: +19.7% shield capacity.\n" +
+                          "This manual state is used for fleet EHP because ESI cannot confirm whether a burst is actually running/in range."
+                        : "",
                 OreToolTip =
                     $"Current ore: {(string.IsNullOrWhiteSpace(s.CurrentOre) ? "-" : s.CurrentOre)}{Environment.NewLine}" +
                     $"Last mining pull: {lastPullAge} ago at {lastPullClock}.",
@@ -681,6 +712,16 @@ public partial class MiningFleetOverviewWindow : Window
             string.IsNullOrWhiteSpace(character))
             return;
 
+        if (_pilotIntel.TryGetValue(
+                character,
+                out EveMiningShipIntel? intel) &&
+            intel.IsOrca)
+        {
+            // DRONE is a bright indicator only. Orca alarm suppression is
+            // automatic and is not changed by clicking the badge.
+            return;
+        }
+
         bool currentlyMuted =
             _watchdog.IsCharacterAlarmMuted(character);
 
@@ -691,6 +732,69 @@ public partial class MiningFleetOverviewWindow : Window
         RefreshCards();
     }
 
+    private string GetOrcaBoostMode(
+        string character)
+    {
+        if (_prefs.OrcaShieldBoostModes.TryGetValue(
+                character,
+                out string? mode))
+        {
+            string normalized =
+                (mode ?? "")
+                    .Trim()
+                    .ToUpperInvariant();
+
+            if (normalized is
+                "HARM" or
+                "EXT" or
+                "BOTH")
+                return normalized;
+        }
+
+        return "OFF";
+    }
+
+    private void OrcaBoostToggle_Click(
+        object sender,
+        RoutedEventArgs e)
+    {
+        if (sender is not System.Windows.Controls.Button button ||
+            button.Tag is not string character ||
+            string.IsNullOrWhiteSpace(character))
+            return;
+
+        if (!_pilotIntel.TryGetValue(
+                character,
+                out EveMiningShipIntel? intel) ||
+            !intel.IsOrca)
+            return;
+
+        string next =
+            GetOrcaBoostMode(
+                character) switch
+            {
+                "OFF" => "HARM",
+                "HARM" => "EXT",
+                "EXT" => "BOTH",
+                _ => "OFF"
+            };
+
+        if (next == "OFF")
+        {
+            _prefs.OrcaShieldBoostModes.Remove(
+                character);
+        }
+        else
+        {
+            _prefs.OrcaShieldBoostModes[character] =
+                next;
+        }
+
+        MiningDashboardPreferencesStore.Save(
+            _prefs);
+
+        RefreshCards();
+    }
     private void OpenMiningCommandCenter_Click(
         object sender,
         RoutedEventArgs e)
@@ -734,6 +838,9 @@ public partial class MiningFleetOverviewWindow : Window
         public string EhpText { get; init; } = "";
         public string EhpToolTip { get; init; } = "";
         public bool IsDroneMining { get; init; }
+        public string BoostMode { get; init; } = "OFF";
+        public string BoostButtonText { get; init; } = "";
+        public string BoostToolTip { get; init; } = "";
         public string OreToolTip { get; init; } = "";
         public string BaseToolTip { get; init; } = "";
         public string RealToolTip { get; init; } = "";

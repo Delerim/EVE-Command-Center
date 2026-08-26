@@ -9,7 +9,7 @@ namespace EveMultiPreview.Services;
 
 public sealed class MiningDashboardPreferences
 {
-    public int PreferencesVersion { get; set; } = 7;
+    public int PreferencesVersion { get; set; } = 8;
 
     public bool JitaEnabled { get; set; } = true;
     public bool AmarrEnabled { get; set; } = true;
@@ -30,6 +30,11 @@ public sealed class MiningDashboardPreferences
     // Per-character watchdog mute. Useful for Orcas/mining drones where a very
     // long drone travel time can legitimately exceed the normal no-pull timer.
     public List<string> AlarmMutedCharacters { get; set; } = new();
+
+    // Manual source of truth for live Orca shield command bursts.
+    // Values: OFF, HARM, EXT, BOTH.
+    public Dictionary<string, string> OrcaShieldBoostModes { get; set; } =
+        new(StringComparer.OrdinalIgnoreCase);
 
     public bool UseFleetTileWall { get; set; } = true;
     public bool AutoShowFleetOverview { get; set; } = true;
@@ -170,11 +175,22 @@ public static class MiningDashboardPreferencesStore
                 changed = true;
             }
 
+            if (storedVersion < 8)
+            {
+                prefs.OrcaShieldBoostModes =
+                    new Dictionary<string, string>(
+                        StringComparer.OrdinalIgnoreCase);
+                changed = true;
+            }
+
             prefs.AlarmMutedCharacters ??= new List<string>();
+            prefs.OrcaShieldBoostModes ??=
+                new Dictionary<string, string>(
+                    StringComparer.OrdinalIgnoreCase);
             if (string.IsNullOrWhiteSpace(prefs.MarketOreFilter))
                 prefs.MarketOreFilter = "myhs";
 
-            prefs.PreferencesVersion = 7;
+            prefs.PreferencesVersion = 8;
             prefs.DashboardOpacityPercent = Math.Clamp(prefs.DashboardOpacityPercent, 55, 100);
             prefs.FleetOverviewOpacityPercent = Math.Clamp(prefs.FleetOverviewOpacityPercent, 55, 100);
 

@@ -306,42 +306,93 @@
                                             </TextBlock.Style>
                                         </TextBlock>
 
-                                        <Button Grid.Column="1"
-                                                Content="{Binding AlarmButtonText}"
-                                                Tag="{Binding Character}"
-                                                Click="AlarmToggle_Click"
-                                                ToolTip="{Binding AlarmToolTip}"
-                                                IsEnabled="{Binding AlarmEnabled}"
-                                                FontSize="9.5"
-                                                MinWidth="57"
-                                                MinHeight="21"
-                                                Padding="6,1"
-                                                HorizontalAlignment="Right"
-                                                VerticalAlignment="Center">
-                                            <Button.Style>
-                                                <Style TargetType="Button">
-                                                    <Setter Property="Background" Value="#17312D"/>
-                                                    <Setter Property="Foreground" Value="#58D3B4"/>
-                                                    <Setter Property="BorderBrush" Value="#39796C"/>
-                                                    <Setter Property="BorderThickness" Value="1"/>
-                                                    <Setter Property="Cursor" Value="Hand"/>
-                                                    <Style.Triggers>
-                                                        <DataTrigger Binding="{Binding AlarmMuted}" Value="True">
-                                                            <Setter Property="Background" Value="#2A2020"/>
-                                                            <Setter Property="Foreground" Value="#E7A5A5"/>
-                                                            <Setter Property="BorderBrush" Value="#8D5555"/>
-                                                        </DataTrigger>
+                                        <StackPanel Grid.Column="1"
+                                                    Orientation="Horizontal"
+                                                    HorizontalAlignment="Right"
+                                                    VerticalAlignment="Center">
+                                            <Button Content="{Binding BoostButtonText}"
+                                                    Tag="{Binding Character}"
+                                                    Click="OrcaBoostToggle_Click"
+                                                    ToolTip="{Binding BoostToolTip}"
+                                                    FontSize="8.5"
+                                                    MinHeight="21"
+                                                    MinWidth="52"
+                                                    Padding="5,1"
+                                                    Margin="0,0,4,0">
+                                                <Button.Style>
+                                                    <Style TargetType="Button">
+                                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                                        <Setter Property="Background" Value="#172126"/>
+                                                        <Setter Property="Foreground" Value="#8DA9A2"/>
+                                                        <Setter Property="BorderBrush" Value="#41535A"/>
+                                                        <Setter Property="BorderThickness" Value="1"/>
+                                                        <Setter Property="Cursor" Value="Hand"/>
 
-                                                        <DataTrigger Binding="{Binding IsDroneMining}" Value="True">
-                                                            <Setter Property="Background" Value="#183047"/>
-                                                            <Setter Property="Foreground" Value="#8DD8FF"/>
-                                                            <Setter Property="BorderBrush" Value="#397B9E"/>
-                                                            <Setter Property="Opacity" Value="1"/>
-                                                        </DataTrigger>
-                                                    </Style.Triggers>
-                                                </Style>
-                                            </Button.Style>
-                                        </Button>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsDroneMining}" Value="True">
+                                                                <Setter Property="Visibility" Value="Visible"/>
+                                                            </DataTrigger>
+
+                                                            <DataTrigger Binding="{Binding BoostMode}" Value="HARM">
+                                                                <Setter Property="Background" Value="#183B38"/>
+                                                                <Setter Property="Foreground" Value="#80E4D5"/>
+                                                                <Setter Property="BorderBrush" Value="#49A89B"/>
+                                                            </DataTrigger>
+
+                                                            <DataTrigger Binding="{Binding BoostMode}" Value="EXT">
+                                                                <Setter Property="Background" Value="#183447"/>
+                                                                <Setter Property="Foreground" Value="#8EC9E8"/>
+                                                                <Setter Property="BorderBrush" Value="#5599BC"/>
+                                                            </DataTrigger>
+
+                                                            <DataTrigger Binding="{Binding BoostMode}" Value="BOTH">
+                                                                <Setter Property="Background" Value="#40351D"/>
+                                                                <Setter Property="Foreground" Value="#F2D27A"/>
+                                                                <Setter Property="BorderBrush" Value="#A98D42"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Button.Style>
+                                            </Button>
+
+                                            <Button Content="{Binding AlarmButtonText}"
+                                                    Tag="{Binding Character}"
+                                                    Click="AlarmToggle_Click"
+                                                    ToolTip="{Binding AlarmToolTip}"
+                                                    IsEnabled="{Binding AlarmEnabled}"
+                                                    FontSize="9.5"
+                                                    MinWidth="50"
+                                                    MinHeight="21"
+                                                    Padding="6,1"
+                                                    HorizontalAlignment="Right"
+                                                    VerticalAlignment="Center">
+                                                <Button.Style>
+                                                    <Style TargetType="Button">
+                                                        <Setter Property="Background" Value="#17312D"/>
+                                                        <Setter Property="Foreground" Value="#58D3B4"/>
+                                                        <Setter Property="BorderBrush" Value="#39796C"/>
+                                                        <Setter Property="BorderThickness" Value="1"/>
+                                                        <Setter Property="Cursor" Value="Hand"/>
+
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding AlarmMuted}" Value="True">
+                                                                <Setter Property="Background" Value="#2A2020"/>
+                                                                <Setter Property="Foreground" Value="#E7A5A5"/>
+                                                                <Setter Property="BorderBrush" Value="#8D5555"/>
+                                                            </DataTrigger>
+
+                                                            <DataTrigger Binding="{Binding IsDroneMining}" Value="True">
+                                                                <Setter Property="Background" Value="#14384A"/>
+                                                                <Setter Property="Foreground" Value="#BCE9FF"/>
+                                                                <Setter Property="BorderBrush" Value="#5AA4C8"/>
+                                                                <Setter Property="Opacity" Value="1"/>
+                                                                <Setter Property="Cursor" Value="Arrow"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Button.Style>
+                                            </Button>
+                                        </StackPanel>
                                     </Grid>
                                 </Grid>
                             </Border>

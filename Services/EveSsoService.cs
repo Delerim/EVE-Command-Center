@@ -2115,8 +2115,8 @@ public sealed class EveSsoService
         var modules =
             new List<EveUniverseType>();
 
-        // IMPORTANT: do not Distinct() this list. Two identical hardeners,
-        // extenders or rigs are two fitted modules and must both contribute.
+        // Keep duplicates. Two Multispectrums or two CDFEs are two real
+        // fitted effects.
         foreach (int typeId in fittedTypeIds
                      .Where(id => id > 0))
         {
@@ -2125,6 +2125,9 @@ public sealed class EveSsoService
                     typeId,
                     cancellationToken));
         }
+
+        var applied =
+            new List<string>();
 
         double shieldHp =
             GetDogmaValue(
@@ -2144,87 +2147,185 @@ public sealed class EveSsoService
                 9,
                 0);
 
-        // Flat fitted buffer.
-        // 68 = shieldBonus, e.g. Large Shield Extender II = +2600 HP.
-        shieldHp +=
-            modules.Sum(
-                module =>
-                    Math.Max(
-                        0,
-                        GetDogmaValue(
-                            module,
-                            68,
-                            0)));
+        // -------------------------------------------------------------------
+        // Raw buffer
+        // -------------------------------------------------------------------
 
-        // 1159 = armorHPBonusAdd.
-        armorHp +=
-            modules.Sum(
-                module =>
-                    Math.Max(
-                        0,
-                        GetDogmaValue(
-                            module,
-                            1159,
-                            0)));
-
-        // 2688 = structureHPBonusAdd.
-        structureHp +=
-            modules.Sum(
-                module =>
-                    Math.Max(
-                        0,
-                        GetDogmaValue(
-                            module,
-                            2688,
-                            0)));
-
-        // Percentage buffer modules and rigs.
         foreach (EveUniverseType module
                  in modules)
         {
-            shieldHp *=
+            double flatShield =
+                Math.Max(
+                    0,
+                    GetDogmaValue(
+                        module,
+                        68,
+                        0));
+
+            if (flatShield > 0)
+            {
+                shieldHp +=
+                    flatShield;
+
+                applied.Add(
+                    $"{module.Name}: +{flatShield:N0} shield HP");
+            }
+
+            double flatArmor =
+                Math.Max(
+                    0,
+                    GetDogmaValue(
+                        module,
+                        1159,
+                        0));
+
+            if (flatArmor > 0)
+            {
+                armorHp +=
+                    flatArmor;
+
+                applied.Add(
+                    $"{module.Name}: +{flatArmor:N0} armor HP");
+            }
+
+            double flatStructure =
+                Math.Max(
+                    0,
+                    GetDogmaValue(
+                        module,
+                        2688,
+                        0));
+
+            if (flatStructure > 0)
+            {
+                structureHp +=
+                    flatStructure;
+
+                applied.Add(
+                    $"{module.Name}: +{flatStructure:N0} structure HP");
+            }
+        }
+
+        // Multipliers such as Power Diagnostic Systems.
+        foreach (EveUniverseType module
+                 in modules)
+        {
+            double shieldMultiplier =
                 SafePositiveMultiplier(
                     GetDogmaValue(
                         module,
                         146,
                         1));
 
-            armorHp *=
+            if (Math.Abs(
+                    shieldMultiplier -
+                    1.0) >
+                0.0001)
+            {
+                shieldHp *=
+                    shieldMultiplier;
+
+                applied.Add(
+                    $"{module.Name}: shield x{shieldMultiplier:0.###}");
+            }
+
+            double armorMultiplier =
                 SafePositiveMultiplier(
                     GetDogmaValue(
                         module,
                         148,
                         1));
 
-            structureHp *=
+            if (Math.Abs(
+                    armorMultiplier -
+                    1.0) >
+                0.0001)
+            {
+                armorHp *=
+                    armorMultiplier;
+            }
+
+            double structureMultiplier =
                 SafePositiveMultiplier(
                     GetDogmaValue(
                         module,
                         150,
                         1));
+
+            if (Math.Abs(
+                    structureMultiplier -
+                    1.0) >
+                0.0001)
+            {
+                structureHp *=
+                    structureMultiplier;
+            }
+        }
+
+        // Core Defense Field Extenders use shieldCapacityBonus (337), which is
+        // a relative +percentage such as 15 or 20 - not a 1.15/1.20
+        // multiplier. These capacity rigs are not stacking-penalized.
+        foreach (EveUniverseType module
+                 in modules)
+        {
+            double shieldCapacityBonus =
+                GetDogmaValue(
+                    module,
+                    337,
+                    0);
+
+            if (shieldCapacityBonus > 0)
+            {
+                shieldHp *=
+                    1.0 +
+                    shieldCapacityBonus /
+                    100.0;
+
+                applied.Add(
+                    $"{module.Name}: +{shieldCapacityBonus:0.#}% shield capacity");
+            }
         }
 
         // Core character HP skills.
+        int shieldManagement =
+            GetSkillLevel(
+                skills,
+                3419);
+
+        int hullUpgrades =
+            GetSkillLevel(
+                skills,
+                3394);
+
+        int mechanics =
+            GetSkillLevel(
+                skills,
+                3392);
+
         shieldHp *=
             1.0 +
             0.05 *
-            GetSkillLevel(
-                skills,
-                3419); // Shield Management
+            shieldManagement;
 
         armorHp *=
             1.0 +
             0.05 *
-            GetSkillLevel(
-                skills,
-                3394); // Hull Upgrades
+            hullUpgrades;
 
         structureHp *=
             1.0 +
             0.05 *
-            GetSkillLevel(
-                skills,
-                3392); // Mechanics
+            mechanics;
+
+        if (shieldManagement > 0)
+        {
+            applied.Add(
+                $"Shield Management {shieldManagement}: +{shieldManagement * 5}% shield HP");
+        }
+
+        // -------------------------------------------------------------------
+        // Base resonance
+        // -------------------------------------------------------------------
 
         double[] shieldResonance =
         {
@@ -2250,9 +2351,9 @@ public sealed class EveSsoService
             ClampResonance(GetDogmaValue(hull, 110, 1))
         };
 
-        // Current Exhumers all receive +4% shield resistance per Exhumers
-        // level. Dogma resistance bonuses multiply resonance, so each level
-        // multiplies incoming shield damage by 0.96.
+        // Mackinaw/Hulk/Skiff group bonus: 4% shield resistance per Exhumers
+        // level. A per-level Dogma bonus is level * 4%, i.e. V = 20%
+        // resonance reduction.
         if (hull.GroupId == 543)
         {
             int exhumersLevel =
@@ -2260,45 +2361,34 @@ public sealed class EveSsoService
                     skills,
                     22551);
 
-            double exhumerResonanceMultiplier =
-                Math.Pow(
-                    0.96,
-                    exhumersLevel);
+            double exhumerMultiplier =
+                Math.Clamp(
+                    1.0 -
+                    0.04 *
+                    exhumersLevel,
+                    0.01,
+                    1.0);
 
             for (int i = 0;
-                 i < shieldResonance.Length;
+                 i < 4;
                  i++)
             {
                 shieldResonance[i] *=
-                    exhumerResonanceMultiplier;
+                    exhumerMultiplier;
+            }
+
+            if (exhumersLevel > 0)
+            {
+                applied.Add(
+                    $"Exhumers {exhumersLevel}: +{exhumersLevel * 4}% shield resistance");
             }
         }
 
-        var shieldPercentBonuses =
-            new[]
-            {
-                new List<double>(),
-                new List<double>(),
-                new List<double>(),
-                new List<double>()
-            };
-
-        var armorPercentBonuses =
-            new[]
-            {
-                new List<double>(),
-                new List<double>(),
-                new List<double>(),
-                new List<double>()
-            };
-
-        int[] percentBonusIds =
-        {
-            984,
-            985,
-            986,
-            987
-        };
+        // -------------------------------------------------------------------
+        // Damage Control.
+        // DC resonance multipliers are intentionally handled separately from
+        // normal stacking-penalized shield hardeners.
+        // -------------------------------------------------------------------
 
         int[] dcShieldIds =
         {
@@ -2325,51 +2415,96 @@ public sealed class EveSsoService
         };
 
         foreach (EveUniverseType module
-                 in modules)
+                 in modules.Where(
+                     value =>
+                         value.Name.Contains(
+                             "Damage Control",
+                             StringComparison.OrdinalIgnoreCase)))
         {
-            bool isDamageControl =
-                module.Name.Contains(
-                    "Damage Control",
-                    StringComparison.OrdinalIgnoreCase);
-
-            if (isDamageControl)
+            for (int i = 0;
+                 i < 4;
+                 i++)
             {
-                for (int i = 0;
-                     i < 4;
-                     i++)
-                {
-                    shieldResonance[i] *=
-                        ClampResonance(
-                            GetDogmaValue(
-                                module,
-                                dcShieldIds[i],
-                                1));
+                shieldResonance[i] *=
+                    ClampResonance(
+                        GetDogmaValue(
+                            module,
+                            dcShieldIds[i],
+                            1));
 
-                    armorResonance[i] *=
-                        ClampResonance(
-                            GetDogmaValue(
-                                module,
-                                dcArmorIds[i],
-                                1));
+                armorResonance[i] *=
+                    ClampResonance(
+                        GetDogmaValue(
+                            module,
+                            dcArmorIds[i],
+                            1));
 
-                    structureResonance[i] *=
-                        ClampResonance(
-                            GetDogmaValue(
-                                module,
-                                dcHullIds[i],
-                                1));
-                }
+                structureResonance[i] *=
+                    ClampResonance(
+                        GetDogmaValue(
+                            module,
+                            dcHullIds[i],
+                            1));
             }
 
-            bool appliesToShield =
+            applied.Add(
+                $"{module.Name}: resistance effect active");
+        }
+
+        // -------------------------------------------------------------------
+        // Shield/armor resistance effects.
+        //
+        // Attribute IDs 984..987 are the actual resistance bonus values used
+        // by Multispectrum Shield Hardeners and resistance rigs. Shield
+        // Hardener group 77 is explicitly treated as ACTIVE.
+        // -------------------------------------------------------------------
+
+        int[] percentBonusIds =
+        {
+            984,
+            985,
+            986,
+            987
+        };
+
+        var shieldPercentBonuses =
+            new[]
+            {
+                new List<double>(),
+                new List<double>(),
+                new List<double>(),
+                new List<double>()
+            };
+
+        var armorPercentBonuses =
+            new[]
+            {
+                new List<double>(),
+                new List<double>(),
+                new List<double>(),
+                new List<double>()
+            };
+
+        foreach (EveUniverseType module
+                 in modules)
+        {
+            bool isActiveShieldHardener =
+                module.GroupId ==
+                77;
+
+            bool canAffectShield =
+                isActiveShieldHardener ||
                 module.Name.Contains(
                     "Shield",
+                    StringComparison.OrdinalIgnoreCase) ||
+                module.Name.Contains(
+                    "Screen Reinforcer",
                     StringComparison.OrdinalIgnoreCase) ||
                 module.Name.Contains(
                     "Core Defense",
                     StringComparison.OrdinalIgnoreCase);
 
-            bool appliesToArmor =
+            bool canAffectArmor =
                 module.Name.Contains(
                     "Armor",
                     StringComparison.OrdinalIgnoreCase) ||
@@ -2379,6 +2514,9 @@ public sealed class EveSsoService
                 module.Name.Contains(
                     "Coating",
                     StringComparison.OrdinalIgnoreCase);
+
+            var foundShieldBonuses =
+                new List<double>();
 
             for (int i = 0;
                  i < 4;
@@ -2393,13 +2531,37 @@ public sealed class EveSsoService
                 if (bonus >= 0)
                     continue;
 
-                if (appliesToShield)
+                if (canAffectShield)
+                {
                     shieldPercentBonuses[i]
                         .Add(bonus);
 
-                if (appliesToArmor)
+                    foundShieldBonuses.Add(
+                        bonus);
+                }
+
+                if (canAffectArmor)
+                {
                     armorPercentBonuses[i]
                         .Add(bonus);
+                }
+            }
+
+            if (foundShieldBonuses.Count > 0)
+            {
+                string activeText =
+                    isActiveShieldHardener
+                        ? "active"
+                        : "fitted";
+
+                applied.Add(
+                    $"{module.Name}: {activeText} shield resist " +
+                    string.Join(
+                        "/",
+                        foundShieldBonuses
+                            .Select(
+                                value =>
+                                    $"{Math.Abs(value):0.#}%")));
             }
         }
 
@@ -2463,6 +2625,11 @@ public sealed class EveSsoService
             ShieldEhp = shieldEhp,
             ArmorEhp = armorEhp,
             StructureEhp = structureEhp,
+            AppliedTankEffects =
+                applied
+                    .Distinct(
+                        StringComparer.OrdinalIgnoreCase)
+                    .ToArray(),
             OmniEhp =
                 shieldEhp +
                 armorEhp +
