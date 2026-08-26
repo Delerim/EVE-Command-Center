@@ -27,6 +27,7 @@ public partial class PilotCommandCenterWindow : Window
     private List<QueueRowViewModel> _queueRows = new();
     private EveTrainingProfile _trainingProfile = new();
     private long _inventoryLoadedForCharacterId;
+    private EveInventorySnapshot? _currentInventory;
 
     public ObservableCollection<PilotCardViewModel> Pilots { get; } = new();
     public ObservableCollection<SkillGroupViewModel> SkillGroups { get; } = new();
@@ -301,6 +302,7 @@ public partial class PilotCommandCenterWindow : Window
         _queueRows.Clear();
 
         _inventoryLoadedForCharacterId = 0;
+        _currentInventory = null;
         CurrentShipDetailText.Text = "-";
         CurrentShipItemText.Text = "";
         ShipAssetsStatusText.Text =
@@ -525,6 +527,7 @@ public partial class PilotCommandCenterWindow : Window
 
             _inventoryLoadedForCharacterId =
                 card.CharacterId;
+            _currentInventory = inventory;
 
             CurrentShipDetailText.Text =
                 string.IsNullOrWhiteSpace(
@@ -567,6 +570,61 @@ public partial class PilotCommandCenterWindow : Window
                 "Ship/assets sync failed: " +
                 ex.Message;
         }
+    }
+
+    private void ViewCurrentFit_Click(
+        object sender,
+        RoutedEventArgs e)
+    {
+        if (_currentInventory == null)
+        {
+            WpfMessageBox.Show(
+                "Open or refresh Ship & Assets first so the current fit can be loaded.",
+                "EVE Command Center - Fit Viewer",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+            return;
+        }
+
+        OpenFitWindow(
+            "CURRENT FIT",
+            _currentInventory.CurrentShip.DisplayName,
+            _currentInventory.CurrentShipModules,
+            "");
+    }
+
+    private void ViewSavedFit_Click(
+        object sender,
+        RoutedEventArgs e)
+    {
+        if (sender is not System.Windows.Controls.Button button ||
+            button.DataContext is not EveFittingView fitting)
+            return;
+
+        OpenFitWindow(
+            fitting.Name,
+            fitting.Ship,
+            fitting.Modules,
+            fitting.Description);
+    }
+
+    private void OpenFitWindow(
+        string fitName,
+        string shipName,
+        IReadOnlyList<EveShipModuleView> modules,
+        string description)
+    {
+        var window =
+            new PilotFitWindow(
+                fitName,
+                shipName,
+                modules,
+                description)
+            {
+                Owner = this
+            };
+
+        window.Show();
     }
 
     private void AttributeAlignmentToggle_Click(
@@ -1117,8 +1175,7 @@ public partial class PilotCommandCenterWindow : Window
         public bool HighlightOffMap { get; set; }
 
         public string AlignmentText =>
-            $"{TrainingRate:0.0} SP/min  â€¢  {AlignmentPercent:0}%";
-
+            $"{TrainingRate:0.0} SP/min | {AlignmentPercent:0}%";
         public string AlignmentForeground =>
             IsOffMap
                 ? "#E7B85A"
@@ -1140,8 +1197,7 @@ public partial class PilotCommandCenterWindow : Window
         {
             Position = source.Position;
             Skill = source.Skill;
-            LevelText = $"â†’ {source.Level}";
-            Starts = source.Starts;
+            LevelText = $"-> {source.Level}";            Starts = source.Starts;
             Finishes = source.Finishes;
             Remaining = source.Remaining;
 
@@ -1234,8 +1290,7 @@ public partial class PilotCommandCenterWindow : Window
         public bool HighlightOffMap { get; set; }
 
         public string AlignmentText =>
-            $"{TrainingRate:0.0} SP/min  â€¢  {AlignmentPercent:0}%";
-
+            $"{TrainingRate:0.0} SP/min | {AlignmentPercent:0}%";
         public string AlignmentForeground =>
             IsOffMap
                 ? "#E7B85A"
@@ -1258,12 +1313,11 @@ public partial class PilotCommandCenterWindow : Window
         public string StatusText =>
             IsCurrent
                 ? IsOffMap
-                    ? "TRAINING â€¢ OFF-MAP"
+                    ? "TRAINING | OFF-MAP"
                     : "TRAINING"
                 : IsOffMap
                     ? "OFF-MAP"
                     : "QUEUED";
-
         public string StatusBackground =>
             IsOffMap
                 ? "#3A2F16"

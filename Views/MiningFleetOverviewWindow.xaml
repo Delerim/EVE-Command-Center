@@ -160,21 +160,43 @@
                                         <RowDefinition Height="Auto"/>
                                     </Grid.RowDefinitions>
 
-                                    <DockPanel Grid.Row="0">
-                                        <TextBlock Text="{Binding Ore}"
-                                                   DockPanel.Dock="Right"
-                                                   Foreground="#58D3B4"
-                                                   FontSize="11.5"
-                                                   Margin="6,0,0,0"
-                                                   TextTrimming="CharacterEllipsis"
-                                                   ToolTip="{Binding OreToolTip}"/>
+                                    <Grid Grid.Row="0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="34"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
 
-                                        <StackPanel>
-                                            <TextBlock Text="{Binding Character}"
-                                                       Foreground="#F4F8F7"
-                                                       FontWeight="SemiBold"
-                                                       FontSize="13.5"
-                                                       TextTrimming="CharacterEllipsis"/>
+                                        <Border Grid.Column="0"
+                                                Width="30"
+                                                Height="30"
+                                                CornerRadius="15"
+                                                ClipToBounds="True"
+                                                Background="#142321"
+                                                BorderBrush="#315E56"
+                                                BorderThickness="1"
+                                                VerticalAlignment="Top">
+                                            <Image Source="{Binding PortraitUrl}"
+                                                   Stretch="UniformToFill"/>
+                                        </Border>
+
+                                        <StackPanel Grid.Column="1"
+                                                    Margin="5,0,0,0">
+                                            <DockPanel>
+                                                <TextBlock Text="{Binding Ore}"
+                                                           DockPanel.Dock="Right"
+                                                           Foreground="#58D3B4"
+                                                           FontSize="11.5"
+                                                           Margin="5,0,0,0"
+                                                           TextTrimming="CharacterEllipsis"
+                                                           ToolTip="{Binding OreToolTip}"/>
+
+                                                <TextBlock Text="{Binding Character}"
+                                                           Foreground="#F4F8F7"
+                                                           FontWeight="SemiBold"
+                                                           FontSize="13.5"
+                                                           TextTrimming="CharacterEllipsis"/>
+                                            </DockPanel>
+
                                             <TextBlock Text="{Binding ShipText}"
                                                        Foreground="#8DA9A2"
                                                        FontSize="9.5"
@@ -182,7 +204,7 @@
                                                        TextTrimming="CharacterEllipsis"
                                                        ToolTip="{Binding ShipToolTip}"/>
                                         </StackPanel>
-                                    </DockPanel>
+                                    </Grid>
 
                                     <Grid Grid.Row="1" Margin="0,3,0,0">
                                         <Grid.ColumnDefinitions>

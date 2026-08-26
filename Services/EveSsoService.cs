@@ -286,6 +286,43 @@ public sealed class EveSsoService
         await SavePilotsAsync(pilots);
     }
 
+    public async Task<IReadOnlyDictionary<string, long>>
+        ResolveCharacterIdsAsync(
+            IEnumerable<string> names,
+            CancellationToken cancellationToken = default)
+    {
+        string[] requested =
+            names
+                .Where(name => !string.IsNullOrWhiteSpace(name))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+
+        if (requested.Length == 0)
+        {
+            return new Dictionary<string, long>(
+                StringComparer.OrdinalIgnoreCase);
+        }
+
+        EveUniverseIdsResponse response =
+            await PostPublicAsync<EveUniverseIdsResponse>(
+                "/universe/ids/",
+                requested,
+                cancellationToken);
+
+        return response.Characters
+            .Where(
+                character =>
+                    character.Id > 0 &&
+                    !string.IsNullOrWhiteSpace(character.Name))
+            .GroupBy(
+                character => character.Name,
+                StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(
+                group => group.Key,
+                group => group.First().Id,
+                StringComparer.OrdinalIgnoreCase);
+    }
+
     public async Task<EveCurrentShipView> GetCurrentShipIdentityAsync(
         EvePilotProfile pilot,
         CancellationToken cancellationToken = default)
@@ -499,24 +536,40 @@ public sealed class EveSsoService
                     StringComparer.OrdinalIgnoreCase)
                 .Select(f =>
                 {
+                    EveShipModuleView[] modules =
+                        f.Items
+                            .OrderBy(i => SlotSortKey(i.Flag))
+                            .ThenBy(
+                                i => NameFor(i.TypeId),
+                                StringComparer.OrdinalIgnoreCase)
+                            .Select(i =>
+                                new EveShipModuleView
+                                {
+                                    Slot = FriendlySlot(i.Flag),
+                                    Name = NameFor(i.TypeId),
+                                    Quantity = i.Quantity
+                                })
+                            .ToArray();
+
                     string preview =
                         string.Join(
                             ", ",
-                            f.Items
-                                .OrderBy(i => SlotSortKey(i.Flag))
+                            modules
                                 .Take(6)
-                                .Select(i => NameFor(i.TypeId)));
+                                .Select(module => module.Name));
 
-                    if (f.Items.Count > 6)
-                        preview += $" +{f.Items.Count - 6} more";
+                    if (modules.Length > 6)
+                        preview += $" +{modules.Length - 6} more";
 
                     return new EveFittingView
                     {
                         FittingId = f.FittingId,
+                        ShipTypeId = f.ShipTypeId,
                         Name = f.Name,
                         Ship = NameFor(f.ShipTypeId),
                         Items = preview,
-                        Description = f.Description
+                        Description = f.Description,
+                        Modules = modules
                     };
                 })
                 .ToArray();

@@ -174,6 +174,21 @@ public sealed class EveUniverseSystem
     public string Name { get; set; } = "";
 }
 
+public sealed class EveUniverseIdsResponse
+{
+    [JsonPropertyName("characters")]
+    public List<EveUniverseIdEntry> Characters { get; set; } = new();
+}
+
+public sealed class EveUniverseIdEntry
+{
+    [JsonPropertyName("id")]
+    public long Id { get; set; }
+
+    [JsonPropertyName("name")]
+    public string Name { get; set; } = "";
+}
+
 public sealed class EveSkillCatalogEntry
 {
     public int SkillId { get; set; }

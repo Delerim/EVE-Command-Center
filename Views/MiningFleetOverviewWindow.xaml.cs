@@ -25,6 +25,10 @@ public partial class MiningFleetOverviewWindow : Window
         _pilotIntel =
             new(StringComparer.OrdinalIgnoreCase);
 
+    private readonly Dictionary<string, string>
+        _portraitUrls =
+            new(StringComparer.OrdinalIgnoreCase);
+
     private bool _pilotIntelRefreshBusy;
 
     public MiningFleetOverviewWindow(
@@ -114,6 +118,29 @@ public partial class MiningFleetOverviewWindow : Window
                 new HashSet<string>(
                     _tracker.GetMiningDashboardCharacters(),
                     StringComparer.OrdinalIgnoreCase);
+
+            try
+            {
+                IReadOnlyDictionary<string, long> ids =
+                    await _pilotSso.ResolveCharacterIdsAsync(
+                        wanted);
+
+                _portraitUrls.Clear();
+
+                foreach (KeyValuePair<string, long> entry in ids)
+                {
+                    _portraitUrls[entry.Key] =
+                        "https://images.evetech.net/characters/" +
+                        entry.Value.ToString(
+                            CultureInfo.InvariantCulture) +
+                        "/portrait?size=64";
+                }
+            }
+            catch
+            {
+                // Portraits are cosmetic. Never block miner tracking if the
+                // public universe name resolver is temporarily unavailable.
+            }
 
             var gate =
                 new SemaphoreSlim(2);
@@ -318,9 +345,14 @@ public partial class MiningFleetOverviewWindow : Window
                         $"Last mining pull: {lastPullAge} ago at {lastPullClock}."
                 };
 
+            _portraitUrls.TryGetValue(
+                character,
+                out string? portraitUrl);
+
             cards.Add(new FleetCard
             {
                 Character = character,
+                PortraitUrl = portraitUrl ?? "",
                 ShipText =
                     string.IsNullOrWhiteSpace(
                         shipIntel?.CurrentShip.TypeName)
@@ -394,7 +426,7 @@ public partial class MiningFleetOverviewWindow : Window
 
         int minerCount = ordered.Count;
 
-        const double cardWidth = 205;
+        const double cardWidth = 216;
         const double cardGap = 6;
         const double windowChrome = 44;
 
@@ -525,6 +557,7 @@ public partial class MiningFleetOverviewWindow : Window
     {
         public double CardWidth { get; set; } = 170;
         public string Character { get; init; } = "";
+        public string PortraitUrl { get; init; } = "";
         public string ShipText { get; init; } = "";
         public string ShipToolTip { get; init; } = "";
         public string Ore { get; init; } = "";

@@ -105,6 +105,42 @@ public sealed class EveShipModuleView
     public string Slot { get; init; } = "";
     public string Name { get; init; } = "";
     public long Quantity { get; init; }
+
+    public string SlotAccent
+    {
+        get
+        {
+            if (Slot.StartsWith(
+                    "High",
+                    StringComparison.OrdinalIgnoreCase))
+                return "#E7B85A";
+
+            if (Slot.StartsWith(
+                    "Mid",
+                    StringComparison.OrdinalIgnoreCase))
+                return "#64C7FF";
+
+            if (Slot.StartsWith(
+                    "Low",
+                    StringComparison.OrdinalIgnoreCase))
+                return "#D693FF";
+
+            if (Slot.StartsWith(
+                    "Rig",
+                    StringComparison.OrdinalIgnoreCase))
+                return "#FF8FA6";
+
+            if (Slot.Contains(
+                    "Drone",
+                    StringComparison.OrdinalIgnoreCase) ||
+                Slot.Contains(
+                    "Fighter",
+                    StringComparison.OrdinalIgnoreCase))
+                return "#58D3B4";
+
+            return "#8DA9A2";
+        }
+    }
 }
 
 public sealed class EveAssetView
@@ -119,10 +155,14 @@ public sealed class EveAssetView
 public sealed class EveFittingView
 {
     public int FittingId { get; init; }
+    public int ShipTypeId { get; init; }
     public string Name { get; init; } = "";
     public string Ship { get; init; } = "";
     public string Items { get; init; } = "";
     public string Description { get; init; } = "";
+
+    public IReadOnlyList<EveShipModuleView> Modules { get; init; } =
+        Array.Empty<EveShipModuleView>();
 }
 
 public sealed class EveInventorySnapshot

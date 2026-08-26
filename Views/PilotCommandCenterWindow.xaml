@@ -1374,10 +1374,15 @@
                                                    Margin="0,5,0,0"/>
                                     </StackPanel>
 
-                                    <Button Grid.Column="1"
-                                            Content="Refresh Ship Data"
-                                            VerticalAlignment="Center"
-                                            Click="RefreshShipAssets_Click"/>
+                                    <StackPanel Grid.Column="1"
+                                                Orientation="Horizontal"
+                                                VerticalAlignment="Center">
+                                        <Button Content="View Current Fit"
+                                                Margin="0,0,8,0"
+                                                Click="ViewCurrentFit_Click"/>
+                                        <Button Content="Refresh Ship Data"
+                                                Click="RefreshShipAssets_Click"/>
+                                    </StackPanel>
                                 </Grid>
                             </Border>
 
@@ -1458,6 +1463,18 @@
                                                   Grid.Row="1"
                                                   RowHeight="30">
                                             <DataGrid.Columns>
+                                                <DataGridTemplateColumn Header=""
+                                                                        Width="62">
+                                                    <DataGridTemplateColumn.CellTemplate>
+                                                        <DataTemplate>
+                                                            <Button Content="VIEW"
+                                                                    Padding="6,1"
+                                                                    MinHeight="22"
+                                                                    FontSize="8.5"
+                                                                    Click="ViewSavedFit_Click"/>
+                                                        </DataTemplate>
+                                                    </DataGridTemplateColumn.CellTemplate>
+                                                </DataGridTemplateColumn>
                                                 <DataGridTextColumn Header="Fit"
                                                                     Binding="{Binding Name}"
                                                                     Width="180"/>
