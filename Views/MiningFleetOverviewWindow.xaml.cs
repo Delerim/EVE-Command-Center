@@ -32,7 +32,7 @@ public partial class MiningFleetOverviewWindow : Window
     private bool _pilotIntelRefreshBusy;
 
     private bool _tileReorderMode;
-    private Point _tileDragStart;
+    private System.Windows.Point _tileDragStart;
     private string? _tileDragCharacter;
 
     private const string FleetTileDragFormat =
@@ -878,7 +878,7 @@ public partial class MiningFleetOverviewWindow : Window
 
     private void Tile_PreviewMouseMove(
         object sender,
-        MouseEventArgs e)
+        System.Windows.Input.MouseEventArgs e)
     {
         if (!_tileReorderMode ||
             e.LeftButton != MouseButtonState.Pressed ||
@@ -888,7 +888,7 @@ public partial class MiningFleetOverviewWindow : Window
             return;
         }
 
-        Point current =
+        System.Windows.Point current =
             e.GetPosition(this);
 
         if (Math.Abs(
@@ -909,34 +909,34 @@ public partial class MiningFleetOverviewWindow : Window
         _tileDragCharacter = null;
 
         var data =
-            new DataObject(
+            new System.Windows.DataObject(
                 FleetTileDragFormat,
                 character);
 
-        DragDrop.DoDragDrop(
+        System.Windows.DragDrop.DoDragDrop(
             sender as DependencyObject ??
             this,
             data,
-            DragDropEffects.Move);
+            System.Windows.DragDropEffects.Move);
     }
 
     private void Tile_DragOver(
         object sender,
-        DragEventArgs e)
+        System.Windows.DragEventArgs e)
     {
         e.Effects =
             _tileReorderMode &&
             e.Data.GetDataPresent(
                 FleetTileDragFormat)
-                ? DragDropEffects.Move
-                : DragDropEffects.None;
+                ? System.Windows.DragDropEffects.Move
+                : System.Windows.DragDropEffects.None;
 
         e.Handled = true;
     }
 
     private void Tile_Drop(
         object sender,
-        DragEventArgs e)
+        System.Windows.DragEventArgs e)
     {
         if (!_tileReorderMode ||
             !e.Data.GetDataPresent(
