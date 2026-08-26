@@ -816,7 +816,7 @@
                                                                          Margin="18,0"
                                                                          Minimum="0"
                                                                          Maximum="100"
-                                                                         Value="{Binding CompletionPercent}"
+                                                                         Value="{Binding CompletionPercent, Mode=OneWay}"
                                                                          Foreground="#58D3B4"
                                                                          Background="#1A292C"
                                                                          VerticalAlignment="Center"/>
