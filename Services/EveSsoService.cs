@@ -2785,6 +2785,28 @@ public sealed class EveSsoService
             987
         };
 
+        // Damage order here matches Dogma 984..987:
+        // EM, Explosive, Kinetic, Thermal.
+        //
+        // Passive Shield Resistance Amplifiers (group 295) receive
+        // +5% to their resistance amount per level of the matching
+        // damage-specific Shield Compensation skill.
+        int[] shieldCompensationSkillIds =
+        {
+            12365, // EM Shield Compensation
+            12367, // Explosive Shield Compensation
+            12366, // Kinetic Shield Compensation
+            11566  // Thermal Shield Compensation
+        };
+
+        string[] shieldCompensationSkillNames =
+        {
+            "EM Shield Compensation",
+            "Explosive Shield Compensation",
+            "Kinetic Shield Compensation",
+            "Thermal Shield Compensation"
+        };
+
         var shieldPercentBonuses =
             new[]
             {
@@ -2809,6 +2831,10 @@ public sealed class EveSsoService
             bool isActiveShieldHardener =
                 module.GroupId ==
                 77;
+
+            bool isPassiveShieldAmplifier =
+                module.GroupId ==
+                295;
 
             bool canAffectShield =
                 isActiveShieldHardener ||
@@ -2836,6 +2862,9 @@ public sealed class EveSsoService
             var foundShieldBonuses =
                 new List<double>();
 
+            var shieldCompensationNotes =
+                new List<string>();
+
             for (int i = 0;
                  i < 4;
                  i++)
@@ -2851,11 +2880,34 @@ public sealed class EveSsoService
 
                 if (canAffectShield)
                 {
+                    double effectiveShieldBonus =
+                        bonus;
+
+                    if (isPassiveShieldAmplifier)
+                    {
+                        int compensationLevel =
+                            GetSkillLevel(
+                                skills,
+                                shieldCompensationSkillIds[i]);
+
+                        if (compensationLevel > 0)
+                        {
+                            effectiveShieldBonus *=
+                                1.0 +
+                                0.05 *
+                                compensationLevel;
+
+                            shieldCompensationNotes.Add(
+                                $"{shieldCompensationSkillNames[i]} {compensationLevel}");
+                        }
+                    }
+
                     shieldPercentBonuses[i]
-                        .Add(bonus);
+                        .Add(
+                            effectiveShieldBonus);
 
                     foundShieldBonuses.Add(
-                        bonus);
+                        effectiveShieldBonus);
                 }
 
                 if (canAffectArmor)
@@ -2870,7 +2922,20 @@ public sealed class EveSsoService
                 string activeText =
                     isActiveShieldHardener
                         ? "active"
-                        : "fitted";
+                        : isPassiveShieldAmplifier
+                            ? "passive"
+                            : "fitted";
+
+                string compensationText =
+                    shieldCompensationNotes.Count > 0
+                        ? " (" +
+                          string.Join(
+                              ", ",
+                              shieldCompensationNotes
+                                  .Distinct(
+                                      StringComparer.OrdinalIgnoreCase)) +
+                          ")"
+                        : "";
 
                 applied.Add(
                     $"{module.Name}: {activeText} shield resist " +
@@ -2879,7 +2944,8 @@ public sealed class EveSsoService
                         foundShieldBonuses
                             .Select(
                                 value =>
-                                    $"{Math.Abs(value):0.#}%")));
+                                    $"{Math.Abs(value):0.#}%")) +
+                    compensationText);
             }
         }
 
