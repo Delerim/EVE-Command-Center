@@ -506,6 +506,12 @@ public sealed class EveSsoService
                 token,
                 cancellationToken);
 
+        IReadOnlyList<EveUniverseType> defenseImplants =
+            await GetInstalledImplantTypesAsync(
+                pilot,
+                token,
+                cancellationToken);
+
         EveFitDefenseStats defense =
             new();
 
@@ -517,6 +523,7 @@ public sealed class EveSsoService
                     fitted.Select(
                         asset => asset.TypeId),
                     skills,
+                    defenseImplants,
                     cancellationToken);
         }
         catch (OperationCanceledException)
@@ -681,6 +688,12 @@ public sealed class EveSsoService
                         token,
                         cancellationToken);
 
+                IReadOnlyList<EveUniverseType> fitImplants =
+                    await GetInstalledImplantTypesAsync(
+                        pilot,
+                        token,
+                        cancellationToken);
+
                 currentFitStats =
                     await CalculateFitDefenseAsync(
                         ship.ShipTypeId,
@@ -691,6 +704,7 @@ public sealed class EveSsoService
                                 IsShipEquipmentFlag(a.LocationFlag))
                             .Select(a => a.TypeId),
                         fitSkills,
+                        fitImplants,
                         cancellationToken);
             }
             catch (OperationCanceledException)
@@ -1913,6 +1927,62 @@ public sealed class EveSsoService
         return "";
     }
 
+    private async Task<IReadOnlyList<EveUniverseType>>
+        GetInstalledImplantTypesAsync(
+            EvePilotProfile pilot,
+            string accessToken,
+            CancellationToken cancellationToken)
+    {
+        if (!HasScope(
+                pilot,
+                "esi-clones.read_implants.v1"))
+        {
+            return Array.Empty<EveUniverseType>();
+        }
+
+        try
+        {
+            List<int> implantIds =
+                await GetEsiAsync<List<int>>(
+                    $"/characters/{pilot.CharacterId}/implants/",
+                    accessToken,
+                    cancellationToken);
+
+            if (implantIds.Count == 0)
+                return Array.Empty<EveUniverseType>();
+
+            var result =
+                new List<EveUniverseType>();
+
+            foreach (int typeId in
+                     implantIds
+                         .Where(id => id > 0)
+                         .Distinct())
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                result.Add(
+                    await GetUniverseTypeAsync(
+                        typeId,
+                        cancellationToken));
+            }
+
+            return result;
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            // Implant access should never prevent normal fit/EHP display.
+            // We simply fall back to ship + modules + skills.
+            Debug.WriteLine(
+                $"[PilotFit] Implant defense lookup failed for {pilot.CharacterName}: {ex.Message}");
+
+            return Array.Empty<EveUniverseType>();
+        }
+    }
     private async Task<EveShieldCommandBoostProfile>
         CalculateShieldCommandBoostAsync(
             EvePilotProfile pilot,
@@ -2102,6 +2172,7 @@ public sealed class EveSsoService
         int shipTypeId,
         IEnumerable<int> fittedTypeIds,
         EveSkillsResponse skills,
+        IReadOnlyList<EveUniverseType> installedImplants,
         CancellationToken cancellationToken)
     {
         if (shipTypeId <= 0)
@@ -2407,6 +2478,12 @@ public sealed class EveSsoService
                 $"Shield Management {shieldManagement}: +{shieldManagement * 5}% shield HP");
         }
 
+        ApplyInstalledDefenseImplants(
+            installedImplants,
+            ref shieldHp,
+            ref armorHp,
+            ref structureHp,
+            applied);
         // -------------------------------------------------------------------
         // Base resonance
         // -------------------------------------------------------------------
@@ -2787,6 +2864,197 @@ public sealed class EveSsoService
                 structureEhp
         };
     }
+    private static void ApplyInstalledDefenseImplants(
+        IReadOnlyList<EveUniverseType> installedImplants,
+        ref double shieldHp,
+        ref double armorHp,
+        ref double structureHp,
+        List<string> applied)
+    {
+        if (installedImplants.Count == 0)
+            return;
+
+        const int ArmorHpBonusId = 335;
+        const int HullHpBonusId = 327;
+        const int ShieldCapacityBonusId = 337;
+        const int NirvanaShieldHpBonusId = 3015;
+        const int AmuletSetBonusId = 864;
+        const int NirvanaSetBonusId = 3017;
+
+        double amuletSetMultiplier =
+            installedImplants
+                .Where(
+                    implant =>
+                        implant.Name.Contains(
+                            "Amulet",
+                            StringComparison.OrdinalIgnoreCase))
+                .Select(
+                    implant =>
+                        NormalizeImplantSetMultiplier(
+                            GetDogmaValue(
+                                implant,
+                                AmuletSetBonusId,
+                                1)))
+                .Aggregate(
+                    1.0,
+                    (current, value) =>
+                        current * value);
+
+        double nirvanaSetMultiplier =
+            installedImplants
+                .Where(
+                    implant =>
+                        implant.Name.Contains(
+                            "Nirvana",
+                            StringComparison.OrdinalIgnoreCase))
+                .Select(
+                    implant =>
+                        NormalizeImplantSetMultiplier(
+                            GetDogmaValue(
+                                implant,
+                                NirvanaSetBonusId,
+                                1)))
+                .Aggregate(
+                    1.0,
+                    (current, value) =>
+                        current * value);
+
+        if (amuletSetMultiplier > 1.0001)
+        {
+            applied.Add(
+                $"Implants: Amulet set strength x{amuletSetMultiplier:0.###}");
+        }
+
+        if (nirvanaSetMultiplier > 1.0001)
+        {
+            applied.Add(
+                $"Implants: Nirvana set strength x{nirvanaSetMultiplier:0.###}");
+        }
+
+        foreach (EveUniverseType implant
+                 in installedImplants)
+        {
+            bool isAmulet =
+                implant.Name.Contains(
+                    "Amulet",
+                    StringComparison.OrdinalIgnoreCase);
+
+            bool isNirvana =
+                implant.Name.Contains(
+                    "Nirvana",
+                    StringComparison.OrdinalIgnoreCase);
+
+            // Shield-capacity hardwirings and special implants.
+            double shieldCapacityPercent =
+                Math.Max(
+                    0,
+                    GetDogmaValue(
+                        implant,
+                        ShieldCapacityBonusId,
+                        0));
+
+            if (shieldCapacityPercent > 0)
+            {
+                shieldHp *=
+                    1.0 +
+                    shieldCapacityPercent /
+                    100.0;
+
+                applied.Add(
+                    $"Implant: {implant.Name}: +{shieldCapacityPercent:0.###}% shield HP");
+            }
+
+            // Nirvana uses a separate shieldHpBonus attribute and each set
+            // piece's secondary bonus is strengthened by the combined set
+            // multiplier.
+            double shieldHpPercent =
+                Math.Max(
+                    0,
+                    GetDogmaValue(
+                        implant,
+                        NirvanaShieldHpBonusId,
+                        0));
+
+            if (shieldHpPercent > 0)
+            {
+                double effective =
+                    isNirvana
+                        ? shieldHpPercent *
+                          nirvanaSetMultiplier
+                        : shieldHpPercent;
+
+                shieldHp *=
+                    1.0 +
+                    effective /
+                    100.0;
+
+                applied.Add(
+                    $"Implant: {implant.Name}: +{effective:0.###}% shield HP" +
+                    (
+                        isNirvana &&
+                        nirvanaSetMultiplier > 1.0001
+                            ? $" ({shieldHpPercent:0.###}% x set)"
+                            : ""
+                    ));
+            }
+
+            double armorHpPercent =
+                Math.Max(
+                    0,
+                    GetDogmaValue(
+                        implant,
+                        ArmorHpBonusId,
+                        0));
+
+            if (armorHpPercent > 0)
+            {
+                double effective =
+                    isAmulet
+                        ? armorHpPercent *
+                          amuletSetMultiplier
+                        : armorHpPercent;
+
+                armorHp *=
+                    1.0 +
+                    effective /
+                    100.0;
+
+                applied.Add(
+                    $"Implant: {implant.Name}: +{effective:0.###}% armor HP" +
+                    (
+                        isAmulet &&
+                        amuletSetMultiplier > 1.0001
+                            ? $" ({armorHpPercent:0.###}% x set)"
+                            : ""
+                    ));
+            }
+
+            double hullHpPercent =
+                Math.Max(
+                    0,
+                    GetDogmaValue(
+                        implant,
+                        HullHpBonusId,
+                        0));
+
+            if (hullHpPercent > 0)
+            {
+                structureHp *=
+                    1.0 +
+                    hullHpPercent /
+                    100.0;
+
+                applied.Add(
+                    $"Implant: {implant.Name}: +{hullHpPercent:0.###}% structure HP");
+            }
+        }
+    }
+
+    private static double NormalizeImplantSetMultiplier(
+        double value) =>
+        value > 0
+            ? value
+            : 1.0;
     private static int GetSkillLevel(
         EveSkillsResponse skills,
         int skillTypeId)
