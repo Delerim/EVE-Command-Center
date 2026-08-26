@@ -460,10 +460,18 @@ public partial class PilotCommandCenterWindow : Window
         RefreshImplantItems();
     }
 
-    private async void ShipAssetsTab_Selected(
+    private async void PilotTabs_SelectionChanged(
         object sender,
-        RoutedEventArgs e)
+        SelectionChangedEventArgs e)
     {
+        // SelectionChanged is a routed event. DataGrids, ComboBoxes and other
+        // selectors inside a tab can bubble their own SelectionChanged through
+        // the parent TabControl, so only respond to the TabControl itself.
+        if (sender is not TabControl tabs ||
+            !ReferenceEquals(e.OriginalSource, tabs) ||
+            !ShipAssetsTab.IsSelected)
+            return;
+
         if (PilotList.SelectedItem
             is not PilotCardViewModel card)
             return;

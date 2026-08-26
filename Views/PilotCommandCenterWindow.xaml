@@ -702,7 +702,8 @@
                 </StackPanel>
             </Grid>
 
-            <TabControl Grid.Row="3">
+            <TabControl Grid.Row="3"
+                        SelectionChanged="PilotTabs_SelectionChanged">
                     <TabItem Header="Skills">
                         <Grid Margin="0,2,0,0">
                             <Grid.RowDefinitions>
@@ -1330,8 +1331,7 @@
                     </TabItem>
 
                     <TabItem x:Name="ShipAssetsTab"
-                             Header="Ship &amp; Assets"
-                             Selected="ShipAssetsTab_Selected">
+                             Header="Ship &amp; Assets">
                         <Grid Margin="0,6,0,0">
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/>
