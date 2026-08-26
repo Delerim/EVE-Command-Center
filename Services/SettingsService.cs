@@ -11,7 +11,8 @@ namespace EveMultiPreview.Services;
 /// <summary>
 /// Manages loading, saving, and accessing application settings.
 /// Uses atomic file writes (temp + rename) to prevent data loss — same pattern as AHK version.
-/// Compatible with "EVE MultiPreview.json" format from the AHK app.
+/// Uses "EVE Command Center.json" and automatically migrates the legacy
+/// "EVE MultiPreview.json" file on first launch after the rename.
 /// </summary>
 public sealed class SettingsService : IDisposable
 {
@@ -44,12 +45,84 @@ public sealed class SettingsService : IDisposable
 
     public SettingsService(string? settingsPath = null)
     {
+        // Explicit custom paths are respected exactly. The automatic rename
+        // migration only applies to the normal config beside the executable.
+        if (!string.IsNullOrWhiteSpace(settingsPath))
+        {
+            _settingsPath = settingsPath;
+            return;
+        }
+
         // For single-file self-contained apps, AppDomain.CurrentDomain.BaseDirectory
-        // points to the temp extraction directory — NOT where the exe lives.
+        // points to the temp extraction directory - NOT where the exe lives.
         // Environment.ProcessPath gives the actual exe path on disk.
         var exeDir = Path.GetDirectoryName(Environment.ProcessPath)
                      ?? AppDomain.CurrentDomain.BaseDirectory;
-        _settingsPath = settingsPath ?? Path.Combine(exeDir, "EVE MultiPreview.json");
+
+        string newPath =
+            Path.Combine(
+                exeDir,
+                "EVE Command Center.json");
+
+        string legacyPath =
+            Path.Combine(
+                exeDir,
+                "EVE MultiPreview.json");
+
+        MigrateLegacyFile(
+            legacyPath,
+            newPath,
+            "main settings");
+
+        _settingsPath = newPath;
+    }
+
+    private static void MigrateLegacyFile(
+        string legacyPath,
+        string newPath,
+        string label)
+    {
+        if (File.Exists(newPath) ||
+            !File.Exists(legacyPath))
+            return;
+
+        try
+        {
+            File.Move(
+                legacyPath,
+                newPath);
+
+            System.Diagnostics.Debug.WriteLine(
+                $"[Settings] Migrated legacy {label}: " +
+                $"{Path.GetFileName(legacyPath)} -> {Path.GetFileName(newPath)}");
+
+            return;
+        }
+        catch (Exception moveEx)
+        {
+            System.Diagnostics.Debug.WriteLine(
+                $"[Settings] Rename of legacy {label} failed: {moveEx.Message}");
+        }
+
+        // Safe fallback: if Windows/AV blocks a rename, copy instead. The app
+        // will use the new filename from now on while leaving the old file as
+        // a harmless backup rather than risking loss of user settings.
+        try
+        {
+            File.Copy(
+                legacyPath,
+                newPath,
+                overwrite: false);
+
+            System.Diagnostics.Debug.WriteLine(
+                $"[Settings] Copied legacy {label} to new filename: " +
+                Path.GetFileName(newPath));
+        }
+        catch (Exception copyEx)
+        {
+            System.Diagnostics.Debug.WriteLine(
+                $"[Settings] Legacy {label} migration failed: {copyEx.Message}");
+        }
     }
 
     /// <summary>Load settings from disk. Creates default settings if file doesn't exist.</summary>

@@ -68,7 +68,45 @@ public static class MiningDashboardPreferencesStore
         {
             var exeDir = Path.GetDirectoryName(Environment.ProcessPath)
                          ?? AppDomain.CurrentDomain.BaseDirectory;
-            return Path.Combine(exeDir, "EVE MultiPreview Mining.json");
+
+            string newPath =
+                Path.Combine(
+                    exeDir,
+                    "EVE Command Center Mining.json");
+
+            string legacyPath =
+                Path.Combine(
+                    exeDir,
+                    "EVE MultiPreview Mining.json");
+
+            if (!File.Exists(newPath) &&
+                File.Exists(legacyPath))
+            {
+                try
+                {
+                    File.Move(
+                        legacyPath,
+                        newPath);
+                }
+                catch
+                {
+                    // Safe fallback: preserve the legacy file if a rename is
+                    // blocked, but copy it to the new branded filename so this
+                    // and all future runs use the new path.
+                    try
+                    {
+                        File.Copy(
+                            legacyPath,
+                            newPath,
+                            overwrite: false);
+                    }
+                    catch
+                    {
+                    }
+                }
+            }
+
+            return newPath;
         }
     }
 
