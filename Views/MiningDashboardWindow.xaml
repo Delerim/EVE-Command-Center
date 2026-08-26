@@ -505,7 +505,7 @@
             <Setter Property="SelectionMode" Value="Single"/>
             <Setter Property="SelectionUnit" Value="FullRow"/>
             <Setter Property="RowHeaderWidth" Value="0"/>
-            <Setter Property="RowHeight" Value="32"/>
+            <Setter Property="RowHeight" Value="34"/>
             <Setter Property="ColumnHeaderHeight" Value="34"/>
             <Setter Property="HorizontalGridLinesBrush" Value="Transparent"/>
             <Setter Property="VerticalGridLinesBrush" Value="Transparent"/>
@@ -521,11 +521,13 @@
             <Setter Property="Padding" Value="10,8"/>
         </Style>
 
-                <Style TargetType="DataGridCell">
+        <Style TargetType="DataGridCell">
             <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Padding" Value="10,6"/>
+            <Setter Property="Padding" Value="10,0"/>
             <Setter Property="Foreground" Value="#DCEAE6"/>
             <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="HorizontalContentAlignment" Value="Left"/>
             <Style.Triggers>
                 <Trigger Property="IsSelected" Value="True">
                     <Setter Property="Background" Value="Transparent"/>
@@ -534,8 +536,16 @@
             </Style.Triggers>
         </Style>
 
-                <Style TargetType="DataGridRow">
-            <Setter Property="Margin" Value="0,0,0,2"/>
+        <!-- Apply to numeric / money columns. Names and descriptive fields stay left. -->
+        <Style x:Key="CenterGridCell"
+               TargetType="DataGridCell"
+               BasedOn="{StaticResource {x:Type DataGridCell}}">
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
+
+        <Style TargetType="DataGridRow">
+            <Setter Property="Margin" Value="0,2,0,2"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
             <Style.Triggers>
@@ -670,39 +680,60 @@
                 <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
-            <!-- Premium command-center title bar. -->
-            <Grid Grid.Row="0" Height="52" Margin="2,-2,0,11">
+            <!-- Premium single-line command-center title bar. -->
+            <Grid Grid.Row="0" Height="42" Margin="2,-2,0,9">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
 
-                <StackPanel Orientation="Horizontal"
-                            VerticalAlignment="Center">
-                    <Border Background="#12332D"
+                <Grid Grid.Column="0" VerticalAlignment="Center">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <Border Grid.Column="0"
+                            Height="30"
+                            Background="#12332D"
                             BorderBrush="#2A5F54"
                             BorderThickness="1"
                             CornerRadius="8"
-                            Padding="9,5"
-                            Margin="0,0,12,0">
+                            Padding="10,0"
+                            Margin="0,0,12,0"
+                            VerticalAlignment="Center">
                         <TextBlock Text="MINING"
                                    Foreground="#58D3B4"
                                    FontSize="10"
-                                   FontWeight="Bold"/>
+                                   FontWeight="Bold"
+                                   VerticalAlignment="Center"
+                                   TextAlignment="Center"/>
                     </Border>
 
-                    <StackPanel VerticalAlignment="Center">
-                        <TextBlock Text="Mining Command Center"
-                                   FontSize="21"
-                                   FontWeight="SemiBold"
-                                   Foreground="#F1F8F6"/>
-                        <TextBlock x:Name="LastRefreshText"
-                                   Margin="0,2,0,0"
-                                   Foreground="#6F9189"
-                                   FontSize="10"
-                                   Text="Public ESI market data"/>
-                    </StackPanel>
-                </StackPanel>
+                    <TextBlock Grid.Column="1"
+                               Text="Mining Command Center"
+                               FontSize="21"
+                               FontWeight="SemiBold"
+                               Foreground="#F1F8F6"
+                               VerticalAlignment="Center"/>
+
+                    <Border Grid.Column="2"
+                            Width="1"
+                            Height="18"
+                            Background="#29423D"
+                            Margin="13,0"
+                            VerticalAlignment="Center"/>
+
+                    <TextBlock Grid.Column="3"
+                               x:Name="LastRefreshText"
+                               Foreground="#6F9189"
+                               FontSize="10"
+                               Text="Public ESI market data"
+                               VerticalAlignment="Center"
+                               TextTrimming="CharacterEllipsis"/>
+                </Grid>
 
                 <StackPanel Grid.Column="1"
                             Orientation="Horizontal"
@@ -1002,11 +1033,11 @@
                                             <DataGridTextColumn Header="Character" Binding="{Binding Character}" Width="150"/>
                                             <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="88"/>
                                             <DataGridTextColumn Header="Current ore" Binding="{Binding Ore}" Width="170"/>
-                                            <DataGridTextColumn Header="Today m3" Binding="{Binding SessionM3Text}" Width="105"/>
-                                            <DataGridTextColumn Header="Jita" Binding="{Binding JitaValueText}" Width="95"/>
-                                            <DataGridTextColumn Header="Amarr" Binding="{Binding AmarrValueText}" Width="95"/>
-                                            <DataGridTextColumn Header="Best" Binding="{Binding BestValueText}" Width="95"/>
-                                            <DataGridTextColumn Header="Corp" Binding="{Binding CorpValueText}" Width="95"/>
+                                            <DataGridTextColumn Header="Today m3" CellStyle="{StaticResource CenterGridCell}" Binding="{Binding SessionM3Text}" Width="105"/>
+                                            <DataGridTextColumn Header="Jita" CellStyle="{StaticResource CenterGridCell}" Binding="{Binding JitaValueText}" Width="95"/>
+                                            <DataGridTextColumn Header="Amarr" CellStyle="{StaticResource CenterGridCell}" Binding="{Binding AmarrValueText}" Width="95"/>
+                                            <DataGridTextColumn Header="Best" CellStyle="{StaticResource CenterGridCell}" Binding="{Binding BestValueText}" Width="95"/>
+                                            <DataGridTextColumn Header="Corp" CellStyle="{StaticResource CenterGridCell}" Binding="{Binding CorpValueText}" Width="95"/>
                                         </DataGrid.Columns>
                                     </DataGrid>
                                 </Grid>
@@ -1023,9 +1054,9 @@
                                     <DataGrid Grid.Row="1" x:Name="OverviewOreGrid" AlternationCount="2">
                                         <DataGrid.Columns>
                                             <DataGridTextColumn Header="Ore" Binding="{Binding Ore}" Width="*"/>
-                                            <DataGridTextColumn Header="Units" Binding="{Binding Units, StringFormat={}{0:N0}}" Width="95"/>
-                                            <DataGridTextColumn Header="m3" Binding="{Binding VolumeM3Text}" Width="95"/>
-                                            <DataGridTextColumn Header="Best" Binding="{Binding BestValueText}" Width="100"/>
+                                            <DataGridTextColumn Header="Units" CellStyle="{StaticResource CenterGridCell}" Binding="{Binding Units, StringFormat={}{0:N0}}" Width="95"/>
+                                            <DataGridTextColumn Header="m3" CellStyle="{StaticResource CenterGridCell}" Binding="{Binding VolumeM3Text}" Width="95"/>
+                                            <DataGridTextColumn Header="Best" CellStyle="{StaticResource CenterGridCell}" Binding="{Binding BestValueText}" Width="100"/>
                                         </DataGrid.Columns>
                                     </DataGrid>
                                 </Grid>
@@ -1041,15 +1072,15 @@
                             <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="90"/>
                             <DataGridTextColumn Header="Last pull" Binding="{Binding LastPull}" Width="82"/>
                             <DataGridTextColumn Header="Current ore" Binding="{Binding Ore}" Width="175"/>
-                            <DataGridTextColumn Header="BASE m3/s" Binding="{Binding BaseM3PerSec, StringFormat={}{0:N1}}" Width="95"/>
-                            <DataGridTextColumn Header="ACTUAL m3/s" Binding="{Binding ActualM3PerSecText}" Width="105"/>
+                            <DataGridTextColumn Header="BASE m3/s" CellStyle="{StaticResource CenterGridCell}" Binding="{Binding BaseM3PerSec, StringFormat={}{0:N1}}" Width="95"/>
+                            <DataGridTextColumn Header="ACTUAL m3/s" CellStyle="{StaticResource CenterGridCell}" Binding="{Binding ActualM3PerSecText}" Width="105"/>
                             <DataGridTextColumn Header="Today crits" Binding="{Binding Crits}" Width="105"/>
-                            <DataGridTextColumn Header="Today m3" Binding="{Binding SessionM3, StringFormat={}{0:N0}}" Width="105"/>
-                            <DataGridTextColumn Header="Continuity" Binding="{Binding ContinuityText}" Width="88"/>
-                            <DataGridTextColumn Header="Breaks >3m" Binding="{Binding BreaksText}" Width="88"/>
-                            <DataGridTextColumn Header="Jita ISK/h" Binding="{Binding JitaIskPerHourText}" Width="105"/>
-                            <DataGridTextColumn Header="Amarr ISK/h" Binding="{Binding AmarrIskPerHourText}" Width="105"/>
-                            <DataGridTextColumn Header="Best ISK/h" Binding="{Binding BestIskPerHourText}" Width="105"/>
+                            <DataGridTextColumn Header="Today m3" CellStyle="{StaticResource CenterGridCell}" Binding="{Binding SessionM3, StringFormat={}{0:N0}}" Width="105"/>
+                            <DataGridTextColumn Header="Continuity" CellStyle="{StaticResource CenterGridCell}" Binding="{Binding ContinuityText}" Width="88"/>
+                            <DataGridTextColumn Header="Breaks >3m" CellStyle="{StaticResource CenterGridCell}" Binding="{Binding BreaksText}" Width="88"/>
+                            <DataGridTextColumn Header="Jita ISK/h" CellStyle="{StaticResource CenterGridCell}" Binding="{Binding JitaIskPerHourText}" Width="105"/>
+                            <DataGridTextColumn Header="Amarr ISK/h" CellStyle="{StaticResource CenterGridCell}" Binding="{Binding AmarrIskPerHourText}" Width="105"/>
+                            <DataGridTextColumn Header="Best ISK/h" CellStyle="{StaticResource CenterGridCell}" Binding="{Binding BestIskPerHourText}" Width="105"/>
                             <DataGridTextColumn Header="Corp today" Binding="{Binding CorpSessionText}" Width="110"/>
                         </DataGrid.Columns>
                     </DataGrid>
@@ -1155,14 +1186,14 @@
                                 <DataGrid x:Name="ProfitOreGrid" AlternationCount="2">
                                     <DataGrid.Columns>
                                         <DataGridTextColumn Header="Ore" Binding="{Binding Ore}" Width="190"/>
-                                        <DataGridTextColumn Header="Normal" Binding="{Binding NormalText}" Width="105"/>
-                                        <DataGridTextColumn Header="Critical bonus" Binding="{Binding CriticalText}" Width="115"/>
-                                        <DataGridTextColumn Header="Combined" Binding="{Binding CombinedText}" Width="105"/>
-                                        <DataGridTextColumn Header="% total" Binding="{Binding PercentText}" Width="85"/>
-                                        <DataGridTextColumn Header="Jita / unit" Binding="{Binding JitaUnitText}" Width="100"/>
-                                        <DataGridTextColumn Header="Amarr / unit" Binding="{Binding AmarrUnitText}" Width="100"/>
-                                        <DataGridTextColumn Header="Best value" Binding="{Binding BestValueText}" Width="115"/>
-                                        <DataGridTextColumn Header="Corp BB" Binding="{Binding BuybackText}" Width="115"/>
+                                        <DataGridTextColumn Header="Normal" CellStyle="{StaticResource CenterGridCell}" Binding="{Binding NormalText}" Width="105"/>
+                                        <DataGridTextColumn Header="Critical bonus" CellStyle="{StaticResource CenterGridCell}" Binding="{Binding CriticalText}" Width="115"/>
+                                        <DataGridTextColumn Header="Combined" CellStyle="{StaticResource CenterGridCell}" Binding="{Binding CombinedText}" Width="105"/>
+                                        <DataGridTextColumn Header="% total" CellStyle="{StaticResource CenterGridCell}" Binding="{Binding PercentText}" Width="85"/>
+                                        <DataGridTextColumn Header="Jita / unit" CellStyle="{StaticResource CenterGridCell}" Binding="{Binding JitaUnitText}" Width="100"/>
+                                        <DataGridTextColumn Header="Amarr / unit" CellStyle="{StaticResource CenterGridCell}" Binding="{Binding AmarrUnitText}" Width="100"/>
+                                        <DataGridTextColumn Header="Best value" CellStyle="{StaticResource CenterGridCell}" Binding="{Binding BestValueText}" Width="115"/>
+                                        <DataGridTextColumn Header="Corp BB" CellStyle="{StaticResource CenterGridCell}" Binding="{Binding BuybackText}" Width="115"/>
                                     </DataGrid.Columns>
                                 </DataGrid>
                             </TabItem>
@@ -1170,11 +1201,11 @@
                                 <DataGrid x:Name="ProfitCharacterGrid" AlternationCount="2">
                                     <DataGrid.Columns>
                                         <DataGridTextColumn Header="Character" Binding="{Binding Character}" Width="170"/>
-                                        <DataGridTextColumn Header="Total units" Binding="{Binding UnitsText}" Width="115"/>
-                                        <DataGridTextColumn Header="Volume m3" Binding="{Binding VolumeText}" Width="115"/>
-                                        <DataGridTextColumn Header="Crits" Binding="{Binding CritText}" Width="115"/>
-                                        <DataGridTextColumn Header="Profit est." Binding="{Binding ProfitText}" Width="125"/>
-                                        <DataGridTextColumn Header="Corp BB est." Binding="{Binding BuybackText}" Width="125"/>
+                                        <DataGridTextColumn Header="Total units" CellStyle="{StaticResource CenterGridCell}" Binding="{Binding UnitsText}" Width="115"/>
+                                        <DataGridTextColumn Header="Volume m3" CellStyle="{StaticResource CenterGridCell}" Binding="{Binding VolumeText}" Width="115"/>
+                                        <DataGridTextColumn Header="Crits" CellStyle="{StaticResource CenterGridCell}" Binding="{Binding CritText}" Width="115"/>
+                                        <DataGridTextColumn Header="Profit est." CellStyle="{StaticResource CenterGridCell}" Binding="{Binding ProfitText}" Width="125"/>
+                                        <DataGridTextColumn Header="Corp BB est." CellStyle="{StaticResource CenterGridCell}" Binding="{Binding BuybackText}" Width="125"/>
                                     </DataGrid.Columns>
                                 </DataGrid>
                             </TabItem>                            <TabItem x:Name="SellTimingTab" Header="Sell timing">
@@ -1208,19 +1239,19 @@
                                     <DataGrid Grid.Row="2" x:Name="SellTimingGrid" AlternationCount="2">
                                         <DataGrid.Columns>
                                             <DataGridTextColumn Header="Ore" Binding="{Binding Ore}" Width="180"/>
-                                            <DataGridTextColumn Header="Units" Binding="{Binding UnitsText}" Width="95"/>
+                                            <DataGridTextColumn Header="Units" CellStyle="{StaticResource CenterGridCell}" Binding="{Binding UnitsText}" Width="95"/>
                                             <DataGridTextColumn Header="Market" Binding="{Binding Market}" Width="75"/>
-                                            <DataGridTextColumn Header="Current" Binding="{Binding CurrentText}" Width="95"/>
-                                            <DataGridTextColumn Header="7d avg" Binding="{Binding Average7Text}" Width="95"/>
-                                            <DataGridTextColumn Header="30d avg" Binding="{Binding Average30Text}" Width="95"/>
-                                            <DataGridTextColumn Header="90d low" Binding="{Binding Low90Text}" Width="95"/>
-                                            <DataGridTextColumn Header="90d high" Binding="{Binding High90Text}" Width="95"/>
-                                            <DataGridTextColumn Header="vs 30d" Binding="{Binding Vs30Text}" Width="80"/>
-                                            <DataGridTextColumn Header="Trend" Binding="{Binding TrendText}" Width="80"/>
+                                            <DataGridTextColumn Header="Current" CellStyle="{StaticResource CenterGridCell}" Binding="{Binding CurrentText}" Width="95"/>
+                                            <DataGridTextColumn Header="7d avg" CellStyle="{StaticResource CenterGridCell}" Binding="{Binding Average7Text}" Width="95"/>
+                                            <DataGridTextColumn Header="30d avg" CellStyle="{StaticResource CenterGridCell}" Binding="{Binding Average30Text}" Width="95"/>
+                                            <DataGridTextColumn Header="90d low" CellStyle="{StaticResource CenterGridCell}" Binding="{Binding Low90Text}" Width="95"/>
+                                            <DataGridTextColumn Header="90d high" CellStyle="{StaticResource CenterGridCell}" Binding="{Binding High90Text}" Width="95"/>
+                                            <DataGridTextColumn Header="vs 30d" CellStyle="{StaticResource CenterGridCell}" Binding="{Binding Vs30Text}" Width="80"/>
+                                            <DataGridTextColumn Header="Trend" CellStyle="{StaticResource CenterGridCell}" Binding="{Binding TrendText}" Width="80"/>
                                             <DataGridTemplateColumn Header="Advice" Width="75">
                                                 <DataGridTemplateColumn.CellTemplate>
                                                     <DataTemplate>
-                                                        <TextBlock Text="{Binding Signal}" FontWeight="SemiBold">
+                                                        <TextBlock Text="{Binding Signal}" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center">
                                                             <TextBlock.Style>
                                                                 <Style TargetType="TextBlock">
                                                                     <Setter Property="Foreground" Value="#78958E"/>
@@ -1285,18 +1316,18 @@
                         <DataGrid Grid.Row="2" x:Name="MarketGrid" AlternationCount="2">
                             <DataGrid.Columns>
                                 <DataGridTextColumn Header="Ore" Binding="{Binding Ore}" Width="180"/>
-                                <DataGridTextColumn Header="Today units" Binding="{Binding Units, StringFormat={}{0:N0}}" Width="95"/>
-                                <DataGridTextColumn Header="Jita sell" Binding="{Binding JitaSellText}" Width="95"/>
-                                <DataGridTextColumn Header="Jita buy" Binding="{Binding JitaBuyText}" Width="95"/>
-                                <DataGridTextColumn Header="Amarr sell" Binding="{Binding AmarrSellText}" Width="95"/>
-                                <DataGridTextColumn Header="Amarr buy" Binding="{Binding AmarrBuyText}" Width="95"/>
-                                <DataGridTextColumn Header="Best sell" Binding="{Binding BestSellText}" Width="100"/>
+                                <DataGridTextColumn Header="Today units" CellStyle="{StaticResource CenterGridCell}" Binding="{Binding Units, StringFormat={}{0:N0}}" Width="95"/>
+                                <DataGridTextColumn Header="Jita sell" CellStyle="{StaticResource CenterGridCell}" Binding="{Binding JitaSellText}" Width="95"/>
+                                <DataGridTextColumn Header="Jita buy" CellStyle="{StaticResource CenterGridCell}" Binding="{Binding JitaBuyText}" Width="95"/>
+                                <DataGridTextColumn Header="Amarr sell" CellStyle="{StaticResource CenterGridCell}" Binding="{Binding AmarrSellText}" Width="95"/>
+                                <DataGridTextColumn Header="Amarr buy" CellStyle="{StaticResource CenterGridCell}" Binding="{Binding AmarrBuyText}" Width="95"/>
+                                <DataGridTextColumn Header="Best sell" CellStyle="{StaticResource CenterGridCell}" Binding="{Binding BestSellText}" Width="100"/>
                                 <DataGridTextColumn Header="Best market" Binding="{Binding BestMarket}" Width="90"/>
-                                <DataGridTextColumn Header="30d avg" Binding="{Binding Average30Text}" Width="95"/>
+                                <DataGridTextColumn Header="30d avg" CellStyle="{StaticResource CenterGridCell}" Binding="{Binding Average30Text}" Width="95"/>
                                 <DataGridTemplateColumn Header="Advice" Width="75">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
-                                            <TextBlock Text="{Binding Signal}" FontWeight="SemiBold">
+                                            <TextBlock Text="{Binding Signal}" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center">
                                                 <TextBlock.Style>
                                                     <Style TargetType="TextBlock">
                                                         <Setter Property="Foreground" Value="#78958E"/>
@@ -1383,21 +1414,21 @@
 
                         <DataGrid Grid.Row="2" x:Name="WhatToMineGrid" AlternationCount="2">
                             <DataGrid.Columns>
-                                <DataGridTextColumn Header="#" Binding="{Binding Rank}" Width="40"/>
+                                <DataGridTextColumn Header="#" CellStyle="{StaticResource CenterGridCell}" Binding="{Binding Rank}" Width="40"/>
                                 <DataGridTextColumn Header="Ore" Binding="{Binding Ore}" Width="175"/>
                                 <DataGridTextColumn Header="Type" Binding="{Binding Category}" Width="95"/>
                                 <DataGridTextColumn Header="Best hub" Binding="{Binding BestMarket}" Width="75"/>
-                                <DataGridTextColumn Header="Sell / unit" Binding="{Binding BestSellText}" Width="95"/>
-                                <DataGridTextColumn Header="ISK/m3" Binding="{Binding BestIskM3Text}" Width="90"/>
-                                <DataGridTextColumn Header="Corp BB/m3" Binding="{Binding CorpBbIskM3Text}" Width="95"/>
-                                <DataGridTextColumn Header="BB gap/m3" Binding="{Binding BbGapText}" Width="115"/>
-                                <DataGridTextColumn Header="30d avg" Binding="{Binding Average30Text}" Width="95"/>
-                                <DataGridTextColumn Header="30d m3/day" Binding="{Binding AvgDailyM3Text}" Width="105"/>
-                                <DataGridTextColumn Header="Your load/day" Binding="{Binding MarketLoadText}" Width="95"/>
+                                <DataGridTextColumn Header="Sell / unit" CellStyle="{StaticResource CenterGridCell}" Binding="{Binding BestSellText}" Width="95"/>
+                                <DataGridTextColumn Header="ISK/m3" CellStyle="{StaticResource CenterGridCell}" Binding="{Binding BestIskM3Text}" Width="90"/>
+                                <DataGridTextColumn Header="Corp BB/m3" CellStyle="{StaticResource CenterGridCell}" Binding="{Binding CorpBbIskM3Text}" Width="95"/>
+                                <DataGridTextColumn Header="BB gap/m3" CellStyle="{StaticResource CenterGridCell}" Binding="{Binding BbGapText}" Width="115"/>
+                                <DataGridTextColumn Header="30d avg" CellStyle="{StaticResource CenterGridCell}" Binding="{Binding Average30Text}" Width="95"/>
+                                <DataGridTextColumn Header="30d m3/day" CellStyle="{StaticResource CenterGridCell}" Binding="{Binding AvgDailyM3Text}" Width="105"/>
+                                <DataGridTextColumn Header="Your load/day" CellStyle="{StaticResource CenterGridCell}" Binding="{Binding MarketLoadText}" Width="95"/>
                                 <DataGridTemplateColumn Header="Advice" Width="75">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
-                                            <TextBlock Text="{Binding Advice}" FontWeight="SemiBold">
+                                            <TextBlock Text="{Binding Advice}" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center">
                                                 <TextBlock.Style>
                                                     <Style TargetType="TextBlock">
                                                         <Setter Property="Foreground" Value="#78958E"/>
@@ -1518,10 +1549,10 @@
                                 <DataGridTextColumn Header="Mining day" Binding="{Binding Day}" Width="105"/>
                                 <DataGridTextColumn Header="Character" Binding="{Binding Character}" Width="150"/>
                                 <DataGridTextColumn Header="Ore" Binding="{Binding Ore}" Width="190"/>
-                                <DataGridTextColumn Header="Units" Binding="{Binding UnitsText}" Width="105"/>
-                                <DataGridTextColumn Header="m3" Binding="{Binding VolumeText}" Width="105"/>
-                                <DataGridTextColumn Header="Crits" Binding="{Binding CritText}" Width="105"/>
-                                <DataGridTextColumn Header="Profit est." Binding="{Binding ProfitText}" Width="115"/>
+                                <DataGridTextColumn Header="Units" CellStyle="{StaticResource CenterGridCell}" Binding="{Binding UnitsText}" Width="105"/>
+                                <DataGridTextColumn Header="m3" CellStyle="{StaticResource CenterGridCell}" Binding="{Binding VolumeText}" Width="105"/>
+                                <DataGridTextColumn Header="Crits" CellStyle="{StaticResource CenterGridCell}" Binding="{Binding CritText}" Width="105"/>
+                                <DataGridTextColumn Header="Profit est." CellStyle="{StaticResource CenterGridCell}" Binding="{Binding ProfitText}" Width="115"/>
                                 <DataGridTextColumn Header="BB est." Binding="{Binding BuybackText}" Width="115"/>
                             </DataGrid.Columns>
                         </DataGrid>
