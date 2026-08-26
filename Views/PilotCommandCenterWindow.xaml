@@ -221,6 +221,175 @@
                 </Setter.Value>
             </Setter>
         </Style>
+
+        <Style x:Key="SkillFilterButton"
+               TargetType="Button"
+               BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="MinHeight" Value="28"/>
+            <Setter Property="Padding" Value="10,5"/>
+            <Setter Property="Margin" Value="0,0,6,0"/>
+            <Setter Property="FontSize" Value="10"/>
+            <Setter Property="Background" Value="#101F22"/>
+            <Setter Property="BorderBrush" Value="#274740"/>
+        </Style>
+
+        <Style x:Key="SkillSearchTextBox" TargetType="TextBox">
+            <Setter Property="Height" Value="32"/>
+            <Setter Property="Foreground" Value="#EAF7F4"/>
+            <Setter Property="Background" Value="#0C171A"/>
+            <Setter Property="BorderBrush" Value="#294A44"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="10,5"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TextBox">
+                        <Border x:Name="SearchShell"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="8"
+                                Padding="{TemplateBinding Padding}">
+                            <ScrollViewer x:Name="PART_ContentHost"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsKeyboardFocusWithin" Value="True">
+                                <Setter TargetName="SearchShell"
+                                        Property="BorderBrush"
+                                        Value="#58D3B4"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="SearchShell"
+                                        Property="BorderBrush"
+                                        Value="#3F7569"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style TargetType="ComboBoxItem">
+            <Setter Property="Foreground" Value="#EAF7F4"/>
+            <Setter Property="Background" Value="#101A1E"/>
+            <Setter Property="Padding" Value="10,6"/>
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBoxItem">
+                        <Border x:Name="ItemShell"
+                                Background="{TemplateBinding Background}"
+                                CornerRadius="6"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="ItemShell"
+                                        Property="Background"
+                                        Value="#17322D"/>
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="ItemShell"
+                                        Property="Background"
+                                        Value="#1C5A4F"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="SkillCategoryCombo" TargetType="ComboBox">
+            <Setter Property="Height" Value="32"/>
+            <Setter Property="Foreground" Value="#EAF7F4"/>
+            <Setter Property="Background" Value="#0C171A"/>
+            <Setter Property="BorderBrush" Value="#294A44"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBox">
+                        <Grid>
+                            <Border x:Name="ComboShell"
+                                    Background="{TemplateBinding Background}"
+                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                    CornerRadius="8">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="28"/>
+                                    </Grid.ColumnDefinitions>
+                                    <ContentPresenter Grid.Column="0"
+                                                      Margin="10,0,4,0"
+                                                      VerticalAlignment="Center"
+                                                      Content="{TemplateBinding SelectionBoxItem}"
+                                                      TextElement.Foreground="#EAF7F4"/>
+                                    <TextBlock Grid.Column="1"
+                                               Text="▾"
+                                               Foreground="#58D3B4"
+                                               FontSize="12"
+                                               HorizontalAlignment="Center"
+                                               VerticalAlignment="Center"/>
+                                </Grid>
+                            </Border>
+
+                            <ToggleButton Background="Transparent"
+                                          BorderThickness="0"
+                                          Focusable="False"
+                                          IsChecked="{Binding IsDropDownOpen,
+                                                              RelativeSource={RelativeSource TemplatedParent},
+                                                              Mode=TwoWay}">
+                                <ToggleButton.Template>
+                                    <ControlTemplate TargetType="ToggleButton">
+                                        <Border Background="Transparent"/>
+                                    </ControlTemplate>
+                                </ToggleButton.Template>
+                            </ToggleButton>
+
+                            <Popup x:Name="PART_Popup"
+                                   IsOpen="{TemplateBinding IsDropDownOpen}"
+                                   Placement="Bottom"
+                                   AllowsTransparency="True"
+                                   PopupAnimation="Fade">
+                                <Border Margin="0,5,0,0"
+                                        MinWidth="{Binding ActualWidth,
+                                                           RelativeSource={RelativeSource TemplatedParent}}"
+                                        MaxHeight="420"
+                                        Background="#101A1E"
+                                        BorderBrush="#315E56"
+                                        BorderThickness="1"
+                                        CornerRadius="9"
+                                        Padding="4">
+                                    <ScrollViewer VerticalScrollBarVisibility="Auto"
+                                                  HorizontalScrollBarVisibility="Disabled">
+                                        <ItemsPresenter/>
+                                    </ScrollViewer>
+                                </Border>
+                            </Popup>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsKeyboardFocusWithin" Value="True">
+                                <Setter TargetName="ComboShell"
+                                        Property="BorderBrush"
+                                        Value="#58D3B4"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="ComboShell"
+                                        Property="BorderBrush"
+                                        Value="#3F7569"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style TargetType="Expander">
+            <Setter Property="Foreground" Value="#EAF7F4"/>
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+        </Style>
     </Window.Resources>
 
     <Border Background="#091114" BorderBrush="#28574E"
@@ -321,6 +490,7 @@
                                         <Border Width="54" Height="54"
                                                 CornerRadius="8"
                                                 ClipToBounds="True"
+                                                HorizontalAlignment="Left"
                                                 VerticalAlignment="Top">
                                             <Image Source="{Binding PortraitUrl}"
                                                    Stretch="UniformToFill"/>
@@ -417,7 +587,290 @@
                     BorderBrush="#19332E" BorderThickness="1"
                     CornerRadius="12" Padding="10">
                 <TabControl>
+                    <TabItem Header="Skills">
+                        <Grid Margin="0,2,0,0">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+
+                            <Grid Grid.Row="0" Margin="0,0,0,8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="220"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+
+                                <TextBox x:Name="SkillSearchBox"
+                                         Grid.Column="0"
+                                         Style="{StaticResource SkillSearchTextBox}"
+                                         Margin="0,0,8,0"
+                                         ToolTip="Search skills"
+                                         TextChanged="SkillSearchBox_TextChanged"/>
+
+                                <ComboBox x:Name="SkillCategoryFilter"
+                                          Grid.Column="1"
+                                          Style="{StaticResource SkillCategoryCombo}"
+                                          Margin="0,0,8,0"
+                                          SelectionChanged="SkillCategoryFilter_SelectionChanged"/>
+
+                                <Button Grid.Column="2"
+                                        Content="Expand All"
+                                        Margin="0,0,8,0"
+                                        Click="ExpandAllSkills_Click"/>
+
+                                <Button Grid.Column="3"
+                                        Content="Collapse All"
+                                        Click="CollapseAllSkills_Click"/>
+                            </Grid>
+
+                            <DockPanel Grid.Row="1"
+                                       LastChildFill="True"
+                                       Margin="0,0,0,8">
+                                <WrapPanel DockPanel.Dock="Left">
+                                    <Button x:Name="SkillFilterAll"
+                                            Style="{StaticResource SkillFilterButton}"
+                                            Tag="all"
+                                            Content="All"
+                                            Click="SkillFilter_Click"/>
+                                    <Button x:Name="SkillFilterTrained"
+                                            Style="{StaticResource SkillFilterButton}"
+                                            Tag="trained"
+                                            Content="Trained"
+                                            Click="SkillFilter_Click"/>
+                                    <Button x:Name="SkillFilterV"
+                                            Style="{StaticResource SkillFilterButton}"
+                                            Tag="5"
+                                            Content="Level V"
+                                            Click="SkillFilter_Click"/>
+                                    <Button x:Name="SkillFilterIV"
+                                            Style="{StaticResource SkillFilterButton}"
+                                            Tag="4"
+                                            Content="Level IV"
+                                            Click="SkillFilter_Click"/>
+                                    <Button x:Name="SkillFilterIII"
+                                            Style="{StaticResource SkillFilterButton}"
+                                            Tag="3"
+                                            Content="Level III"
+                                            Click="SkillFilter_Click"/>
+                                    <Button x:Name="SkillFilterII"
+                                            Style="{StaticResource SkillFilterButton}"
+                                            Tag="2"
+                                            Content="Level II"
+                                            Click="SkillFilter_Click"/>
+                                    <Button x:Name="SkillFilterI"
+                                            Style="{StaticResource SkillFilterButton}"
+                                            Tag="1"
+                                            Content="Level I"
+                                            Click="SkillFilter_Click"/>
+                                    <Button x:Name="SkillFilterUntrained"
+                                            Style="{StaticResource SkillFilterButton}"
+                                            Tag="0"
+                                            Content="Untrained"
+                                            Click="SkillFilter_Click"/>
+                                </WrapPanel>
+
+                                <StackPanel Orientation="Horizontal"
+                                            HorizontalAlignment="Right"
+                                            VerticalAlignment="Center">
+                                    <TextBlock x:Name="SkillsCatalogStatusText"
+                                               Foreground="#6F9189"
+                                               FontSize="9.5"
+                                               Margin="12,0,14,0"
+                                               VerticalAlignment="Center"/>
+                                    <TextBlock x:Name="SkillTotalsText"
+                                               Text="-"
+                                               Foreground="#58D3B4"
+                                               FontSize="10"
+                                               FontWeight="SemiBold"
+                                               VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </DockPanel>
+
+                            <Border Grid.Row="2"
+                                    Background="#142125"
+                                    BorderBrush="#203531"
+                                    BorderThickness="0,0,0,1"
+                                    Padding="10,7">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="120"/>
+                                        <ColumnDefinition Width="105"/>
+                                        <ColumnDefinition Width="90"/>
+                                        <ColumnDefinition Width="190"/>
+                                        <ColumnDefinition Width="190"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="Skill"
+                                               Foreground="#63CDB2"
+                                               FontWeight="SemiBold"/>
+                                    <TextBlock Grid.Column="1"
+                                               Text="Level"
+                                               Foreground="#63CDB2"
+                                               FontWeight="SemiBold"
+                                               HorizontalAlignment="Center"/>
+                                    <TextBlock Grid.Column="2"
+                                               Text="Trained"
+                                               Foreground="#63CDB2"
+                                               FontWeight="SemiBold"
+                                               HorizontalAlignment="Center"/>
+                                    <TextBlock Grid.Column="3"
+                                               Text="Rank"
+                                               Foreground="#63CDB2"
+                                               FontWeight="SemiBold"
+                                               HorizontalAlignment="Center"/>
+                                    <TextBlock Grid.Column="4"
+                                               Text="Skill Points"
+                                               Foreground="#63CDB2"
+                                               FontWeight="SemiBold"
+                                               HorizontalAlignment="Center"/>
+                                    <TextBlock Grid.Column="5"
+                                               Text="Next Level"
+                                               Foreground="#63CDB2"
+                                               FontWeight="SemiBold"
+                                               HorizontalAlignment="Center"/>
+                                </Grid>
+                            </Border>
+
+                            <ScrollViewer Grid.Row="3"
+                                          VerticalScrollBarVisibility="Auto"
+                                          HorizontalScrollBarVisibility="Disabled">
+                                <ItemsControl ItemsSource="{Binding SkillGroups}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Expander IsExpanded="{Binding IsExpanded, Mode=TwoWay}"
+                                                      HorizontalContentAlignment="Stretch"
+                                                      Margin="0,0,0,2">
+                                                <Expander.Header>
+                                                    <Border Background="#10253A"
+                                                            BorderBrush="#1F4560"
+                                                            BorderThickness="0,0,0,1"
+                                                            Padding="10,7">
+                                                        <Grid>
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="240"/>
+                                                                <ColumnDefinition Width="*"/>
+                                                                <ColumnDefinition Width="330"/>
+                                                            </Grid.ColumnDefinitions>
+
+                                                            <TextBlock Text="{Binding Name}"
+                                                                       Foreground="#E7B85A"
+                                                                       FontWeight="SemiBold"/>
+
+                                                            <ProgressBar Grid.Column="1"
+                                                                         Height="5"
+                                                                         Margin="18,0"
+                                                                         Minimum="0"
+                                                                         Maximum="100"
+                                                                         Value="{Binding CompletionPercent}"
+                                                                         Foreground="#58D3B4"
+                                                                         Background="#1A292C"
+                                                                         VerticalAlignment="Center"/>
+
+                                                            <TextBlock Grid.Column="2"
+                                                                       Text="{Binding SummaryText}"
+                                                                       Foreground="#8DA9A2"
+                                                                       FontSize="9.5"
+                                                                       HorizontalAlignment="Right"
+                                                                       VerticalAlignment="Center"/>
+                                                        </Grid>
+                                                    </Border>
+                                                </Expander.Header>
+
+                                                <ItemsControl ItemsSource="{Binding Skills}">
+                                                    <ItemsControl.ItemTemplate>
+                                                        <DataTemplate>
+                                                            <Border Background="#0D171A"
+                                                                    BorderBrush="#15282B"
+                                                                    BorderThickness="0,0,0,1"
+                                                                    Padding="10,7">
+                                                                <Grid>
+                                                                    <Grid.ColumnDefinitions>
+                                                                        <ColumnDefinition Width="*"/>
+                                                                        <ColumnDefinition Width="120"/>
+                                                                        <ColumnDefinition Width="105"/>
+                                                                        <ColumnDefinition Width="90"/>
+                                                                        <ColumnDefinition Width="190"/>
+                                                                        <ColumnDefinition Width="190"/>
+                                                                    </Grid.ColumnDefinitions>
+
+                                                                    <TextBlock Text="{Binding Name}"
+                                                                               Foreground="#DCEAE6"
+                                                                               VerticalAlignment="Center"/>
+
+                                                                    <ItemsControl Grid.Column="1"
+                                                                                  ItemsSource="{Binding LevelBlocks}"
+                                                                                  HorizontalAlignment="Center"
+                                                                                  VerticalAlignment="Center">
+                                                                        <ItemsControl.ItemsPanel>
+                                                                            <ItemsPanelTemplate>
+                                                                                <StackPanel Orientation="Horizontal"/>
+                                                                            </ItemsPanelTemplate>
+                                                                        </ItemsControl.ItemsPanel>
+                                                                        <ItemsControl.ItemTemplate>
+                                                                            <DataTemplate>
+                                                                                <Border Width="14"
+                                                                                        Height="8"
+                                                                                        Margin="1,0"
+                                                                                        CornerRadius="2">
+                                                                                    <Border.Style>
+                                                                                        <Style TargetType="Border">
+                                                                                            <Setter Property="Background"
+                                                                                                    Value="#263A3D"/>
+                                                                                            <Style.Triggers>
+                                                                                                <DataTrigger Binding="{Binding IsFilled}"
+                                                                                                             Value="True">
+                                                                                                    <Setter Property="Background"
+                                                                                                            Value="#E7B85A"/>
+                                                                                                </DataTrigger>
+                                                                                            </Style.Triggers>
+                                                                                        </Style>
+                                                                                    </Border.Style>
+                                                                                </Border>
+                                                                            </DataTemplate>
+                                                                        </ItemsControl.ItemTemplate>
+                                                                    </ItemsControl>
+
+                                                                    <TextBlock Grid.Column="2"
+                                                                               Text="{Binding LevelText}"
+                                                                               Foreground="#DCEAE6"
+                                                                               HorizontalAlignment="Center"
+                                                                               VerticalAlignment="Center"/>
+
+                                                                    <TextBlock Grid.Column="3"
+                                                                               Text="{Binding RankText}"
+                                                                               Foreground="#8DA9A2"
+                                                                               HorizontalAlignment="Center"
+                                                                               VerticalAlignment="Center"/>
+
+                                                                    <TextBlock Grid.Column="4"
+                                                                               Text="{Binding SpText}"
+                                                                               Foreground="#DCEAE6"
+                                                                               HorizontalAlignment="Center"
+                                                                               VerticalAlignment="Center"/>
+
+                                                                    <TextBlock Grid.Column="5"
+                                                                               Text="{Binding NextText}"
+                                                                               Foreground="{Binding NextForeground}"
+                                                                               HorizontalAlignment="Center"
+                                                                               VerticalAlignment="Center"/>
+                                                                </Grid>
+                                                            </Border>
+                                                        </DataTemplate>
+                                                    </ItemsControl.ItemTemplate>
+                                                </ItemsControl>
+                                            </Expander>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </ScrollViewer>
+                        </Grid>
+                    </TabItem>
                     <TabItem Header="Skill Queue">
+
                         <DataGrid x:Name="SkillQueueGrid" Margin="0,10,0,0">
                             <DataGrid.Columns>
                                 <DataGridTextColumn Header="#" Binding="{Binding Position}" Width="55"/>

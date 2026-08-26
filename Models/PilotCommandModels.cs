@@ -46,6 +46,9 @@ public sealed class EveSkillEntry
 
     [JsonPropertyName("trained_skill_level")]
     public int TrainedSkillLevel { get; set; }
+
+    [JsonPropertyName("active_skill_level")]
+    public int ActiveSkillLevel { get; set; }
 }
 
 public sealed class EveSkillQueueEntry
@@ -98,8 +101,69 @@ public sealed class EveWalletJournalEntry
 
 public sealed class EveUniverseType
 {
+    [JsonPropertyName("type_id")]
+    public int TypeId { get; set; }
+
     [JsonPropertyName("name")]
     public string Name { get; set; } = "";
+
+    [JsonPropertyName("group_id")]
+    public int GroupId { get; set; }
+
+    [JsonPropertyName("published")]
+    public bool Published { get; set; }
+
+    [JsonPropertyName("dogma_attributes")]
+    public List<EveDogmaAttributeValue> DogmaAttributes { get; set; } = new();
+}
+
+public sealed class EveDogmaAttributeValue
+{
+    [JsonPropertyName("attribute_id")]
+    public int AttributeId { get; set; }
+
+    [JsonPropertyName("value")]
+    public double Value { get; set; }
+}
+
+public sealed class EveUniverseCategory
+{
+    [JsonPropertyName("name")]
+    public string Name { get; set; } = "";
+
+    [JsonPropertyName("groups")]
+    public List<int> Groups { get; set; } = new();
+}
+
+public sealed class EveUniverseGroup
+{
+    [JsonPropertyName("group_id")]
+    public int GroupId { get; set; }
+
+    [JsonPropertyName("name")]
+    public string Name { get; set; } = "";
+
+    [JsonPropertyName("published")]
+    public bool Published { get; set; }
+
+    [JsonPropertyName("types")]
+    public List<int> Types { get; set; } = new();
+}
+
+public sealed class EveSkillCatalogEntry
+{
+    public int SkillId { get; set; }
+    public string Name { get; set; } = "";
+    public int GroupId { get; set; }
+    public string GroupName { get; set; } = "";
+    public int Rank { get; set; } = 1;
+    public long MaxSp { get; set; } = 256000;
+}
+
+public sealed class EveSkillCatalogCache
+{
+    public DateTime GeneratedUtc { get; set; }
+    public List<EveSkillCatalogEntry> Entries { get; set; } = new();
 }
 
 public sealed class EvePilotSummary
@@ -136,6 +200,7 @@ public sealed class EveWalletJournalView
 public sealed class EvePilotDashboard
 {
     public EvePilotSummary Summary { get; init; } = new();
+    public IReadOnlyList<EveSkillEntry> TrainedSkills { get; init; } = Array.Empty<EveSkillEntry>();
     public IReadOnlyList<EveSkillQueueView> SkillQueue { get; init; } = Array.Empty<EveSkillQueueView>();
     public IReadOnlyList<EveWalletJournalView> WalletJournal { get; init; } = Array.Empty<EveWalletJournalView>();
 }

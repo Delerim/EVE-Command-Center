@@ -434,6 +434,7 @@ public sealed class EveSsoService
         return new EvePilotDashboard
         {
             Summary = summary,
+            TrainedSkills = skills.Skills.ToArray(),
             SkillQueue = queueViews,
             WalletJournal = journal
         };
