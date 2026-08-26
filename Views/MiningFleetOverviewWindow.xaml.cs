@@ -19,7 +19,9 @@ public partial class MiningFleetOverviewWindow : Window
     private readonly MiningDashboardPreferences _prefs;
     private readonly DispatcherTimer _timer;
     private readonly DispatcherTimer _pilotIntelTimer;
+    private readonly DispatcherTimer _plexMarketTimer;
     private readonly EveSsoService _pilotSso = new();
+    private readonly MiningMarketService _plexMarket = new();
 
     private readonly Dictionary<string, EveMiningShipIntel>
         _pilotIntel =
@@ -30,6 +32,7 @@ public partial class MiningFleetOverviewWindow : Window
             new(StringComparer.OrdinalIgnoreCase);
 
     private bool _pilotIntelRefreshBusy;
+    private bool _plexMarketRefreshBusy;
 
     private bool _tileReorderMode;
     private System.Windows.Point _tileDragStart;
@@ -39,6 +42,7 @@ public partial class MiningFleetOverviewWindow : Window
         "EVECommandCenter.FleetTileCharacter";
 
     private const double ManualOrcaShieldBoostPercent = 19.7;
+    private const double PlexBuyHighlightThreshold = 4_500_000.0;
 
     public MiningFleetOverviewWindow(
         StatTrackerService tracker,
@@ -86,11 +90,23 @@ public partial class MiningFleetOverviewWindow : Window
                 await RefreshPilotIntelAsync();
         _pilotIntelTimer.Start();
 
+        _plexMarketTimer = new DispatcherTimer
+        {
+            Interval = TimeSpan.FromMinutes(5)
+        };
+        _plexMarketTimer.Tick +=
+            async (_, _) =>
+                await RefreshPlexMarketAsync();
+        _plexMarketTimer.Start();
+
         Loaded +=
             async (_, _) =>
             {
                 RefreshCards();
-                await RefreshPilotIntelAsync();
+
+                await Task.WhenAll(
+                    RefreshPilotIntelAsync(),
+                    RefreshPlexMarketAsync());
             };
 
         SizeChanged += (_, _) => RefreshCards();
@@ -99,6 +115,7 @@ public partial class MiningFleetOverviewWindow : Window
         {
             _timer.Stop();
             _pilotIntelTimer.Stop();
+            _plexMarketTimer.Stop();
             _prefs.FleetOverviewX = Left;
             _prefs.FleetOverviewY = Top;
             if (_prefs.AllowFleetOverviewResize)
@@ -111,6 +128,167 @@ public partial class MiningFleetOverviewWindow : Window
         };
     }
 
+    private async Task RefreshPlexMarketAsync()
+    {
+        if (_plexMarketRefreshBusy)
+            return;
+
+        _plexMarketRefreshBusy = true;
+
+        try
+        {
+            MiningMarketQuote? quote =
+                await _plexMarket.EnsureQuoteAsync(
+                    "PLEX");
+
+            if (quote == null ||
+                !quote.IsAvailable)
+            {
+                PlexBuyText.Text = "--";
+                PlexSellText.Text = "--";
+                PlexBuyText.Foreground =
+                    new System.Windows.Media.SolidColorBrush(
+                        System.Windows.Media.Color.FromRgb(
+                            234,
+                            247,
+                            244));
+                PlexMarketBorder.Background =
+                    new System.Windows.Media.SolidColorBrush(
+                        System.Windows.Media.Color.FromRgb(
+                            16,
+                            29,
+                            32));
+                PlexMarketBorder.BorderBrush =
+                    new System.Windows.Media.SolidColorBrush(
+                        System.Windows.Media.Color.FromRgb(
+                            49,
+                            94,
+                            103));
+
+                PlexMarketBorder.ToolTip =
+                    "PLEX Jita market unavailable." +
+                    (
+                        string.IsNullOrWhiteSpace(
+                            quote?.Error)
+                            ? ""
+                            : Environment.NewLine +
+                              quote.Error
+                    );
+
+                return;
+            }
+
+            // BUY is what we pay to acquire PLEX: Jita's lowest sell order.
+            // SELL is what we receive for an immediate sale: Jita's highest buy.
+            double buyPrice =
+                quote.JitaBestSell ?? 0;
+
+            double sellPrice =
+                quote.JitaBestBuy ?? 0;
+
+            PlexBuyText.Text =
+                FormatPlexPrice(
+                    buyPrice);
+
+            PlexSellText.Text =
+                FormatPlexPrice(
+                    sellPrice);
+
+            bool buyZone =
+                buyPrice > 0 &&
+                buyPrice <=
+                    PlexBuyHighlightThreshold;
+
+            if (buyZone)
+            {
+                PlexMarketBorder.Background =
+                    new System.Windows.Media.SolidColorBrush(
+                        System.Windows.Media.Color.FromRgb(
+                            19,
+                            52,
+                            42));
+
+                PlexMarketBorder.BorderBrush =
+                    new System.Windows.Media.SolidColorBrush(
+                        System.Windows.Media.Color.FromRgb(
+                            72,
+                            199,
+                            142));
+
+                PlexBuyText.Foreground =
+                    new System.Windows.Media.SolidColorBrush(
+                        System.Windows.Media.Color.FromRgb(
+                            124,
+                            240,
+                            181));
+            }
+            else
+            {
+                PlexMarketBorder.Background =
+                    new System.Windows.Media.SolidColorBrush(
+                        System.Windows.Media.Color.FromRgb(
+                            16,
+                            29,
+                            32));
+
+                PlexMarketBorder.BorderBrush =
+                    new System.Windows.Media.SolidColorBrush(
+                        System.Windows.Media.Color.FromRgb(
+                            49,
+                            94,
+                            103));
+
+                PlexBuyText.Foreground =
+                    new System.Windows.Media.SolidColorBrush(
+                        System.Windows.Media.Color.FromRgb(
+                            234,
+                            247,
+                            244));
+            }
+
+            string age =
+                AgeText(
+                    Math.Max(
+                        0,
+                        (DateTime.UtcNow -
+                         quote.FetchedAtUtc)
+                        .TotalSeconds));
+
+            PlexMarketBorder.ToolTip =
+                $"PLEX - Jita 4-4{Environment.NewLine}" +
+                $"BUY PLEX: {buyPrice:N0} ISK (lowest sell order){Environment.NewLine}" +
+                $"SELL PLEX: {sellPrice:N0} ISK (highest buy order){Environment.NewLine}" +
+                $"Buy-zone highlight: {PlexBuyHighlightThreshold:N0} ISK or lower{Environment.NewLine}" +
+                $"Market quote refreshed {age} ago.";
+        }
+        catch (Exception ex)
+        {
+            PlexBuyText.Text = "--";
+            PlexSellText.Text = "--";
+
+            PlexMarketBorder.ToolTip =
+                $"PLEX market refresh failed:{Environment.NewLine}" +
+                ex.Message;
+        }
+        finally
+        {
+            _plexMarketRefreshBusy = false;
+        }
+    }
+
+    private static string FormatPlexPrice(
+        double price)
+    {
+        if (price <= 0)
+            return "--";
+
+        return
+            (price / 1_000_000.0)
+            .ToString(
+                "0.00",
+                CultureInfo.InvariantCulture) +
+            "M";
+    }
     private async Task RefreshPilotIntelAsync()
     {
         if (_pilotIntelRefreshBusy)
