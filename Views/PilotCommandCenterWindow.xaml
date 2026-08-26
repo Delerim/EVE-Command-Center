@@ -1537,37 +1537,422 @@
                     </TabItem>
 
                     <TabItem Header="Wallet">
-                        <Grid Margin="0,10,0,0">
+                        <Grid Margin="0,4,0,0">
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="*"/>
                             </Grid.RowDefinitions>
 
-                            <Border Background="#101B1E" BorderBrush="#22443E"
-                                    BorderThickness="1" CornerRadius="10"
-                                    Padding="13" Margin="0,0,0,10">
-                                <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="Character wallet"
-                                               Foreground="#78958E"
-                                               VerticalAlignment="Center"/>
-                                    <TextBlock x:Name="WalletTabBalanceText"
-                                               Text="-"
-                                               Foreground="#58D3B4"
-                                               FontSize="18"
-                                               FontWeight="SemiBold"
-                                               Margin="14,0,0,0"/>
-                                </StackPanel>
+                            <Border Grid.Row="0"
+                                    Background="#101B1E"
+                                    BorderBrush="#22443E"
+                                    BorderThickness="1"
+                                    CornerRadius="10"
+                                    Padding="13"
+                                    Margin="0,0,0,9">
+                                <DockPanel>
+                                    <StackPanel DockPanel.Dock="Left">
+                                        <TextBlock Text="CHARACTER WALLET"
+                                                   Foreground="#78958E"
+                                                   FontSize="9"/>
+                                        <TextBlock x:Name="WalletTabBalanceText"
+                                                   Text="-"
+                                                   Foreground="#58D3B4"
+                                                   FontSize="22"
+                                                   FontWeight="SemiBold"
+                                                   Margin="0,2,0,0"/>
+                                    </StackPanel>
+
+                                    <TextBlock x:Name="WalletMarketSummaryText"
+                                               DockPanel.Dock="Right"
+                                               Foreground="#8FA9A3"
+                                               FontSize="9.5"
+                                               VerticalAlignment="Center"
+                                               HorizontalAlignment="Right"/>
+                                </DockPanel>
                             </Border>
 
-                            <DataGrid x:Name="WalletGrid" Grid.Row="1">
-                                <DataGrid.Columns>
-                                    <DataGridTextColumn Header="Date" Binding="{Binding Date}" Width="175"/>
-                                    <DataGridTextColumn Header="Type" Binding="{Binding Type}" Width="220"/>
-                                    <DataGridTextColumn Header="Amount" Binding="{Binding Amount}" Width="135"/>
-                                    <DataGridTextColumn Header="Balance" Binding="{Binding Balance}" Width="135"/>
-                                    <DataGridTextColumn Header="Reason" Binding="{Binding Reason}" Width="*"/>
-                                </DataGrid.Columns>
-                            </DataGrid>
+                            <TabControl Grid.Row="1">
+                                <TabItem Header="Overview">
+                                    <Grid Margin="0,4,0,0">
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="*"/>
+                                            <RowDefinition Height="*"/>
+                                        </Grid.RowDefinitions>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+
+                                        <Border Grid.Row="0"
+                                                Grid.Column="0"
+                                                Style="{StaticResource SummaryCard}">
+                                            <StackPanel>
+                                                <TextBlock Text="TODAY INCOME"
+                                                           Foreground="#78958E"
+                                                           FontSize="9"/>
+                                                <TextBlock x:Name="WalletTodayIncomeText"
+                                                           Text="-"
+                                                           Foreground="#58D3B4"
+                                                           FontSize="20"
+                                                           FontWeight="SemiBold"
+                                                           Margin="0,4,0,0"/>
+                                            </StackPanel>
+                                        </Border>
+
+                                        <Border Grid.Row="0"
+                                                Grid.Column="1"
+                                                Style="{StaticResource SummaryCard}">
+                                            <StackPanel>
+                                                <TextBlock Text="TODAY SPENT"
+                                                           Foreground="#78958E"
+                                                           FontSize="9"/>
+                                                <TextBlock x:Name="WalletTodaySpentText"
+                                                           Text="-"
+                                                           Foreground="#E87979"
+                                                           FontSize="20"
+                                                           FontWeight="SemiBold"
+                                                           Margin="0,4,0,0"/>
+                                            </StackPanel>
+                                        </Border>
+
+                                        <Border Grid.Row="0"
+                                                Grid.Column="2"
+                                                Style="{StaticResource SummaryCard}">
+                                            <StackPanel>
+                                                <TextBlock Text="TODAY NET"
+                                                           Foreground="#78958E"
+                                                           FontSize="9"/>
+                                                <TextBlock x:Name="WalletTodayNetText"
+                                                           Text="-"
+                                                           Foreground="#9DB5AF"
+                                                           FontSize="20"
+                                                           FontWeight="SemiBold"
+                                                           Margin="0,4,0,0"/>
+                                            </StackPanel>
+                                        </Border>
+
+                                        <Border Grid.Row="1"
+                                                Grid.Column="0"
+                                                Style="{StaticResource SummaryCard}"
+                                                Margin="0,10,10,0">
+                                            <StackPanel>
+                                                <TextBlock Text="7 DAY INCOME"
+                                                           Foreground="#78958E"
+                                                           FontSize="9"/>
+                                                <TextBlock x:Name="WalletWeekIncomeText"
+                                                           Text="-"
+                                                           Foreground="#58D3B4"
+                                                           FontSize="20"
+                                                           FontWeight="SemiBold"
+                                                           Margin="0,4,0,0"/>
+                                            </StackPanel>
+                                        </Border>
+
+                                        <Border Grid.Row="1"
+                                                Grid.Column="1"
+                                                Style="{StaticResource SummaryCard}"
+                                                Margin="0,10,10,0">
+                                            <StackPanel>
+                                                <TextBlock Text="7 DAY SPENT"
+                                                           Foreground="#78958E"
+                                                           FontSize="9"/>
+                                                <TextBlock x:Name="WalletWeekSpentText"
+                                                           Text="-"
+                                                           Foreground="#E87979"
+                                                           FontSize="20"
+                                                           FontWeight="SemiBold"
+                                                           Margin="0,4,0,0"/>
+                                            </StackPanel>
+                                        </Border>
+
+                                        <Border Grid.Row="1"
+                                                Grid.Column="2"
+                                                Style="{StaticResource SummaryCard}"
+                                                Margin="0,10,0,0">
+                                            <StackPanel>
+                                                <TextBlock Text="7 DAY NET"
+                                                           Foreground="#78958E"
+                                                           FontSize="9"/>
+                                                <TextBlock x:Name="WalletWeekNetText"
+                                                           Text="-"
+                                                           Foreground="#9DB5AF"
+                                                           FontSize="20"
+                                                           FontWeight="SemiBold"
+                                                           Margin="0,4,0,0"/>
+                                            </StackPanel>
+                                        </Border>
+                                    </Grid>
+                                </TabItem>
+
+                                <TabItem Header="Journal">
+                                    <Grid Margin="0,4,0,0">
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="*"/>
+                                        </Grid.RowDefinitions>
+
+                                        <TextBlock x:Name="WalletJournalCountText"
+                                                   Foreground="#78958E"
+                                                   FontSize="9.5"
+                                                   Margin="4,0,0,7"/>
+
+                                        <DataGrid x:Name="WalletJournalGrid"
+                                                  Grid.Row="1">
+                                            <DataGrid.RowStyle>
+                                                <Style TargetType="DataGridRow">
+                                                    <Setter Property="Background"
+                                                            Value="{Binding RowBackground}"/>
+                                                </Style>
+                                            </DataGrid.RowStyle>
+
+                                            <DataGrid.Columns>
+                                                <DataGridTextColumn Header="Date"
+                                                                    Binding="{Binding Date}"
+                                                                    Width="165"/>
+                                                <DataGridTextColumn Header="Type"
+                                                                    Binding="{Binding Type}"
+                                                                    Width="220"/>
+
+                                                <DataGridTemplateColumn Header="Amount"
+                                                                        Width="145">
+                                                    <DataGridTemplateColumn.CellTemplate>
+                                                        <DataTemplate>
+                                                            <TextBlock Text="{Binding Amount}"
+                                                                       Foreground="{Binding AmountForeground}"
+                                                                       FontWeight="SemiBold"
+                                                                       VerticalAlignment="Center"/>
+                                                        </DataTemplate>
+                                                    </DataGridTemplateColumn.CellTemplate>
+                                                </DataGridTemplateColumn>
+
+                                                <DataGridTextColumn Header="Balance"
+                                                                    Binding="{Binding Balance}"
+                                                                    Width="145"/>
+                                                <DataGridTextColumn Header="Reason"
+                                                                    Binding="{Binding Reason}"
+                                                                    Width="*"/>
+                                            </DataGrid.Columns>
+                                        </DataGrid>
+                                    </Grid>
+                                </TabItem>
+
+                                <TabItem Header="Transactions">
+                                    <Grid Margin="0,4,0,0">
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="*"/>
+                                        </Grid.RowDefinitions>
+
+                                        <TextBlock x:Name="WalletTransactionCountText"
+                                                   Foreground="#78958E"
+                                                   FontSize="9.5"
+                                                   Margin="4,0,0,7"/>
+
+                                        <DataGrid x:Name="WalletTransactionsGrid"
+                                                  Grid.Row="1">
+                                            <DataGrid.RowStyle>
+                                                <Style TargetType="DataGridRow">
+                                                    <Setter Property="Background"
+                                                            Value="{Binding RowBackground}"/>
+                                                </Style>
+                                            </DataGrid.RowStyle>
+
+                                            <DataGrid.Columns>
+                                                <DataGridTextColumn Header="Date"
+                                                                    Binding="{Binding Date}"
+                                                                    Width="165"/>
+
+                                                <DataGridTemplateColumn Header="Side"
+                                                                        Width="70">
+                                                    <DataGridTemplateColumn.CellTemplate>
+                                                        <DataTemplate>
+                                                            <TextBlock Text="{Binding Direction}"
+                                                                       Foreground="{Binding AmountForeground}"
+                                                                       FontWeight="Bold"/>
+                                                        </DataTemplate>
+                                                    </DataGridTemplateColumn.CellTemplate>
+                                                </DataGridTemplateColumn>
+
+                                                <DataGridTextColumn Header="Item"
+                                                                    Binding="{Binding Item}"
+                                                                    Width="*"/>
+                                                <DataGridTextColumn Header="Qty"
+                                                                    Binding="{Binding Quantity}"
+                                                                    Width="85"/>
+                                                <DataGridTextColumn Header="Unit Price"
+                                                                    Binding="{Binding UnitPrice}"
+                                                                    Width="145"/>
+
+                                                <DataGridTemplateColumn Header="Total"
+                                                                        Width="145">
+                                                    <DataGridTemplateColumn.CellTemplate>
+                                                        <DataTemplate>
+                                                            <TextBlock Text="{Binding Total}"
+                                                                       Foreground="{Binding AmountForeground}"
+                                                                       FontWeight="SemiBold"/>
+                                                        </DataTemplate>
+                                                    </DataGridTemplateColumn.CellTemplate>
+                                                </DataGridTemplateColumn>
+                                            </DataGrid.Columns>
+                                        </DataGrid>
+                                    </Grid>
+                                </TabItem>
+
+                                <TabItem Header="PLEX">
+                                    <Grid Margin="0,4,0,0">
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="*"/>
+                                        </Grid.RowDefinitions>
+
+                                        <Grid Grid.Row="0"
+                                              Margin="0,0,0,9">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+
+                                            <Border Grid.Column="0"
+                                                    Style="{StaticResource SummaryCard}">
+                                                <StackPanel>
+                                                    <TextBlock Text="PLEX BOUGHT"
+                                                               Foreground="#78958E"
+                                                               FontSize="8.5"/>
+                                                    <TextBlock x:Name="PlexBoughtText"
+                                                               Text="-"
+                                                               Foreground="#E87979"
+                                                               FontSize="18"
+                                                               FontWeight="SemiBold"
+                                                               Margin="0,3,0,0"/>
+                                                </StackPanel>
+                                            </Border>
+
+                                            <Border Grid.Column="1"
+                                                    Style="{StaticResource SummaryCard}">
+                                                <StackPanel>
+                                                    <TextBlock Text="PLEX SOLD"
+                                                               Foreground="#78958E"
+                                                               FontSize="8.5"/>
+                                                    <TextBlock x:Name="PlexSoldText"
+                                                               Text="-"
+                                                               Foreground="#58D3B4"
+                                                               FontSize="18"
+                                                               FontWeight="SemiBold"
+                                                               Margin="0,3,0,0"/>
+                                                </StackPanel>
+                                            </Border>
+
+                                            <Border Grid.Column="2"
+                                                    Style="{StaticResource SummaryCard}">
+                                                <StackPanel>
+                                                    <TextBlock Text="AVG BUY"
+                                                               Foreground="#78958E"
+                                                               FontSize="8.5"/>
+                                                    <TextBlock x:Name="PlexAverageBuyText"
+                                                               Text="-"
+                                                               Foreground="#E87979"
+                                                               FontSize="15"
+                                                               FontWeight="SemiBold"
+                                                               Margin="0,3,0,0"/>
+                                                </StackPanel>
+                                            </Border>
+
+                                            <Border Grid.Column="3"
+                                                    Style="{StaticResource SummaryCard}">
+                                                <StackPanel>
+                                                    <TextBlock Text="AVG SELL"
+                                                               Foreground="#78958E"
+                                                               FontSize="8.5"/>
+                                                    <TextBlock x:Name="PlexAverageSellText"
+                                                               Text="-"
+                                                               Foreground="#58D3B4"
+                                                               FontSize="15"
+                                                               FontWeight="SemiBold"
+                                                               Margin="0,3,0,0"/>
+                                                </StackPanel>
+                                            </Border>
+
+                                            <Border Grid.Column="4"
+                                                    Style="{StaticResource SummaryCard}"
+                                                    Margin="0">
+                                                <StackPanel>
+                                                    <TextBlock Text="PLEX NET ISK"
+                                                               Foreground="#78958E"
+                                                               FontSize="8.5"/>
+                                                    <TextBlock x:Name="PlexNetText"
+                                                               Text="-"
+                                                               Foreground="#9DB5AF"
+                                                               FontSize="15"
+                                                               FontWeight="SemiBold"
+                                                               Margin="0,3,0,0"/>
+                                                </StackPanel>
+                                            </Border>
+                                        </Grid>
+
+                                        <Grid Grid.Row="1">
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="*"/>
+                                            </Grid.RowDefinitions>
+
+                                            <TextBlock x:Name="WalletPlexCountText"
+                                                       Foreground="#78958E"
+                                                       FontSize="9.5"
+                                                       Margin="4,0,0,7"/>
+
+                                            <DataGrid x:Name="WalletPlexGrid"
+                                                      Grid.Row="1">
+                                                <DataGrid.RowStyle>
+                                                    <Style TargetType="DataGridRow">
+                                                        <Setter Property="Background"
+                                                                Value="{Binding RowBackground}"/>
+                                                    </Style>
+                                                </DataGrid.RowStyle>
+
+                                                <DataGrid.Columns>
+                                                    <DataGridTextColumn Header="Date"
+                                                                        Binding="{Binding Date}"
+                                                                        Width="170"/>
+
+                                                    <DataGridTemplateColumn Header="Side"
+                                                                            Width="70">
+                                                        <DataGridTemplateColumn.CellTemplate>
+                                                            <DataTemplate>
+                                                                <TextBlock Text="{Binding Direction}"
+                                                                           Foreground="{Binding AmountForeground}"
+                                                                           FontWeight="Bold"/>
+                                                            </DataTemplate>
+                                                        </DataGridTemplateColumn.CellTemplate>
+                                                    </DataGridTemplateColumn>
+
+                                                    <DataGridTextColumn Header="Qty"
+                                                                        Binding="{Binding Quantity}"
+                                                                        Width="100"/>
+                                                    <DataGridTextColumn Header="Unit Price"
+                                                                        Binding="{Binding UnitPrice}"
+                                                                        Width="160"/>
+
+                                                    <DataGridTemplateColumn Header="Total"
+                                                                            Width="160">
+                                                        <DataGridTemplateColumn.CellTemplate>
+                                                            <DataTemplate>
+                                                                <TextBlock Text="{Binding Total}"
+                                                                           Foreground="{Binding AmountForeground}"
+                                                                           FontWeight="SemiBold"/>
+                                                            </DataTemplate>
+                                                        </DataGridTemplateColumn.CellTemplate>
+                                                    </DataGridTemplateColumn>
+                                                </DataGrid.Columns>
+                                            </DataGrid>
+                                        </Grid>
+                                    </Grid>
+                                </TabItem>
+                            </TabControl>
                         </Grid>
                     </TabItem>
             </TabControl>

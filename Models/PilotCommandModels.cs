@@ -246,6 +246,21 @@ public sealed class EveWalletJournalView
     public string Amount { get; init; } = "";
     public string Balance { get; init; } = "";
     public string Reason { get; init; } = "";
+    public decimal AmountValue { get; init; }
+
+    public string AmountForeground =>
+        AmountValue > 0
+            ? "#58D3B4"
+            : AmountValue < 0
+                ? "#E87979"
+                : "#9DB5AF";
+
+    public string RowBackground =>
+        AmountValue > 0
+            ? "#10211D"
+            : AmountValue < 0
+                ? "#211719"
+                : "#0D171A";
 }
 
 public sealed class EvePilotDashboard
@@ -254,5 +269,8 @@ public sealed class EvePilotDashboard
     public EveTrainingProfile TrainingProfile { get; init; } = new();
     public IReadOnlyList<EveSkillEntry> TrainedSkills { get; init; } = Array.Empty<EveSkillEntry>();
     public IReadOnlyList<EveSkillQueueView> SkillQueue { get; init; } = Array.Empty<EveSkillQueueView>();
+    public EveWalletOverview WalletOverview { get; init; } = new();
     public IReadOnlyList<EveWalletJournalView> WalletJournal { get; init; } = Array.Empty<EveWalletJournalView>();
+    public IReadOnlyList<EveWalletTransactionView> WalletTransactions { get; init; } = Array.Empty<EveWalletTransactionView>();
+    public IReadOnlyList<EveWalletTransactionView> PlexTransactions { get; init; } = Array.Empty<EveWalletTransactionView>();
 }

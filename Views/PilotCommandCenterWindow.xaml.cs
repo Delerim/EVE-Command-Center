@@ -208,8 +208,8 @@ public partial class PilotCommandCenterWindow : Window
                 data.Summary.CurrentProgressPercent;
             QueueEndsText.Text =
                 data.Summary.QueueEndsIn;
-            WalletGrid.ItemsSource =
-                data.WalletJournal;
+
+            ApplyWalletData(data);
 
             _trainingProfile = data.TrainingProfile;
 
@@ -292,7 +292,24 @@ public partial class PilotCommandCenterWindow : Window
         QueueEndsText.Text = "-";
         SkillProgress.Value = 0;
         SkillQueueGrid.ItemsSource = null;
-        WalletGrid.ItemsSource = null;
+        WalletJournalGrid.ItemsSource = null;
+        WalletTransactionsGrid.ItemsSource = null;
+        WalletPlexGrid.ItemsSource = null;
+        WalletMarketSummaryText.Text = "";
+        WalletJournalCountText.Text = "";
+        WalletTransactionCountText.Text = "";
+        WalletPlexCountText.Text = "";
+        WalletTodayIncomeText.Text = "-";
+        WalletTodaySpentText.Text = "-";
+        WalletTodayNetText.Text = "-";
+        WalletWeekIncomeText.Text = "-";
+        WalletWeekSpentText.Text = "-";
+        WalletWeekNetText.Text = "-";
+        PlexBoughtText.Text = "-";
+        PlexSoldText.Text = "-";
+        PlexAverageBuyText.Text = "-";
+        PlexAverageSellText.Text = "-";
+        PlexNetText.Text = "-";
         AttributeItems.ItemsSource = null;
         ImplantItems.ItemsSource = null;
         RemapSummaryText.Text = "-";
@@ -320,6 +337,107 @@ public partial class PilotCommandCenterWindow : Window
         SkillSearchBox.Text = "";
         SkillTotalsText.Text = "-";
         SkillsCatalogStatusText.Text = "";
+    }
+
+    private void ApplyWalletData(
+        EvePilotDashboard data)
+    {
+        EveWalletOverview overview =
+            data.WalletOverview;
+
+        WalletJournalGrid.ItemsSource =
+            data.WalletJournal;
+        WalletTransactionsGrid.ItemsSource =
+            data.WalletTransactions;
+        WalletPlexGrid.ItemsSource =
+            data.PlexTransactions;
+
+        WalletJournalCountText.Text =
+            $"{overview.JournalCount:N0} recent journal entries";
+
+        WalletTransactionCountText.Text =
+            $"{overview.TransactionCount:N0} recent market transactions";
+
+        WalletPlexCountText.Text =
+            overview.PlexTransactionCount > 0
+                ? $"{overview.PlexTransactionCount:N0} PLEX market transactions"
+                : "No PLEX market transactions in the current ESI transaction history";
+
+        WalletTodayIncomeText.Text =
+            EveSsoService.FormatIsk(
+                overview.TodayIncome);
+
+        WalletTodaySpentText.Text =
+            EveSsoService.FormatIsk(
+                overview.TodaySpent);
+
+        SetSignedMoney(
+            WalletTodayNetText,
+            overview.TodayNet);
+
+        WalletWeekIncomeText.Text =
+            EveSsoService.FormatIsk(
+                overview.WeekIncome);
+
+        WalletWeekSpentText.Text =
+            EveSsoService.FormatIsk(
+                overview.WeekSpent);
+
+        SetSignedMoney(
+            WalletWeekNetText,
+            overview.WeekNet);
+
+        WalletMarketSummaryText.Text =
+            "MARKET  BUY " +
+            EveSsoService.FormatIsk(
+                overview.MarketBought) +
+            "  |  SELL " +
+            EveSsoService.FormatIsk(
+                overview.MarketSold) +
+            "  |  NET " +
+            EveSsoService.FormatIskSigned(
+                overview.MarketNet);
+
+        PlexBoughtText.Text =
+            overview.PlexBought.ToString("N0");
+
+        PlexSoldText.Text =
+            overview.PlexSold.ToString("N0");
+
+        PlexAverageBuyText.Text =
+            overview.PlexAverageBuy > 0
+                ? EveSsoService.FormatIsk(
+                    overview.PlexAverageBuy)
+                : "-";
+
+        PlexAverageSellText.Text =
+            overview.PlexAverageSell > 0
+                ? EveSsoService.FormatIsk(
+                    overview.PlexAverageSell)
+                : "-";
+
+        SetSignedMoney(
+            PlexNetText,
+            overview.PlexNetIsk);
+    }
+
+    private static void SetSignedMoney(
+        System.Windows.Controls.TextBlock target,
+        decimal value)
+    {
+        target.Text =
+            EveSsoService.FormatIskSigned(value);
+
+        string color =
+            value > 0
+                ? "#58D3B4"
+                : value < 0
+                    ? "#E87979"
+                    : "#9DB5AF";
+
+        target.Foreground =
+            (Brush)new BrushConverter()
+                .ConvertFromString(color)!;
     }
 
     private async Task<IReadOnlyList<EveSkillCatalogEntry>> LoadSkillBrowserAsync(

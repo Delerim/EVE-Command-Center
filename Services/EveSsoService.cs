@@ -708,6 +708,11 @@ public sealed class EveSsoService
                 $"/characters/{pilot.CharacterId}/wallet/journal/",
                 token, cancellationToken);
 
+        Task<List<EveWalletTransactionEntry>> transactionTask =
+            GetEsiAsync<List<EveWalletTransactionEntry>>(
+                $"/characters/{pilot.CharacterId}/wallet/transactions/",
+                token, cancellationToken);
+
         Task<PilotContext> contextTask =
             GetPilotContextAsync(
                 pilot,
@@ -725,6 +730,7 @@ public sealed class EveSsoService
             queueTask,
             walletTask,
             journalTask,
+            transactionTask,
             contextTask,
             trainingProfileTask);
 
@@ -802,22 +808,210 @@ public sealed class EveSsoService
             CurrentShip = context.ShipName
         };
 
+        List<EveWalletJournalEntry> journalEntries =
+            await journalTask;
+
+        List<EveWalletTransactionEntry> transactionEntries =
+            await transactionTask;
+
         EveWalletJournalView[] journal =
-            (await journalTask)
-            .OrderByDescending(j => j.Date)
-            .Take(100)
-            .Select(j => new EveWalletJournalView
+            journalEntries
+                .OrderByDescending(j => j.Date)
+                .Take(250)
+                .Select(j =>
+                {
+                    decimal amount =
+                        j.Amount ?? 0m;
+
+                    return new EveWalletJournalView
+                    {
+                        Date = j.Date.ToLocalTime()
+                            .ToString("dd MMM yyyy HH:mm"),
+                        Type = HumanizeRefType(j.RefType),
+                        Amount = j.Amount.HasValue
+                            ? FormatIskSigned(amount)
+                            : "-",
+                        Balance = j.Balance.HasValue
+                            ? FormatIsk(j.Balance.Value)
+                            : "-",
+                        Reason = string.IsNullOrWhiteSpace(j.Reason)
+                            ? ""
+                            : j.Reason!,
+                        AmountValue = amount
+                    };
+                })
+                .ToArray();
+
+        IReadOnlyDictionary<int, string> transactionTypeNames =
+            await GetTypeNamesBatchAsync(
+                transactionEntries.Select(t => t.TypeId),
+                cancellationToken);
+
+        string TransactionTypeName(int typeId) =>
+            transactionTypeNames.TryGetValue(
+                typeId,
+                out string? name)
+                ? name
+                : $"Type {typeId}";
+
+        EveWalletTransactionView[] transactions =
+            transactionEntries
+                .OrderByDescending(t => t.Date)
+                .Take(500)
+                .Select(t =>
+                {
+                    decimal gross =
+                        t.UnitPrice * t.Quantity;
+
+                    decimal signed =
+                        t.IsBuy
+                            ? -gross
+                            : gross;
+
+                    return new EveWalletTransactionView
+                    {
+                        TransactionId = t.TransactionId,
+                        TypeId = t.TypeId,
+                        Date = t.Date.ToLocalTime()
+                            .ToString("dd MMM yyyy HH:mm"),
+                        Direction = t.IsBuy
+                            ? "BUY"
+                            : "SELL",
+                        Item = TransactionTypeName(t.TypeId),
+                        Quantity = t.Quantity.ToString("N0"),
+                        UnitPrice = FormatIsk(t.UnitPrice),
+                        Total = FormatIskSigned(signed),
+                        SignedTotalValue = signed,
+                        IsBuy = t.IsBuy
+                    };
+                })
+                .ToArray();
+
+        const int PlexTypeId = 44992;
+
+        EveWalletTransactionView[] plexTransactions =
+            transactions
+                .Where(t => t.TypeId == PlexTypeId)
+                .ToArray();
+
+        DateTime localToday =
+            DateTime.Now.Date;
+
+        decimal todayIncome =
+            journalEntries
+                .Where(
+                    j =>
+                        j.Date.ToLocalTime().Date == localToday &&
+                        (j.Amount ?? 0m) > 0m)
+                .Sum(j => j.Amount ?? 0m);
+
+        decimal todaySpent =
+            -journalEntries
+                .Where(
+                    j =>
+                        j.Date.ToLocalTime().Date == localToday &&
+                        (j.Amount ?? 0m) < 0m)
+                .Sum(j => j.Amount ?? 0m);
+
+        decimal todayNet =
+            journalEntries
+                .Where(
+                    j =>
+                        j.Date.ToLocalTime().Date == localToday)
+                .Sum(j => j.Amount ?? 0m);
+
+        DateTimeOffset weekStart =
+            DateTimeOffset.UtcNow.AddDays(-7);
+
+        decimal weekIncome =
+            journalEntries
+                .Where(
+                    j =>
+                        j.Date >= weekStart &&
+                        (j.Amount ?? 0m) > 0m)
+                .Sum(j => j.Amount ?? 0m);
+
+        decimal weekSpent =
+            -journalEntries
+                .Where(
+                    j =>
+                        j.Date >= weekStart &&
+                        (j.Amount ?? 0m) < 0m)
+                .Sum(j => j.Amount ?? 0m);
+
+        decimal weekNet =
+            journalEntries
+                .Where(j => j.Date >= weekStart)
+                .Sum(j => j.Amount ?? 0m);
+
+        decimal marketBought =
+            transactionEntries
+                .Where(t => t.IsBuy)
+                .Sum(t => t.UnitPrice * t.Quantity);
+
+        decimal marketSold =
+            transactionEntries
+                .Where(t => !t.IsBuy)
+                .Sum(t => t.UnitPrice * t.Quantity);
+
+        EveWalletTransactionEntry[] rawPlex =
+            transactionEntries
+                .Where(t => t.TypeId == PlexTypeId)
+                .ToArray();
+
+        long plexBought =
+            rawPlex
+                .Where(t => t.IsBuy)
+                .Sum(t => t.Quantity);
+
+        long plexSold =
+            rawPlex
+                .Where(t => !t.IsBuy)
+                .Sum(t => t.Quantity);
+
+        decimal plexBuyIsk =
+            rawPlex
+                .Where(t => t.IsBuy)
+                .Sum(t => t.UnitPrice * t.Quantity);
+
+        decimal plexSellIsk =
+            rawPlex
+                .Where(t => !t.IsBuy)
+                .Sum(t => t.UnitPrice * t.Quantity);
+
+        decimal plexAverageBuy =
+            plexBought > 0
+                ? plexBuyIsk / plexBought
+                : 0m;
+
+        decimal plexAverageSell =
+            plexSold > 0
+                ? plexSellIsk / plexSold
+                : 0m;
+
+        var walletOverview =
+            new EveWalletOverview
             {
-                Date = j.Date.ToLocalTime().ToString("dd MMM yyyy HH:mm"),
-                Type = HumanizeRefType(j.RefType),
-                Amount = j.Amount.HasValue
-                    ? FormatIskSigned(j.Amount.Value) : "-",
-                Balance = j.Balance.HasValue
-                    ? FormatIsk(j.Balance.Value) : "-",
-                Reason = string.IsNullOrWhiteSpace(j.Reason)
-                    ? "" : j.Reason!
-            })
-            .ToArray();
+                TodayIncome = todayIncome,
+                TodaySpent = todaySpent,
+                TodayNet = todayNet,
+                WeekIncome = weekIncome,
+                WeekSpent = weekSpent,
+                WeekNet = weekNet,
+                MarketBought = marketBought,
+                MarketSold = marketSold,
+                MarketNet = marketSold - marketBought,
+                PlexBought = plexBought,
+                PlexSold = plexSold,
+                PlexBuyIsk = plexBuyIsk,
+                PlexSellIsk = plexSellIsk,
+                PlexNetIsk = plexSellIsk - plexBuyIsk,
+                PlexAverageBuy = plexAverageBuy,
+                PlexAverageSell = plexAverageSell,
+                JournalCount = journal.Length,
+                TransactionCount = transactions.Length,
+                PlexTransactionCount = plexTransactions.Length
+            };
 
         return new EvePilotDashboard
         {
@@ -825,7 +1019,10 @@ public sealed class EveSsoService
             TrainingProfile = await trainingProfileTask,
             TrainedSkills = skills.Skills.ToArray(),
             SkillQueue = queueViews,
-            WalletJournal = journal
+            WalletOverview = walletOverview,
+            WalletJournal = journal,
+            WalletTransactions = transactions,
+            PlexTransactions = plexTransactions
         };
     }
 
@@ -1995,7 +2192,7 @@ public sealed class EveSsoService
         return $"{value:0.00} ISK";
     }
 
-    private static string FormatIskSigned(decimal value) =>
+    public static string FormatIskSigned(decimal value) =>
         (value >= 0 ? "+" : "") + FormatIsk(value);
 
     private static string HumanizeRefType(string value)
