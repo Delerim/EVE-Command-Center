@@ -467,7 +467,7 @@ public partial class PilotCommandCenterWindow : Window
         // SelectionChanged is a routed event. DataGrids, ComboBoxes and other
         // selectors inside a tab can bubble their own SelectionChanged through
         // the parent TabControl, so only respond to the TabControl itself.
-        if (sender is not TabControl tabs ||
+        if (sender is not System.Windows.Controls.TabControl tabs ||
             !ReferenceEquals(e.OriginalSource, tabs) ||
             !ShipAssetsTab.IsSelected)
             return;
