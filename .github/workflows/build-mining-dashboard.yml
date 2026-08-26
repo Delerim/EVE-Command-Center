@@ -3,7 +3,7 @@ name: Build Mining Dashboard EXE
 on:
   workflow_dispatch:
   push:
-    branches: [ main, mining-dashboard ]
+    branches: [ main, mining-dashboard, esi-sso ]
 
 jobs:
   build:
