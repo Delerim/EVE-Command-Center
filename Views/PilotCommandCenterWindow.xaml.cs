@@ -7,6 +7,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
+using WpfMessageBox = System.Windows.MessageBox;
 using EveMultiPreview.Models;
 using EveMultiPreview.Services;
 
@@ -120,7 +121,7 @@ public partial class PilotCommandCenterWindow : Window
         }
         catch (Exception ex)
         {
-            MessageBox.Show(
+            WpfMessageBox.Show(
                 ex.Message,
                 "EVE Command Center - SSO",
                 MessageBoxButton.OK,
@@ -204,7 +205,7 @@ public partial class PilotCommandCenterWindow : Window
         catch (Exception ex)
         {
             SetStatus("Refresh failed");
-            MessageBox.Show(
+            WpfMessageBox.Show(
                 ex.Message,
                 "EVE Command Center - Pilot Data",
                 MessageBoxButton.OK,
@@ -220,7 +221,7 @@ public partial class PilotCommandCenterWindow : Window
             return;
 
         MessageBoxResult answer =
-            MessageBox.Show(
+            WpfMessageBox.Show(
                 $"Disconnect {card.CharacterName}?\n\n" +
                 "The stored EVE refresh token will be " +
                 "removed from Windows Credential Manager.",

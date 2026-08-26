@@ -755,7 +755,7 @@ public sealed class EveSsoService
         string s =
             value.Replace('-', '+').Replace('_', '/');
 
-        s += s.Length % 4 switch
+        s += (s.Length % 4) switch
         {
             2 => "==",
             3 => "=",
