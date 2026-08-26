@@ -436,7 +436,7 @@ public partial class PilotCommandCenterWindow : Window
                     : "#9DB5AF";
 
         target.Foreground =
-            (Brush)new BrushConverter()
+            (System.Windows.Media.Brush)new System.Windows.Media.BrushConverter()
                 .ConvertFromString(color)!;
     }
 
