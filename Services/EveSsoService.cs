@@ -2466,7 +2466,7 @@ public sealed class EveSsoService
         // Mining Barge gives +6% ship shield hitpoints per level.
         // This is a capacity multiplier, independent of the Exhumers
         // shield-resistance bonus already handled below.
-        if (hullTypeId == 22546)
+        if (shipTypeId == 22546)
         {
             int miningBarge =
                 GetSkillLevel(
