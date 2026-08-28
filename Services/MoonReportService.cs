@@ -58,6 +58,7 @@ public sealed class MoonReportService : IDisposable
         _stateFile = Path.Combine(root, "moon-report.json");
         _state = LoadState();
         NormalizeState();
+        EnsureBundledLseProfilesLoaded();
         RebuildPullMinedTotals();
     }
 
@@ -787,6 +788,7 @@ public sealed class MoonReportService : IDisposable
                 LastFracture = InferredLastFracture(profile.StructureId),
                 HasTargetProfile = HasTargetProfile(profile),
                 OreSummary = ProfileOreSummary(profile),
+                OreRows = BuildOreRows(profile, null),
                 Profile = CloneProfile(profile)
             };
         }
@@ -915,6 +917,7 @@ public sealed class MoonReportService : IDisposable
             RemainingSummary = targetProfile
                 ? FormatM3(remainingTotal) + " est. left"
                 : "Ore profile needed",
+            OreRows = BuildOreRows(profile, pull),
             ScheduleUtc = pull.ChunkArrivalUtc,
             IsJackpot = pull.JackpotObserved,
             JackpotLabel = pull.JackpotObserved ? "JACKPOT OBSERVED" : "",
@@ -1589,6 +1592,30 @@ public sealed class MoonReportService : IDisposable
             pull.MinedM3ByOre ??= new(StringComparer.OrdinalIgnoreCase);
     }
 
+    private void EnsureBundledLseProfilesLoaded()
+    {
+        foreach (MoonProfile bundled in LseMoonAuditService.GetProfiles())
+        {
+            string key = NormalizeMoonName(bundled.MoonName);
+            if (string.IsNullOrWhiteSpace(key))
+                continue;
+
+            MoonProfile? existing = _state.Profiles.Values.FirstOrDefault(
+                profile => NormalizeMoonName(profile.MoonName) == key);
+            if (existing != null)
+            {
+                // Imported/manual values remain authoritative. The bundled
+                // audit only fills a profile that has never been configured.
+                if (!existing.ProfileConfigured)
+                    ApplyComposition(existing, bundled);
+                continue;
+            }
+
+            if (!_state.PendingProfilesByMoonName.ContainsKey(key))
+                _state.PendingProfilesByMoonName[key] = CloneProfile(bundled);
+        }
+    }
+
     private async Task SaveStateAsync()
     {
         string temp = _stateFile + ".tmp";
@@ -1687,6 +1714,68 @@ public sealed class MoonReportService : IDisposable
         if (profile.CoesitePercent > 0)
             parts.Add($"COE {profile.CoesitePercent:0.#}%");
         return parts.Count == 0 ? "NO R4 ORE PROFILE" : string.Join("  ·  ", parts);
+    }
+
+    private static MoonOreRowView[] BuildOreRows(
+        MoonProfile profile,
+        MoonPullRecord? pull)
+    {
+        double MinedAmount(string family) => pull == null
+            ? 0
+            : Mined(pull, family);
+        double RemainingAmount(string family) => pull == null
+            ? 0
+            : RemainingStatic(pull, profile, family);
+
+        var rows = new List<MoonOreRowView>();
+        void Add(
+            string name,
+            string family,
+            double percentage,
+            string color)
+        {
+            double mined = MinedAmount(family);
+            if (percentage <= 0 && mined <= 0)
+                return;
+            rows.Add(new MoonOreRowView
+            {
+                Name = name,
+                Color = color,
+                Mined = FormatM3(mined),
+                Remaining = profile.ProfileConfigured
+                    ? FormatM3(RemainingAmount(family))
+                    : "Profile needed"
+            });
+        }
+
+        Add("Zeolites", "zeolit", profile.ZeolitesPercent, "#CE93D8");
+        Add("Sylvite", "sylvit", profile.SylvitePercent, "#80CBC4");
+        Add("Bitumens", "bitumen", profile.BitumensPercent, "#90CAF9");
+        Add("Coesite", "coesite", profile.CoesitePercent, "#FFCC80");
+        return rows.ToArray();
+    }
+
+    private static double RemainingStatic(
+        MoonPullRecord pull,
+        MoonProfile profile,
+        string family)
+    {
+        double percentage = family switch
+        {
+            "zeolit" => profile.ZeolitesPercent,
+            "sylvit" => profile.SylvitePercent,
+            "bitumen" => profile.BitumensPercent,
+            "coesite" => profile.CoesitePercent,
+            _ => 0
+        };
+        double hours = Math.Max(
+            0,
+            (pull.ChunkArrivalUtc - pull.ExtractionStartUtc).TotalHours);
+        double initial = hours * PullM3PerHour * percentage / 100.0;
+        double mined = Mined(pull, family);
+        double removed = mined *
+            (1.0 + Math.Max(0, profile.WastePercent) / 100.0);
+        return Math.Max(0, initial - removed);
     }
 
     private static string OreBreakdown(

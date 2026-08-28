@@ -451,10 +451,16 @@ public partial class MoonReportWindow : Window
         }
         if (detailed)
         {
-            WpfTextBlock mined = Text("MINED · Zeo " + card.ZeolitesMined + " · Syl " + card.SylviteMined + " · Bit " + card.BitumensMined + " · Coe " + card.CoesiteMined, 11, "#B6D4D5");
-            mined.TextWrapping = TextWrapping.Wrap; mined.Margin = new Thickness(0, 8, 0, 0); root.Children.Add(mined);
-            WpfTextBlock left = Text("EST. LEFT · Zeo " + card.ZeolitesRemaining + " · Syl " + card.SylviteRemaining + " · Bit " + card.BitumensRemaining + " · Coe " + card.CoesiteRemaining, 11, card.HasTargetLeftover ? "#FF8A80" : "#789EA1");
-            left.TextWrapping = TextWrapping.Wrap; left.Margin = new Thickness(0, 4, 0, 0); root.Children.Add(left);
+            foreach (MoonOreRowView ore in card.OreRows)
+            {
+                WpfTextBlock row = Text(
+                    ore.Name + "  ·  mined " + ore.Mined +
+                    "  ·  est. left " + ore.Remaining,
+                    11,
+                    ore.Color);
+                row.Margin = new Thickness(0, 4, 0, 0);
+                root.Children.Add(row);
+            }
             root.Children.Add(Text("Last fracture: " + card.LastFracture, 10, "#658C8F"));
             var edit = new WpfButton { Content = "ORE PROFILE", DataContext = card, Padding = new Thickness(8, 3, 8, 3), Margin = new Thickness(0, 5, 0, 0), HorizontalAlignment = System.Windows.HorizontalAlignment.Left };
             edit.Click += Profile_Click; root.Children.Add(edit);
@@ -470,14 +476,14 @@ public partial class MoonReportWindow : Window
         row.Children.Add(BuildMoonStructureIcon(card, 19));
         WpfTextBlock name = Text((card.IsJackpot ? "★ " : "") + card.MoonName,
             10, card.IsJackpot ? "#FFD166" : "#B6D4D5", card.IsJackpot);
-        name.VerticalAlignment = System.Windows.VerticalAlignment.Center;
+        name.VerticalAlignment = VerticalAlignment.Center;
         WpfGrid.SetColumn(name, 1); row.Children.Add(name);
         return row;
     }
 
     private static WpfGrid BuildMoonStructureIcon(MoonCardView card, double size)
     {
-        var icon = new WpfGrid { Width = size, Height = size, HorizontalAlignment = System.Windows.HorizontalAlignment.Left };
+        var icon = new WpfGrid { Width = size, Height = size, HorizontalAlignment = HorizontalAlignment.Left };
         var moon = new WpfImage
         {
             Source = new WpfBitmapImage(new Uri(card.MoonImageUri)),
@@ -485,7 +491,7 @@ public partial class MoonReportWindow : Window
             Height = size,
             Stretch = System.Windows.Media.Stretch.UniformToFill,
             Clip = new System.Windows.Media.EllipseGeometry(
-                new System.Windows.Point(size / 2, size / 2), size / 2, size / 2)
+                new Point(size / 2, size / 2), size / 2, size / 2)
         };
         icon.Children.Add(moon);
         if (size >= 40)
@@ -499,8 +505,8 @@ public partial class MoonReportWindow : Window
                 BorderBrush = Brush(card.IsJackpot ? "#FFD166" : "#55D7D2"),
                 BorderThickness = new Thickness(1),
                 CornerRadius = new CornerRadius(stationSize / 2),
-                HorizontalAlignment = System.Windows.HorizontalAlignment.Right,
-                VerticalAlignment = System.Windows.VerticalAlignment.Bottom
+                HorizontalAlignment = HorizontalAlignment.Right,
+                VerticalAlignment = VerticalAlignment.Bottom
             };
             stationShell.Child = new WpfImage
             {

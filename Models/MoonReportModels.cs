@@ -137,6 +137,8 @@ public sealed class MoonCardView
     public string ScheduleValue { get; init; } = "";
     public string PullLength { get; init; } = "";
     public string LastFracture { get; init; } = "Never observed";
+    public string PullLabel => "PULL  " + PullLength;
+    public string LastFractureLabel => "LAST FRACTURE  " + LastFracture;
     public string FieldExpiry { get; init; } = "-";
     public string ZeolitesMined { get; init; } = "0 m3";
     public string ZeolitesRemaining { get; init; } = "Profile needed";
@@ -156,6 +158,8 @@ public sealed class MoonCardView
     public double RemainingPercent { get; init; }
     public string OreSummary { get; init; } = "";
     public string RemainingSummary { get; init; } = "";
+    public IReadOnlyList<MoonOreRowView> OreRows { get; init; } =
+        Array.Empty<MoonOreRowView>();
     public DateTimeOffset? ScheduleUtc { get; init; }
     public bool IsJackpot { get; init; }
     public string JackpotLabel { get; init; } = "";
@@ -166,6 +170,14 @@ public sealed class MoonCardView
     public string StructureImageUri { get; init; } =
         "https://images.evetech.net/types/35832/render?size=64";
     public MoonProfile Profile { get; init; } = new();
+}
+
+public sealed class MoonOreRowView
+{
+    public string Name { get; init; } = "";
+    public string Color { get; init; } = "#DDF2F1";
+    public string Mined { get; init; } = "0 m3";
+    public string Remaining { get; init; } = "0 m3";
 }
 
 public sealed class MoonLedgerMoonView
