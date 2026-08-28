@@ -143,6 +143,15 @@
                             Click="OrderMode_Click"
                             MouseRightButtonUp="OrderButton_MouseRightButtonUp"
                             ToolTip="Click to enable tile reordering, drag tiles left/right, then click DONE. Right-click to reset."/>
+                    <Button Content="MOONS"
+                            MinWidth="58"
+                            Height="21"
+                            Padding="7,1"
+                            FontSize="10"
+                            FontWeight="SemiBold"
+                            Margin="4,0,0,0"
+                            Click="OpenMoonReport_Click"
+                            ToolTip="Open Moon Report"/>
                 </StackPanel>
 
                 <TextBlock x:Name="UpdatedText"

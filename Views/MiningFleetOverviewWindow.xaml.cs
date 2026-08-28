@@ -14,6 +14,7 @@ namespace EveMultiPreview.Views;
 
 public partial class MiningFleetOverviewWindow : Window
 {
+    private MoonReportWindow? _moonReportWindow;
     private readonly StatTrackerService _tracker;
     private readonly MiningIdleWatchdogService _watchdog;
     private readonly MiningDashboardPreferences _prefs;
@@ -1368,6 +1369,23 @@ public partial class MiningFleetOverviewWindow : Window
             app.ShowPilotCommandCenter();
     }
 
+    private void OpenMoonReport_Click(
+        object sender,
+        RoutedEventArgs e)
+    {
+        if (_moonReportWindow != null)
+        {
+            if (_moonReportWindow.WindowState == WindowState.Minimized)
+                _moonReportWindow.WindowState = WindowState.Normal;
+            _moonReportWindow.Activate();
+            return;
+        }
+
+        _moonReportWindow = new MoonReportWindow();
+        _moonReportWindow.Closed += (_, _) => _moonReportWindow = null;
+        _moonReportWindow.Show();
+        _moonReportWindow.Activate();
+    }
     private void Close_Click(object sender, RoutedEventArgs e) => Close();
 
     private sealed class FleetCard
