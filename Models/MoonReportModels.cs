@@ -13,11 +13,16 @@ public sealed class MoonReportState
         new(StringComparer.OrdinalIgnoreCase);
     public Dictionary<string, MoonPullRecord> Pulls { get; set; } = new();
     public Dictionary<string, long> LedgerTotals { get; set; } = new();
+    public Dictionary<string, MoonLedgerRecord> LedgerHistory { get; set; } =
+        new(StringComparer.OrdinalIgnoreCase);
     public Dictionary<string, double> DailyMinedM3 { get; set; } = new();
     public HashSet<long> BaselinedObservers { get; set; } = new();
     public Dictionary<int, string> TypeNames { get; set; } = new();
     public Dictionary<int, double> TypeVolumes { get; set; } = new();
     public Dictionary<int, string> SystemNames { get; set; } = new();
+    public Dictionary<long, string> CharacterNames { get; set; } = new();
+    public Dictionary<long, string> CorporationNames { get; set; } = new();
+    public Dictionary<int, double> TypePrices { get; set; } = new();
 }
 
 public sealed class MoonProfileImportResult
@@ -66,10 +71,28 @@ public sealed class MoonPullRecord
         new(StringComparer.OrdinalIgnoreCase);
 }
 
+public sealed class MoonLedgerRecord
+{
+    public string Key { get; set; } = "";
+    public string PullId { get; set; } = "";
+    public long ObserverId { get; set; }
+    public long CharacterId { get; set; }
+    public long RecordedCorporationId { get; set; }
+    public int TypeId { get; set; }
+    public DateTime Date { get; set; }
+    public long Quantity { get; set; }
+    public double VolumeM3 { get; set; }
+    public double EstimatedIsk { get; set; }
+    public string OreName { get; set; } = "";
+    public DateTimeOffset LastSeenUtc { get; set; }
+}
+
 public sealed class MoonReportSnapshot
 {
     public DateTimeOffset GeneratedUtc { get; init; }
     public IReadOnlyList<MoonCardView> Cards { get; init; } =
+        Array.Empty<MoonCardView>();
+    public IReadOnlyList<MoonCardView> CalendarCards { get; init; } =
         Array.Empty<MoonCardView>();
     public IReadOnlyList<MoonAuditView> Audit { get; init; } =
         Array.Empty<MoonAuditView>();
@@ -94,6 +117,10 @@ public sealed class MoonReportSnapshot
         Array.Empty<MoonPeriodReportView>();
     public IReadOnlyList<MoonPeriodReportView> WeeklyReports { get; init; } =
         Array.Empty<MoonPeriodReportView>();
+    public IReadOnlyList<MoonLedgerMoonView> LedgerMoons { get; init; } =
+        Array.Empty<MoonLedgerMoonView>();
+    public IReadOnlyList<MoonLedgerPullView> LedgerPulls { get; init; } =
+        Array.Empty<MoonLedgerPullView>();
 }
 
 public sealed class MoonCardView
@@ -123,6 +150,12 @@ public sealed class MoonCardView
     public double BitumensRemainingM3 { get; init; }
     public double SylviteRemainingM3 { get; init; }
     public double CoesiteRemainingM3 { get; init; }
+    public double InitialTotalM3 { get; init; }
+    public double MinedTotalM3 { get; init; }
+    public double RemainingTotalM3 { get; init; }
+    public double RemainingPercent { get; init; }
+    public string OreSummary { get; init; } = "";
+    public string RemainingSummary { get; init; } = "";
     public DateTimeOffset? ScheduleUtc { get; init; }
     public bool IsJackpot { get; init; }
     public string JackpotLabel { get; init; } = "";
@@ -130,7 +163,50 @@ public sealed class MoonCardView
     public bool HasTargetLeftover { get; init; }
     public string MoonImageUri { get; init; } =
         "https://images.evetech.net/types/46031/render?size=128";
+    public string StructureImageUri { get; init; } =
+        "https://images.evetech.net/types/35832/render?size=64";
     public MoonProfile Profile { get; init; } = new();
+}
+
+public sealed class MoonLedgerMoonView
+{
+    public long MoonId { get; init; }
+    public string MoonName { get; init; } = "";
+    public string StructureName { get; init; } = "";
+    public string Label { get; init; } = "";
+}
+
+public sealed class MoonLedgerPullView
+{
+    public string PullId { get; init; } = "";
+    public long MoonId { get; init; }
+    public string MoonName { get; init; } = "";
+    public string StructureName { get; init; } = "";
+    public string Label { get; init; } = "";
+    public DateTimeOffset FractureUtc { get; init; }
+    public bool JackpotObserved { get; init; }
+    public double TotalM3 { get; init; }
+    public double TotalIsk { get; init; }
+    public IReadOnlyList<MoonLedgerRowView> Rows { get; init; } =
+        Array.Empty<MoonLedgerRowView>();
+}
+
+public sealed class MoonLedgerRowView
+{
+    public long CharacterId { get; init; }
+    public string CorporationName { get; init; } = "";
+    public string CharacterName { get; init; } = "";
+    public long Quantity { get; init; }
+    public double VolumeM3 { get; init; }
+    public double EstimatedIsk { get; init; }
+    public double ZeolitesM3 { get; init; }
+    public double SylviteM3 { get; init; }
+    public double BitumensM3 { get; init; }
+    public double CoesiteM3 { get; init; }
+    public string QuantityText { get; init; } = "";
+    public string VolumeText { get; init; } = "";
+    public string IskText { get; init; } = "";
+    public string OreBreakdown { get; init; } = "";
 }
 
 public sealed class MoonAuditView
@@ -266,6 +342,30 @@ public sealed class EsiMiningLedgerEntry
 
     [JsonPropertyName("last_updated")]
     public DateTime LastUpdated { get; set; }
+}
+
+public sealed class EsiUniverseNameEntry
+{
+    [JsonPropertyName("id")]
+    public long Id { get; set; }
+
+    [JsonPropertyName("name")]
+    public string Name { get; set; } = "";
+
+    [JsonPropertyName("category")]
+    public string Category { get; set; } = "";
+}
+
+public sealed class EsiMarketPrice
+{
+    [JsonPropertyName("type_id")]
+    public int TypeId { get; set; }
+
+    [JsonPropertyName("average_price")]
+    public double? AveragePrice { get; set; }
+
+    [JsonPropertyName("adjusted_price")]
+    public double? AdjustedPrice { get; set; }
 }
 
 public sealed class EsiMoonPublic

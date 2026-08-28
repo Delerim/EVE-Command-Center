@@ -470,7 +470,7 @@ public partial class MoonReportWindow : Window
         row.Children.Add(BuildMoonStructureIcon(card, 19));
         WpfTextBlock name = Text((card.IsJackpot ? "★ " : "") + card.MoonName,
             10, card.IsJackpot ? "#FFD166" : "#B6D4D5", card.IsJackpot);
-        name.VerticalAlignment = VerticalAlignment.Center;
+        name.VerticalAlignment = System.Windows.VerticalAlignment.Center;
         WpfGrid.SetColumn(name, 1); row.Children.Add(name);
         return row;
     }
@@ -500,7 +500,7 @@ public partial class MoonReportWindow : Window
                 BorderThickness = new Thickness(1),
                 CornerRadius = new CornerRadius(stationSize / 2),
                 HorizontalAlignment = System.Windows.HorizontalAlignment.Right,
-                VerticalAlignment = VerticalAlignment.Bottom
+                VerticalAlignment = System.Windows.VerticalAlignment.Bottom
             };
             stationShell.Child = new WpfImage
             {

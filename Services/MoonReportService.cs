@@ -17,7 +17,7 @@ namespace EveMultiPreview.Services;
 
 public sealed class MoonReportService : IDisposable
 {
-    public const int SchemaVersion = 6;
+    public const int SchemaVersion = 7;
     public const string MiningScope =
         "esi-industry.read_corporation_mining.v1";
     public const string StructureScope =
@@ -26,6 +26,7 @@ public sealed class MoonReportService : IDisposable
     private const string EsiBase = "https://esi.evetech.net/latest";
     private const double PullM3PerHour = 30000.0;
     private const double AlertFloorM3 = 1000.0;
+    private const int HistoryRetentionDays = 365;
 
     private readonly EveSsoService _sso;
     private readonly HttpClient _http;
@@ -39,7 +40,7 @@ public sealed class MoonReportService : IDisposable
         _sso = sso;
         _http = new HttpClient { Timeout = TimeSpan.FromSeconds(45) };
         _http.DefaultRequestHeaders.UserAgent.ParseAdd(
-            "EVE-Command-Center-Moon-Report/0.6");
+            "EVE-Command-Center-Moon-Report/0.7");
         _http.DefaultRequestHeaders.TryAddWithoutValidation(
             "X-Compatibility-Date", "2026-08-25");
 
@@ -56,6 +57,8 @@ public sealed class MoonReportService : IDisposable
         Directory.CreateDirectory(root);
         _stateFile = Path.Combine(root, "moon-report.json");
         _state = LoadState();
+        NormalizeState();
+        RebuildPullMinedTotals();
     }
 
     public long SelectedCharacterId => _state.SelectedCharacterId;
@@ -183,6 +186,8 @@ public sealed class MoonReportService : IDisposable
             }
 
             int observerIndex = 0;
+            progress?.Report("Refreshing moon ore market values...");
+            await UpdateMarketPricesAsync(cancellationToken);
             foreach (EsiMiningObserver observer in observers)
             {
                 cancellationToken.ThrowIfCancellationRequested();
@@ -203,6 +208,11 @@ public sealed class MoonReportService : IDisposable
                     ledger,
                     cancellationToken);
             }
+
+            progress?.Report("Resolving miner and corporation names...");
+            await ResolveLedgerNamesAsync(cancellationToken);
+            PruneHistory(DateTimeOffset.UtcNow);
+            RebuildPullMinedTotals();
 
             EvaluateExpiredFields(DateTimeOffset.UtcNow);
             _state.SelectedCharacterId = pilot.CharacterId;
@@ -536,7 +546,6 @@ public sealed class MoonReportService : IDisposable
         IReadOnlyList<EsiMiningLedgerEntry> ledger,
         CancellationToken cancellationToken)
     {
-        bool isBaseline = !_state.BaselinedObservers.Contains(observerId);
         var dailyAbsolute = new Dictionary<string, double>(
             StringComparer.OrdinalIgnoreCase);
 
@@ -568,33 +577,53 @@ public sealed class MoonReportService : IDisposable
 
             MoonPullRecord? observedPull = FindLedgerPull(
                 observerId, entry.LastUpdated);
-            if (observedPull != null && type.Name.Contains(
-                    "Glistening", StringComparison.OrdinalIgnoreCase))
-                observedPull.JackpotObserved = true;
-
-            _state.LedgerTotals.TryGetValue(key, out long oldQuantity);
-            long delta = Math.Max(0, entry.Quantity - oldQuantity);
             _state.LedgerTotals[key] = entry.Quantity;
-
-            if (isBaseline || delta <= 0)
-                continue;
-
-            MoonPullRecord? pull = observedPull;
-            if (pull == null)
-                continue;
-
-            double minedM3 = delta * Math.Max(0, type.Volume);
-            pull.MinedM3ByOre.TryGetValue(type.Name, out double oldM3);
-            pull.MinedM3ByOre[type.Name] = oldM3 + minedM3;
-            if (type.Name.Contains(
-                    "Glistening", StringComparison.OrdinalIgnoreCase))
-                pull.JackpotObserved = true;
+            double price = _state.TypePrices.TryGetValue(
+                entry.TypeId, out double foundPrice) ? foundPrice : 0;
+            _state.LedgerHistory[key] = new MoonLedgerRecord
+            {
+                Key = key,
+                PullId = observedPull?.Id ?? "",
+                ObserverId = observerId,
+                CharacterId = entry.CharacterId,
+                RecordedCorporationId = entry.RecordedCorporationId,
+                TypeId = entry.TypeId,
+                Date = entry.LastUpdated.Date,
+                Quantity = entry.Quantity,
+                VolumeM3 = entry.Quantity * Math.Max(0, type.Volume),
+                EstimatedIsk = entry.Quantity * Math.Max(0, price),
+                OreName = type.Name,
+                LastSeenUtc = DateTimeOffset.UtcNow
+            };
         }
 
         foreach (KeyValuePair<string, double> item in dailyAbsolute)
             _state.DailyMinedM3[item.Key] = item.Value;
 
         _state.BaselinedObservers.Add(observerId);
+    }
+
+    private void RebuildPullMinedTotals()
+    {
+        foreach (MoonPullRecord pull in _state.Pulls.Values)
+        {
+            pull.MinedM3ByOre.Clear();
+            pull.JackpotObserved = false;
+        }
+
+        foreach (MoonLedgerRecord record in _state.LedgerHistory.Values)
+        {
+            if (string.IsNullOrWhiteSpace(record.PullId) ||
+                !_state.Pulls.TryGetValue(
+                    record.PullId, out MoonPullRecord? pull))
+                continue;
+            pull.MinedM3ByOre.TryGetValue(
+                record.OreName, out double existing);
+            pull.MinedM3ByOre[record.OreName] = existing + record.VolumeM3;
+            if (record.OreName.Contains(
+                    "Glistening", StringComparison.OrdinalIgnoreCase))
+                pull.JackpotObserved = true;
+        }
     }
 
     private MoonPullRecord? FindLedgerPull(
@@ -680,9 +709,17 @@ public sealed class MoonReportService : IDisposable
             .ToArray();
 
         MoonAuditView[] auditRows = audit.ToArray();
+        DateTimeOffset calendarCutoff = now.AddDays(-HistoryRetentionDays);
+        MoonCardView[] calendarCards = _state.Pulls.Values
+            .Where(pull => pull.ChunkArrivalUtc >= calendarCutoff)
+            .Select(pull => BuildCard(ProfileFor(pull), pull, now))
+            .OrderBy(card => card.ScheduleUtc)
+            .ToArray();
         MoonDailyTotalView[] daily = BuildDailyTotals();
         MoonPeriodReportView[] monthly = BuildPeriodReports(daily, true);
         MoonPeriodReportView[] weekly = BuildPeriodReports(daily, false);
+        (MoonLedgerMoonView[] ledgerMoons,
+            MoonLedgerPullView[] ledgerPulls) = BuildLedgerViews(now);
 
         MoonPullRecord[] reliableExpired = _state.Pulls.Values
             .Where(p =>
@@ -703,6 +740,7 @@ public sealed class MoonReportService : IDisposable
         {
             GeneratedUtc = now,
             Cards = orderedCards,
+            CalendarCards = calendarCards,
             Audit = auditRows,
             ScheduledCount = orderedCards.Count(c => c.Status == "SCHEDULED"),
             ReadyCount = orderedCards.Count(c => c.Status == "READY"),
@@ -722,7 +760,9 @@ public sealed class MoonReportService : IDisposable
             JackpotCount = _state.Pulls.Values.Count(p => p.JackpotObserved),
             DailyTotals = daily,
             MonthlyReports = monthly,
-            WeeklyReports = weekly
+            WeeklyReports = weekly,
+            LedgerMoons = ledgerMoons,
+            LedgerPulls = ledgerPulls
         };
     }
 
@@ -746,6 +786,7 @@ public sealed class MoonReportService : IDisposable
                 ScheduleValue = "No active extraction",
                 LastFracture = InferredLastFracture(profile.StructureId),
                 HasTargetProfile = HasTargetProfile(profile),
+                OreSummary = ProfileOreSummary(profile),
                 Profile = CloneProfile(profile)
             };
         }
@@ -805,6 +846,17 @@ public sealed class MoonReportService : IDisposable
         double sylviteRemaining = Remaining(pull, profile, "sylvit");
         double bitumensRemaining = Remaining(pull, profile, "bitumen");
         double coesiteRemaining = Remaining(pull, profile, "coesite");
+        double minedTotal = zeoMined + sylviteMined +
+            bitumensMined + coesiteMined;
+        double remainingTotal = zeoRemaining + sylviteRemaining +
+            bitumensRemaining + coesiteRemaining;
+        double hours = Math.Max(0,
+            (pull.ChunkArrivalUtc - pull.ExtractionStartUtc).TotalHours);
+        double profileTotal = profile.ZeolitesPercent +
+            profile.SylvitePercent + profile.BitumensPercent +
+            profile.CoesitePercent;
+        double initialTotal = hours * PullM3PerHour *
+            profileTotal / 100.0;
         bool targetProfile = HasTargetProfile(profile);
         bool targetLeft = pull.ExpiredUtc.HasValue &&
             !pull.OutcomeUnobserved && targetProfile &&
@@ -853,6 +905,16 @@ public sealed class MoonReportService : IDisposable
             BitumensRemainingM3 = bitumensRemaining,
             SylviteRemainingM3 = sylviteRemaining,
             CoesiteRemainingM3 = coesiteRemaining,
+            InitialTotalM3 = initialTotal,
+            MinedTotalM3 = minedTotal,
+            RemainingTotalM3 = remainingTotal,
+            RemainingPercent = initialTotal > 0
+                ? Math.Clamp(remainingTotal / initialTotal * 100.0, 0, 100)
+                : 0,
+            OreSummary = ProfileOreSummary(profile),
+            RemainingSummary = targetProfile
+                ? FormatM3(remainingTotal) + " est. left"
+                : "Ore profile needed",
             ScheduleUtc = pull.ChunkArrivalUtc,
             IsJackpot = pull.JackpotObserved,
             JackpotLabel = pull.JackpotObserved ? "JACKPOT OBSERVED" : "",
@@ -860,6 +922,112 @@ public sealed class MoonReportService : IDisposable
             HasTargetLeftover = targetLeft,
             Profile = CloneProfile(profile)
         };
+    }
+
+    private (MoonLedgerMoonView[] Moons, MoonLedgerPullView[] Pulls)
+        BuildLedgerViews(DateTimeOffset now)
+    {
+        DateTime cutoff = now.UtcDateTime.Date.AddDays(-HistoryRetentionDays);
+        MoonLedgerPullView[] pulls = _state.Pulls.Values
+            .Where(pull =>
+                pull.ChunkArrivalUtc.UtcDateTime >= cutoff &&
+                pull.ChunkArrivalUtc <= now)
+            .OrderByDescending(pull => pull.FracturedUtc ?? pull.ChunkArrivalUtc)
+            .Select(pull =>
+            {
+                MoonLedgerRowView[] rows = _state.LedgerHistory.Values
+                    .Where(record => record.PullId == pull.Id)
+                    .GroupBy(record => new
+                    {
+                        record.CharacterId,
+                        record.RecordedCorporationId
+                    })
+                    .Select(group =>
+                    {
+                        double zeo = group.Where(record =>
+                            OreFamily(record.OreName) == "zeolites")
+                            .Sum(record => record.VolumeM3);
+                        double syl = group.Where(record =>
+                            OreFamily(record.OreName) == "sylvite")
+                            .Sum(record => record.VolumeM3);
+                        double bit = group.Where(record =>
+                            OreFamily(record.OreName) == "bitumens")
+                            .Sum(record => record.VolumeM3);
+                        double coe = group.Where(record =>
+                            OreFamily(record.OreName) == "coesite")
+                            .Sum(record => record.VolumeM3);
+                        double volume = group.Sum(record => record.VolumeM3);
+                        return new MoonLedgerRowView
+                        {
+                            CharacterId = group.Key.CharacterId,
+                            CorporationName = _state.CorporationNames.TryGetValue(
+                                group.Key.RecordedCorporationId, out string? corp)
+                                ? corp
+                                : "Corp " + group.Key.RecordedCorporationId,
+                            CharacterName = _state.CharacterNames.TryGetValue(
+                                group.Key.CharacterId, out string? character)
+                                ? character
+                                : "Character " + group.Key.CharacterId,
+                            Quantity = group.Sum(record => record.Quantity),
+                            VolumeM3 = volume,
+                            EstimatedIsk = group.Sum(record => record.EstimatedIsk),
+                            ZeolitesM3 = zeo,
+                            SylviteM3 = syl,
+                            BitumensM3 = bit,
+                            CoesiteM3 = coe,
+                            QuantityText = FormatCompact(
+                                group.Sum(record => record.Quantity)),
+                            VolumeText = FormatM3(volume),
+                            IskText = FormatIsk(
+                                group.Sum(record => record.EstimatedIsk)),
+                            OreBreakdown = OreBreakdown(zeo, syl, bit, coe)
+                        };
+                    })
+                    .OrderByDescending(row => row.VolumeM3)
+                    .ToArray();
+                DateTimeOffset fracture =
+                    pull.FracturedUtc ?? pull.ChunkArrivalUtc;
+                return new MoonLedgerPullView
+                {
+                    PullId = pull.Id,
+                    MoonId = pull.MoonId,
+                    MoonName = pull.MoonName,
+                    StructureName = pull.StructureName,
+                    Label = fracture.ToLocalTime().ToString("dd MMM yyyy HH:mm") +
+                        (pull.JackpotObserved ? "  ·  ★ JACKPOT" : ""),
+                    FractureUtc = fracture,
+                    JackpotObserved = pull.JackpotObserved,
+                    TotalM3 = rows.Sum(row => row.VolumeM3),
+                    TotalIsk = rows.Sum(row => row.EstimatedIsk),
+                    Rows = rows
+                };
+            })
+            .ToArray();
+
+        IEnumerable<MoonProfile> pullProfiles = _state.Pulls.Values.Select(
+            pull => new MoonProfile
+            {
+                MoonId = pull.MoonId,
+                MoonName = pull.MoonName,
+                StructureName = pull.StructureName
+            });
+        MoonLedgerMoonView[] moons = _state.Profiles.Values
+            .Concat(_state.PendingProfilesByMoonName.Values)
+            .Concat(pullProfiles)
+            .Where(profile => !profile.MoonName.Equals(
+                "Moon pending ESI", StringComparison.OrdinalIgnoreCase))
+            .GroupBy(profile => NormalizeMoonName(profile.MoonName))
+            .Select(group => group.First())
+            .Select(profile => new MoonLedgerMoonView
+            {
+                MoonId = profile.MoonId > 0 ? profile.MoonId : 0,
+                MoonName = profile.MoonName,
+                StructureName = profile.StructureName,
+                Label = profile.MoonName + "  ·  " + profile.StructureName
+            })
+            .OrderBy(moon => moon.MoonName, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        return (moons, pulls);
     }
 
     private MoonAuditView BuildAudit(
@@ -1166,6 +1334,103 @@ public sealed class MoonReportService : IDisposable
             };
     }
 
+    private async Task UpdateMarketPricesAsync(
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            List<EsiMarketPrice> prices =
+                await GetPublicAsync<List<EsiMarketPrice>>(
+                    "/markets/prices/", cancellationToken);
+            foreach (EsiMarketPrice price in prices)
+            {
+                double value = price.AveragePrice ?? price.AdjustedPrice ?? 0;
+                if (value > 0)
+                    _state.TypePrices[price.TypeId] = value;
+            }
+        }
+        catch (Exception)
+        {
+            // Prices are optional presentation data. A temporary public market
+            // endpoint failure must not prevent schedules and ledgers loading.
+        }
+    }
+
+    private async Task ResolveLedgerNamesAsync(
+        CancellationToken cancellationToken)
+    {
+        long[] ids = _state.LedgerHistory.Values
+            .SelectMany(record => new[]
+            {
+                record.CharacterId,
+                record.RecordedCorporationId
+            })
+            .Where(id => id > 0 &&
+                !_state.CharacterNames.ContainsKey(id) &&
+                !_state.CorporationNames.ContainsKey(id))
+            .Distinct()
+            .ToArray();
+
+        foreach (long[] chunk in ids.Chunk(900))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            try
+            {
+                List<EsiUniverseNameEntry> names =
+                    await PostPublicAsync<List<EsiUniverseNameEntry>>(
+                        "/universe/names/", chunk, cancellationToken);
+                foreach (EsiUniverseNameEntry item in names)
+                {
+                    if (item.Category.Equals(
+                            "character", StringComparison.OrdinalIgnoreCase))
+                        _state.CharacterNames[item.Id] = item.Name;
+                    else if (item.Category.Equals(
+                                 "corporation", StringComparison.OrdinalIgnoreCase))
+                        _state.CorporationNames[item.Id] = item.Name;
+                }
+            }
+            catch (Exception)
+            {
+                // IDs remain visible as fallbacks and can resolve next refresh.
+            }
+        }
+    }
+
+    private void PruneHistory(DateTimeOffset now)
+    {
+        DateTime cutoff = now.UtcDateTime.Date.AddDays(-HistoryRetentionDays);
+        foreach (string key in _state.LedgerHistory
+                     .Where(item => item.Value.Date < cutoff)
+                     .Select(item => item.Key)
+                     .ToArray())
+            _state.LedgerHistory.Remove(key);
+
+        foreach (string key in _state.DailyMinedM3.Keys
+                     .Where(key => IsKeyOlderThan(key, cutoff))
+                     .ToArray())
+            _state.DailyMinedM3.Remove(key);
+        foreach (string key in _state.LedgerTotals.Keys
+                     .Where(key => IsKeyOlderThan(key, cutoff))
+                     .ToArray())
+            _state.LedgerTotals.Remove(key);
+
+        foreach (string key in _state.Pulls
+                     .Where(item =>
+                         item.Value.NaturalDecayUtc.UtcDateTime < cutoff &&
+                         !item.Value.SeenInLatestExtractionList)
+                     .Select(item => item.Key)
+                     .ToArray())
+            _state.Pulls.Remove(key);
+    }
+
+    private static bool IsKeyOlderThan(string key, DateTime cutoff)
+    {
+        string[] parts = key.Split(':');
+        return parts.Length > 1 && DateTime.TryParseExact(
+            parts[1], "yyyyMMdd", CultureInfo.InvariantCulture,
+            DateTimeStyles.None, out DateTime date) && date < cutoff;
+    }
+
     private async Task<EsiTypePublic> GetTypeAsync(
         int typeId,
         CancellationToken cancellationToken)
@@ -1204,6 +1469,29 @@ public sealed class MoonReportService : IDisposable
     {
         using HttpResponseMessage response = await _http.GetAsync(
             EsiBase + path, cancellationToken);
+        string body = await response.Content.ReadAsStringAsync(
+            cancellationToken);
+        if (!response.IsSuccessStatusCode)
+            throw new EsiRequestException(
+                response.StatusCode,
+                $"ESI {path} failed: {(int)response.StatusCode} " +
+                response.ReasonPhrase);
+        return JsonSerializer.Deserialize<T>(body, _json)
+            ?? throw new InvalidOperationException(
+                $"ESI returned an empty response for {path}.");
+    }
+
+    private async Task<T> PostPublicAsync<T>(
+        string path,
+        object bodyValue,
+        CancellationToken cancellationToken)
+    {
+        using var content = new StringContent(
+            JsonSerializer.Serialize(bodyValue, _json),
+            Encoding.UTF8,
+            "application/json");
+        using HttpResponseMessage response = await _http.PostAsync(
+            EsiBase + path, content, cancellationToken);
         string body = await response.Content.ReadAsStringAsync(
             cancellationToken);
         if (!response.IsSuccessStatusCode)
@@ -1279,6 +1567,28 @@ public sealed class MoonReportService : IDisposable
         }
     }
 
+    private void NormalizeState()
+    {
+        // Keep older V0.4-V0.6 state files forward-compatible. JSON can contain
+        // explicit nulls even though the model properties have initializers.
+        _state.Profiles ??= new();
+        _state.PendingProfilesByMoonName ??=
+            new(StringComparer.OrdinalIgnoreCase);
+        _state.Pulls ??= new();
+        _state.LedgerTotals ??= new();
+        _state.LedgerHistory ??= new(StringComparer.OrdinalIgnoreCase);
+        _state.DailyMinedM3 ??= new();
+        _state.BaselinedObservers ??= new();
+        _state.TypeNames ??= new();
+        _state.TypeVolumes ??= new();
+        _state.SystemNames ??= new();
+        _state.CharacterNames ??= new();
+        _state.CorporationNames ??= new();
+        _state.TypePrices ??= new();
+        foreach (MoonPullRecord pull in _state.Pulls.Values)
+            pull.MinedM3ByOre ??= new(StringComparer.OrdinalIgnoreCase);
+    }
+
     private async Task SaveStateAsync()
     {
         string temp = _stateFile + ".tmp";
@@ -1339,6 +1649,58 @@ public sealed class MoonReportService : IDisposable
         if (value >= 1_000)
             return $"{value / 1_000:0.0}K m3";
         return $"{value:0} m3";
+    }
+
+    private static string FormatCompact(double value)
+    {
+        if (value >= 1_000_000_000)
+            return $"{value / 1_000_000_000:0.00}B";
+        if (value >= 1_000_000)
+            return $"{value / 1_000_000:0.00}M";
+        if (value >= 1_000)
+            return $"{value / 1_000:0.0}K";
+        return $"{value:0}";
+    }
+
+    private static string FormatIsk(double value)
+    {
+        if (value >= 1_000_000_000)
+            return $"{value / 1_000_000_000:0.00}B ISK";
+        if (value >= 1_000_000)
+            return $"{value / 1_000_000:0.00}M ISK";
+        if (value >= 1_000)
+            return $"{value / 1_000:0.0}K ISK";
+        return $"{value:0} ISK";
+    }
+
+    private static string ProfileOreSummary(MoonProfile profile)
+    {
+        if (!profile.ProfileConfigured)
+            return "ORE PROFILE NEEDED";
+        var parts = new List<string>();
+        if (profile.ZeolitesPercent > 0)
+            parts.Add($"ZEO {profile.ZeolitesPercent:0.#}%");
+        if (profile.SylvitePercent > 0)
+            parts.Add($"SYL {profile.SylvitePercent:0.#}%");
+        if (profile.BitumensPercent > 0)
+            parts.Add($"BIT {profile.BitumensPercent:0.#}%");
+        if (profile.CoesitePercent > 0)
+            parts.Add($"COE {profile.CoesitePercent:0.#}%");
+        return parts.Count == 0 ? "NO R4 ORE PROFILE" : string.Join("  ·  ", parts);
+    }
+
+    private static string OreBreakdown(
+        double zeolites,
+        double sylvite,
+        double bitumens,
+        double coesite)
+    {
+        var parts = new List<string>();
+        if (zeolites > 0) parts.Add("Zeo " + FormatM3(zeolites));
+        if (sylvite > 0) parts.Add("Syl " + FormatM3(sylvite));
+        if (bitumens > 0) parts.Add("Bit " + FormatM3(bitumens));
+        if (coesite > 0) parts.Add("Coe " + FormatM3(coesite));
+        return parts.Count == 0 ? "-" : string.Join("  ·  ", parts);
     }
 
     private static MoonProfile CloneProfile(MoonProfile source)
