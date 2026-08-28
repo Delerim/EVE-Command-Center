@@ -397,13 +397,13 @@ public partial class MoonReportWindow : Window
         Grid.SetRow(subtitle, 1);
         root.Children.Add(subtitle);
 
-        TextBox zeo = AddEditorRow(
+        System.Windows.Controls.TextBox zeo = AddEditorRow(
             root, 2, "Zeolites composition %", source.ZeolitesPercent);
-        TextBox bitumens = AddEditorRow(
+        System.Windows.Controls.TextBox bitumens = AddEditorRow(
             root, 3, "Bitumens composition %", source.BitumensPercent);
-        TextBox lifetime = AddEditorRow(
+        System.Windows.Controls.TextBox lifetime = AddEditorRow(
             root, 4, "Asteroid field lifetime hours", source.FieldLifetimeHours);
-        TextBox waste = AddEditorRow(
+        System.Windows.Controls.TextBox waste = AddEditorRow(
             root, 5, "Estimated waste %", source.WastePercent);
 
         var note = new TextBlock
@@ -470,7 +470,7 @@ public partial class MoonReportWindow : Window
         return window.ShowDialog() == true ? result : null;
     }
 
-    private static TextBox AddEditorRow(
+    private static System.Windows.Controls.TextBox AddEditorRow(
         Grid root,
         int row,
         string label,
@@ -488,7 +488,7 @@ public partial class MoonReportWindow : Window
         };
         panel.Children.Add(caption);
 
-        var box = new TextBox
+        var box = new System.Windows.Controls.TextBox
         {
             Text = value.ToString("0.####", CultureInfo.InvariantCulture),
             Background = new SolidColorBrush(Color.FromRgb(10, 31, 35)),
