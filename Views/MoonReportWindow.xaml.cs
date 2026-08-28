@@ -476,14 +476,19 @@ public partial class MoonReportWindow : Window
         row.Children.Add(BuildMoonStructureIcon(card, 19));
         WpfTextBlock name = Text((card.IsJackpot ? "★ " : "") + card.MoonName,
             10, card.IsJackpot ? "#FFD166" : "#B6D4D5", card.IsJackpot);
-        name.VerticalAlignment = VerticalAlignment.Center;
+        name.VerticalAlignment = System.Windows.VerticalAlignment.Center;
         WpfGrid.SetColumn(name, 1); row.Children.Add(name);
         return row;
     }
 
     private static WpfGrid BuildMoonStructureIcon(MoonCardView card, double size)
     {
-        var icon = new WpfGrid { Width = size, Height = size, HorizontalAlignment = HorizontalAlignment.Left };
+        var icon = new WpfGrid
+        {
+            Width = size,
+            Height = size,
+            HorizontalAlignment = System.Windows.HorizontalAlignment.Left
+        };
         var moon = new WpfImage
         {
             Source = new WpfBitmapImage(new Uri(card.MoonImageUri)),
@@ -491,7 +496,9 @@ public partial class MoonReportWindow : Window
             Height = size,
             Stretch = System.Windows.Media.Stretch.UniformToFill,
             Clip = new System.Windows.Media.EllipseGeometry(
-                new Point(size / 2, size / 2), size / 2, size / 2)
+                new System.Windows.Point(size / 2, size / 2),
+                size / 2,
+                size / 2)
         };
         icon.Children.Add(moon);
         if (size >= 40)
@@ -505,8 +512,8 @@ public partial class MoonReportWindow : Window
                 BorderBrush = Brush(card.IsJackpot ? "#FFD166" : "#55D7D2"),
                 BorderThickness = new Thickness(1),
                 CornerRadius = new CornerRadius(stationSize / 2),
-                HorizontalAlignment = HorizontalAlignment.Right,
-                VerticalAlignment = VerticalAlignment.Bottom
+                HorizontalAlignment = System.Windows.HorizontalAlignment.Right,
+                VerticalAlignment = System.Windows.VerticalAlignment.Bottom
             };
             stationShell.Child = new WpfImage
             {
@@ -535,7 +542,8 @@ public partial class MoonReportWindow : Window
             moon => moon.MoonName.Equals(
                 selectedName, StringComparison.OrdinalIgnoreCase));
         selected ??= _snapshot.LedgerMoons.FirstOrDefault(
-            moon => _snapshot.LedgerPulls.Any(pull => LedgerMoonMatches(moon, pull)));
+            moon => _snapshot.LedgerPulls.Any(pull =>
+                pull.Rows.Count > 0 && LedgerMoonMatches(moon, pull)));
         selected ??= _snapshot.LedgerMoons.FirstOrDefault();
         LedgerMoonCombo.SelectedItem = selected;
         _loadingLedger = false;
@@ -554,7 +562,8 @@ public partial class MoonReportWindow : Window
             (LedgerPullCombo.SelectedItem as MoonLedgerPullView)?.PullId ?? "";
         MoonLedgerPullView[] pulls = _snapshot.LedgerPulls
             .Where(pull => LedgerMoonMatches(moon, pull))
-            .OrderByDescending(pull => pull.FractureUtc)
+            .OrderByDescending(pull => pull.Rows.Count > 0)
+            .ThenByDescending(pull => pull.FractureUtc)
             .ToArray();
         _loadingLedger = true;
         LedgerPullCombo.ItemsSource = pulls;
@@ -583,7 +592,11 @@ public partial class MoonReportWindow : Window
         LedgerTotalIskText.Text = CompactIsk(pull?.TotalIsk ?? 0);
         LedgerStatusText.Text = pull == null
             ? "NO LEDGER DATA"
-            : pull.JackpotObserved ? "★ JACKPOT OBSERVED" : "STANDARD PULL";
+            : pull.Rows.Count == 0
+                ? "NO MINING RECORDED"
+                : pull.JackpotObserved
+                    ? "★ JACKPOT OBSERVED"
+                    : "STANDARD PULL";
         LedgerStatusText.Foreground = Brush(
             pull?.JackpotObserved == true ? "#FFD166" : "#8FB2B5");
     }

@@ -186,6 +186,8 @@ public sealed class MoonLedgerMoonView
     public string MoonName { get; init; } = "";
     public string StructureName { get; init; } = "";
     public string Label { get; init; } = "";
+
+    public override string ToString() => Label;
 }
 
 public sealed class MoonLedgerPullView
@@ -201,6 +203,8 @@ public sealed class MoonLedgerPullView
     public double TotalIsk { get; init; }
     public IReadOnlyList<MoonLedgerRowView> Rows { get; init; } =
         Array.Empty<MoonLedgerRowView>();
+
+    public override string ToString() => Label;
 }
 
 public sealed class MoonLedgerRowView
@@ -276,6 +280,8 @@ public sealed class MoonPeriodReportView
     public string MinedText { get; init; } = "";
     public string LostText { get; init; } = "";
     public string EfficiencyText { get; init; } = "";
+
+    public override string ToString() => Label;
 }
 
 public sealed class EsiCharacterPublic

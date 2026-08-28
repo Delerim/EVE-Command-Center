@@ -10,6 +10,8 @@ public sealed class EvePilotProfile
     public string CharacterName { get; set; } = "";
     public string[] Scopes { get; set; } = Array.Empty<string>();
     public DateTime AddedUtc { get; set; } = DateTime.UtcNow;
+
+    public override string ToString() => CharacterName;
 }
 
 public sealed class EveTokenResponse

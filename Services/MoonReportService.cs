@@ -576,7 +576,7 @@ public sealed class MoonReportService : IDisposable
             dailyAbsolute[dailyKey] = dailyM3 +
                 entry.Quantity * Math.Max(0, type.Volume);
 
-            MoonPullRecord? observedPull = FindLedgerPull(
+            MoonPullRecord? observedPull = FindOrCreateLedgerPull(
                 observerId, entry.LastUpdated);
             _state.LedgerTotals[key] = entry.Quantity;
             double price = _state.TypePrices.TryGetValue(
@@ -642,11 +642,91 @@ public sealed class MoonReportService : IDisposable
             .ToArray();
 
         return candidates.FirstOrDefault(p =>
-                   (p.FracturedUtc ?? p.ChunkArrivalUtc) < dayEnd &&
-                   (p.EstimatedFieldExpiryUtc ??
-                    p.ChunkArrivalUtc.AddHours(
-                        ProfileFor(p).FieldLifetimeHours)) >= dayStart) ??
-               candidates.FirstOrDefault(p => !p.ExpiredUtc.HasValue);
+            (p.FracturedUtc ?? p.ChunkArrivalUtc) < dayEnd &&
+            (p.EstimatedFieldExpiryUtc ??
+             p.ChunkArrivalUtc.AddHours(
+                 ProfileFor(p).FieldLifetimeHours)) >= dayStart);
+    }
+
+    private MoonPullRecord? FindOrCreateLedgerPull(
+        long observerId,
+        DateTime ledgerDate)
+    {
+        MoonPullRecord? matched = FindLedgerPull(observerId, ledgerDate);
+        if (matched != null)
+            return matched;
+
+        DateTimeOffset dayStart = new DateTimeOffset(
+            DateTime.SpecifyKind(ledgerDate.Date, DateTimeKind.Utc));
+        DateTimeOffset dayEnd = dayStart.AddDays(1);
+
+        // ESI only exposes the extraction currently running at a refinery. If
+        // the app starts after a fracture, the previous pull is absent even
+        // though its ore is present in the corporation mining ledger. The new
+        // extraction normally starts when that field is fractured, so use it
+        // as a stable anchor and reconstruct the immediately preceding field.
+        MoonPullRecord? nextExtraction = _state.Pulls.Values
+            .Where(p =>
+                p.StructureId == observerId &&
+                p.SeenInLatestExtractionList &&
+                Math.Abs((p.ExtractionStartUtc - dayStart).TotalDays) <= 7)
+            .OrderBy(p => Math.Abs(
+                (p.ExtractionStartUtc - dayStart).TotalHours))
+            .FirstOrDefault();
+
+        if (nextExtraction == null)
+            return null;
+
+        string inferredId = "ledger-field:" + nextExtraction.Id;
+        if (_state.Pulls.TryGetValue(
+                inferredId, out MoonPullRecord? inferred))
+        {
+            if (!inferred.EstimatedFieldExpiryUtc.HasValue ||
+                inferred.EstimatedFieldExpiryUtc.Value < dayEnd)
+            {
+                inferred.EstimatedFieldExpiryUtc = dayEnd;
+                inferred.NaturalDecayUtc = dayEnd;
+                if (inferred.ExpiredUtc.HasValue &&
+                    inferred.ExpiredUtc.Value < dayEnd)
+                    inferred.ExpiredUtc = null;
+            }
+            return inferred;
+        }
+
+        MoonProfile profile = ProfileFor(nextExtraction);
+        double fieldHours = profile.FieldLifetimeHours > 0
+            ? profile.FieldLifetimeHours
+            : 48;
+        DateTimeOffset fractured = nextExtraction.ExtractionStartUtc < dayEnd
+            ? nextExtraction.ExtractionStartUtc
+            : dayStart;
+        TimeSpan pullLength =
+            nextExtraction.ChunkArrivalUtc -
+            nextExtraction.ExtractionStartUtc;
+        if (pullLength <= TimeSpan.Zero)
+            pullLength = TimeSpan.FromDays(54);
+        DateTimeOffset fieldExpiry = fractured.AddHours(fieldHours);
+        if (fieldExpiry < dayEnd)
+            fieldExpiry = dayEnd;
+
+        inferred = new MoonPullRecord
+        {
+            Id = inferredId,
+            StructureId = nextExtraction.StructureId,
+            MoonId = nextExtraction.MoonId,
+            MoonName = nextExtraction.MoonName,
+            StructureName = nextExtraction.StructureName,
+            SystemId = nextExtraction.SystemId,
+            SystemName = nextExtraction.SystemName,
+            ExtractionStartUtc = fractured - pullLength,
+            ChunkArrivalUtc = fractured,
+            NaturalDecayUtc = fieldExpiry,
+            FracturedUtc = fractured,
+            EstimatedFieldExpiryUtc = fieldExpiry,
+            SeenInLatestExtractionList = false
+        };
+        _state.Pulls[inferredId] = inferred;
+        return inferred;
     }
 
     private void EvaluateExpiredFields(DateTimeOffset now)
@@ -683,10 +763,7 @@ public sealed class MoonReportService : IDisposable
 
         foreach (MoonProfile profile in _state.Profiles.Values)
         {
-            MoonPullRecord? pull = _state.Pulls.Values
-                .Where(p => p.MoonId == profile.MoonId)
-                .OrderByDescending(p => p.ExtractionStartUtc)
-                .FirstOrDefault();
+            MoonPullRecord? pull = SelectCardPull(profile.MoonId, now);
 
             cards.Add(BuildCard(profile, pull, now));
         }
@@ -925,6 +1002,29 @@ public sealed class MoonReportService : IDisposable
             HasTargetLeftover = targetLeft,
             Profile = CloneProfile(profile)
         };
+    }
+
+    private MoonPullRecord? SelectCardPull(
+        long moonId,
+        DateTimeOffset now)
+    {
+        MoonPullRecord[] pulls = _state.Pulls.Values
+            .Where(p => p.MoonId == moonId)
+            .ToArray();
+
+        // A refinery can have a newly scheduled extraction while the field
+        // from its previous pull is still in space. Prefer that live field for
+        // the moon card so ACTIVE, mined volume and jackpot state stay visible.
+        return pulls
+                   .Where(p =>
+                       p.FracturedUtc.HasValue &&
+                       !p.ExpiredUtc.HasValue &&
+                       (!p.EstimatedFieldExpiryUtc.HasValue ||
+                        now < p.EstimatedFieldExpiryUtc.Value))
+                   .OrderByDescending(p => p.FracturedUtc)
+                   .FirstOrDefault() ??
+               pulls.OrderByDescending(p => p.ExtractionStartUtc)
+                   .FirstOrDefault();
     }
 
     private (MoonLedgerMoonView[] Moons, MoonLedgerPullView[] Pulls)
