@@ -263,7 +263,7 @@ public partial class MoonReportWindow : Window
 
     private async void Import_Click(object sender, RoutedEventArgs e)
     {
-        var dialog = new OpenFileDialog
+        var dialog = new Microsoft.Win32.OpenFileDialog
         {
             Title = "Import Moon Report setup",
             Filter = "CSV files (*.csv)|*.csv|All files (*.*)|*.*"
@@ -311,7 +311,7 @@ public partial class MoonReportWindow : Window
 
     private void Export_Click(object sender, RoutedEventArgs e)
     {
-        var dialog = new SaveFileDialog
+        var dialog = new Microsoft.Win32.SaveFileDialog
         {
             Title = "Export Moon Report setup",
             FileName = "moon-report-setup.csv",
@@ -366,9 +366,9 @@ public partial class MoonReportWindow : Window
             Height = 430,
             ResizeMode = ResizeMode.NoResize,
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
-            Background = new SolidColorBrush(Color.FromRgb(7, 24, 27)),
-            Foreground = Brushes.White,
-            FontFamily = new FontFamily("Segoe UI")
+            Background = new SolidColorBrush(System.Windows.Media.Color.FromRgb(7, 24, 27)),
+            Foreground = System.Windows.Media.Brushes.White,
+            FontFamily = new System.Windows.Media.FontFamily("Segoe UI")
         };
 
         var root = new Grid { Margin = new Thickness(18) };
@@ -382,7 +382,7 @@ public partial class MoonReportWindow : Window
             Text = source.MoonName,
             FontSize = 20,
             FontWeight = FontWeights.Bold,
-            Foreground = new SolidColorBrush(Color.FromRgb(232, 255, 255)),
+            Foreground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(232, 255, 255)),
             Margin = new Thickness(0, 0, 0, 4)
         };
         Grid.SetRow(title, 0);
@@ -391,7 +391,7 @@ public partial class MoonReportWindow : Window
         var subtitle = new TextBlock
         {
             Text = source.StructureName + " · " + source.SystemName,
-            Foreground = new SolidColorBrush(Color.FromRgb(130, 171, 174)),
+            Foreground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(130, 171, 174)),
             Margin = new Thickness(0, 0, 0, 14)
         };
         Grid.SetRow(subtitle, 1);
@@ -412,7 +412,7 @@ public partial class MoonReportWindow : Window
                    "moon ore percentages or exact asteroid leftovers. Default " +
                    "field lifetime is 48 hours; change it for rigged drills.",
             TextWrapping = TextWrapping.Wrap,
-            Foreground = new SolidColorBrush(Color.FromRgb(117, 155, 158)),
+            Foreground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(117, 155, 158)),
             Margin = new Thickness(0, 12, 0, 10)
         };
         Grid.SetRow(note, 6);
@@ -420,8 +420,8 @@ public partial class MoonReportWindow : Window
 
         var buttons = new StackPanel
         {
-            Orientation = Orientation.Horizontal,
-            HorizontalAlignment = HorizontalAlignment.Right
+            Orientation = System.Windows.Controls.Orientation.Horizontal,
+            HorizontalAlignment = System.Windows.HorizontalAlignment.Right
         };
         var cancel = DialogButton("CANCEL", "#12383D");
         cancel.Click += (_, _) => window.DialogResult = false;
@@ -440,12 +440,12 @@ public partial class MoonReportWindow : Window
                 !TryNumber(lifetime.Text, out double lifetimeValue) ||
                 !TryNumber(waste.Text, out double wasteValue))
             {
-                MessageBox.Show(
+                System.Windows.MessageBox.Show(
                     window,
                     "Enter valid numbers in all four fields.",
                     "Moon Report",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Warning);
+                    System.Windows.MessageBoxButton.OK,
+                    System.Windows.MessageBoxImage.Warning);
                 return;
             }
 
@@ -484,16 +484,16 @@ public partial class MoonReportWindow : Window
         {
             Text = label,
             VerticalAlignment = VerticalAlignment.Center,
-            Foreground = new SolidColorBrush(Color.FromRgb(178, 213, 214))
+            Foreground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(178, 213, 214))
         };
         panel.Children.Add(caption);
 
         var box = new System.Windows.Controls.TextBox
         {
             Text = value.ToString("0.####", CultureInfo.InvariantCulture),
-            Background = new SolidColorBrush(Color.FromRgb(10, 31, 35)),
-            Foreground = Brushes.White,
-            BorderBrush = new SolidColorBrush(Color.FromRgb(44, 98, 105)),
+            Background = new SolidColorBrush(System.Windows.Media.Color.FromRgb(10, 31, 35)),
+            Foreground = System.Windows.Media.Brushes.White,
+            BorderBrush = new SolidColorBrush(System.Windows.Media.Color.FromRgb(44, 98, 105)),
             Padding = new Thickness(7, 5, 7, 5)
         };
         Grid.SetColumn(box, 1);
@@ -511,9 +511,9 @@ public partial class MoonReportWindow : Window
         {
             Content = text,
             Padding = new Thickness(14, 7, 14, 7),
-            Background = (Brush)new BrushConverter().ConvertFromString(color)!,
-            Foreground = Brushes.White,
-            BorderBrush = new SolidColorBrush(Color.FromRgb(44, 98, 105)),
+            Background = (System.Windows.Media.Brush)new System.Windows.Media.BrushConverter().ConvertFromString(color)!,
+            Foreground = System.Windows.Media.Brushes.White,
+            BorderBrush = new SolidColorBrush(System.Windows.Media.Color.FromRgb(44, 98, 105)),
             FontWeight = FontWeights.SemiBold
         };
     }
@@ -531,8 +531,8 @@ public partial class MoonReportWindow : Window
     {
         StatusText.Text = message;
         StatusText.Foreground = error
-            ? new SolidColorBrush(Color.FromRgb(239, 83, 80))
-            : new SolidColorBrush(Color.FromRgb(143, 178, 181));
+            ? new SolidColorBrush(System.Windows.Media.Color.FromRgb(239, 83, 80))
+            : new SolidColorBrush(System.Windows.Media.Color.FromRgb(143, 178, 181));
     }
 
     private static bool Contains(string value, string search)
