@@ -17,10 +17,13 @@ using WpfImage = System.Windows.Controls.Image;
 using WpfStackPanel = System.Windows.Controls.StackPanel;
 using WpfTextBlock = System.Windows.Controls.TextBlock;
 using WpfTextBox = System.Windows.Controls.TextBox;
+using WpfWrapPanel = System.Windows.Controls.WrapPanel;
 using WpfBrush = System.Windows.Media.Brush;
 using WpfBrushes = System.Windows.Media.Brushes;
 using WpfSolidColorBrush = System.Windows.Media.SolidColorBrush;
 using WpfCursors = System.Windows.Input.Cursors;
+using WpfBitmapImage = System.Windows.Media.Imaging.BitmapImage;
+using WpfDispatcherTimer = System.Windows.Threading.DispatcherTimer;
 
 namespace EveMultiPreview.Views;
 
@@ -37,11 +40,18 @@ public partial class MoonReportWindow : Window
     private DateTime? _expandedMonthDate;
     private bool _busy;
     private bool _loadingReports;
+    private bool _loadingLedger;
+    private readonly WpfDispatcherTimer _refreshTimer;
 
     public MoonReportWindow()
     {
         InitializeComponent();
         _service = new MoonReportService(_sso);
+        _refreshTimer = new WpfDispatcherTimer
+        {
+            Interval = TimeSpan.FromMinutes(61)
+        };
+        _refreshTimer.Tick += RefreshTimer_Tick;
         Loaded += Window_Loaded;
         Closed += Window_Closed;
     }
@@ -57,15 +67,27 @@ public partial class MoonReportWindow : Window
             else if (PilotCombo.SelectedItem is EvePilotProfile selected &&
                      !MoonReportService.HasRequiredScopes(selected))
                 SetStatus("This toon needs reconnecting once to approve the moon report scopes.", true);
+            _refreshTimer.Start();
         }
         catch (Exception ex) { SetStatus(ex.Message, true); }
     }
 
     private void Window_Closed(object? sender, EventArgs e)
     {
+        _refreshTimer.Stop();
         _lifetime.Cancel();
         _lifetime.Dispose();
         _service.Dispose();
+    }
+
+    private async void RefreshTimer_Tick(object? sender, EventArgs e)
+    {
+        if (_busy || !IsVisible ||
+            PilotCombo.SelectedItem is not EvePilotProfile pilot ||
+            !MoonReportService.HasRequiredScopes(pilot))
+            return;
+        SetStatus("Hourly ESI moon and ledger refresh started...");
+        await RefreshSelectedPilotAsync();
     }
 
     private async Task ReloadPilotsAsync(long preferred = 0)
@@ -146,6 +168,7 @@ public partial class MoonReportWindow : Window
             "Updated " + snapshot.GeneratedUtc.ToLocalTime().ToString("dd MMM yyyy HH:mm:ss");
         ApplyFilters();
         RenderCalendar();
+        LoadLedger();
         LoadReporting();
     }
 
@@ -206,10 +229,26 @@ public partial class MoonReportWindow : Window
     private void RenderCalendar()
     {
         if (CalendarHost == null) return;
+        UpdateCalendarModeButtons();
         CalendarHost.Children.Clear();
         if (_calendarMode == "MONTH") RenderMonth();
         else if (_calendarMode == "WEEK") RenderWeek();
         else RenderDay();
+    }
+
+    private void UpdateCalendarModeButtons()
+    {
+        if (MonthModeButton == null) return;
+        foreach (WpfButton button in new[]
+                 { MonthModeButton, WeekModeButton, DayModeButton })
+        {
+            bool selected = string.Equals(
+                button.Tag?.ToString(), _calendarMode,
+                StringComparison.OrdinalIgnoreCase);
+            button.Background = Brush(selected ? "#17656A" : "#12383D");
+            button.BorderBrush = Brush(selected ? "#55D7D2" : "#2C6269");
+            button.Foreground = Brush(selected ? "#FFFFFF" : "#DDF6F4");
+        }
     }
 
     private void RenderMonth()
@@ -219,7 +258,7 @@ public partial class MoonReportWindow : Window
         CalendarTitle.Text = first.ToString("MMMM yyyy").ToUpperInvariant();
         var grid = new WpfGrid();
         for (int i = 0; i < 7; i++) grid.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition());
-        for (int i = 0; i < 7; i++) grid.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = i == 0 ? GridLength.Auto : new GridLength(135) });
+        for (int i = 0; i < 7; i++) grid.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = i == 0 ? GridLength.Auto : new GridLength(152) });
         string[] headers = { "MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN" };
         for (int i = 0; i < 7; i++)
         {
@@ -237,9 +276,17 @@ public partial class MoonReportWindow : Window
         CalendarHost.Children.Add(grid);
         if (_expandedMonthDate.HasValue)
         {
-            WpfStackPanel details = BuildDayPanel(_expandedMonthDate.Value, true);
-            details.Margin = new Thickness(0, 14, 0, 0);
-            CalendarHost.Children.Add(details);
+            var detailBorder = new WpfBorder
+            {
+                Child = BuildDayPanel(_expandedMonthDate.Value, true),
+                Margin = new Thickness(3, 14, 3, 2),
+                Padding = new Thickness(14),
+                Background = Brush("#0A2226"),
+                BorderBrush = Brush("#3B7378"),
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(8)
+            };
+            CalendarHost.Children.Add(detailBorder);
         }
     }
 
@@ -257,13 +304,13 @@ public partial class MoonReportWindow : Window
         if ((total?.TotalM3 ?? 0) > 0) panel.Children.Add(Text("Mined  " + MoonReportService.FormatM3(total!.TotalM3), 11, "#74D6C9"));
         if ((total?.LostM3 ?? 0) > 0) panel.Children.Add(Text("Despawn  " + MoonReportService.FormatM3(total!.LostM3), 11, "#EF7770", true));
         foreach (MoonCardView card in cards.Take(3))
-            panel.Children.Add(Text((card.IsJackpot ? "★ " : "• ") + card.MoonName, 11, card.IsJackpot ? "#FFD166" : "#B6D4D5", card.IsJackpot));
+            panel.Children.Add(BuildMiniMoonRow(card));
         if (cards.Length > 3) panel.Children.Add(Text("+ " + (cards.Length - 3) + " more", 10, "#789EA1"));
         var border = new WpfBorder
         {
             Child = panel, Margin = new Thickness(3), CornerRadius = new CornerRadius(5),
             BorderThickness = new Thickness(1), BorderBrush = Brush("#245058"),
-            Background = Brush(_expandedMonthDate == date ? "#164148" : inMonth ? "#0C2529" : "#091D20"),
+            Background = Brush(_expandedMonthDate?.Date == date.Date ? "#164148" : inMonth ? "#0C2529" : "#091D20"),
             Cursor = WpfCursors.Hand
         };
         border.MouseLeftButtonDown += (_, e) =>
@@ -292,7 +339,20 @@ public partial class MoonReportWindow : Window
         for (int i = 0; i < 7; i++)
         {
             WpfStackPanel day = BuildDayPanel(start.AddDays(i), false);
-            day.Margin = new Thickness(3); WpfGrid.SetColumn(day, i); grid.Children.Add(day);
+            var shell = new WpfBorder
+            {
+                Child = day,
+                Margin = new Thickness(3),
+                Padding = new Thickness(8),
+                MinHeight = 560,
+                Background = Brush(start.AddDays(i).Date == DateTime.Today
+                    ? "#102F34" : "#091F23"),
+                BorderBrush = Brush(start.AddDays(i).Date == DateTime.Today
+                    ? "#55D7D2" : "#245058"),
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(7)
+            };
+            WpfGrid.SetColumn(shell, i); grid.Children.Add(shell);
         }
         CalendarHost.Children.Add(grid);
     }
@@ -312,8 +372,18 @@ public partial class MoonReportWindow : Window
         root.Children.Add(Text($"{cards.Length} moon(s) · mined {MoonReportService.FormatM3(total?.TotalM3 ?? 0)} · despawn {MoonReportService.FormatM3(total?.LostM3 ?? 0)}", detailed ? 12 : 10, "#7EA8AB"));
         if (detailed && total != null)
             root.Children.Add(Text($"Zeo {MoonReportService.FormatM3(total.ZeolitesM3)}  ·  Syl {MoonReportService.FormatM3(total.SylviteM3)}  ·  Bit {MoonReportService.FormatM3(total.BitumensM3)}  ·  Coe {MoonReportService.FormatM3(total.CoesiteM3)}", 12, "#A8CFD0"));
-        foreach (MoonCardView card in cards)
-            root.Children.Add(BuildCalendarCard(card, detailed));
+        if (detailed)
+        {
+            var cardsHost = new WpfWrapPanel { Margin = new Thickness(0, 8, 0, 0) };
+            foreach (MoonCardView card in cards)
+                cardsHost.Children.Add(BuildCalendarCard(card, true));
+            root.Children.Add(cardsHost);
+        }
+        else
+        {
+            foreach (MoonCardView card in cards)
+                root.Children.Add(BuildCalendarCard(card, false));
+        }
         if (cards.Length == 0) root.Children.Add(Text("No scheduled fractures for this day.", 11, "#567B7F"));
         if (_calendarMode == "MONTH")
         {
@@ -326,24 +396,206 @@ public partial class MoonReportWindow : Window
 
     private WpfBorder BuildCalendarCard(MoonCardView card, bool detailed)
     {
+        double iconSize = detailed ? 74 : 44;
+        var layout = new WpfGrid();
+        layout.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new GridLength(iconSize + 12) });
+        layout.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition());
+        WpfGrid icon = BuildMoonStructureIcon(card, iconSize);
+        layout.Children.Add(icon);
+
         var body = new WpfStackPanel();
-        body.Children.Add(Text((card.IsJackpot ? "★ " : "") + card.MoonName, detailed ? 15 : 12, card.IsJackpot ? "#FFD166" : "#E8FFFF", true));
-        body.Children.Add(Text(card.StructureName, 10, "#8FB2B5"));
-        body.Children.Add(Text(card.ScheduleValue, 10, "#55D7D2", true));
+        WpfGrid.SetColumn(body, 1);
+        body.Children.Add(Text((card.IsJackpot ? "★ " : "") + card.MoonName, detailed ? 16 : 12, card.IsJackpot ? "#FFD166" : "#E8FFFF", true));
+        body.Children.Add(Text(card.StructureName, detailed ? 11 : 9, "#8FB2B5"));
+        body.Children.Add(Text(card.ScheduleValue, detailed ? 11 : 9, "#55D7D2", true));
+        var status = new WpfBorder
+        {
+            Child = Text(card.Status, 9, "#071416", true),
+            Background = Brush(card.StatusBrush),
+            CornerRadius = new CornerRadius(3),
+            Padding = new Thickness(6, 2, 6, 2),
+            Margin = new Thickness(0, 5, 0, 0),
+            HorizontalAlignment = System.Windows.HorizontalAlignment.Left
+        };
+        body.Children.Add(status);
+        layout.Children.Add(body);
+
+        var root = new WpfStackPanel();
+        root.Children.Add(layout);
+        WpfTextBlock profile = Text(card.OreSummary, detailed ? 11 : 9, "#A8CFD0", true);
+        profile.Margin = new Thickness(0, 7, 0, 0);
+        profile.TextWrapping = TextWrapping.Wrap;
+        root.Children.Add(profile);
+        root.Children.Add(Text(card.RemainingSummary, detailed ? 11 : 9,
+            card.HasTargetLeftover ? "#FF8A80" : "#74D6C9", true));
+
+        if (card.HasTargetProfile && card.InitialTotalM3 > 0)
+        {
+            var progress = new WpfBorder
+            {
+                Height = 6,
+                Width = detailed ? 250 : 130,
+                Margin = new Thickness(0, 5, 0, 1),
+                Background = Brush("#173A3F"),
+                CornerRadius = new CornerRadius(3),
+                HorizontalAlignment = System.Windows.HorizontalAlignment.Left
+            };
+            progress.Child = new WpfBorder
+            {
+                Width = (detailed ? 2.5 : 1.3) * card.RemainingPercent,
+                Background = Brush(card.RemainingPercent > 20 ? "#55D7D2" : "#EF7770"),
+                CornerRadius = new CornerRadius(3),
+                HorizontalAlignment = System.Windows.HorizontalAlignment.Left
+            };
+            root.Children.Add(progress);
+        }
         if (detailed)
         {
-            body.Children.Add(Text("Mined: Zeo " + card.ZeolitesMined + " · Syl " + card.SylviteMined + " · Bit " + card.BitumensMined + " · Coe " + card.CoesiteMined, 11, "#B6D4D5"));
-            body.Children.Add(Text("Est. left: Zeo " + card.ZeolitesRemaining + " · Syl " + card.SylviteRemaining + " · Bit " + card.BitumensRemaining + " · Coe " + card.CoesiteRemaining, 11, card.HasTargetLeftover ? "#FF8A80" : "#789EA1"));
-            body.Children.Add(Text("Last fracture: " + card.LastFracture, 10, "#658C8F"));
+            WpfTextBlock mined = Text("MINED · Zeo " + card.ZeolitesMined + " · Syl " + card.SylviteMined + " · Bit " + card.BitumensMined + " · Coe " + card.CoesiteMined, 11, "#B6D4D5");
+            mined.TextWrapping = TextWrapping.Wrap; mined.Margin = new Thickness(0, 8, 0, 0); root.Children.Add(mined);
+            WpfTextBlock left = Text("EST. LEFT · Zeo " + card.ZeolitesRemaining + " · Syl " + card.SylviteRemaining + " · Bit " + card.BitumensRemaining + " · Coe " + card.CoesiteRemaining, 11, card.HasTargetLeftover ? "#FF8A80" : "#789EA1");
+            left.TextWrapping = TextWrapping.Wrap; left.Margin = new Thickness(0, 4, 0, 0); root.Children.Add(left);
+            root.Children.Add(Text("Last fracture: " + card.LastFracture, 10, "#658C8F"));
             var edit = new WpfButton { Content = "ORE PROFILE", DataContext = card, Padding = new Thickness(8, 3, 8, 3), Margin = new Thickness(0, 5, 0, 0), HorizontalAlignment = System.Windows.HorizontalAlignment.Left };
-            edit.Click += Profile_Click; body.Children.Add(edit);
+            edit.Click += Profile_Click; root.Children.Add(edit);
         }
-        return new WpfBorder { Child = body, Background = Brush(card.IsJackpot ? "#332F18" : "#0D292D"), BorderBrush = Brush(card.IsJackpot ? "#8A7424" : "#28545A"), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(6), Padding = new Thickness(9), Margin = new Thickness(0, 6, 0, 0) };
+        return new WpfBorder { Width = detailed ? 420 : double.NaN, MinHeight = detailed ? 260 : 0, Child = root, Background = Brush(card.IsJackpot ? "#332F18" : "#0D292D"), BorderBrush = Brush(card.IsJackpot ? "#D1A72D" : "#28545A"), BorderThickness = new Thickness(card.IsJackpot ? 2 : 1), CornerRadius = new CornerRadius(7), Padding = new Thickness(10), Margin = new Thickness(detailed ? 5 : 0, 6, detailed ? 5 : 0, 0) };
     }
 
-    private MoonCardView[] CardsForDate(DateTime date) => _snapshot.Cards
+    private WpfGrid BuildMiniMoonRow(MoonCardView card)
+    {
+        var row = new WpfGrid { Margin = new Thickness(0, 3, 0, 0) };
+        row.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new GridLength(23) });
+        row.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition());
+        row.Children.Add(BuildMoonStructureIcon(card, 19));
+        WpfTextBlock name = Text((card.IsJackpot ? "★ " : "") + card.MoonName,
+            10, card.IsJackpot ? "#FFD166" : "#B6D4D5", card.IsJackpot);
+        name.VerticalAlignment = VerticalAlignment.Center;
+        WpfGrid.SetColumn(name, 1); row.Children.Add(name);
+        return row;
+    }
+
+    private static WpfGrid BuildMoonStructureIcon(MoonCardView card, double size)
+    {
+        var icon = new WpfGrid { Width = size, Height = size, HorizontalAlignment = System.Windows.HorizontalAlignment.Left };
+        var moon = new WpfImage
+        {
+            Source = new WpfBitmapImage(new Uri(card.MoonImageUri)),
+            Width = size,
+            Height = size,
+            Stretch = System.Windows.Media.Stretch.UniformToFill,
+            Clip = new System.Windows.Media.EllipseGeometry(
+                new System.Windows.Point(size / 2, size / 2), size / 2, size / 2)
+        };
+        icon.Children.Add(moon);
+        if (size >= 40)
+        {
+            double stationSize = size * 0.42;
+            var stationShell = new WpfBorder
+            {
+                Width = stationSize,
+                Height = stationSize,
+                Background = Brush("#071416"),
+                BorderBrush = Brush(card.IsJackpot ? "#FFD166" : "#55D7D2"),
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(stationSize / 2),
+                HorizontalAlignment = System.Windows.HorizontalAlignment.Right,
+                VerticalAlignment = VerticalAlignment.Bottom
+            };
+            stationShell.Child = new WpfImage
+            {
+                Source = new WpfBitmapImage(new Uri(card.StructureImageUri)),
+                Stretch = System.Windows.Media.Stretch.Uniform
+            };
+            icon.Children.Add(stationShell);
+        }
+        return icon;
+    }
+
+    private MoonCardView[] CardsForDate(DateTime date) => _snapshot.CalendarCards
         .Where(c => c.ScheduleUtc?.ToLocalTime().Date == date.Date)
         .OrderBy(c => c.ScheduleUtc).ToArray();
+
+    private void LoadLedger()
+    {
+        if (LedgerMoonCombo == null || LedgerPullCombo == null ||
+            LedgerGrid == null) return;
+
+        string selectedName =
+            (LedgerMoonCombo.SelectedItem as MoonLedgerMoonView)?.MoonName ?? "";
+        _loadingLedger = true;
+        LedgerMoonCombo.ItemsSource = _snapshot.LedgerMoons;
+        MoonLedgerMoonView? selected = _snapshot.LedgerMoons.FirstOrDefault(
+            moon => moon.MoonName.Equals(
+                selectedName, StringComparison.OrdinalIgnoreCase));
+        selected ??= _snapshot.LedgerMoons.FirstOrDefault(
+            moon => _snapshot.LedgerPulls.Any(pull => LedgerMoonMatches(moon, pull)));
+        selected ??= _snapshot.LedgerMoons.FirstOrDefault();
+        LedgerMoonCombo.SelectedItem = selected;
+        _loadingLedger = false;
+        LoadLedgerPulls();
+    }
+
+    private void LoadLedgerPulls()
+    {
+        if (LedgerMoonCombo.SelectedItem is not MoonLedgerMoonView moon)
+        {
+            ShowLedgerPull(null);
+            return;
+        }
+
+        string selectedPullId =
+            (LedgerPullCombo.SelectedItem as MoonLedgerPullView)?.PullId ?? "";
+        MoonLedgerPullView[] pulls = _snapshot.LedgerPulls
+            .Where(pull => LedgerMoonMatches(moon, pull))
+            .OrderByDescending(pull => pull.FractureUtc)
+            .ToArray();
+        _loadingLedger = true;
+        LedgerPullCombo.ItemsSource = pulls;
+        LedgerPullCombo.SelectedItem = pulls.FirstOrDefault(
+            pull => pull.PullId == selectedPullId) ?? pulls.FirstOrDefault();
+        _loadingLedger = false;
+        ShowLedgerPull(LedgerPullCombo.SelectedItem as MoonLedgerPullView);
+    }
+
+    private static bool LedgerMoonMatches(
+        MoonLedgerMoonView moon,
+        MoonLedgerPullView pull)
+    {
+        if (moon.MoonId > 0 && pull.MoonId > 0)
+            return moon.MoonId == pull.MoonId;
+        return moon.MoonName.Equals(
+            pull.MoonName, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private void ShowLedgerPull(MoonLedgerPullView? pull)
+    {
+        if (LedgerGrid == null) return;
+        LedgerGrid.ItemsSource = pull?.Rows ?? Array.Empty<MoonLedgerRowView>();
+        LedgerMinerCountText.Text = (pull?.Rows.Count ?? 0).ToString("N0");
+        LedgerTotalM3Text.Text = MoonReportService.FormatM3(pull?.TotalM3 ?? 0);
+        LedgerTotalIskText.Text = CompactIsk(pull?.TotalIsk ?? 0);
+        LedgerStatusText.Text = pull == null
+            ? "NO LEDGER DATA"
+            : pull.JackpotObserved ? "★ JACKPOT OBSERVED" : "STANDARD PULL";
+        LedgerStatusText.Foreground = Brush(
+            pull?.JackpotObserved == true ? "#FFD166" : "#8FB2B5");
+    }
+
+    private void LedgerMoon_Changed(
+        object sender,
+        System.Windows.Controls.SelectionChangedEventArgs e)
+    {
+        if (!_loadingLedger) LoadLedgerPulls();
+    }
+
+    private void LedgerPull_Changed(
+        object sender,
+        System.Windows.Controls.SelectionChangedEventArgs e)
+    {
+        if (!_loadingLedger)
+            ShowLedgerPull(LedgerPullCombo.SelectedItem as MoonLedgerPullView);
+    }
 
     private void LoadReporting()
     {
@@ -495,6 +747,7 @@ public partial class MoonReportWindow : Window
     private static WpfBrush Brush(string color) => (WpfBrush)new System.Windows.Media.BrushConverter().ConvertFromString(color)!;
     private static DateTime StartOfWeek(DateTime date) => date.Date.AddDays(-(((int)date.DayOfWeek + 6) % 7));
     private static string SignedM3(double value) => (value >= 0 ? "+" : "-") + MoonReportService.FormatM3(Math.Abs(value));
+    private static string CompactIsk(double value) => value >= 1_000_000_000 ? $"{value / 1_000_000_000:0.00}B ISK" : value >= 1_000_000 ? $"{value / 1_000_000:0.00}M ISK" : value >= 1_000 ? $"{value / 1_000:0.0}K ISK" : $"{value:0} ISK";
     private static bool Contains(string value, string search) => value?.IndexOf(search, StringComparison.OrdinalIgnoreCase) >= 0;
     private static string Number(double value) => value.ToString("0.####", CultureInfo.InvariantCulture);
     private static double ParseNumber(string value, double fallback) => TryNumber(value, out double parsed) ? parsed : fallback;
