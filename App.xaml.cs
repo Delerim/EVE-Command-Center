@@ -17,7 +17,7 @@ namespace EveMultiPreview;
 
 /// <summary>
 /// Application entry point. Wires up all services:
-///   SettingsService ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ WindowDiscoveryService ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ ThumbnailManager ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ HotkeyService ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ LogMonitor ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ StatTracker ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ AlertHub
+///   SettingsService → WindowDiscoveryService → ThumbnailManager → HotkeyService → LogMonitor → StatTracker → AlertHub
 /// Full tray menu matching AHK TrayMenu.ahk.
 /// Per-feature debug logging with [App:*] tags.
 /// </summary>
@@ -50,23 +50,23 @@ public partial class App : Application
     private string _trayAlertChar = "";
     private IntPtr _trayAlertHwnd = IntPtr.Zero;
 
-    // Per-event sound cooldowns ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â keyed `{character}_{alertType}` so simultaneous
+    // Per-event sound cooldowns — keyed `{character}_{alertType}` so simultaneous
     // alerts on different characters each get their own sound (the cooldown
     // semantics still hold per-character).
     private readonly Dictionary<string, DateTime> _soundCooldowns = new();
 
-    // Sound player for cycle-wrap chime (single instance is fine here ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â wraps
+    // Sound player for cycle-wrap chime (single instance is fine here — wraps
     // can't overlap meaningfully).
     private MediaPlayer? _soundPlayer;
 
-    // Active alert MediaPlayer instances ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â kept alive until MediaEnded fires so a
+    // Active alert MediaPlayer instances — kept alive until MediaEnded fires so a
     // second alert in the same tick can't cancel the first one's playback.
     private readonly object _soundPlayerLock = new();
     private readonly List<MediaPlayer> _activeSoundPlayers = new();
 
     private bool _isShuttingDown = false;
 
-    // ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ Startup perf logging ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬
+    // ── Startup perf logging ──
     private static readonly string _perfLogPath = System.IO.Path.Combine(
         System.IO.Path.GetTempPath(), "evemultipreview_perf.log");
     internal static void PerfLog(string msg)
@@ -102,13 +102,13 @@ public partial class App : Application
         try { System.IO.File.WriteAllText(_perfLogPath, ""); } catch { }
 
         var startupSw = Stopwatch.StartNew();
-        PerfLog("ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã‚Â¡ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ OnStartup entered");
+        PerfLog("🚀 OnStartup entered");
 
-        // ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ Global Error Handler ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬
+        // ── Global Error Handler ──
         DispatcherUnhandledException += OnDispatcherUnhandledException;
         AppDomain.CurrentDomain.UnhandledException += OnAppDomainUnhandledException;
 
-        // ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ JSON Migration ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬
+        // ── JSON Migration ──
         CheckJsonMigration();
         PerfLog($"JSON migration check: {startupSw.ElapsedMilliseconds}ms");
 
@@ -128,7 +128,7 @@ public partial class App : Application
 
         PerfLog($"Settings loaded: {startupSw.ElapsedMilliseconds}ms");
 
-        // ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ Setup Wizard gate ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬
+        // ── Setup Wizard gate ──
         if (!_settings.Settings.SetupCompleted)
         {
             var wizard = new SetupWizard(_settings);
@@ -137,7 +137,7 @@ public partial class App : Application
         }
 
         // 2. Window event hooks (single OS-level subscription shared across services)
-        //    and window discovery. Hooks must be installed on the UI thread ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â
+        //    and window discovery. Hooks must be installed on the UI thread —
         //    OnStartup runs on it, so create here before anything backgrounds off.
         _winEvents = new WinEventHookService();
         _winEvents.Start();
@@ -190,12 +190,12 @@ public partial class App : Application
 
         PerfLog($"Core services created: {startupSw.ElapsedMilliseconds}ms");
 
-        // ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ START DISCOVERY IMMEDIATELY ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â thumbnails appear ASAP ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬
+        // ── START DISCOVERY IMMEDIATELY — thumbnails appear ASAP ──
         _discovery.Start(_winEvents);
         _thumbnailManager.StartFocusTracking(_winEvents);
         PerfLog($"Discovery + FocusTracking started: {startupSw.ElapsedMilliseconds}ms");
 
-        // ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ DEFER slower startup tasks so thumbnail BeginInvoke runs first ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬
+        // ── DEFER slower startup tasks so thumbnail BeginInvoke runs first ──
         var deferTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(50) };
         deferTimer.Tick += (_, _) =>
         {
@@ -223,13 +223,13 @@ public partial class App : Application
             _alertHub = new AlertHub(_settings.Settings);
             _alertHub.FocusCharacterRequested += (charName) =>
             {
-                Debug.WriteLine($"[AlertHub:Focus] ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã‚Â½Ãƒâ€šÃ‚Â¯ Focus requested for '{charName}'");
+                Debug.WriteLine($"[AlertHub:Focus] 🎯 Focus requested for '{charName}'");
                 _thumbnailManager.ActivateEveWindow(IntPtr.Zero, charName);
             };
             _alertHub.SaveRequested += () => _settings.SaveDelayed();
             PerfLog($"[Deferred] AlertHub created: {deferSw.ElapsedMilliseconds}ms");
 
-            // Broadcast-key HUD ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â self-gates on ShowBroadcastKeyHud each tick.
+            // Broadcast-key HUD — self-gates on ShowBroadcastKeyHud each tick.
             _broadcastHud = new BroadcastHudWindow(_settings.Settings);
             _broadcastHud.SaveRequested += () => _settings.SaveDelayed();
 
@@ -244,12 +244,12 @@ public partial class App : Application
             if (_settings.Settings.SeverityCooldowns != null)
                 _logMonitor.SetEventCooldowns(_settings.Settings.SeverityCooldowns);
 
-            // ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ Damage received (incoming) ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ stat tracker + alert ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬
+            // ── Damage received (incoming) → stat tracker + alert ──
             _logMonitor.DamageReceived += (dmg) =>
             {
                 _statTracker.RecordDamage(dmg.CharacterName, dmg.Amount, true, dmg.IsNpc, damageType: dmg.Type);
                 _thumbnailManager?.SignalUnderFire(dmg.CharacterName);
-                Debug.WriteLine($"[App:Alert] ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒâ€šÃ‚Â´ Damage received: {dmg.Amount} from '{dmg.SourceName}' to '{dmg.CharacterName}' (NPC={dmg.IsNpc})");
+                Debug.WriteLine($"[App:Alert] 🔴 Damage received: {dmg.Amount} from '{dmg.SourceName}' to '{dmg.CharacterName}' (NPC={dmg.IsNpc})");
             };
             _logMonitor.DamageDealt += (dmg) =>
             {
@@ -270,11 +270,11 @@ public partial class App : Application
             };
             _logMonitor.SystemChanged += (charName, systemName) =>
             {
-                Debug.WriteLine($"[App:Alert] ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã¢â‚¬â„¢Ãƒâ€šÃ‚Â System change: '{charName}' ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ '{systemName}'");
+                Debug.WriteLine($"[App:Alert] 🌍 System change: '{charName}' → '{systemName}'");
                 _thumbnailManager.UpdateCharacterSystem(charName, systemName);
             };
 
-            // Cycle-wrap sound (issue #24) ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â plays whenever a cycle hotkey rolls
+            // Cycle-wrap sound (issue #24) — plays whenever a cycle hotkey rolls
             // from the last client back to the first (or vice-versa reversing).
             _thumbnailManager.CycleWrapped += () =>
             {
@@ -290,32 +290,32 @@ public partial class App : Application
                         _soundPlayer!.Volume = s.AlertSoundVolume / 100.0;
                         _soundPlayer.Play();
                     });
-                    Debug.WriteLine($"[CycleWrap:Sound] ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒâ€¦Ã‚Â  Playing '{System.IO.Path.GetFileName(s.CycleWrapSoundFile)}'");
+                    Debug.WriteLine($"[CycleWrap:Sound] 🔊 Playing '{System.IO.Path.GetFileName(s.CycleWrapSoundFile)}'");
                 }
                 catch (Exception ex)
                 {
-                    Debug.WriteLine($"[CycleWrap:Sound] ÃƒÆ’Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒâ€¦Ã¢â‚¬â„¢ {ex.Message}");
+                    Debug.WriteLine($"[CycleWrap:Sound] ❌ {ex.Message}");
                 }
             };
             _logMonitor.AlertTriggered += (charName, alertType, severity) =>
             {
-                Debug.WriteLine($"[App:Alert] ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã‚Â¡Ãƒâ€šÃ‚Â¡ Alert: {alertType} [{severity}] for '{charName}'");
+                Debug.WriteLine($"[App:Alert] ⚡ Alert: {alertType} [{severity}] for '{charName}'");
                 var activeChars = _thumbnailManager.GetActiveCharacterNames();
                 EveMultiPreview.Services.DiagnosticsService.LogAlerts(
                     $"[App] AlertTriggered received: type={alertType} severity={severity} char='{charName}' " +
                     $"activeChars=[{string.Join(", ", activeChars.Select(c => $"'{c}'"))}]");
                 if (!activeChars.Any(n => string.Equals(n, charName, StringComparison.OrdinalIgnoreCase)))
                 {
-                    Debug.WriteLine($"[App:Alert] ÃƒÆ’Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒâ€šÃ‚Â­ Skipped ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â '{charName}' not in active windows");
+                    Debug.WriteLine($"[App:Alert] ⏭ Skipped — '{charName}' not in active windows");
                     EveMultiPreview.Services.DiagnosticsService.LogAlerts(
-                        $"[App] DROPPED ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â '{charName}' not in active-windows list. Alert will not flash/badge/toast.");
+                        $"[App] DROPPED — '{charName}' not in active-windows list. Alert will not flash/badge/toast.");
                     return;
                 }
                 if (_thumbnailManager.IsCharacterAlertMuted(charName))
                 {
-                    Debug.WriteLine($"[App:Alert] ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¡ Skipped ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â alerts muted/snoozed for '{charName}'");
+                    Debug.WriteLine($"[App:Alert] 🔇 Skipped — alerts muted/snoozed for '{charName}'");
                     EveMultiPreview.Services.DiagnosticsService.LogAlerts(
-                        $"[App] MUTED ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â alerts snoozed for '{charName}'. No flash/badge/toast/sound.");
+                        $"[App] MUTED — alerts snoozed for '{charName}'. No flash/badge/toast/sound.");
                     return;
                 }
                 EveMultiPreview.Services.DiagnosticsService.LogAlerts(
@@ -326,7 +326,7 @@ public partial class App : Application
 
                 // Hub toast gate. Shown when the hub is enabled AND the
                 // severity is configured to surface there. Optionally (issue
-                // #47) suppressed for the foreground EVE client ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â you're
+                // #47) suppressed for the foreground EVE client — you're
                 // already looking at that client, so the toast is noise.
                 // The suppression is per-character: only the alerting char's
                 // own toast is dropped, never a background client's, so the
@@ -393,7 +393,7 @@ public partial class App : Application
                 if (_trayIcon != null)
                 {
                     _trayIcon.Text = _hotkeyService.IsSuspended
-                        ? "ÃƒÆ’Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒâ€šÃ‚Â¸ EVE MultiPreview (SUSPENDED)"
+                        ? "⏸ EVE MultiPreview (SUSPENDED)"
                         : "EVE MultiPreview";
                     var asm = System.Reflection.Assembly.GetExecutingAssembly();
                     var icoName = _hotkeyService.IsSuspended ? "EveMultiPreview.Icon-Suspend.ico" : "EveMultiPreview.Icon.ico";
@@ -409,7 +409,7 @@ public partial class App : Application
             // Initialize sound player
             _soundPlayer = new MediaPlayer();
 
-            // ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ EVE window presence ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ hotkey activate/deactivate ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬
+            // ── EVE window presence → hotkey activate/deactivate ──
             // Unregisters hotkeys from OS when no EVE windows are open so keys work
             // normally in other apps; re-registers them when EVE windows appear.
             var hotkeyToggleTimer = new System.Windows.Threading.DispatcherTimer
@@ -422,7 +422,7 @@ public partial class App : Application
                 bool hasWindows = _thumbnailManager?.HasTrackedClients() == true;
                 if (hasWindows != _lastHotkeyToggleState)
                 {
-                    PerfLog($"[Hotkey:Toggle] EVE windows present: {hasWindows} ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ re-evaluate registration");
+                    PerfLog($"[Hotkey:Toggle] EVE windows present: {hasWindows} → re-evaluate registration");
                     _lastHotkeyToggleState = hasWindows;
                 }
                 // Safety-net poll. EvaluateRegistration also factors in EVE-only
@@ -432,11 +432,11 @@ public partial class App : Application
             };
             hotkeyToggleTimer.Start();
 
-            PerfLog($"[Deferred] ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã¢â‚¬Å“ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ All deferred startup complete: {deferSw.ElapsedMilliseconds}ms total");
+            PerfLog($"[Deferred] ✅ All deferred startup complete: {deferSw.ElapsedMilliseconds}ms total");
 
-            // ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ Auto-Update Check (fire-and-forget, non-blocking) ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬
+            // ── Auto-Update Check (fire-and-forget, non-blocking) ──
             // Gated on CheckForUpdatesOnStartup (About tab toggle). When off, no
-            // network call and no popup ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â users can still check via Settings ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ About.
+            // network call and no popup — users can still check via Settings → About.
             if (_settings?.Settings?.CheckForUpdatesOnStartup ?? true)
             _ = Task.Run(async () =>
             {
@@ -447,8 +447,8 @@ public partial class App : Application
                     bool hasUpdate = await updateService.CheckForUpdateAsync(allowPreRelease);
                     if (hasUpdate)
                     {
-                        PerfLog($"[Update] ÃƒÆ’Ã‚Â¢Ãƒâ€šÃ‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â  Update available: v{updateService.LatestVersion}");
-                        await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                        PerfLog($"[Update] ⬆ Update available: v{updateService.LatestVersion}");
+                        await Dispatcher.InvokeAsync(() =>
                         {
                             // Non-modal: a modal ShowDialog() runs a nested message loop
                             // that swallows global hotkeys until dismissed. Show() lets the
@@ -459,20 +459,20 @@ public partial class App : Application
                     }
                     else
                     {
-                        PerfLog($"[Update] ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã¢â‚¬Å“ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ Up to date (v{updateService.CurrentVersion})");
+                        PerfLog($"[Update] ✅ Up to date (v{updateService.CurrentVersion})");
                     }
                 }
                 catch (Exception ex)
                 {
-                    PerfLog($"[Update] ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã‚Â¡Ãƒâ€šÃ‚Â  Auto-check failed (non-fatal): {ex.Message}");
+                    PerfLog($"[Update] ⚠ Auto-check failed (non-fatal): {ex.Message}");
                 }
             });
         };
         deferTimer.Start();
 
-        PerfLog($"ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã¢â‚¬Å“ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ OnStartup complete (discovery running): {startupSw.ElapsedMilliseconds}ms total");
+        PerfLog($"✅ OnStartup complete (discovery running): {startupSw.ElapsedMilliseconds}ms total");
 
-        // ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ Reopen settings after Apply reload (AHK: reopen_settings.flag) ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬
+        // ── Reopen settings after Apply reload (AHK: reopen_settings.flag) ──
         var reopenFlag = Path.Combine(Path.GetTempPath(), "evemultipreview_reopen_settings.flag");
         bool reopenAfterApply = File.Exists(reopenFlag);
         if (reopenAfterApply)
@@ -483,12 +483,12 @@ public partial class App : Application
             {
                 reopenTimer.Stop();
                 OpenSettings();
-                Debug.WriteLine("[App:Startup] ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒâ€šÃ‚Â§ Settings reopened after Apply");
+                Debug.WriteLine("[App:Startup] 🔧 Settings reopened after Apply");
             };
             reopenTimer.Start();
         }
 
-        // ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ Auto-open Settings on launch (user preference, StartupSettings) ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬
+        // ── Auto-open Settings on launch (user preference, StartupSettings) ──
         // Skipped on Apply-reload (the reopen-flag path above already handles that case)
         // and skipped while the Setup Wizard is still needed.
         var startupMode = _settings.Settings.StartupSettings;
@@ -500,15 +500,15 @@ public partial class App : Application
             {
                 startupTimer.Stop();
                 OpenSettings(startMinimized: startupMode == EveMultiPreview.Models.StartupSettingsMode.OpenMinimized);
-                Debug.WriteLine($"[App:Startup] ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€šÃ‚ÂªÃƒâ€¦Ã‚Â¸ Settings auto-opened (mode={startupMode})");
+                Debug.WriteLine($"[App:Startup] 🪟 Settings auto-opened (mode={startupMode})");
             };
             startupTimer.Start();
         }
 
-        Debug.WriteLine("[App:Startup] ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã¢â‚¬Å“ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ All services started successfully");
+        Debug.WriteLine("[App:Startup] ✅ All services started successfully");
     }
 
-    // ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ Error Handler (AHK: Global error handler in Main.ahk) ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬
+    // ── Error Handler (AHK: Global error handler in Main.ahk) ─────────
 
     private void OnDispatcherUnhandledException(object sender, DispatcherUnhandledExceptionEventArgs e)
     {
@@ -517,7 +517,7 @@ public partial class App : Application
             e.Exception.Message.Contains("Missing a required parameter") ||
             e.Exception is System.ComponentModel.Win32Exception)
         {
-            Debug.WriteLine($"[App:Error] ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã‚Â¡Ãƒâ€šÃ‚Â  Silently handled: {e.Exception.GetType().Name}: {e.Exception.Message}");
+            Debug.WriteLine($"[App:Error] ⚠ Silently handled: {e.Exception.GetType().Name}: {e.Exception.Message}");
             e.Handled = true;
             return;
         }
@@ -543,12 +543,12 @@ public partial class App : Application
             string entry = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {ex.GetType().Name}: {ex.Message}\n" +
                            $"  Stack: {ex.StackTrace}\n";
             File.AppendAllText(logPath, entry);
-            Debug.WriteLine($"[App:Error] ÃƒÆ’Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒâ€¦Ã¢â‚¬â„¢ Logged error: {ex.GetType().Name}: {ex.Message}");
+            Debug.WriteLine($"[App:Error] ❌ Logged error: {ex.GetType().Name}: {ex.Message}");
         }
         catch { }
     }
 
-    // ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ JSON Migration (AHK: EVE-X-Preview ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ EVE MultiPreview) ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬
+    // ── JSON Migration (AHK: EVE-X-Preview → EVE MultiPreview) ───────
 
     private static void CheckJsonMigration()
     {
@@ -567,17 +567,17 @@ public partial class App : Application
                 try
                 {
                     File.Copy(oldFile, newFile);
-                    Debug.WriteLine("[App:Migration] ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã¢â‚¬Å“ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ Migrated EVE-X-Preview.json ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ EVE MultiPreview.json");
+                    Debug.WriteLine("[App:Migration] ✅ Migrated EVE-X-Preview.json → EVE MultiPreview.json");
                 }
                 catch (Exception ex)
                 {
-                    Debug.WriteLine($"[App:Migration] ÃƒÆ’Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒâ€¦Ã¢â‚¬â„¢ Migration failed: {ex.Message}");
+                    Debug.WriteLine($"[App:Migration] ❌ Migration failed: {ex.Message}");
                 }
             }
         }
     }
 
-    // ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ Alert Sound System (per-event sounds, WAV/MP3 via MediaPlayer) ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬
+    // ── Alert Sound System (per-event sounds, WAV/MP3 via MediaPlayer) ──
 
     private void PlayAlertSound(string character, string alertType, string severity)
     {
@@ -602,7 +602,7 @@ public partial class App : Application
 
         // Per-character per-event sound cooldown check. Keying by character means
         // simultaneous alerts on different clients (e.g. five chars depleting the
-        // same rock) each get their sound ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â only repeats from the *same* char on
+        // same rock) each get their sound — only repeats from the *same* char on
         // the *same* event are coalesced.
         string cooldownKey = $"sound_{character}_{alertType}";
         int soundCooldown = s.SoundCooldowns?.GetValueOrDefault(alertType, 0) ?? 0;
@@ -610,7 +610,7 @@ public partial class App : Application
         {
             if ((DateTime.Now - lastPlay).TotalSeconds < soundCooldown)
             {
-                Debug.WriteLine($"[AlertSound:Cooldown] ÃƒÆ’Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒâ€šÃ‚Â³ Sound cooldown active: {alertType} for '{character}' ({soundCooldown}s)");
+                Debug.WriteLine($"[AlertSound:Cooldown] ⏳ Sound cooldown active: {alertType} for '{character}' ({soundCooldown}s)");
                 EveMultiPreview.Services.DiagnosticsService.LogAlerts(
                     $"[Sound] GATED cooldown: {alertType} on '{character}' within {soundCooldown}s of last play");
                 return;
@@ -678,20 +678,20 @@ public partial class App : Application
             });
 
             _soundCooldowns[cooldownKey] = DateTime.Now;
-            Debug.WriteLine($"[AlertSound:Play] ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒâ€¦Ã‚Â  Playing '{System.IO.Path.GetFileName(soundFile)}' for {alertType} on '{character}' (vol={s.AlertSoundVolume}%)");
+            Debug.WriteLine($"[AlertSound:Play] 🔊 Playing '{System.IO.Path.GetFileName(soundFile)}' for {alertType} on '{character}' (vol={s.AlertSoundVolume}%)");
             EveMultiPreview.Services.DiagnosticsService.LogAlerts(
                 $"[Sound] PLAYING '{System.IO.Path.GetFileName(soundFile)}' for {alertType} on '{character}' at vol={s.AlertSoundVolume}%"
-                + (s.AlertSoundVolume == 0 ? " ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã‚Â¡Ãƒâ€šÃ‚Â  VOLUME IS 0 ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â will be inaudible" : ""));
+                + (s.AlertSoundVolume == 0 ? " ⚠ VOLUME IS 0 — will be inaudible" : ""));
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[AlertSound:Play] ÃƒÆ’Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒâ€¦Ã¢â‚¬â„¢ Error playing sound: {ex.Message}");
+            Debug.WriteLine($"[AlertSound:Play] ❌ Error playing sound: {ex.Message}");
             EveMultiPreview.Services.DiagnosticsService.LogAlerts(
                 $"[Sound] ERROR playing {alertType} on '{character}': {ex.GetType().Name}: {ex.Message}");
         }
     }
 
-    // ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ Tray Menu (matches AHK TrayMenu.ahk) ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬
+    // ── Tray Menu (matches AHK TrayMenu.ahk) ────────────────────────
 
     private void SetupTrayIcon()
     {
@@ -708,13 +708,13 @@ public partial class App : Application
             ContextMenuStrip = new ContextMenuStrip()
         };
 
-        // M3: Balloon click ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ focus attacked character (matches AHK NIN_BALLOONUSERCLICK)
+        // M3: Balloon click → focus attacked character (matches AHK NIN_BALLOONUSERCLICK)
         _trayIcon.BalloonTipClicked += (_, _) =>
         {
             if (!string.IsNullOrEmpty(_trayAlertChar))
             {
                 _thumbnailManager?.ActivateEveWindow(IntPtr.Zero, _trayAlertChar);
-                Debug.WriteLine($"[Tray:BalloonClick] ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒâ€šÃ‚Â§ Focused '{_trayAlertChar}' via balloon click");
+                Debug.WriteLine($"[Tray:BalloonClick] 🔧 Focused '{_trayAlertChar}' via balloon click");
             }
         };
 
@@ -735,13 +735,13 @@ public partial class App : Application
             _trayLoc.Add((it, key, en));
         }
 
-        // Header (product name ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â not localized)
+        // Header (product name — not localized)
         var header = menu.Items.Add("EVE Command Center");
         header.Enabled = false;
         menu.Items.Add(new ToolStripSeparator());
 
         // Settings
-        // Defer to let the tray menu fully close before Show() ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â otherwise
+        // Defer to let the tray menu fully close before Show() — otherwise
         // the NotifyIcon's internal message window steals foreground back
         // and Settings appears but can't receive input.
         var settingsItem = menu.Items.Add("", null, (_, _) =>
@@ -860,7 +860,7 @@ public partial class App : Application
 
         menu.Items.Add(new ToolStripSeparator());
 
-        // ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ PiP Individual Toggle Submenu (AHK: TrayMenu._TrayPiPToggle) ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬
+        // ── PiP Individual Toggle Submenu (AHK: TrayMenu._TrayPiPToggle) ──
         var pipMenu = new ToolStripMenuItem();
         L(pipMenu, "L.Tray.PiP", "PiP Individual");
         try
@@ -897,7 +897,7 @@ public partial class App : Application
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[Tray:PiP] ÃƒÆ’Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒâ€¦Ã¢â‚¬â„¢ Failed to build PiP submenu: {ex.Message}");
+            Debug.WriteLine($"[Tray:PiP] ❌ Failed to build PiP submenu: {ex.Message}");
         }
         menu.Items.Add(pipMenu);
 
@@ -922,7 +922,7 @@ public partial class App : Application
             }
         };
 
-        // Double-click to open settings (deferred ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â see Settings menu item above)
+        // Double-click to open settings (deferred — see Settings menu item above)
         _trayIcon.DoubleClick += (_, _) =>
         {
             SettingsDiag("Tray double-click");
@@ -952,8 +952,8 @@ public partial class App : Application
     }
 
     /// <summary>
-    /// Cycles to the next/previous profile ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â mirrors AHK Main_Class.CycleProfile (L670-710).
-    /// AHK: enumerates profile names ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ finds current ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ wraps forward/backward ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ saves ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ Reload().
+    /// Cycles to the next/previous profile — mirrors AHK Main_Class.CycleProfile (L670-710).
+    /// AHK: enumerates profile names → finds current → wraps forward/backward → saves → Reload().
     /// C# equivalent: SwitchProfile + re-register hotkeys (no full app reload needed).
     /// </summary>
     private void CycleProfile(bool forward)
@@ -987,7 +987,7 @@ public partial class App : Application
         // Tooltip feedback (AHK L705: ToolTip("Profile: " newProfile))
         _thumbnailManager?.ShowTooltipFeedback($"Profile: {newProfile}");
 
-        Debug.WriteLine($"[App:Profile] ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾ Cycled {(forward ? "forward" : "backward")} to profile: {newProfile}");
+        Debug.WriteLine($"[App:Profile] 🔄 Cycled {(forward ? "forward" : "backward")} to profile: {newProfile}");
     }
 
     private void OnMiningIdleDetected(string charName)
@@ -999,7 +999,7 @@ public partial class App : Application
     {
         double drop = learned > 0 ? Math.Max(0, (1.0 - current / learned) * 100.0) : 0;
         RaiseMiningWatchdogAlert(charName,
-            $"{charName}: mining yield dropped {drop:F0}% ({current:F1} vs {learned:F1} mÃƒâ€šÃ‚Â³/s)");
+            $"{charName}: mining yield dropped {drop:F0}% ({current:F1} vs {learned:F1} m³/s)");
     }
 
     private void RaiseMiningWatchdogAlert(string charName, string message)
@@ -1010,7 +1010,7 @@ public partial class App : Application
         const string alertType = "mine_module_stopped";
         const string severity = "warning";
 
-        Debug.WriteLine($"[App:MiningWatchdog] ÃƒÂ¢Ã…Â¡Ã‚Â  {message}");
+        Debug.WriteLine($"[App:MiningWatchdog] ⚠ {message}");
 
         _thumbnailManager.SetAlertFlash(charName, severity, alertType);
         _thumbnailManager.IncrementAlertBadge(charName, severity, alertType);
@@ -1155,8 +1155,8 @@ public partial class App : Application
         }
         else
         {
-            // Auto-maximize when the saved size doesn't fit the work area ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â
-            // mostly catches 1080p users on the default 1080ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â1080 size, where
+            // Auto-maximize when the saved size doesn't fit the work area —
+            // mostly catches 1080p users on the default 1080×1080 size, where
             // the bottom of the panel would be hidden under the taskbar. Once
             // the user resizes to something that fits, the saved smaller size
             // is respected on subsequent opens. WorkArea is in DIPs, matching
@@ -1222,11 +1222,11 @@ public partial class App : Application
                 applyLiveSettings();
             }
 
-            Debug.WriteLine("[App:Settings] ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã‚Â¡ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ Settings window closed ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â services re-configured");
+            Debug.WriteLine("[App:Settings] ⚙ Settings window closed — services re-configured");
         };
 
         // WinForms thumbnail windows hit-test their full client rect, so any
-        // z-order dance (Topmost, pin-below, SetWindowPos) is fragile ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â tray
+        // z-order dance (Topmost, pin-below, SetWindowPos) is fragile — tray
         // opens, minimize transitions, and foreground-lock all break it in
         // different ways. Instead, flip thumbnails click-through while Settings
         // is open: every click passes through them to whatever is below.
@@ -1243,9 +1243,9 @@ public partial class App : Application
             _thumbnailManager?.SetSettingsClickSuppression(false);
         };
         _settingsWindow.IsVisibleChanged += (_, e) =>
-            SettingsDiag($"IsVisibleChanged ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ {e.NewValue}");
+            SettingsDiag($"IsVisibleChanged → {e.NewValue}");
         _settingsWindow.StateChanged += (_, _) =>
-            SettingsDiag($"StateChanged ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ {_settingsWindow?.WindowState}");
+            SettingsDiag($"StateChanged → {_settingsWindow?.WindowState}");
 
         SettingsDiag("About to call Show()");
         _settingsWindow.Show();
@@ -1291,7 +1291,7 @@ public partial class App : Application
         _thumbnailManager?.SaveStatWindowPositions();
         _settings?.Save();
 
-        Debug.WriteLine("[App:Startup] ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂºÃƒÂ¢Ã¢â€šÂ¬Ã‹Å“ Application exiting");
+        Debug.WriteLine("[App:Startup] 🛑 Application exiting");
         // All service disposal happens in OnExit (triggered by Shutdown)
         Shutdown();
     }
@@ -1306,7 +1306,7 @@ public partial class App : Application
         // bypasses ExitApplication.
         _isShuttingDown = true;
 
-        // Single disposal path ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ExitApplication calls Shutdown() which triggers this
+        // Single disposal path — ExitApplication calls Shutdown() which triggers this
         _alertHub?.Dispose();
         _broadcastHud?.Dispose();
         _logMonitor?.Dispose();
@@ -1331,9 +1331,9 @@ public partial class App : Application
         // cleanly even on hostile shutdown paths (OS logoff / process kill
         // recovery). Process exit will release the kernel mutex regardless.
         try { _singleInstanceMutex?.ReleaseMutex(); }
-        catch (Exception ex) { Debug.WriteLine($"[App:Exit] ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã‚Â¡Ãƒâ€šÃ‚Â  ReleaseMutex: {ex.GetType().Name}: {ex.Message}"); }
+        catch (Exception ex) { Debug.WriteLine($"[App:Exit] ⚠ ReleaseMutex: {ex.GetType().Name}: {ex.Message}"); }
         try { _singleInstanceMutex?.Dispose(); }
-        catch (Exception ex) { Debug.WriteLine($"[App:Exit] ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã‚Â¡Ãƒâ€šÃ‚Â  Mutex Dispose: {ex.GetType().Name}: {ex.Message}"); }
+        catch (Exception ex) { Debug.WriteLine($"[App:Exit] ⚠ Mutex Dispose: {ex.GetType().Name}: {ex.Message}"); }
         _singleInstanceMutex = null;
 
         base.OnExit(e);
