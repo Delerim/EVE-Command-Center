@@ -6,7 +6,9 @@ using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
+using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using EveMultiPreview.Models;
@@ -15,7 +17,7 @@ namespace EveMultiPreview.Services;
 
 public sealed class MoonReportService : IDisposable
 {
-    public const int SchemaVersion = 5;
+    public const int SchemaVersion = 6;
     public const string MiningScope =
         "esi-industry.read_corporation_mining.v1";
     public const string StructureScope =
@@ -37,7 +39,7 @@ public sealed class MoonReportService : IDisposable
         _sso = sso;
         _http = new HttpClient { Timeout = TimeSpan.FromSeconds(45) };
         _http.DefaultRequestHeaders.UserAgent.ParseAdd(
-            "EVE-Command-Center-Moon-Report/0.5");
+            "EVE-Command-Center-Moon-Report/0.6");
         _http.DefaultRequestHeaders.TryAddWithoutValidation(
             "X-Compatibility-Date", "2026-08-25");
 
@@ -223,10 +225,6 @@ public sealed class MoonReportService : IDisposable
         await _gate.WaitAsync();
         try
         {
-            if (profile.MoonId == 0)
-                throw new InvalidOperationException(
-                    "This moon has not been identified by ESI yet.");
-
             profile.ZeolitesPercent = Clamp(profile.ZeolitesPercent, 0, 100);
             profile.SylvitePercent = Clamp(profile.SylvitePercent, 0, 100);
             profile.BitumensPercent = Clamp(profile.BitumensPercent, 0, 100);
@@ -235,7 +233,18 @@ public sealed class MoonReportService : IDisposable
             profile.FieldLifetimeHours =
                 Clamp(profile.FieldLifetimeHours, 1, 168);
             profile.WastePercent = Clamp(profile.WastePercent, 0, 100);
-            _state.Profiles[profile.MoonId] = profile;
+            if (profile.MoonId == 0)
+            {
+                string key = NormalizeMoonName(profile.MoonName);
+                if (string.IsNullOrWhiteSpace(key))
+                    throw new InvalidOperationException(
+                        "This pending moon needs a name before it can be saved.");
+                _state.PendingProfilesByMoonName[key] = profile;
+            }
+            else
+            {
+                _state.Profiles[profile.MoonId] = profile;
+            }
             await SaveStateAsync();
         }
         finally
@@ -290,9 +299,54 @@ public sealed class MoonReportService : IDisposable
         }
     }
 
+    public async Task<MoonProfileImportResult> ImportProfilesByNameAsync(
+        IEnumerable<MoonProfile> profiles)
+    {
+        await _gate.WaitAsync();
+        try
+        {
+            int total = 0;
+            int matched = 0;
+            foreach (MoonProfile imported in profiles)
+            {
+                string key = NormalizeMoonName(imported.MoonName);
+                if (string.IsNullOrWhiteSpace(key)) continue;
+                total++;
+                MoonProfile? existing = _state.Profiles.Values.FirstOrDefault(
+                    profile => NormalizeMoonName(profile.MoonName) == key);
+                if (existing != null)
+                {
+                    ApplyComposition(existing, imported);
+                    matched++;
+                    _state.PendingProfilesByMoonName.Remove(key);
+                }
+                else
+                {
+                    MoonProfile pending = CloneProfile(imported);
+                    pending.MoonId = 0;
+                    pending.ProfileConfigured = true;
+                    _state.PendingProfilesByMoonName[key] = pending;
+                }
+            }
+
+            await SaveStateAsync();
+            return new MoonProfileImportResult
+            {
+                Total = total,
+                Matched = matched,
+                Pending = total - matched
+            };
+        }
+        finally
+        {
+            _gate.Release();
+        }
+    }
+
     public IReadOnlyList<MoonProfile> ExportProfiles()
     {
         return _state.Profiles.Values
+            .Concat(_state.PendingProfilesByMoonName.Values)
             .OrderBy(p => p.MoonName, StringComparer.OrdinalIgnoreCase)
             .Select(CloneProfile)
             .ToArray();
@@ -381,6 +435,14 @@ public sealed class MoonReportService : IDisposable
             profile.StructureName = pull.StructureName;
             profile.SystemId = pull.SystemId;
             profile.SystemName = pull.SystemName;
+
+            string profileKey = NormalizeMoonName(pull.MoonName);
+            if (_state.PendingProfilesByMoonName.TryGetValue(
+                    profileKey, out MoonProfile? pendingProfile))
+            {
+                ApplyComposition(profile, pendingProfile);
+                _state.PendingProfilesByMoonName.Remove(profileKey);
+            }
 
             MoonPullRecord? previous = _state.Pulls.Values
                 .Where(p =>
@@ -597,6 +659,11 @@ public sealed class MoonReportService : IDisposable
                 .FirstOrDefault();
 
             cards.Add(BuildCard(profile, pull, now));
+        }
+        foreach (MoonProfile pending in
+                     _state.PendingProfilesByMoonName.Values)
+        {
+            cards.Add(BuildCard(pending, null, now));
         }
 
         foreach (MoonPullRecord pull in _state.Pulls.Values
@@ -1292,6 +1359,37 @@ public sealed class MoonReportService : IDisposable
             FieldLifetimeHours = source.FieldLifetimeHours,
             WastePercent = source.WastePercent
         };
+    }
+
+    private static void ApplyComposition(
+        MoonProfile destination,
+        MoonProfile source)
+    {
+        destination.ZeolitesPercent = Clamp(source.ZeolitesPercent, 0, 100);
+        destination.SylvitePercent = Clamp(source.SylvitePercent, 0, 100);
+        destination.BitumensPercent = Clamp(source.BitumensPercent, 0, 100);
+        destination.CoesitePercent = Clamp(source.CoesitePercent, 0, 100);
+        destination.FieldLifetimeHours = Clamp(source.FieldLifetimeHours, 1, 168);
+        destination.WastePercent = Clamp(source.WastePercent, 0, 100);
+        destination.ProfileConfigured = true;
+        destination.StructureName = First(
+            destination.StructureName, source.StructureName);
+        destination.SystemName = First(
+            destination.SystemName, source.SystemName);
+    }
+
+    private static string NormalizeMoonName(string? value)
+    {
+        string normalized = Regex.Replace(
+            (value ?? "").Trim().ToLowerInvariant(),
+            @"\bmoon\s+0+(\d+)\b", "moon $1");
+        var result = new StringBuilder(normalized.Length);
+        foreach (char character in normalized)
+        {
+            if (char.IsLetterOrDigit(character))
+                result.Append(character);
+        }
+        return result.ToString();
     }
 
     private static double Clamp(double value, double min, double max)

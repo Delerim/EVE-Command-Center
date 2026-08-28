@@ -9,6 +9,8 @@ public sealed class MoonReportState
     public long SelectedCharacterId { get; set; }
     public DateTimeOffset? LastRefreshUtc { get; set; }
     public Dictionary<long, MoonProfile> Profiles { get; set; } = new();
+    public Dictionary<string, MoonProfile> PendingProfilesByMoonName { get; set; } =
+        new(StringComparer.OrdinalIgnoreCase);
     public Dictionary<string, MoonPullRecord> Pulls { get; set; } = new();
     public Dictionary<string, long> LedgerTotals { get; set; } = new();
     public Dictionary<string, double> DailyMinedM3 { get; set; } = new();
@@ -16,6 +18,13 @@ public sealed class MoonReportState
     public Dictionary<int, string> TypeNames { get; set; } = new();
     public Dictionary<int, double> TypeVolumes { get; set; } = new();
     public Dictionary<int, string> SystemNames { get; set; } = new();
+}
+
+public sealed class MoonProfileImportResult
+{
+    public int Total { get; init; }
+    public int Matched { get; init; }
+    public int Pending { get; init; }
 }
 
 public sealed class MoonProfile

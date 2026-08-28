@@ -15,6 +15,9 @@ namespace EveMultiPreview.Views;
 public partial class MiningFleetOverviewWindow : Window
 {
     private MoonReportWindow? _moonReportWindow;
+    private CloudBackupWindow? _cloudBackupWindow;
+    private readonly CloudBackupCoordinator _cloudBackupCoordinator =
+        CloudBackupCoordinator.Attach();
     private readonly StatTrackerService _tracker;
     private readonly MiningIdleWatchdogService _watchdog;
     private readonly MiningDashboardPreferences _prefs;
@@ -1385,6 +1388,23 @@ public partial class MiningFleetOverviewWindow : Window
         _moonReportWindow.Closed += (_, _) => _moonReportWindow = null;
         _moonReportWindow.Show();
         _moonReportWindow.Activate();
+    }
+    private void OpenCloudBackup_Click(
+        object sender,
+        RoutedEventArgs e)
+    {
+        if (_cloudBackupWindow != null)
+        {
+            if (_cloudBackupWindow.WindowState == WindowState.Minimized)
+                _cloudBackupWindow.WindowState = WindowState.Normal;
+            _cloudBackupWindow.Activate();
+            return;
+        }
+
+        _cloudBackupWindow = new CloudBackupWindow { Owner = this };
+        _cloudBackupWindow.Closed += (_, _) => _cloudBackupWindow = null;
+        _cloudBackupWindow.Show();
+        _cloudBackupWindow.Activate();
     }
     private void Close_Click(object sender, RoutedEventArgs e) => Close();
 

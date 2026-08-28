@@ -415,6 +415,26 @@ public partial class MoonReportWindow : Window
         catch (Exception ex) { SetStatus("Could not import moon setup: " + ex.Message, true); }
     }
 
+    private async void ImportLseAudit_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            MoonProfileImportResult result =
+                await _service.ImportProfilesByNameAsync(
+                    LseMoonAuditService.GetProfiles());
+            ApplySnapshot(_service.GetSnapshot());
+            SetStatus(
+                $"Loaded {result.Total:N0} LSHI moon profiles from " +
+                $"{LseMoonAuditService.SourceLabel}. " +
+                $"Matched {result.Matched:N0}; {result.Pending:N0} will " +
+                "attach automatically when ESI reveals those moon IDs.");
+        }
+        catch (Exception ex)
+        {
+            SetStatus("Could not load the LSE moon audit: " + ex.Message, true);
+        }
+    }
+
     private void Export_Click(object sender, RoutedEventArgs e)
     {
         var dialog = new Microsoft.Win32.SaveFileDialog { Title = "Export Moon Report setup", FileName = "moon-report-setup.csv", DefaultExt = ".csv", Filter = "CSV files (*.csv)|*.csv" };
