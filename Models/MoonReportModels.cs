@@ -11,6 +11,7 @@ public sealed class MoonReportState
     public Dictionary<long, MoonProfile> Profiles { get; set; } = new();
     public Dictionary<string, MoonPullRecord> Pulls { get; set; } = new();
     public Dictionary<string, long> LedgerTotals { get; set; } = new();
+    public Dictionary<string, double> DailyMinedM3 { get; set; } = new();
     public HashSet<long> BaselinedObservers { get; set; } = new();
     public Dictionary<int, string> TypeNames { get; set; } = new();
     public Dictionary<int, double> TypeVolumes { get; set; } = new();
@@ -27,7 +28,9 @@ public sealed class MoonProfile
     public string SystemName { get; set; } = "";
     public bool ProfileConfigured { get; set; }
     public double ZeolitesPercent { get; set; }
+    public double SylvitePercent { get; set; }
     public double BitumensPercent { get; set; }
+    public double CoesitePercent { get; set; }
     public double FieldLifetimeHours { get; set; } = 48;
     public double WastePercent { get; set; } = 7;
 }
@@ -48,6 +51,7 @@ public sealed class MoonPullRecord
     public DateTimeOffset? EstimatedFieldExpiryUtc { get; set; }
     public DateTimeOffset? ExpiredUtc { get; set; }
     public bool OutcomeUnobserved { get; set; }
+    public bool JackpotObserved { get; set; }
     public bool SeenInLatestExtractionList { get; set; }
     public Dictionary<string, double> MinedM3ByOre { get; set; } =
         new(StringComparer.OrdinalIgnoreCase);
@@ -66,6 +70,21 @@ public sealed class MoonReportSnapshot
     public int TargetDespawnCount { get; init; }
     public double ZeolitesLostM3 { get; init; }
     public double BitumensLostM3 { get; init; }
+    public double SylviteLostM3 { get; init; }
+    public double CoesiteLostM3 { get; init; }
+    public double TotalMinedM3 { get; init; }
+    public double TotalLostM3 { get; init; }
+    public double ZeolitesMinedM3 { get; init; }
+    public double SylviteMinedM3 { get; init; }
+    public double BitumensMinedM3 { get; init; }
+    public double CoesiteMinedM3 { get; init; }
+    public int JackpotCount { get; init; }
+    public IReadOnlyList<MoonDailyTotalView> DailyTotals { get; init; } =
+        Array.Empty<MoonDailyTotalView>();
+    public IReadOnlyList<MoonPeriodReportView> MonthlyReports { get; init; } =
+        Array.Empty<MoonPeriodReportView>();
+    public IReadOnlyList<MoonPeriodReportView> WeeklyReports { get; init; } =
+        Array.Empty<MoonPeriodReportView>();
 }
 
 public sealed class MoonCardView
@@ -87,8 +106,17 @@ public sealed class MoonCardView
     public string ZeolitesRemaining { get; init; } = "Profile needed";
     public string BitumensMined { get; init; } = "0 m3";
     public string BitumensRemaining { get; init; } = "Profile needed";
+    public string SylviteMined { get; init; } = "0 m3";
+    public string SylviteRemaining { get; init; } = "Profile needed";
+    public string CoesiteMined { get; init; } = "0 m3";
+    public string CoesiteRemaining { get; init; } = "Profile needed";
     public double ZeolitesRemainingM3 { get; init; }
     public double BitumensRemainingM3 { get; init; }
+    public double SylviteRemainingM3 { get; init; }
+    public double CoesiteRemainingM3 { get; init; }
+    public DateTimeOffset? ScheduleUtc { get; init; }
+    public bool IsJackpot { get; init; }
+    public string JackpotLabel { get; init; } = "";
     public bool HasTargetProfile { get; init; }
     public bool HasTargetLeftover { get; init; }
     public string MoonImageUri { get; init; } =
@@ -107,8 +135,50 @@ public sealed class MoonAuditView
     public string ZeolitesLeft { get; init; } = "";
     public string BitumensMined { get; init; } = "";
     public string BitumensLeft { get; init; } = "";
+    public string SylviteMined { get; init; } = "";
+    public string SylviteLeft { get; init; } = "";
+    public string CoesiteMined { get; init; } = "";
+    public string CoesiteLeft { get; init; } = "";
     public string Outcome { get; init; } = "";
     public string OutcomeBrush { get; init; } = "#78909C";
+}
+
+public sealed class MoonDailyTotalView
+{
+    public DateTime Date { get; init; }
+    public string DateKey { get; init; } = "";
+    public double ZeolitesM3 { get; init; }
+    public double SylviteM3 { get; init; }
+    public double BitumensM3 { get; init; }
+    public double CoesiteM3 { get; init; }
+    public double LostM3 { get; init; }
+    public int PullCount { get; init; }
+    public int JackpotCount { get; init; }
+    public double TotalM3 =>
+        ZeolitesM3 + SylviteM3 + BitumensM3 + CoesiteM3;
+}
+
+public sealed class MoonPeriodReportView
+{
+    public string PeriodKey { get; init; } = "";
+    public string Label { get; init; } = "";
+    public DateTime StartDate { get; init; }
+    public DateTime EndDate { get; init; }
+    public double MinedM3 { get; init; }
+    public double LostM3 { get; init; }
+    public double ZeolitesM3 { get; init; }
+    public double SylviteM3 { get; init; }
+    public double BitumensM3 { get; init; }
+    public double CoesiteM3 { get; init; }
+    public int PullCount { get; init; }
+    public int JackpotCount { get; init; }
+    public double EfficiencyPercent =>
+        MinedM3 + LostM3 > 0
+            ? MinedM3 / (MinedM3 + LostM3) * 100.0
+            : 0;
+    public string MinedText { get; init; } = "";
+    public string LostText { get; init; } = "";
+    public string EfficiencyText { get; init; } = "";
 }
 
 public sealed class EsiCharacterPublic

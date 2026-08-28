@@ -15,6 +15,7 @@ namespace EveMultiPreview.Services;
 
 public sealed class MoonReportService : IDisposable
 {
+    public const int SchemaVersion = 5;
     public const string MiningScope =
         "esi-industry.read_corporation_mining.v1";
     public const string StructureScope =
@@ -36,7 +37,7 @@ public sealed class MoonReportService : IDisposable
         _sso = sso;
         _http = new HttpClient { Timeout = TimeSpan.FromSeconds(45) };
         _http.DefaultRequestHeaders.UserAgent.ParseAdd(
-            "EVE-Command-Center-Moon-Report/0.4");
+            "EVE-Command-Center-Moon-Report/0.5");
         _http.DefaultRequestHeaders.TryAddWithoutValidation(
             "X-Compatibility-Date", "2026-08-25");
 
@@ -227,7 +228,9 @@ public sealed class MoonReportService : IDisposable
                     "This moon has not been identified by ESI yet.");
 
             profile.ZeolitesPercent = Clamp(profile.ZeolitesPercent, 0, 100);
+            profile.SylvitePercent = Clamp(profile.SylvitePercent, 0, 100);
             profile.BitumensPercent = Clamp(profile.BitumensPercent, 0, 100);
+            profile.CoesitePercent = Clamp(profile.CoesitePercent, 0, 100);
             profile.ProfileConfigured = true;
             profile.FieldLifetimeHours =
                 Clamp(profile.FieldLifetimeHours, 1, 168);
@@ -251,8 +254,12 @@ public sealed class MoonReportService : IDisposable
             {
                 profile.ZeolitesPercent =
                     Clamp(profile.ZeolitesPercent, 0, 100);
+                profile.SylvitePercent =
+                    Clamp(profile.SylvitePercent, 0, 100);
                 profile.BitumensPercent =
                     Clamp(profile.BitumensPercent, 0, 100);
+                profile.CoesitePercent =
+                    Clamp(profile.CoesitePercent, 0, 100);
                 profile.ProfileConfigured = true;
                 profile.FieldLifetimeHours =
                     Clamp(profile.FieldLifetimeHours, 1, 168);
@@ -468,6 +475,8 @@ public sealed class MoonReportService : IDisposable
         CancellationToken cancellationToken)
     {
         bool isBaseline = !_state.BaselinedObservers.Contains(observerId);
+        var dailyAbsolute = new Dictionary<string, double>(
+            StringComparer.OrdinalIgnoreCase);
 
         foreach (EsiMiningLedgerEntry entry in ledger)
         {
@@ -480,6 +489,27 @@ public sealed class MoonReportService : IDisposable
                 entry.RecordedCorporationId.ToString(CultureInfo.InvariantCulture),
                 entry.TypeId.ToString(CultureInfo.InvariantCulture));
 
+            EsiTypePublic type = await GetTypeAsync(
+                entry.TypeId, cancellationToken);
+            string? family = OreFamily(type.Name);
+            if (family == null)
+                continue;
+
+            string dailyKey = string.Join(
+                ":",
+                observerId.ToString(CultureInfo.InvariantCulture),
+                entry.LastUpdated.ToString("yyyyMMdd", CultureInfo.InvariantCulture),
+                family);
+            dailyAbsolute.TryGetValue(dailyKey, out double dailyM3);
+            dailyAbsolute[dailyKey] = dailyM3 +
+                entry.Quantity * Math.Max(0, type.Volume);
+
+            MoonPullRecord? observedPull = FindLedgerPull(
+                observerId, entry.LastUpdated);
+            if (observedPull != null && type.Name.Contains(
+                    "Glistening", StringComparison.OrdinalIgnoreCase))
+                observedPull.JackpotObserved = true;
+
             _state.LedgerTotals.TryGetValue(key, out long oldQuantity);
             long delta = Math.Max(0, entry.Quantity - oldQuantity);
             _state.LedgerTotals[key] = entry.Quantity;
@@ -487,21 +517,20 @@ public sealed class MoonReportService : IDisposable
             if (isBaseline || delta <= 0)
                 continue;
 
-            EsiTypePublic type = await GetTypeAsync(
-                entry.TypeId, cancellationToken);
-            if (!IsTargetOre(type.Name))
-                continue;
-
-            MoonPullRecord? pull = FindLedgerPull(
-                observerId,
-                entry.LastUpdated);
+            MoonPullRecord? pull = observedPull;
             if (pull == null)
                 continue;
 
             double minedM3 = delta * Math.Max(0, type.Volume);
             pull.MinedM3ByOre.TryGetValue(type.Name, out double oldM3);
             pull.MinedM3ByOre[type.Name] = oldM3 + minedM3;
+            if (type.Name.Contains(
+                    "Glistening", StringComparison.OrdinalIgnoreCase))
+                pull.JackpotObserved = true;
         }
+
+        foreach (KeyValuePair<string, double> item in dailyAbsolute)
+            _state.DailyMinedM3[item.Key] = item.Value;
 
         _state.BaselinedObservers.Add(observerId);
     }
@@ -516,15 +545,15 @@ public sealed class MoonReportService : IDisposable
         MoonPullRecord[] candidates = _state.Pulls.Values
             .Where(p =>
                 p.StructureId == observerId &&
-                p.FracturedUtc.HasValue &&
                 !p.OutcomeUnobserved)
-            .OrderByDescending(p => p.FracturedUtc)
+            .OrderByDescending(p => p.FracturedUtc ?? p.ChunkArrivalUtc)
             .ToArray();
 
         return candidates.FirstOrDefault(p =>
-                   p.FracturedUtc!.Value < dayEnd &&
-                   (!p.EstimatedFieldExpiryUtc.HasValue ||
-                    p.EstimatedFieldExpiryUtc.Value >= dayStart)) ??
+                   (p.FracturedUtc ?? p.ChunkArrivalUtc) < dayEnd &&
+                   (p.EstimatedFieldExpiryUtc ??
+                    p.ChunkArrivalUtc.AddHours(
+                        ProfileFor(p).FieldLifetimeHours)) >= dayStart) ??
                candidates.FirstOrDefault(p => !p.ExpiredUtc.HasValue);
     }
 
@@ -584,6 +613,24 @@ public sealed class MoonReportService : IDisposable
             .ToArray();
 
         MoonAuditView[] auditRows = audit.ToArray();
+        MoonDailyTotalView[] daily = BuildDailyTotals();
+        MoonPeriodReportView[] monthly = BuildPeriodReports(daily, true);
+        MoonPeriodReportView[] weekly = BuildPeriodReports(daily, false);
+
+        MoonPullRecord[] reliableExpired = _state.Pulls.Values
+            .Where(p =>
+                p.ExpiredUtc.HasValue &&
+                !p.OutcomeUnobserved &&
+                ProfileFor(p).ProfileConfigured)
+            .ToArray();
+        double zeoLost = reliableExpired.Sum(p =>
+            Remaining(p, ProfileFor(p), "zeolit"));
+        double sylviteLost = reliableExpired.Sum(p =>
+            Remaining(p, ProfileFor(p), "sylvit"));
+        double bitumensLost = reliableExpired.Sum(p =>
+            Remaining(p, ProfileFor(p), "bitumen"));
+        double coesiteLost = reliableExpired.Sum(p =>
+            Remaining(p, ProfileFor(p), "coesite"));
 
         return new MoonReportSnapshot
         {
@@ -594,19 +641,21 @@ public sealed class MoonReportService : IDisposable
             ReadyCount = orderedCards.Count(c => c.Status == "READY"),
             ActiveFieldCount = orderedCards.Count(c => c.Status == "FIELD ACTIVE"),
             TargetDespawnCount =
-                auditRows.Count(a => a.Outcome == "TARGET ORE LEFT"),
-            ZeolitesLostM3 = _state.Pulls.Values
-                .Where(p =>
-                    p.ExpiredUtc.HasValue &&
-                    !p.OutcomeUnobserved &&
-                    ProfileFor(p).ProfileConfigured)
-                .Sum(p => Remaining(p, ProfileFor(p), "zeolit")),
-            BitumensLostM3 = _state.Pulls.Values
-                .Where(p =>
-                    p.ExpiredUtc.HasValue &&
-                    !p.OutcomeUnobserved &&
-                    ProfileFor(p).ProfileConfigured)
-                .Sum(p => Remaining(p, ProfileFor(p), "bitumen"))
+                auditRows.Count(a => a.Outcome == "ORE LEFT"),
+            ZeolitesLostM3 = zeoLost,
+            SylviteLostM3 = sylviteLost,
+            BitumensLostM3 = bitumensLost,
+            CoesiteLostM3 = coesiteLost,
+            TotalMinedM3 = daily.Sum(d => d.TotalM3),
+            TotalLostM3 = zeoLost + sylviteLost + bitumensLost + coesiteLost,
+            ZeolitesMinedM3 = daily.Sum(d => d.ZeolitesM3),
+            SylviteMinedM3 = daily.Sum(d => d.SylviteM3),
+            BitumensMinedM3 = daily.Sum(d => d.BitumensM3),
+            CoesiteMinedM3 = daily.Sum(d => d.CoesiteM3),
+            JackpotCount = _state.Pulls.Values.Count(p => p.JackpotObserved),
+            DailyTotals = daily,
+            MonthlyReports = monthly,
+            WeeklyReports = weekly
         };
     }
 
@@ -628,6 +677,7 @@ public sealed class MoonReportService : IDisposable
                 StatusBrush = "#607D8B",
                 ScheduleLabel = "NEXT PULL",
                 ScheduleValue = "No active extraction",
+                LastFracture = InferredLastFracture(profile.StructureId),
                 HasTargetProfile = HasTargetProfile(profile),
                 Profile = CloneProfile(profile)
             };
@@ -681,14 +731,20 @@ public sealed class MoonReportService : IDisposable
         }
 
         double zeoMined = Mined(pull, "zeolit");
+        double sylviteMined = Mined(pull, "sylvit");
         double bitumensMined = Mined(pull, "bitumen");
+        double coesiteMined = Mined(pull, "coesite");
         double zeoRemaining = Remaining(pull, profile, "zeolit");
+        double sylviteRemaining = Remaining(pull, profile, "sylvit");
         double bitumensRemaining = Remaining(pull, profile, "bitumen");
+        double coesiteRemaining = Remaining(pull, profile, "coesite");
         bool targetProfile = HasTargetProfile(profile);
         bool targetLeft = pull.ExpiredUtc.HasValue &&
             !pull.OutcomeUnobserved && targetProfile &&
             (zeoRemaining >= AlertFloorM3 ||
-             bitumensRemaining >= AlertFloorM3);
+             sylviteRemaining >= AlertFloorM3 ||
+             bitumensRemaining >= AlertFloorM3 ||
+             coesiteRemaining >= AlertFloorM3);
 
         return new MoonCardView
         {
@@ -706,7 +762,7 @@ public sealed class MoonReportService : IDisposable
                 pull.ChunkArrivalUtc - pull.ExtractionStartUtc),
             LastFracture = pull.FracturedUtc.HasValue
                 ? DateAndRelative(pull.FracturedUtc.Value, now)
-                : "Not observed yet",
+                : InferredLastFracture(pull.StructureId),
             FieldExpiry = pull.EstimatedFieldExpiryUtc.HasValue
                 ? DateAndRelative(pull.EstimatedFieldExpiryUtc.Value, now)
                 : "-",
@@ -718,8 +774,21 @@ public sealed class MoonReportService : IDisposable
             BitumensRemaining = targetProfile
                 ? FormatM3(bitumensRemaining)
                 : "Profile needed",
+            SylviteMined = FormatM3(sylviteMined),
+            SylviteRemaining = targetProfile
+                ? FormatM3(sylviteRemaining)
+                : "Profile needed",
+            CoesiteMined = FormatM3(coesiteMined),
+            CoesiteRemaining = targetProfile
+                ? FormatM3(coesiteRemaining)
+                : "Profile needed",
             ZeolitesRemainingM3 = zeoRemaining,
             BitumensRemainingM3 = bitumensRemaining,
+            SylviteRemainingM3 = sylviteRemaining,
+            CoesiteRemainingM3 = coesiteRemaining,
+            ScheduleUtc = pull.ChunkArrivalUtc,
+            IsJackpot = pull.JackpotObserved,
+            JackpotLabel = pull.JackpotObserved ? "JACKPOT OBSERVED" : "",
             HasTargetProfile = targetProfile,
             HasTargetLeftover = targetLeft,
             Profile = CloneProfile(profile)
@@ -731,18 +800,23 @@ public sealed class MoonReportService : IDisposable
         MoonProfile profile)
     {
         double zeoLeft = Remaining(pull, profile, "zeolit");
+        double sylviteLeft = Remaining(pull, profile, "sylvit");
         double bitumensLeft = Remaining(pull, profile, "bitumen");
+        double coesiteLeft = Remaining(pull, profile, "coesite");
         bool configured = HasTargetProfile(profile);
         bool reliable = configured && !pull.OutcomeUnobserved;
         bool targetLeft = reliable &&
-            (zeoLeft >= AlertFloorM3 || bitumensLeft >= AlertFloorM3);
+            (zeoLeft >= AlertFloorM3 ||
+             sylviteLeft >= AlertFloorM3 ||
+             bitumensLeft >= AlertFloorM3 ||
+             coesiteLeft >= AlertFloorM3);
 
         string outcome = pull.OutcomeUnobserved
             ? "UNOBSERVED"
             : !configured
                 ? "PROFILE NEEDED"
                 : targetLeft
-                    ? "TARGET ORE LEFT"
+                    ? "ORE LEFT"
                     : "CLEARED";
 
         return new MoonAuditView
@@ -758,6 +832,10 @@ public sealed class MoonReportService : IDisposable
             ZeolitesLeft = reliable ? FormatM3(zeoLeft) : "Unknown",
             BitumensMined = FormatM3(Mined(pull, "bitumen")),
             BitumensLeft = reliable ? FormatM3(bitumensLeft) : "Unknown",
+            SylviteMined = FormatM3(Mined(pull, "sylvit")),
+            SylviteLeft = reliable ? FormatM3(sylviteLeft) : "Unknown",
+            CoesiteMined = FormatM3(Mined(pull, "coesite")),
+            CoesiteLeft = reliable ? FormatM3(coesiteLeft) : "Unknown",
             Outcome = outcome,
             OutcomeBrush = targetLeft
                 ? "#EF5350"
@@ -772,9 +850,14 @@ public sealed class MoonReportService : IDisposable
         MoonProfile profile,
         string family)
     {
-        double percentage = family == "zeolit"
-            ? profile.ZeolitesPercent
-            : profile.BitumensPercent;
+        double percentage = family switch
+        {
+            "zeolit" => profile.ZeolitesPercent,
+            "sylvit" => profile.SylvitePercent,
+            "bitumen" => profile.BitumensPercent,
+            "coesite" => profile.CoesitePercent,
+            _ => 0
+        };
         if (percentage <= 0)
             return 0;
 
@@ -796,15 +879,208 @@ public sealed class MoonReportService : IDisposable
             .Sum(pair => pair.Value);
     }
 
-    private static bool IsTargetOre(string name)
+    private static string? OreFamily(string name)
     {
-        return name.Contains("zeolit", StringComparison.OrdinalIgnoreCase) ||
-               name.Contains("bitumen", StringComparison.OrdinalIgnoreCase);
+        if (name.Contains("zeolit", StringComparison.OrdinalIgnoreCase))
+            return "zeolites";
+        if (name.Contains("sylvit", StringComparison.OrdinalIgnoreCase))
+            return "sylvite";
+        if (name.Contains("bitumen", StringComparison.OrdinalIgnoreCase))
+            return "bitumens";
+        if (name.Contains("coesite", StringComparison.OrdinalIgnoreCase))
+            return "coesite";
+        return null;
     }
 
     private static bool HasTargetProfile(MoonProfile profile)
     {
         return profile.ProfileConfigured;
+    }
+
+    private MoonDailyTotalView[] BuildDailyTotals()
+    {
+        var totals = new Dictionary<DateTime, double[]>();
+        foreach (KeyValuePair<string, double> item in _state.DailyMinedM3)
+        {
+            string[] parts = item.Key.Split(':');
+            if (parts.Length != 3 ||
+                !DateTime.TryParseExact(
+                    parts[1], "yyyyMMdd", CultureInfo.InvariantCulture,
+                    DateTimeStyles.None, out DateTime date))
+                continue;
+
+            if (!totals.TryGetValue(date.Date, out double[]? ores))
+            {
+                ores = new double[4];
+                totals[date.Date] = ores;
+            }
+
+            switch (parts[2].ToLowerInvariant())
+            {
+                case "zeolites": ores[0] += item.Value; break;
+                case "sylvite": ores[1] += item.Value; break;
+                case "bitumens": ores[2] += item.Value; break;
+                case "coesite": ores[3] += item.Value; break;
+            }
+        }
+
+        DateTime[] dates = totals.Keys
+            .Concat(_state.Pulls.Values.Select(
+                p => p.ChunkArrivalUtc.UtcDateTime.Date))
+            .Concat(_state.Pulls.Values
+                .Where(p => p.ExpiredUtc.HasValue)
+                .Select(p => p.ExpiredUtc!.Value.UtcDateTime.Date))
+            .Distinct()
+            .OrderBy(date => date)
+            .ToArray();
+
+        return dates
+            .Select(date =>
+            {
+                double[] ores = totals.TryGetValue(date, out double[]? found)
+                    ? found : new double[4];
+                MoonPullRecord[] pulls = _state.Pulls.Values
+                    .Where(p => p.ChunkArrivalUtc.UtcDateTime.Date == date)
+                    .ToArray();
+                MoonPullRecord[] expired = _state.Pulls.Values
+                    .Where(p =>
+                        p.ExpiredUtc?.UtcDateTime.Date == date &&
+                        !p.OutcomeUnobserved &&
+                        ProfileFor(p).ProfileConfigured)
+                    .ToArray();
+                double lost = expired.Sum(p =>
+                    Remaining(p, ProfileFor(p), "zeolit") +
+                    Remaining(p, ProfileFor(p), "sylvit") +
+                    Remaining(p, ProfileFor(p), "bitumen") +
+                    Remaining(p, ProfileFor(p), "coesite"));
+                return new MoonDailyTotalView
+                {
+                    Date = date,
+                    DateKey = date.ToString("yyyy-MM-dd"),
+                    ZeolitesM3 = ores[0],
+                    SylviteM3 = ores[1],
+                    BitumensM3 = ores[2],
+                    CoesiteM3 = ores[3],
+                    LostM3 = lost,
+                    PullCount = pulls.Length,
+                    JackpotCount = pulls.Count(p => p.JackpotObserved)
+                };
+            })
+            .ToArray();
+    }
+
+    private MoonPeriodReportView[] BuildPeriodReports(
+        IReadOnlyList<MoonDailyTotalView> daily,
+        bool monthly)
+    {
+        DateTime PeriodStart(DateTime date)
+        {
+            if (monthly)
+                return new DateTime(date.Year, date.Month, 1);
+            int offset = ((int)date.DayOfWeek + 6) % 7;
+            return date.Date.AddDays(-offset);
+        }
+
+        var starts = daily
+            .Where(d => d.TotalM3 > 0 || d.LostM3 > 0)
+            .Select(d => PeriodStart(d.Date))
+            .Concat(_state.Pulls.Values
+                .Where(p => p.ExpiredUtc.HasValue)
+                .Select(p => PeriodStart(p.ExpiredUtc!.Value.UtcDateTime)))
+            .Distinct()
+            .OrderByDescending(date => date)
+            .ToArray();
+
+        var result = new List<MoonPeriodReportView>();
+        foreach (DateTime start in starts)
+        {
+            DateTime end = monthly
+                ? start.AddMonths(1)
+                : start.AddDays(7);
+            MoonDailyTotalView[] rows = daily
+                .Where(d => d.Date >= start && d.Date < end)
+                .ToArray();
+            MoonPullRecord[] pulls = _state.Pulls.Values
+                .Where(p =>
+                    p.ChunkArrivalUtc.UtcDateTime.Date >= start &&
+                    p.ChunkArrivalUtc.UtcDateTime.Date < end &&
+                    p.ChunkArrivalUtc <= DateTimeOffset.UtcNow)
+                .ToArray();
+            MoonPullRecord[] expired = _state.Pulls.Values
+                .Where(p =>
+                    p.ExpiredUtc.HasValue &&
+                    p.ExpiredUtc.Value.UtcDateTime.Date >= start &&
+                    p.ExpiredUtc.Value.UtcDateTime.Date < end &&
+                    !p.OutcomeUnobserved &&
+                    ProfileFor(p).ProfileConfigured)
+                .ToArray();
+
+            double lost = expired.Sum(p =>
+                Remaining(p, ProfileFor(p), "zeolit") +
+                Remaining(p, ProfileFor(p), "sylvit") +
+                Remaining(p, ProfileFor(p), "bitumen") +
+                Remaining(p, ProfileFor(p), "coesite"));
+            double mined = rows.Sum(d => d.TotalM3);
+            double efficiency = mined + lost > 0
+                ? mined / (mined + lost) * 100.0
+                : 0;
+            DateTime inclusiveEnd = end.AddDays(-1);
+            result.Add(new MoonPeriodReportView
+            {
+                PeriodKey = monthly
+                    ? start.ToString("yyyy-MM")
+                    : start.ToString("yyyy-MM-dd"),
+                Label = monthly
+                    ? start.ToString("MMMM yyyy")
+                    : start.ToString("dd MMM") + " - " +
+                      inclusiveEnd.ToString("dd MMM yyyy"),
+                StartDate = start,
+                EndDate = inclusiveEnd,
+                MinedM3 = mined,
+                LostM3 = lost,
+                ZeolitesM3 = rows.Sum(d => d.ZeolitesM3),
+                SylviteM3 = rows.Sum(d => d.SylviteM3),
+                BitumensM3 = rows.Sum(d => d.BitumensM3),
+                CoesiteM3 = rows.Sum(d => d.CoesiteM3),
+                PullCount = pulls.Length,
+                JackpotCount = pulls.Count(p => p.JackpotObserved),
+                MinedText = FormatM3(mined),
+                LostText = FormatM3(lost),
+                EfficiencyText = efficiency.ToString("0.0") + "%"
+            });
+        }
+
+        return result.ToArray();
+    }
+
+    private string InferredLastFracture(long structureId)
+    {
+        string prefix = structureId.ToString(CultureInfo.InvariantCulture) + ":";
+        DateTime[] dates = _state.DailyMinedM3.Keys
+            .Where(key => key.StartsWith(prefix, StringComparison.Ordinal))
+            .Select(key => key.Split(':'))
+            .Where(parts => parts.Length == 3)
+            .Select(parts => DateTime.TryParseExact(
+                    parts[1], "yyyyMMdd", CultureInfo.InvariantCulture,
+                    DateTimeStyles.None, out DateTime parsed)
+                ? parsed.Date
+                : DateTime.MinValue)
+            .Where(date => date != DateTime.MinValue)
+            .Distinct()
+            .OrderBy(date => date)
+            .ToArray();
+        if (dates.Length == 0)
+            return "Not observed yet";
+
+        DateTime start = dates[^1];
+        for (int i = dates.Length - 2; i >= 0; i--)
+        {
+            if ((start - dates[i]).TotalDays > 1)
+                break;
+            start = dates[i];
+        }
+        return "≈ " + start.ToString("dd MMM yyyy") +
+            " · inferred from ledger";
     }
 
     private MoonProfile ProfileFor(MoonPullRecord pull)
@@ -1010,7 +1286,9 @@ public sealed class MoonReportService : IDisposable
             SystemName = source.SystemName,
             ProfileConfigured = source.ProfileConfigured,
             ZeolitesPercent = source.ZeolitesPercent,
+            SylvitePercent = source.SylvitePercent,
             BitumensPercent = source.BitumensPercent,
+            CoesitePercent = source.CoesitePercent,
             FieldLifetimeHours = source.FieldLifetimeHours,
             WastePercent = source.WastePercent
         };
