@@ -19,7 +19,7 @@ public sealed class ContractService : IDisposable
     public const string WindowScope = "esi-ui.open_window.v1";
     public const string StructureScope = "esi-universe.read_structures.v1";
     public static readonly string[] Scopes = { ReadScope, WindowScope, StructureScope };
-    public static readonly string[] AllowedLocations = { "Raren - Ducks Migration", "Mazitah - Eagle One", "Joppaya IX - Moon 9 - Ardishapur Family Bureau" };
+    public static readonly string[] AllowedLocations = { "Raren - Ducks Migration", "Mazitah - EagleOne", "Joppaya IX - Moon 9 - Ardishapur Family Bureau" };
     public const long JoppayaStationId = 60008740;
     private readonly EveSsoService _sso;
     private readonly HttpClient _http;
@@ -49,6 +49,14 @@ public sealed class ContractService : IDisposable
         _file = Path.Combine(dir, "contracts.json");
         try { State = JsonSerializer.Deserialize<ContractState>(File.ReadAllText(_file)) ?? new(); }
         catch { State = new(); }
+        foreach (var row in State.Rows.Where(r => r.Contract.LocationId >= 1_000_000_000_000 && NormalizeLocation(r.Location).Equals("Mazitah - EagleOne", StringComparison.OrdinalIgnoreCase)))
+        {
+            if (row.LocationCheck == "WRONG DESTINATION" && row.PriceCheck == "MATCHES TARGET" && row.Reason == "Destination is not one of the three approved locations")
+            {
+                row.LocationCheck = "APPROVED"; row.HasMismatch = false; row.Result = "CHECKS PASSED";
+                row.Reason = "Price, market and configured location checks passed. Inspect contents before accepting in EVE.";
+            }
+        }
     }
 
     public static bool CanRead(EvePilotProfile pilot) => pilot.Scopes.Contains(ReadScope);
@@ -172,7 +180,12 @@ public sealed class ContractService : IDisposable
         return match.Success ? "https://janice.e-351.com/a/" + match.Groups[1].Value : null;
     }
 
-    public static string NormalizeLocation(string name) => Regex.Replace(name.Replace('\u2013', '-').Replace('\u2014', '-').Replace('\u00a0', ' ').Trim(), @"\s+", " ");
+    public static string NormalizeLocation(string name)
+    {
+        string normalized = Regex.Replace(name.Replace('\u2013', '-').Replace('\u2014', '-').Replace('\u00a0', ' ').Trim(), @"\s+", " ");
+        return normalized.Equals("Mazitah - Eagle One", StringComparison.OrdinalIgnoreCase) ? "Mazitah - EagleOne" : normalized;
+    }
+
 
     public static void Evaluate(ContractRow row, JsonElement? appraisal, decimal buyPercent, decimal tolerancePercent, string? error = null)
     {

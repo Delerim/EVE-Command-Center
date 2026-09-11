@@ -75,7 +75,7 @@ internal static partial class Program
         wrong.Contract.Title += " " + ContractService.AllowedLocations[2];
         ContractService.Evaluate(wrong, appraisal.RootElement, 90, 0.1m);
         Check(!wrong.Passed && wrong.LocationCheck == "WRONG DESTINATION", "Title cannot spoof destination");
-        foreach (string name in new[] { "Raren \u2013 Ducks Migration", "Mazitah - Eagle One" })
+        foreach (string name in new[] { "Raren \u2013 Ducks Migration", "Mazitah - Eagle One", "Mazitah - EagleOne" })
         {
             var structure = Row(location: 1_000_000_000_001, name: name);
             ContractService.Evaluate(structure, appraisal.RootElement, 90, 0.1m);
@@ -84,6 +84,9 @@ internal static partial class Program
         var suffix = Row(location: 1_000_000_000_001, name: "Mazitah - Eagle One EXTRA");
         ContractService.Evaluate(suffix, appraisal.RootElement, 90, 0.1m);
         Check(suffix.HasMismatch, "Partial destination match rejected");
+        var eagleTwo = Row(location: 1_000_000_000_001, name: "Mazitah - EagleTwo");
+        ContractService.Evaluate(eagleTwo, appraisal.RootElement, 90, 0.1m);
+        Check(eagleTwo.LocationCheck == "WRONG DESTINATION", "EagleOne alias does not authorize EagleTwo");
         var unknown = Row(name: "Unresolved (60008740)");
         ContractService.Evaluate(unknown, null, 90, 0.1m, "Janice unavailable");
         Check(!unknown.Passed && !unknown.HasMismatch && unknown.ResultColor == "#FFD166", "Unverified data is amber, never green");
