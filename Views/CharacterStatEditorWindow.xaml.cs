@@ -1,11 +1,11 @@
 using System.Collections.Generic;
 using System.Windows;
 using System.Windows.Controls;
-using EveMultiPreview.Models;
+using EveCommandCenter.Models;
 
 using CheckBox = System.Windows.Controls.CheckBox;
 
-namespace EveMultiPreview.Views;
+namespace EveCommandCenter.Views;
 
 /// <summary>
 /// Modal editor for a single character's per-metric stat overlay overrides.

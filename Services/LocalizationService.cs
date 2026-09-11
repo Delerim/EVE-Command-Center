@@ -3,7 +3,7 @@ using System.Windows;
 
 using Application = System.Windows.Application;
 
-namespace EveMultiPreview.Services;
+namespace EveCommandCenter.Services;
 
 /// <summary>
 /// Runtime UI language switching (issue #86). UI strings live in per-language

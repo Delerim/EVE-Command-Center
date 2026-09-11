@@ -9,7 +9,7 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace EveMultiPreview.Services;
+namespace EveCommandCenter.Services;
 
 /// <summary>
 /// Compact one-year mining-history index.
@@ -565,7 +565,7 @@ public sealed class MiningHistoryService : IDisposable
         }
         catch
         {
-            // History is reconstructable from EVE logs. Never crash MultiPreview.
+            // History is reconstructable from EVE logs. Never crash Command Center.
         }
     }
 

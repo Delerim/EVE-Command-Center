@@ -3,7 +3,7 @@ using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Media;
 
-namespace EveMultiPreview.Interop;
+namespace EveCommandCenter.Interop;
 
 /// <summary>
 /// Converts between WPF DIPs (Device Independent Pixels) and Win32 physical pixels.

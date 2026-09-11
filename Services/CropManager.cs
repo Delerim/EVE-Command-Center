@@ -6,13 +6,13 @@ using System.Globalization;
 using System.Linq;
 using System.Windows;
 using System.Windows.Media;
-using EveMultiPreview.Models;
-using EveMultiPreview.Views;
+using EveCommandCenter.Models;
+using EveCommandCenter.Views;
 
 using Application = System.Windows.Application;
 using Color = System.Windows.Media.Color;
 
-namespace EveMultiPreview.Services;
+namespace EveCommandCenter.Services;
 
 /// <summary>
 /// Lifecycle manager for CropWindow popups. Mirrors ThumbnailManager:
@@ -454,7 +454,7 @@ public sealed class CropManager : IDisposable
     /// when the player switches characters within the same client window.
     ///
     /// Without this handler, crop popups never spawned on app relaunch when
-    /// the user happened to launch the EVE clients while MultiPreview was
+    /// the user happened to launch the EVE clients while Command Center was
     /// already running: WindowFound fires at the char-select screen with an
     /// empty CharacterName so the early-return at the top of OnWindowFound
     /// skips the binding, and the subsequent rename never reached us.

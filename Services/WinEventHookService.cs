@@ -1,11 +1,11 @@
 using System;
 using System.Diagnostics;
 using System.Windows.Threading;
-using EveMultiPreview.Interop;
+using EveCommandCenter.Interop;
 
 using Application = System.Windows.Application;
 
-namespace EveMultiPreview.Services;
+namespace EveCommandCenter.Services;
 
 /// <summary>
 /// Single owner of SetWinEventHook subscriptions. Replaces per-tick polling in

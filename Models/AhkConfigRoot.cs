@@ -1,7 +1,7 @@
 ﻿using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace EveMultiPreview.Models;
+namespace EveCommandCenter.Models;
 
 /// <summary>
 /// Root model that matches the AHK JSON structure EXACTLY.

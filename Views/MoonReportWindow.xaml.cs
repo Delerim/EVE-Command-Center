@@ -7,8 +7,8 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
-using EveMultiPreview.Models;
-using EveMultiPreview.Services;
+using EveCommandCenter.Models;
+using EveCommandCenter.Services;
 using WpfBorder = System.Windows.Controls.Border;
 using WpfButton = System.Windows.Controls.Button;
 using WpfComboBoxItem = System.Windows.Controls.ComboBoxItem;
@@ -25,7 +25,7 @@ using WpfCursors = System.Windows.Input.Cursors;
 using WpfBitmapImage = System.Windows.Media.Imaging.BitmapImage;
 using WpfDispatcherTimer = System.Windows.Threading.DispatcherTimer;
 
-namespace EveMultiPreview.Views;
+namespace EveCommandCenter.Views;
 
 public partial class MoonReportWindow : Window
 {

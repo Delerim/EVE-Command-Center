@@ -5,10 +5,10 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Interop;
-using EveMultiPreview.Interop;
-using EveMultiPreview.Models;
+using EveCommandCenter.Interop;
+using EveCommandCenter.Models;
 
-namespace EveMultiPreview.Services;
+namespace EveCommandCenter.Services;
 
 
 
@@ -119,7 +119,7 @@ public sealed class HotkeyService : IDisposable
     /// <summary>Initialize the hotkey service. Must be called on UI thread.</summary>
     public void Initialize()
     {
-        var parameters = new HwndSourceParameters("EveMultiPreviewHotkeyWindow")
+        var parameters = new HwndSourceParameters("EveCommandCenterHotkeyWindow")
         {
             Width = 0,
             Height = 0,
@@ -1265,7 +1265,7 @@ public sealed class HotkeyService : IDisposable
                     // every DOWN we matched to a button, the live modifiers, how many
                     // bindings exist for it, and whether one actually fired — so a
                     // "button is eaten but doesn't cycle" report can be pinpointed.
-                    EveMultiPreview.Services.DiagnosticsService.LogCycling(
+                    EveCommandCenter.Services.DiagnosticsService.LogCycling(
                         $"[Hotkey:Mouse] DOWN {buttonName} mods=0x{currentMods:X} " +
                         $"bindings-for-button={_mouseBindings.Count(b => b.ButtonName == buttonName)} " +
                         $"matched={(bestBinding != null ? $"yes(repeat={bestBinding.AllowRepeat})" : "NO — no binding for these modifiers")}");
@@ -1290,7 +1290,7 @@ public sealed class HotkeyService : IDisposable
                             if (fgTitle != null && fgTitle.Contains("Settings", StringComparison.OrdinalIgnoreCase)
                                 && User32.IsAppProcessName(User32.GetProcessName(fgHwnd)))
                             {
-                                EveMultiPreview.Services.DiagnosticsService.LogCycling(
+                                EveCommandCenter.Services.DiagnosticsService.LogCycling(
                                     $"[Hotkey:Mouse] {buttonName} SUPPRESSED — Settings window is foreground, cycle not fired");
                                 return User32.CallNextHookEx(_mouseHookHandle, nCode, wParam, lParam);
                             }
@@ -1305,13 +1305,13 @@ public sealed class HotkeyService : IDisposable
                         var fireButton = buttonName;
                         System.Windows.Application.Current?.Dispatcher.BeginInvoke(() =>
                         {
-                            EveMultiPreview.Services.DiagnosticsService.LogCycling(
+                            EveCommandCenter.Services.DiagnosticsService.LogCycling(
                                 $"[Hotkey:Mouse] invoking cycle action for {fireButton} (armRepeat={armRepeat})");
                             try { binding.Action.Invoke(); }
                             catch (Exception ex)
                             {
                                 Debug.WriteLine($"[Hotkey:Mouse] ❌ Action error: {ex.Message}");
-                                EveMultiPreview.Services.DiagnosticsService.LogCycling(
+                                EveCommandCenter.Services.DiagnosticsService.LogCycling(
                                     $"[Hotkey:Mouse] ❌ cycle action threw: {ex.GetType().Name}: {ex.Message}");
                             }
 

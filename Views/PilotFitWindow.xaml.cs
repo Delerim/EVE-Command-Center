@@ -4,9 +4,9 @@ using System.Linq;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media.Imaging;
-using EveMultiPreview.Models;
+using EveCommandCenter.Models;
 
-namespace EveMultiPreview.Views;
+namespace EveCommandCenter.Views;
 
 public partial class PilotFitWindow : Window
 {

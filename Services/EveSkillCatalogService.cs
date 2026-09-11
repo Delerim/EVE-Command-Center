@@ -8,9 +8,9 @@ using System.Net.Http.Headers;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
-using EveMultiPreview.Models;
+using EveCommandCenter.Models;
 
-namespace EveMultiPreview.Services;
+namespace EveCommandCenter.Services;
 
 /// <summary>
 /// Builds a complete published EVE skill catalogue from public ESI.
@@ -48,7 +48,7 @@ public sealed class EveSkillCatalogService
         };
 
         _http.DefaultRequestHeaders.UserAgent.ParseAdd(
-            "EVE-Command-Center/0.2 (+https://github.com/Delerim/EVE-MultiPreview)");
+            "EVE-Command-Center/0.2 (+https://github.com/Delerim/EVE-Command-Center)");
         _http.DefaultRequestHeaders.TryAddWithoutValidation(
             "X-Compatibility-Date", "2026-08-25");
 

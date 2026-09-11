@@ -11,9 +11,9 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
-using EveMultiPreview.Models;
+using EveCommandCenter.Models;
 
-namespace EveMultiPreview.Services;
+namespace EveCommandCenter.Services;
 
 public sealed class MoonReportService : IDisposable
 {

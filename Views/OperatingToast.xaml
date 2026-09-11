@@ -1,4 +1,4 @@
-<Window x:Class="EveMultiPreview.Views.OperatingToast"
+<Window x:Class="EveCommandCenter.Views.OperatingToast"
  xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
  Width="370" Height="132" WindowStyle="None" ResizeMode="NoResize"

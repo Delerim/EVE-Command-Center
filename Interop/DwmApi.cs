@@ -1,7 +1,7 @@
 using System;
 using System.Runtime.InteropServices;
 
-namespace EveMultiPreview.Interop;
+namespace EveCommandCenter.Interop;
 
 /// <summary>
 /// P/Invoke wrappers for the Desktop Window Manager (DWM) thumbnail API.
@@ -91,7 +91,7 @@ public static class DwmApi
     public static IntPtr RegisterThumbnail(IntPtr destHwnd, IntPtr srcHwnd)
     {
         int hr = DwmRegisterThumbnail(destHwnd, srcHwnd, out IntPtr thumbId);
-        EveMultiPreview.Services.DiagnosticsService.LogDwm($"[RegisterThumbnail] Dest: {destHwnd}, Src: {srcHwnd} -> HResult: 0x{hr:X8}, ThumbID: {thumbId}");
+        EveCommandCenter.Services.DiagnosticsService.LogDwm($"[RegisterThumbnail] Dest: {destHwnd}, Src: {srcHwnd} -> HResult: 0x{hr:X8}, ThumbID: {thumbId}");
         return hr == 0 ? thumbId : IntPtr.Zero;
     }
 
@@ -103,7 +103,7 @@ public static class DwmApi
         if (thumbId != IntPtr.Zero)
         {
             int hr = DwmUnregisterThumbnail(thumbId);
-            EveMultiPreview.Services.DiagnosticsService.LogDwm($"[UnregisterThumbnail] ThumbID: {thumbId} -> HResult: 0x{hr:X8}");
+            EveCommandCenter.Services.DiagnosticsService.LogDwm($"[UnregisterThumbnail] ThumbID: {thumbId} -> HResult: 0x{hr:X8}");
         }
     }
 
@@ -124,7 +124,7 @@ public static class DwmApi
         };
 
         int hr = DwmUpdateThumbnailProperties(thumbId, ref props);
-        EveMultiPreview.Services.DiagnosticsService.LogDwm($"[UpdateThumbnail] ThumbID: {thumbId}, W:{destWidth} H:{destHeight}, Opacity:{opacity} -> HResult: 0x{hr:X8}");
+        EveCommandCenter.Services.DiagnosticsService.LogDwm($"[UpdateThumbnail] ThumbID: {thumbId}, W:{destWidth} H:{destHeight}, Opacity:{opacity} -> HResult: 0x{hr:X8}");
         return hr == 0;
     }
 
@@ -146,7 +146,7 @@ public static class DwmApi
         };
 
         int hr = DwmUpdateThumbnailProperties(thumbId, ref props);
-        EveMultiPreview.Services.DiagnosticsService.LogDwm($"[UpdateThumbnailInset] ThumbID: {thumbId}, W:{destWidth} H:{destHeight}, Inset:{border}, Opacity:{opacity} -> HResult: 0x{hr:X8}");
+        EveCommandCenter.Services.DiagnosticsService.LogDwm($"[UpdateThumbnailInset] ThumbID: {thumbId}, W:{destWidth} H:{destHeight}, Inset:{border}, Opacity:{opacity} -> HResult: 0x{hr:X8}");
         return hr == 0;
     }
 

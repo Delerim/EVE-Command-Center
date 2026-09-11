@@ -12,9 +12,9 @@ using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
-using EveMultiPreview.Models;
+using EveCommandCenter.Models;
 
-namespace EveMultiPreview.Services;
+namespace EveCommandCenter.Services;
 
 public sealed class EveSsoService
 {
@@ -90,7 +90,7 @@ public sealed class EveSsoService
     {
         _http = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
         _http.DefaultRequestHeaders.UserAgent.ParseAdd(
-            "EVE-Command-Center/0.1 (+https://github.com/Delerim/EVE-MultiPreview)");
+            "EVE-Command-Center/0.1 (+https://github.com/Delerim/EVE-Command-Center)");
         // Compatibility dates switch at 11:00 UTC. Pin to a reviewed,
         // already-valid date rather than using the local calendar date:
         // a "today" value before 11:00 UTC is treated by ESI as future

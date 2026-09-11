@@ -5,7 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Text.Json;
 
-namespace EveMultiPreview.Services;
+namespace EveCommandCenter.Services;
 
 /// <summary>
 /// Current mining-day store.
@@ -161,7 +161,7 @@ public sealed class MiningDailyStore
             }
             catch
             {
-                // History persistence must never interrupt live MultiPreview.
+                // History persistence must never interrupt live Command Center.
             }
         }
     }

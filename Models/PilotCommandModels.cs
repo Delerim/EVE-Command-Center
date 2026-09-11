@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Text.Json.Serialization;
 
-namespace EveMultiPreview.Models;
+namespace EveCommandCenter.Models;
 
 public sealed class EvePilotProfile
 {

@@ -5,13 +5,13 @@ using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Threading;
-using EveMultiPreview.Interop;
+using EveCommandCenter.Interop;
 
 using Color = System.Windows.Media.Color;
 using MouseEventArgs = System.Windows.Input.MouseEventArgs;
 using Point = System.Windows.Point;
 
-namespace EveMultiPreview.Views;
+namespace EveCommandCenter.Views;
 
 /// <summary>
 /// A borderless, transparent WPF window that hosts a live DWM thumbnail

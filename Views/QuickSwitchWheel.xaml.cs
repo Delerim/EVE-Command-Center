@@ -15,7 +15,7 @@ using MouseEventArgs = System.Windows.Input.MouseEventArgs;
 using Panel          = System.Windows.Controls.Panel;
 using Point          = System.Windows.Point;
 
-namespace EveMultiPreview.Views;
+namespace EveCommandCenter.Views;
 
 /// <summary>
 /// Quick-switch card grid for fast character selection.

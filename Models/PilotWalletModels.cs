@@ -1,7 +1,7 @@
 using System;
 using System.Text.Json.Serialization;
 
-namespace EveMultiPreview.Models;
+namespace EveCommandCenter.Models;
 
 public sealed class EveWalletTransactionEntry
 {

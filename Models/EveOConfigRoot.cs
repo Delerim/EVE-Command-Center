@@ -5,7 +5,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 
-namespace EveMultiPreview.Models;
+namespace EveCommandCenter.Models;
 
 /// <summary>
 /// Intermediate model for automatically migrating legacy 'EVE-O Preview.json' files into our AppSettings.

@@ -3,8 +3,8 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Threading;
-using EveMultiPreview.Interop;
-using EveMultiPreview.Models;
+using EveCommandCenter.Interop;
+using EveCommandCenter.Models;
 
 using Brushes = System.Windows.Media.Brushes;
 using Color = System.Windows.Media.Color;
@@ -12,7 +12,7 @@ using FontFamily = System.Windows.Media.FontFamily;
 using HorizontalAlignment = System.Windows.HorizontalAlignment;
 using VerticalAlignment = System.Windows.VerticalAlignment;
 
-namespace EveMultiPreview.Views;
+namespace EveCommandCenter.Views;
 
 /// <summary>
 /// Small always-on-top pill that shows which key(s) are currently being held and
@@ -76,7 +76,7 @@ public sealed class BroadcastHudWindow : IDisposable
             Topmost = true,
             ResizeMode = ResizeMode.NoResize,
             SizeToContent = SizeToContent.WidthAndHeight,
-            Title = "EVE MultiPreview — Broadcast HUD",
+            Title = "EVE Command Center — Broadcast HUD",
             Content = _pill,
             Left = settings.BroadcastHudX,
             Top = settings.BroadcastHudY,

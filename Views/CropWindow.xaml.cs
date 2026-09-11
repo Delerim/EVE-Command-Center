@@ -4,16 +4,16 @@ using System.Windows;
 using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Threading;
-using EveMultiPreview.Interop;
-using EveMultiPreview.Models;
-using EveMultiPreview.Services;
+using EveCommandCenter.Interop;
+using EveCommandCenter.Models;
+using EveCommandCenter.Services;
 
 using Color = System.Windows.Media.Color;
 using FontFamily = System.Windows.Media.FontFamily;
 using SolidColorBrush = System.Windows.Media.SolidColorBrush;
 using Point = System.Windows.Point;
 
-namespace EveMultiPreview.Views;
+namespace EveCommandCenter.Views;
 
 /// <summary>
 /// Borderless, transparent popup that displays a cropped client-area sub-rect

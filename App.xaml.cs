@@ -7,13 +7,13 @@ using System.Windows;
 using System.Windows.Forms;
 using System.Windows.Media;
 using System.Windows.Threading;
-using EveMultiPreview.Services;
-using EveMultiPreview.Views;
+using EveCommandCenter.Services;
+using EveCommandCenter.Views;
 
 using Application = System.Windows.Application;
 using MessageBox = System.Windows.MessageBox;
 
-namespace EveMultiPreview;
+namespace EveCommandCenter;
 
 /// <summary>
 /// Application entry point. Wires up all services:
@@ -68,7 +68,7 @@ public partial class App : Application
 
     // ── Startup perf logging ──
     private static readonly string _perfLogPath = System.IO.Path.Combine(
-        System.IO.Path.GetTempPath(), "evemultipreview_perf.log");
+        System.IO.Path.GetTempPath(), "evecommandcenter_perf.log");
     internal static void PerfLog(string msg)
     {
         var line = $"[{DateTime.Now:HH:mm:ss.fff}] {msg}";
@@ -81,7 +81,7 @@ public partial class App : Application
         System.Diagnostics.Trace.Listeners.Add(new System.Diagnostics.TextWriterTraceListener("debug_log.txt"));
         System.Diagnostics.Trace.AutoFlush = true;
         // Single-instance guard
-        _singleInstanceMutex = new Mutex(true, "EveMultiPreview_SingleInstance", out bool createdNew);
+        _singleInstanceMutex = new Mutex(true, "EveCommandCenter_SingleInstance", out bool createdNew);
         if (!createdNew)
         {
             // We allocated a Mutex object pointing at the existing kernel
@@ -301,24 +301,24 @@ public partial class App : Application
             {
                 Debug.WriteLine($"[App:Alert] ⚡ Alert: {alertType} [{severity}] for '{charName}'");
                 var activeChars = _thumbnailManager.GetActiveCharacterNames();
-                EveMultiPreview.Services.DiagnosticsService.LogAlerts(
+                EveCommandCenter.Services.DiagnosticsService.LogAlerts(
                     $"[App] AlertTriggered received: type={alertType} severity={severity} char='{charName}' " +
                     $"activeChars=[{string.Join(", ", activeChars.Select(c => $"'{c}'"))}]");
                 if (!activeChars.Any(n => string.Equals(n, charName, StringComparison.OrdinalIgnoreCase)))
                 {
                     Debug.WriteLine($"[App:Alert] ⏭ Skipped — '{charName}' not in active windows");
-                    EveMultiPreview.Services.DiagnosticsService.LogAlerts(
+                    EveCommandCenter.Services.DiagnosticsService.LogAlerts(
                         $"[App] DROPPED — '{charName}' not in active-windows list. Alert will not flash/badge/toast.");
                     return;
                 }
                 if (_thumbnailManager.IsCharacterAlertMuted(charName))
                 {
                     Debug.WriteLine($"[App:Alert] 🔇 Skipped — alerts muted/snoozed for '{charName}'");
-                    EveMultiPreview.Services.DiagnosticsService.LogAlerts(
+                    EveCommandCenter.Services.DiagnosticsService.LogAlerts(
                         $"[App] MUTED — alerts snoozed for '{charName}'. No flash/badge/toast/sound.");
                     return;
                 }
-                EveMultiPreview.Services.DiagnosticsService.LogAlerts(
+                EveCommandCenter.Services.DiagnosticsService.LogAlerts(
                     $"[App] '{charName}' found in active windows, dispatching to flash/badge/toast/sound");
                 _thumbnailManager.SetAlertFlash(charName, severity, alertType);
                 _thumbnailManager.IncrementAlertBadge(charName, severity, alertType);
@@ -336,9 +336,9 @@ public partial class App : Application
                 {
                     var alertHwnd = _thumbnailManager.GetHwndForCharacter(charName);
                     suppressForActive = alertHwnd != IntPtr.Zero
-                        && alertHwnd == EveMultiPreview.Interop.User32.GetForegroundWindow();
+                        && alertHwnd == EveCommandCenter.Interop.User32.GetForegroundWindow();
                 }
-                EveMultiPreview.Services.DiagnosticsService.LogAlerts(
+                EveCommandCenter.Services.DiagnosticsService.LogAlerts(
                     $"[App] toast decision for '{charName}': hubEnabled={_settings.Settings.AlertHubEnabled} trayNotify[{severity}]={trayEnabled} suppressForActive={suppressForActive}");
                 if (_settings.Settings.AlertHubEnabled && trayEnabled && !suppressForActive)
                     _alertHub.ShowToast(charName, alertType, severity);
@@ -393,10 +393,10 @@ public partial class App : Application
                 if (_trayIcon != null)
                 {
                     _trayIcon.Text = _hotkeyService.IsSuspended
-                        ? "⏸ EVE MultiPreview (SUSPENDED)"
-                        : "EVE MultiPreview";
+                        ? "⏸ EVE Command Center (SUSPENDED)"
+                        : "EVE Command Center";
                     var asm = System.Reflection.Assembly.GetExecutingAssembly();
-                    var icoName = _hotkeyService.IsSuspended ? "EveMultiPreview.Icon-Suspend.ico" : "EveMultiPreview.Icon.ico";
+                    var icoName = _hotkeyService.IsSuspended ? "EveCommandCenter.Icon-Suspend.ico" : "EveCommandCenter.Icon.ico";
                     var icoStream = asm.GetManifestResourceStream(icoName);
                     if (icoStream != null)
                         _trayIcon.Icon = new System.Drawing.Icon(icoStream);
@@ -473,7 +473,7 @@ public partial class App : Application
         PerfLog($"✅ OnStartup complete (discovery running): {startupSw.ElapsedMilliseconds}ms total");
 
         // ── Reopen settings after Apply reload (AHK: reopen_settings.flag) ──
-        var reopenFlag = Path.Combine(Path.GetTempPath(), "evemultipreview_reopen_settings.flag");
+        var reopenFlag = Path.Combine(Path.GetTempPath(), "evecommandcenter_reopen_settings.flag");
         bool reopenAfterApply = File.Exists(reopenFlag);
         if (reopenAfterApply)
         {
@@ -493,13 +493,13 @@ public partial class App : Application
         // and skipped while the Setup Wizard is still needed.
         var startupMode = _settings.Settings.StartupSettings;
         if (!reopenAfterApply && _settings.Settings.SetupCompleted
-            && startupMode != EveMultiPreview.Models.StartupSettingsMode.Off)
+            && startupMode != EveCommandCenter.Models.StartupSettingsMode.Off)
         {
             var startupTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
             startupTimer.Tick += (_, _) =>
             {
                 startupTimer.Stop();
-                OpenSettings(startMinimized: startupMode == EveMultiPreview.Models.StartupSettingsMode.OpenMinimized);
+                OpenSettings(startMinimized: startupMode == EveCommandCenter.Models.StartupSettingsMode.OpenMinimized);
                 Debug.WriteLine($"[App:Startup] 🪟 Settings auto-opened (mode={startupMode})");
             };
             startupTimer.Start();
@@ -548,18 +548,18 @@ public partial class App : Application
         catch { }
     }
 
-    // ── JSON Migration (AHK: EVE-X-Preview → EVE MultiPreview) ───────
+    // ── JSON Migration (AHK: EVE-X-Preview → EVE Command Center) ───────
 
     private static void CheckJsonMigration()
     {
         var exeDir = Path.GetDirectoryName(Environment.ProcessPath) ?? ".";
         var oldFile = Path.Combine(exeDir, "EVE-X-Preview.json");
-        var newFile = Path.Combine(exeDir, "EVE MultiPreview.json");
+        var newFile = Path.Combine(exeDir, "EVE Command Center.json");
 
         if (File.Exists(oldFile) && !File.Exists(newFile))
         {
             var result = MessageBox.Show(
-                "Found settings from EVE-X-Preview. Migrate to EVE MultiPreview?",
+                "Found settings from EVE-X-Preview. Migrate to EVE Command Center?",
                 "Settings Migration", MessageBoxButton.YesNo, MessageBoxImage.Question);
 
             if (result == MessageBoxResult.Yes)
@@ -567,7 +567,7 @@ public partial class App : Application
                 try
                 {
                     File.Copy(oldFile, newFile);
-                    Debug.WriteLine("[App:Migration] ✅ Migrated EVE-X-Preview.json → EVE MultiPreview.json");
+                    Debug.WriteLine("[App:Migration] ✅ Migrated EVE-X-Preview.json → EVE Command Center.json");
                 }
                 catch (Exception ex)
                 {
@@ -591,11 +591,11 @@ public partial class App : Application
 
         if (s == null || (!s.EnableAlertSounds && !miningSoundRequested))
         {
-            EveMultiPreview.Services.DiagnosticsService.LogAlerts(
+            EveCommandCenter.Services.DiagnosticsService.LogAlerts(
                 $"[Sound] GATED off: EnableAlertSounds={s?.EnableAlertSounds}, miningSoundRequested={miningSoundRequested} for {alertType} on '{character}'");
             return;
         }
-        EveMultiPreview.Services.DiagnosticsService.LogAlerts(
+        EveCommandCenter.Services.DiagnosticsService.LogAlerts(
             $"[Sound] enter: {alertType} on '{character}' | EnableAlertSounds={s.EnableAlertSounds} " +
             $"volume={s.AlertSoundVolume} eventFile='{(s.AlertSounds != null && s.AlertSounds.TryGetValue(alertType, out var ef) ? ef : "")}' " +
             $"globalFile='{s.AlertSoundFile}'");
@@ -611,7 +611,7 @@ public partial class App : Application
             if ((DateTime.Now - lastPlay).TotalSeconds < soundCooldown)
             {
                 Debug.WriteLine($"[AlertSound:Cooldown] ⏳ Sound cooldown active: {alertType} for '{character}' ({soundCooldown}s)");
-                EveMultiPreview.Services.DiagnosticsService.LogAlerts(
+                EveCommandCenter.Services.DiagnosticsService.LogAlerts(
                     $"[Sound] GATED cooldown: {alertType} on '{character}' within {soundCooldown}s of last play");
                 return;
             }
@@ -640,12 +640,12 @@ public partial class App : Application
                     _ => System.Media.SystemSounds.Exclamation
                 };
                 fallback.Play();
-                EveMultiPreview.Services.DiagnosticsService.LogAlerts(
+                EveCommandCenter.Services.DiagnosticsService.LogAlerts(
                     $"[Sound] FALLBACK system sound for {alertType} on '{character}'");
             }
             catch (Exception ex)
             {
-                EveMultiPreview.Services.DiagnosticsService.LogAlerts(
+                EveCommandCenter.Services.DiagnosticsService.LogAlerts(
                     $"[Sound] FALLBACK failed for {alertType} on '{character}': {ex.Message}");
             }
             return;
@@ -667,7 +667,7 @@ public partial class App : Application
                 };
                 player.MediaFailed += (_, args) =>
                 {
-                    EveMultiPreview.Services.DiagnosticsService.LogAlerts(
+                    EveCommandCenter.Services.DiagnosticsService.LogAlerts(
                         $"[Sound] MediaFailed for {alertType} on '{character}' file='{soundFile}': {args.ErrorException?.Message}");
                     player.Close();
                     lock (_soundPlayerLock) { _activeSoundPlayers.Remove(player); }
@@ -679,14 +679,14 @@ public partial class App : Application
 
             _soundCooldowns[cooldownKey] = DateTime.Now;
             Debug.WriteLine($"[AlertSound:Play] 🔊 Playing '{System.IO.Path.GetFileName(soundFile)}' for {alertType} on '{character}' (vol={s.AlertSoundVolume}%)");
-            EveMultiPreview.Services.DiagnosticsService.LogAlerts(
+            EveCommandCenter.Services.DiagnosticsService.LogAlerts(
                 $"[Sound] PLAYING '{System.IO.Path.GetFileName(soundFile)}' for {alertType} on '{character}' at vol={s.AlertSoundVolume}%"
                 + (s.AlertSoundVolume == 0 ? " ⚠ VOLUME IS 0 — will be inaudible" : ""));
         }
         catch (Exception ex)
         {
             Debug.WriteLine($"[AlertSound:Play] ❌ Error playing sound: {ex.Message}");
-            EveMultiPreview.Services.DiagnosticsService.LogAlerts(
+            EveCommandCenter.Services.DiagnosticsService.LogAlerts(
                 $"[Sound] ERROR playing {alertType} on '{character}': {ex.GetType().Name}: {ex.Message}");
         }
     }
@@ -697,7 +697,7 @@ public partial class App : Application
     {
         // Load icon from embedded resource (works with single-file publish)
         var asm = System.Reflection.Assembly.GetExecutingAssembly();
-        var iconStream = asm.GetManifestResourceStream("EveMultiPreview.Icon.ico");
+        var iconStream = asm.GetManifestResourceStream("EveCommandCenter.Icon.ico");
         var trayIco = iconStream != null ? new System.Drawing.Icon(iconStream) : SystemIcons.Application;
 
         _trayIcon = new NotifyIcon
@@ -759,7 +759,7 @@ public partial class App : Application
         });
 
         // Compact fleet mining bar, inspired by the standalone tracker but fed
-        // from MultiPreview's own live parser/watchdog.
+        // from Command Center's own live parser/watchdog.
         _miningOverviewTrayItem = new ToolStripMenuItem("Mining Overview Bar")
         {
             CheckOnClick = true,
@@ -1281,7 +1281,7 @@ public partial class App : Application
     }
 
     private static readonly string SettingsDiagLogPath = System.IO.Path.Combine(
-        System.IO.Path.GetTempPath(), "EveMultiPreview_SettingsDiag.log");
+        System.IO.Path.GetTempPath(), "EveCommandCenter_SettingsDiag.log");
 
     private static void SettingsDiag(string message)
     {

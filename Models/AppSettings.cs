@@ -3,11 +3,11 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 
-namespace EveMultiPreview.Models;
+namespace EveCommandCenter.Models;
 
 /// <summary>
 /// Root settings model — compatible with the AHK JSON format.
-/// Maps to "EVE MultiPreview.json".
+/// Maps to "EVE Command Center.json".
 /// Property names match AHK Propertys.ahk exactly for cross-format compatibility.
 /// </summary>
 public class AppSettings
@@ -115,7 +115,7 @@ public class AppSettings
     public bool StaticThumbnails { get; set; } = false;
 
     /// <summary>Freeze every thumbnail to its last frame when neither EVE nor
-    /// MultiPreview is the foreground process; resume live DWM composition
+    /// Command Center is the foreground process; resume live DWM composition
     /// the moment EVE / the app comes back. Invisible during active play,
     /// stops the GPU compositing thumbnails for windows you can't see while
     /// you're working in another app. Default off.</summary>

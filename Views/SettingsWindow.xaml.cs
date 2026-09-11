@@ -15,12 +15,12 @@ using TextBox = System.Windows.Controls.TextBox;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
-using EveMultiPreview.Interop;
-using EveMultiPreview.Models;
-using EveMultiPreview.Services;
+using EveCommandCenter.Interop;
+using EveCommandCenter.Models;
+using EveCommandCenter.Services;
 using WinForms = System.Windows.Forms;
 
-namespace EveMultiPreview.Views;
+namespace EveCommandCenter.Views;
 
 public partial class SettingsWindow : Window
 {
@@ -218,7 +218,7 @@ public partial class SettingsWindow : Window
     {
         var now = DateTime.Now;
         var utc = DateTime.UtcNow;
-        Title = $"EVE MultiPreview — Settings | {now:HH:mm:ss} Local | {utc:HH:mm:ss} ET";
+        Title = $"EVE Command Center — Settings | {now:HH:mm:ss} Local | {utc:HH:mm:ss} ET";
         TxtClockLocal.Text = now.ToString("hh:mm:ss tt");
         TxtClockEve.Text = utc.ToString("HH:mm:ss");
     }
@@ -710,7 +710,7 @@ public partial class SettingsWindow : Window
 
     private void OnOpenLogsFolder(object sender, RoutedEventArgs e)
     {
-        EveMultiPreview.Services.DiagnosticsService.OpenLogsFolder();
+        EveCommandCenter.Services.DiagnosticsService.OpenLogsFolder();
     }
 
     // ══════════════════════════════════════════════════════════════
@@ -803,7 +803,7 @@ public partial class SettingsWindow : Window
             "Suspend Hotkeys\n" +
             "────────────────────────────\n" +
             "Press this key combo to temporarily\n" +
-            "disable all MultiPreview hotkeys.\n" +
+            "disable all Command Center hotkeys.\n" +
             "Press again to re-enable.\n\n" +
             "Click-Through Toggle\n" +
             "────────────────────────────\n" +
@@ -1047,7 +1047,7 @@ public partial class SettingsWindow : Window
             "═══════════════════════════\n\n" +
             "How Alerts Work\n" +
             "────────────────────────────\n" +
-            "MultiPreview monitors EVE chat logs\n" +
+            "Command Center monitors EVE chat logs\n" +
             "and game logs in real time. When it\n" +
             "detects a combat event, it triggers\n" +
             "visual and audio alerts.\n\n" +
@@ -1435,7 +1435,7 @@ public partial class SettingsWindow : Window
             "────────────────────────────\n" +
             "Freezes every thumbnail to its last\n" +
             "frame whenever neither EVE nor\n" +
-            "MultiPreview is the foreground process.\n" +
+            "Command Center is the foreground process.\n" +
             "Resumes live composition the moment EVE\n" +
             "or the app comes back. Invisible during\n" +
             "active play; stops the GPU paying for\n" +
@@ -1448,7 +1448,7 @@ public partial class SettingsWindow : Window
         "About" =>
             "ABOUT\n" +
             "═══════════════════════════\n\n" +
-            "EVE MultiPreview\n" +
+            "EVE Command Center\n" +
             "C# / .NET 8 WPF Edition\n\n" +
             "Version shown on the About panel\n" +
             "matches the build you're running.\n\n" +
@@ -1458,7 +1458,7 @@ public partial class SettingsWindow : Window
             "modern UI capabilities.\n\n" +
             "File a bug, suggest a feature, or read\n" +
             "release notes at:\n" +
-            "github.com/CJKondur/EVE-MultiPreview",
+            "github.com/Delerim/EVE-Command-Center",
 
         "Debug" =>
             "DEBUG LOGGING\n" +
@@ -2469,15 +2469,15 @@ public class StatCharacterRow : System.ComponentModel.INotifyPropertyChanged
 {
     public string Name { get; set; } = "";
 
-    private EveMultiPreview.Models.StatMetrics _forcedOn;
-    public EveMultiPreview.Models.StatMetrics ForcedOn
+    private EveCommandCenter.Models.StatMetrics _forcedOn;
+    public EveCommandCenter.Models.StatMetrics ForcedOn
     {
         get => _forcedOn;
         set { _forcedOn = value; OnPropertyChanged(nameof(ForcedOn)); OnPropertyChanged(nameof(Summary)); }
     }
 
-    private EveMultiPreview.Models.StatMetrics _forcedOff;
-    public EveMultiPreview.Models.StatMetrics ForcedOff
+    private EveCommandCenter.Models.StatMetrics _forcedOff;
+    public EveCommandCenter.Models.StatMetrics ForcedOff
     {
         get => _forcedOff;
         set { _forcedOff = value; OnPropertyChanged(nameof(ForcedOff)); OnPropertyChanged(nameof(Summary)); }
@@ -2493,7 +2493,7 @@ public class StatCharacterRow : System.ComponentModel.INotifyPropertyChanged
             int off = System.Numerics.BitOperations.PopCount((uint)_forcedOff);
             if (on == 0 && off == 0) return "All inherit global";
             int total = System.Numerics.BitOperations.PopCount(
-                (uint)EveMultiPreview.Models.StatMetrics.AllMetrics) + 1; // +1 for IncludeNpc
+                (uint)EveCommandCenter.Models.StatMetrics.AllMetrics) + 1; // +1 for IncludeNpc
             int inherit = total - on - off;
             var parts = new System.Collections.Generic.List<string>();
             if (on > 0)  parts.Add($"{on} ON");

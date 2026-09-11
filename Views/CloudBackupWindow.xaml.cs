@@ -3,12 +3,12 @@ using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
-using EveMultiPreview.Models;
-using EveMultiPreview.Services;
+using EveCommandCenter.Models;
+using EveCommandCenter.Services;
 using WpfBrush = System.Windows.Media.Brush;
 using WpfBrushConverter = System.Windows.Media.BrushConverter;
 
-namespace EveMultiPreview.Views;
+namespace EveCommandCenter.Views;
 
 public partial class CloudBackupWindow : Window
 {

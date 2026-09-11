@@ -3,7 +3,7 @@ using System.ComponentModel;
 using System.Runtime.InteropServices;
 using System.Text;
 
-namespace EveMultiPreview.Services;
+namespace EveCommandCenter.Services;
 
 internal static class EveCredentialStore
 {

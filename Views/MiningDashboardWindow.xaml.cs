@@ -6,10 +6,10 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Threading;
-using EveMultiPreview.Models;
-using EveMultiPreview.Services;
+using EveCommandCenter.Models;
+using EveCommandCenter.Services;
 
-namespace EveMultiPreview.Views;
+namespace EveCommandCenter.Views;
 
 public partial class MiningDashboardWindow : Window
 {

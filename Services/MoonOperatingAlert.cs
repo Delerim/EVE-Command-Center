@@ -1,6 +1,6 @@
-using EveMultiPreview.Models;
+using EveCommandCenter.Models;
 
-namespace EveMultiPreview.Services;
+namespace EveCommandCenter.Services;
 
 public sealed record MoonOperatingAlert(string Key, string StructureName, string Message)
 {

@@ -6,8 +6,8 @@ using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
-using EveMultiPreview.Models;
-using EveMultiPreview.Services;
+using EveCommandCenter.Models;
+using EveCommandCenter.Services;
 using Microsoft.Win32;
 using Button = System.Windows.Controls.Button;
 using Color = System.Windows.Media.Color;
@@ -20,7 +20,7 @@ using Orientation = System.Windows.Controls.Orientation;
 using TextBox = System.Windows.Controls.TextBox;
 using WinForms = System.Windows.Forms;
 
-namespace EveMultiPreview.Views;
+namespace EveCommandCenter.Views;
 
 public partial class SettingsWindow
 {
@@ -55,7 +55,7 @@ public partial class SettingsWindow
         // immediately and each character can then be tuned via Edit — far better
         // than opening three colour pickers per client.
         int added = AddAllActiveClients(
-            EveMultiPreview.Services.LocalizationService.Str("L.Colors.Header", "Per-Character Colors"),
+            EveCommandCenter.Services.LocalizationService.Str("L.Colors.Header", "Per-Character Colors"),
             n => S.CustomColors.ContainsKey(n),
             n => S.CustomColors[n] = new CustomColorEntry
             {
@@ -194,7 +194,7 @@ public partial class SettingsWindow
             .ToList();
 
         AddAllActiveClients(
-            EveMultiPreview.Services.LocalizationService.Str("L.Groups.Header", "Character Groups"),
+            EveCommandCenter.Services.LocalizationService.Str("L.Groups.Header", "Character Groups"),
             n => existing.Any(x => string.Equals(x, n, StringComparison.OrdinalIgnoreCase)),
             n =>
             {
@@ -812,7 +812,7 @@ public partial class SettingsWindow
         System.Windows.MessageBox.Show(
             "Low-GPU mode enabled:\n\n" +
             "• Inactive clients are minimized on switch (they stop rendering)\n" +
-            "• Thumbnails freeze when EVE / MultiPreview isn't focused\n\n" +
+            "• Thumbnails freeze when EVE / Command Center isn't focused\n\n" +
             "Tip: also set an in-game max FPS limit and enable vsync on each client.",
             "Optimize for Low GPU",
             System.Windows.MessageBoxButton.OK,
@@ -830,7 +830,7 @@ public partial class SettingsWindow
     {
         var list = _svc.CurrentProfile.DontMinimizeClients;
         int added = AddAllActiveClients(
-            EveMultiPreview.Services.LocalizationService.Str("L.Client.DontMinimize", "Don't Minimize Clients"),
+            EveCommandCenter.Services.LocalizationService.Str("L.Client.DontMinimize", "Don't Minimize Clients"),
             n => list.Any(x => string.Equals(x, n, StringComparison.OrdinalIgnoreCase)),
             n => list.Add(n));
         if (added > 0) { LoadDontMinimizeList(); SaveDelayed(); }
@@ -920,7 +920,7 @@ public partial class SettingsWindow
         var content = RtssProfileService.GenerateProfileContent(fpsLimit);
 
         // Write to temp as the correct filename, then put the file on the clipboard
-        var tempDir = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "EVEMultiPreview");
+        var tempDir = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "EVECommandCenter");
         System.IO.Directory.CreateDirectory(tempDir);
         var tempFile = System.IO.Path.Combine(tempDir, "exefile.exe.cfg");
         System.IO.File.WriteAllText(tempFile, content);
@@ -1924,14 +1924,14 @@ public partial class SettingsWindow
         try
         {
             var appDir = AppDomain.CurrentDomain.BaseDirectory;
-            var configPath = Path.Combine(appDir, "EVE MultiPreview.json");
+            var configPath = Path.Combine(appDir, "EVE Command Center.json");
             if (!File.Exists(configPath)) { MessageBox.Show("Config file not found.", "Backup"); return; }
 
             var backupDir = Path.Combine(appDir, "Backups");
             Directory.CreateDirectory(backupDir);
 
             var timestamp = DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss");
-            var backupPath = Path.Combine(backupDir, $"EVE MultiPreview_{timestamp}.json");
+            var backupPath = Path.Combine(backupDir, $"EVE Command Center_{timestamp}.json");
             File.Copy(configPath, backupPath, true);
             MessageBox.Show($"Config backed up to:\nBackups\\{Path.GetFileName(backupPath)}", "Backup");
         }
@@ -1943,10 +1943,10 @@ public partial class SettingsWindow
 
     private void OnExportSettings(object s, RoutedEventArgs e)
     {
-        var dlg = new Microsoft.Win32.SaveFileDialog { Filter = "JSON|*.json", FileName = "EVE MultiPreview.json" };
+        var dlg = new Microsoft.Win32.SaveFileDialog { Filter = "JSON|*.json", FileName = "EVE Command Center.json" };
         if (dlg.ShowDialog() == true)
         {
-            File.Copy(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "EVE MultiPreview.json"), dlg.FileName, true);
+            File.Copy(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "EVE Command Center.json"), dlg.FileName, true);
             MessageBox.Show("Settings exported.");
         }
     }
@@ -1989,7 +1989,7 @@ public partial class SettingsWindow
 
     private void OnAboutLoaded(object s, RoutedEventArgs e)
     {
-        TxtAppVersion.Text = $"EVE MultiPreview v{CURRENT_VERSION}";
+        TxtAppVersion.Text = $"EVE Command Center v{CURRENT_VERSION}";
         ChkCheckUpdatesOnStartup.IsChecked = _svc.Settings.CheckForUpdatesOnStartup;
         ChkPreReleaseUpdates.IsChecked = _svc.Settings.ReceivePreReleaseUpdates;
     }
@@ -2010,7 +2010,7 @@ public partial class SettingsWindow
 
     private void OnOpenGitHub(object s, RoutedEventArgs e)
     {
-        try { Process.Start(new ProcessStartInfo("https://github.com/CJKondur/EVE-MultiPreview") { UseShellExecute = true }); } catch { }
+        try { Process.Start(new ProcessStartInfo("https://github.com/Delerim/EVE-Command-Center") { UseShellExecute = true }); } catch { }
     }
 
     private async void OnCheckVersion(object s, RoutedEventArgs e)

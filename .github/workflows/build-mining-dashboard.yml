@@ -4,6 +4,10 @@ on:
   workflow_dispatch:
   push:
     branches: [ main ]
+    tags: [ 'v*' ]
+
+permissions:
+  contents: read
 
 jobs:
   build:
@@ -18,10 +22,10 @@ jobs:
           dotnet-version: '8.0.x'
 
       - name: Restore
-        run: dotnet restore EveMultiPreview.csproj
+        run: dotnet restore EveCommandCenter.csproj
 
       - name: Publish EVE Command Center EXE
-        run: dotnet publish EveMultiPreview.csproj -c Release -r win-x64 --self-contained true /p:PublishSingleFile=true /p:IncludeNativeLibrariesForSelfExtract=true -o artifacts/publish
+        run: dotnet publish EveCommandCenter.csproj -c Release -r win-x64 --self-contained true /p:PublishSingleFile=true /p:IncludeNativeLibrariesForSelfExtract=true -o artifacts/publish
 
       - name: Upload EVE Command Center artifact
         uses: actions/upload-artifact@v4
@@ -29,3 +33,40 @@ jobs:
           name: EVE-Command-Center-Windows-x64
           path: artifacts/publish/**
           if-no-files-found: error
+
+      - name: Package public download
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        run: |
+          [xml]$project = Get-Content EveCommandCenter.csproj
+          if ("v$($project.Project.PropertyGroup.Version)" -ne $env:GITHUB_REF_NAME) { throw 'Tag must match project version' }
+          New-Item -ItemType Directory -Path artifacts/release -Force | Out-Null
+          Copy-Item NOTICE.md artifacts/publish/NOTICE.md
+          Copy-Item README.md artifacts/publish/README.md
+          Compress-Archive -Path 'artifacts/publish/EVE Command Center.exe', artifacts/publish/NOTICE.md, artifacts/publish/README.md -DestinationPath artifacts/release/EVE-Command-Center-Windows-x64.zip
+          Copy-Item 'artifacts/publish/EVE Command Center.exe' artifacts/release/EVE.Command.Center.exe
+          Get-ChildItem artifacts/release -File | Get-FileHash -Algorithm SHA256 | ForEach-Object { "$($_.Hash.ToLower())  $([IO.Path]::GetFileName($_.Path))" } | Set-Content artifacts/release/SHA256SUMS.txt
+
+      - name: Upload release files
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: actions/upload-artifact@v4
+        with:
+          name: public-release
+          path: artifacts/release/*
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: public-release
+          path: release
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" release/* --verify-tag --title "EVE Command Center $GITHUB_REF_NAME" --notes-file RELEASE_NOTES.md

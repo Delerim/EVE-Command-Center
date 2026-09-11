@@ -1,4 +1,4 @@
-<Window x:Class="EveMultiPreview.Views.PilotFitWindow"
+<Window x:Class="EveCommandCenter.Views.PilotFitWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="EVE Command Center - Fit Viewer"

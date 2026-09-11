@@ -1,4 +1,4 @@
-<Window x:Class="EveMultiPreview.Views.CharacterPickerDialog"
+<Window x:Class="EveCommandCenter.Views.CharacterPickerDialog"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="{DynamicResource L.Pick.Title}"

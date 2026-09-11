@@ -7,10 +7,10 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Threading;
-using EveMultiPreview.Models;
-using EveMultiPreview.Services;
+using EveCommandCenter.Models;
+using EveCommandCenter.Services;
 
-namespace EveMultiPreview.Views;
+namespace EveCommandCenter.Views;
 
 public partial class MiningFleetOverviewWindow : Window
 {
@@ -1360,7 +1360,7 @@ public partial class MiningFleetOverviewWindow : Window
         object sender,
         RoutedEventArgs e)
     {
-        if (System.Windows.Application.Current is EveMultiPreview.App app)
+        if (System.Windows.Application.Current is EveCommandCenter.App app)
             app.ShowMiningCommandCenter();
     }
 
@@ -1368,7 +1368,7 @@ public partial class MiningFleetOverviewWindow : Window
         object sender,
         RoutedEventArgs e)
     {
-        if (System.Windows.Application.Current is EveMultiPreview.App app)
+        if (System.Windows.Application.Current is EveCommandCenter.App app)
             app.ShowPilotCommandCenter();
     }
 

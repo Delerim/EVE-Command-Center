@@ -3,12 +3,12 @@ using System.Windows;
 using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Threading;
-using EveMultiPreview.Interop;
-using EveMultiPreview.Services;
+using EveCommandCenter.Interop;
+using EveCommandCenter.Services;
 
 using Point = System.Windows.Point;
 
-namespace EveMultiPreview.Views;
+namespace EveCommandCenter.Views;
 
 /// <summary>
 /// Standalone stat overlay window showing DPS, logi, mining, or ratting stats

@@ -2,11 +2,11 @@
 using System.Windows;
 using System.Windows.Interop;
 using System.Windows.Media;
-using EveMultiPreview.Interop;
+using EveCommandCenter.Interop;
 
 using Color = System.Windows.Media.Color;
 
-namespace EveMultiPreview.Views;
+namespace EveCommandCenter.Views;
 
 /// <summary>
 /// Separate overlay window for text ON TOP of DWM thumbnails.

@@ -1,4 +1,4 @@
-<Window x:Class="EveMultiPreview.Views.LabelEditorWindow"
+<Window x:Class="EveCommandCenter.Views.LabelEditorWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="{DynamicResource L.Lbl.Title}"

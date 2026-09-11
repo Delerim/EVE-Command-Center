@@ -1,8 +1,8 @@
 using System;
 using System.Collections.Generic;
-using EveMultiPreview.Models;
+using EveCommandCenter.Models;
 
-namespace EveMultiPreview.Views;
+namespace EveCommandCenter.Views;
 
 /// <summary>
 /// Maps a (possibly shared / cross-machine) layout preset's slots onto the user's

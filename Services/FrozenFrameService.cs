@@ -5,9 +5,9 @@ using System.Drawing;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Threading;
-using EveMultiPreview.Interop;
+using EveCommandCenter.Interop;
 
-namespace EveMultiPreview.Services;
+namespace EveCommandCenter.Services;
 
 /// <summary>
 /// Captures a periodic snapshot of each tracked EVE window via PrintWindow

@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 
-namespace EveMultiPreview.Models;
+namespace EveCommandCenter.Models;
 
 /// <summary>
 /// A named, monitor-agnostic thumbnail-wall layout. Each slot stores a character

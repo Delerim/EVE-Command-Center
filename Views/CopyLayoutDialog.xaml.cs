@@ -1,6 +1,6 @@
 using System.Windows;
 
-namespace EveMultiPreview.Views;
+namespace EveCommandCenter.Views;
 
 public partial class CopyLayoutDialog : Window
 {

@@ -1,9 +1,9 @@
 ﻿using System;
 using System.Diagnostics;
 using System.Windows;
-using EveMultiPreview.Services;
+using EveCommandCenter.Services;
 
-namespace EveMultiPreview.Views;
+namespace EveCommandCenter.Views;
 
 /// <summary>
 /// Modal dialog shown when a new version is available.

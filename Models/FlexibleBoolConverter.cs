@@ -2,13 +2,13 @@ using System;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace EveMultiPreview.Models;
+namespace EveCommandCenter.Models;
 
 /// <summary>
 /// Reads a boolean from JSON <c>true</c>/<c>false</c>, a number (0 = false, non-zero
 /// = true), or a string ("true"/"false"/"1"/"0"). Writes native <c>true</c>/<c>false</c>.
 ///
-/// EVE MultiPreview is an AHK-compatible port: the AHK EVE-O-Preview config (and the
+/// EVE Command Center is an AHK-compatible port: the AHK EVE-O-Preview config (and the
 /// rest of <see cref="AhkConfigRoot"/>) stores every boolean as an integer 0/1. A raw
 /// <c>bool</c> property throws "could not be converted to System.Boolean" on such a
 /// value, and because that aborts the whole deserialization the user loses ALL their

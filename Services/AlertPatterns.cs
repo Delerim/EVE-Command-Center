@@ -6,7 +6,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 
-namespace EveMultiPreview.Services;
+namespace EveCommandCenter.Services;
 
 /// <summary>
 /// Multi-language alert log substrings, extracted from EVE's own client
@@ -29,7 +29,7 @@ public static class AlertPatterns
         try
         {
             var asm = Assembly.GetExecutingAssembly();
-            using var s = asm.GetManifestResourceStream("EveMultiPreview.Resources.alert_patterns.json");
+            using var s = asm.GetManifestResourceStream("EveCommandCenter.Resources.alert_patterns.json");
             if (s == null) return new();
             using var r = new StreamReader(s, Encoding.UTF8);
             var json = r.ReadToEnd();

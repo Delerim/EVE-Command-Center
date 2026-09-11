@@ -56,7 +56,7 @@
 
     <!-- General panel -->
     <sys:String x:Key="L.General.Title">⚙ General Settings</sys:String>
-    <sys:String x:Key="L.General.Subtitle">Core settings for EVE MultiPreview hotkey behavior.</sys:String>
+    <sys:String x:Key="L.General.Subtitle">Core settings for EVE Command Center hotkey behavior.</sys:String>
     <sys:String x:Key="L.General.ShowTimer">Show Session Timer on Thumbnails</sys:String>
     <sys:String x:Key="L.General.HotkeyScope">Hotkey Scope</sys:String>
     <sys:String x:Key="L.General.ActivationScope">Activation scope:</sys:String>
@@ -170,7 +170,7 @@
     <sys:String x:Key="L.Layout.Monitor">Monitor</sys:String>
     <sys:String x:Key="L.Layout.PreferredMonitor">Preferred Monitor:</sys:String>
     <sys:String x:Key="L.Layout.Identify">🔍 Identify</sys:String>
-    <sys:String x:Key="L.Layout.MonitorNote">These monitor numbers are MultiPreview's own and may not match Windows' display numbers. Use Identify to see which screen each number is. New thumbnails (with no saved position) appear on the preferred monitor.</sys:String>
+    <sys:String x:Key="L.Layout.MonitorNote">These monitor numbers are Command Center's own and may not match Windows' display numbers. Use Identify to see which screen each number is. New thumbnails (with no saved position) appear on the preferred monitor.</sys:String>
 
     <!-- Char Hotkeys panel -->
     <sys:String x:Key="L.Hk.Title">⌨ Per-Character Hotkeys</sys:String>
@@ -273,7 +273,7 @@
     <sys:String x:Key="L.Perf.StaticThumbs">Static Thumbnails (lower GPU)</sys:String>
     <sys:String x:Key="L.Perf.StaticThumbsNote">Replaces the live DWM-composited preview with a snapshot refreshed roughly once per second. Big GPU saving when running many clients (DWM no longer composites every frame), at the cost of choppy motion — ship movement updates on the snapshot cadence instead of smoothly. Best for fleets where you only need to glance at thumbnails occasionally rather than watch them constantly.</sys:String>
     <sys:String x:Key="L.Perf.SuspendBg">Suspend Thumbnails When Background</sys:String>
-    <sys:String x:Key="L.Perf.SuspendBgNote">Freezes every thumbnail to its last frame whenever neither EVE nor MultiPreview is the foreground process. Resumes live composition the moment EVE or the app comes back. Invisible during active play; stops the GPU paying for thumbnails of windows you can't see while you're working in another app. Adds a sub-second wakeup lag when you alt-tab back.</sys:String>
+    <sys:String x:Key="L.Perf.SuspendBgNote">Freezes every thumbnail to its last frame whenever neither EVE nor Command Center is the foreground process. Resumes live composition the moment EVE or the app comes back. Invisible during active play; stops the GPU paying for thumbnails of windows you can't see while you're working in another app. Adds a sub-second wakeup lag when you alt-tab back.</sys:String>
     <sys:String x:Key="L.Perf.CoreOverrides">Per-Client Core Overrides</sys:String>
     <sys:String x:Key="L.Perf.CoreOverridesNote">Explicitly force a specific character to a specific logical processor when they are INACTIVE. This overrides Auto-Balance.</sys:String>
     <sys:String x:Key="L.Perf.ColInactiveCore">Inactive Core</sys:String>
@@ -326,7 +326,7 @@
     <sys:String x:Key="L.About.Title">ℹ About</sys:String>
     <sys:String x:Key="L.About.Edition">C# / WPF Edition</sys:String>
     <sys:String x:Key="L.About.Desc">Multi-client thumbnail preview manager for EVE Online. Shows live DWM thumbnails of your EVE windows with click-to-switch, drag-to-reposition, custom borders, alerts, stat overlays, and per-character hotkeys.</sys:String>
-    <sys:String x:Key="L.About.Origin">Originally written in AutoHotkey v2 by CJKondur.</sys:String>
+    <sys:String x:Key="L.About.Origin">EVE Command Center ? maintained by Delerim</sys:String>
     <sys:String x:Key="L.About.Ported">Ported to C# WPF for improved performance, stability, and extensibility.</sys:String>
     <sys:String x:Key="L.About.GitHub">🔗 GitHub</sys:String>
     <sys:String x:Key="L.About.CheckUpdates">🔄 Check for Updates</sys:String>
@@ -475,7 +475,7 @@
     <sys:String x:Key="L.Lbl.RemoveTt">Clear label text and any per-label style for this character</sys:String>
 
     <!-- Update dialog -->
-    <sys:String x:Key="L.Upd.Title">Update Available — EVE MultiPreview</sys:String>
+    <sys:String x:Key="L.Upd.Title">Update Available — EVE Command Center</sys:String>
     <sys:String x:Key="L.Upd.Header">⬆ Update Available</sys:String>
     <sys:String x:Key="L.Upd.LoadingNotes">Loading release notes...</sys:String>
     <sys:String x:Key="L.Upd.Downloading">Downloading...</sys:String>
@@ -494,8 +494,8 @@
     <sys:String x:Key="L.Qs.EditTt">Edit card order</sys:String>
 
     <!-- Setup Wizard -->
-    <sys:String x:Key="L.Wiz.Title">EVE MultiPreview — Setup Wizard</sys:String>
-    <sys:String x:Key="L.Wiz.WelcomeTitle">Welcome to EVE MultiPreview</sys:String>
+    <sys:String x:Key="L.Wiz.Title">EVE Command Center — Setup Wizard</sys:String>
+    <sys:String x:Key="L.Wiz.WelcomeTitle">Welcome to EVE Command Center</sys:String>
     <sys:String x:Key="L.Wiz.WelcomeSub">The C# edition of your multi-character preview tool.</sys:String>
     <sys:String x:Key="L.Wiz.Feat1">✅ DWM thumbnail previews for all EVE clients</sys:String>
     <sys:String x:Key="L.Wiz.Feat2">✅ Per-character hotkeys &amp; group cycling</sys:String>
@@ -528,7 +528,7 @@
     <sys:String x:Key="L.SE.ResetAll">Reset all to Inherit</sys:String>
 
     <!-- Misc window titles / overlays -->
-    <sys:String x:Key="L.SettingsTitle">EVE MultiPreview — Settings</sys:String>
+    <sys:String x:Key="L.SettingsTitle">EVE Command Center — Settings</sys:String>
     <sys:String x:Key="L.CropPick.Title">Pick Crop Area</sys:String>
     <sys:String x:Key="L.CropPick.Hint">Drag to select crop area — press Esc to cancel</sys:String>
 

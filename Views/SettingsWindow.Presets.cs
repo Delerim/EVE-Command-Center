@@ -1,7 +1,7 @@
 using System;
-using EveMultiPreview.Services;
+using EveCommandCenter.Services;
 
-namespace EveMultiPreview.Views;
+namespace EveCommandCenter.Views;
 
 // Named, monitor-agnostic layout presets (capture / apply / delete / export / import).
 // Geometry lives in ThumbnailManager; persistence + file format in LayoutPresetService.
@@ -127,7 +127,7 @@ public partial class SettingsWindow
         var dlg = new Microsoft.Win32.SaveFileDialog
         {
             FileName = name + ".emplayout",
-            Filter = "EVE MultiPreview layout (*.emplayout)|*.emplayout|JSON (*.json)|*.json",
+            Filter = "EVE Command Center layout (*.emplayout)|*.emplayout|JSON (*.json)|*.json",
             DefaultExt = ".emplayout",
         };
         if (dlg.ShowDialog() == true)
@@ -145,7 +145,7 @@ public partial class SettingsWindow
     {
         var dlg = new Microsoft.Win32.OpenFileDialog
         {
-            Filter = "EVE MultiPreview layout (*.emplayout;*.json)|*.emplayout;*.json|All files (*.*)|*.*",
+            Filter = "EVE Command Center layout (*.emplayout;*.json)|*.emplayout;*.json|All files (*.*)|*.*",
         };
         if (dlg.ShowDialog() != true) return;
         var preset = LayoutPresets.Import(dlg.FileName);

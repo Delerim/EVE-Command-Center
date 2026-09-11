@@ -5,7 +5,7 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using System.Windows.Threading;
 
-namespace EveMultiPreview.Services;
+namespace EveCommandCenter.Services;
 
 public sealed class MiningDashboardPreferences
 {
@@ -228,7 +228,7 @@ public static class MiningDashboardPreferencesStore
         }
         catch
         {
-            // Mining preferences must never prevent MultiPreview from running.
+            // Mining preferences must never prevent Command Center from running.
         }
     }
 }

@@ -3,10 +3,10 @@ using System.IO;
 using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using EveMultiPreview.Converters;
-using EveMultiPreview.Models;
+using EveCommandCenter.Converters;
+using EveCommandCenter.Models;
 
-namespace EveMultiPreview.Services;
+namespace EveCommandCenter.Services;
 
 /// <summary>
 /// Manages loading, saving, and accessing application settings.

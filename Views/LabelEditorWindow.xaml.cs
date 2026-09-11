@@ -1,8 +1,8 @@
 using System;
 using System.Windows;
 using System.Windows.Media;
-using EveMultiPreview.Models;
-using EveMultiPreview.Services;
+using EveCommandCenter.Models;
+using EveCommandCenter.Services;
 
 // Disambiguate WPF media types from System.Drawing (pulled in by WinForms interop
 // elsewhere in the project) — without these, Color/Brush/ColorConverter are
@@ -12,7 +12,7 @@ using ColorConverter = System.Windows.Media.ColorConverter;
 using Brush = System.Windows.Media.Brush;
 using Brushes = System.Windows.Media.Brushes;
 
-namespace EveMultiPreview.Views;
+namespace EveCommandCenter.Views;
 
 /// <summary>
 /// Modal popup for editing one character's thumbnail label: the label text, a

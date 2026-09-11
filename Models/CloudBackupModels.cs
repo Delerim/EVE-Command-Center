@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace EveMultiPreview.Models;
+namespace EveCommandCenter.Models;
 
 public sealed class CloudBackupSettings
 {

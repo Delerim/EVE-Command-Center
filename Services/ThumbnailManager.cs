@@ -5,13 +5,13 @@ using System.Diagnostics;
 using System.Linq;
 using System.Windows;
 using System.Windows.Threading;
-using EveMultiPreview.Models;
-using EveMultiPreview.Views;
+using EveCommandCenter.Models;
+using EveCommandCenter.Views;
 
 using Application = System.Windows.Application;
 using Color = System.Windows.Media.Color;
 
-namespace EveMultiPreview.Services;
+namespace EveCommandCenter.Services;
 
 /// <summary>
 /// Manages the lifecycle of DWM thumbnail windows. Creates a ThumbnailWindow
@@ -1244,7 +1244,7 @@ public sealed class ThumbnailManager : IDisposable
         // if a click logs nothing at all, the click never reached the thumbnail
         // (something is sitting on top of it) and focus simply falls back to the
         // last active client.
-        EveMultiPreview.Services.DiagnosticsService.LogWindowHook(
+        EveCommandCenter.Services.DiagnosticsService.LogWindowHook(
             $"[Thumb:Click] switch requested for '{thumb.CharacterName}' hwnd=0x{thumb.EveHwnd.ToInt64():X} " +
             $"fg=0x{Interop.User32.GetForegroundWindow().ToInt64():X} " +
             // #95: cursor + this thumbnail's rect. If successive clicks come from very
@@ -1383,7 +1383,7 @@ public sealed class ThumbnailManager : IDisposable
                     Interop.User32.ShowWindowAsync(hwnd, Interop.User32.SW_RESTORE);
             }
 
-            EveMultiPreview.Services.DiagnosticsService.LogWindowHook($"[ActivateEveWindow] 🚀 Executing Standard WIN32 Activation for HWND {hwnd} ({title ?? "unknown"})");
+            EveCommandCenter.Services.DiagnosticsService.LogWindowHook($"[ActivateEveWindow] 🚀 Executing Standard WIN32 Activation for HWND {hwnd} ({title ?? "unknown"})");
 
             // Re-apply the fixed client position on ACTIVATION, not just at spawn (#99).
             // This is what makes the ISBoxer-style "one main window, thumbnails around
@@ -1858,7 +1858,7 @@ public sealed class ThumbnailManager : IDisposable
         }
         else if (!fgIsTrackedClient)
         {
-            // Foreground is the MultiPreview app/settings or a non-EVE window — not an
+            // Foreground is the Command Center app/settings or a non-EVE window — not an
             // EVE client. Clear the tracker so RETURNING to a client (even the same
             // one we last raised for) re-raises. Without this, app→same-client and
             // settings→same-client left the thumbnails stuck behind (LittlePhish).
@@ -3281,7 +3281,7 @@ public sealed class ThumbnailManager : IDisposable
 
         void LogCycle(string msg)
         {
-            EveMultiPreview.Services.DiagnosticsService.LogCycling(msg);
+            EveCommandCenter.Services.DiagnosticsService.LogCycling(msg);
         }
 
         // Filter to only online characters using HashSet for O(M+N) instead of O(M×N).
@@ -4057,7 +4057,7 @@ public sealed class ThumbnailManager : IDisposable
         try { UnmuteAllClientAudio(); } catch { }
 
         // Same principle for "cover taskbar" (#99): a client left in the topmost band
-        // would keep sitting over the taskbar after MultiPreview closes, with nothing
+        // would keep sitting over the taskbar after Command Center closes, with nothing
         // left running to put it back. Drop them all out of it on the way out.
         try
         {

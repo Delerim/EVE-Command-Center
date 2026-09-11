@@ -1,9 +1,9 @@
 using System;
 using System.Diagnostics;
 using System.IO;
-using EveMultiPreview.Models;
+using EveCommandCenter.Models;
 
-namespace EveMultiPreview.Services;
+namespace EveCommandCenter.Services;
 
 public static class DiagnosticsService
 {
@@ -49,7 +49,7 @@ public static class DiagnosticsService
                 if (_headered.Add(category))
                 {
                     File.AppendAllText(path,
-                        $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] ===== EVE MultiPreview v{AppVersion} — {category} log started =====\n");
+                        $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] ===== EVE Command Center v{AppVersion} — {category} log started =====\n");
                 }
                 File.AppendAllText(path, line);
             }

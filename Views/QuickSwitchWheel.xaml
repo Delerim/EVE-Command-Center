@@ -1,4 +1,4 @@
-<Window x:Class="EveMultiPreview.Views.QuickSwitchWheel"
+<Window x:Class="EveCommandCenter.Views.QuickSwitchWheel"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         WindowStyle="None"

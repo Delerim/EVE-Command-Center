@@ -4,13 +4,13 @@ using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Windows.Forms;
 using System.Windows.Interop;
-using EveMultiPreview.Interop;
-using EveMultiPreview.Services;
+using EveCommandCenter.Interop;
+using EveCommandCenter.Services;
 
 using WpfColor = System.Windows.Media.Color;
 using WpfVisibility = System.Windows.Visibility;
 
-namespace EveMultiPreview.Views;
+namespace EveCommandCenter.Views;
 
 /// <summary>
 /// Borderless, transparent top-level window that hosts a live DWM thumbnail

@@ -7,7 +7,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
-using EveMultiPreview.Models;
+using EveCommandCenter.Models;
 using Button = System.Windows.Controls.Button;
 using Color = System.Windows.Media.Color;
 using Brushes = System.Windows.Media.Brushes;
@@ -19,7 +19,7 @@ using MessageBox = System.Windows.MessageBox;
 using Orientation = System.Windows.Controls.Orientation;
 using WinForms = System.Windows.Forms;
 
-namespace EveMultiPreview.Views;
+namespace EveCommandCenter.Views;
 
 public partial class SettingsWindow
 {
@@ -495,8 +495,8 @@ public partial class SettingsWindow
     }
 
     /// <summary>Flash a large "Monitor N" badge on each physical screen for a few
-    /// seconds, using MultiPreview's OWN 1-based numbering (the same order shown in
-    /// the dropdown). EVE-MultiPreview's monitor order need not match Windows'
+    /// seconds, using Command Center's OWN 1-based numbering (the same order shown in
+    /// the dropdown). EVE-Command-Center's monitor order need not match Windows'
     /// display numbers, so this lets the user see which screen each number maps to
     /// (issue #70).</summary>
     private void OnIdentifyMonitors(object sender, RoutedEventArgs e)
@@ -663,7 +663,7 @@ public partial class SettingsWindow
     {
         if (!int.TryParse(TxtResizeAllW.Text, out int w) || !int.TryParse(TxtResizeAllH.Text, out int h))
         {
-            MessageBox.Show(EveMultiPreview.Services.LocalizationService.Str("L.Thumb.EnterSize", "Enter a width and height in pixels."), EveMultiPreview.Services.LocalizationService.Str("L.Thumb.Resize", "Resize Thumbnails"));
+            MessageBox.Show(EveCommandCenter.Services.LocalizationService.Str("L.Thumb.EnterSize", "Enter a width and height in pixels."), EveCommandCenter.Services.LocalizationService.Str("L.Thumb.Resize", "Resize Thumbnails"));
             return;
         }
         w = Math.Max(w, MinThumbW);
@@ -684,12 +684,12 @@ public partial class SettingsWindow
         var charName = CmbResizeChar.SelectedItem as string;
         if (string.IsNullOrEmpty(charName))
         {
-            MessageBox.Show(EveMultiPreview.Services.LocalizationService.Str("L.Thumb.SelectCharFirst", "Select a character first."), EveMultiPreview.Services.LocalizationService.Str("L.Thumb.Resize", "Resize Thumbnails"));
+            MessageBox.Show(EveCommandCenter.Services.LocalizationService.Str("L.Thumb.SelectCharFirst", "Select a character first."), EveCommandCenter.Services.LocalizationService.Str("L.Thumb.Resize", "Resize Thumbnails"));
             return;
         }
         if (!int.TryParse(TxtResizeCharW.Text, out int w) || !int.TryParse(TxtResizeCharH.Text, out int h))
         {
-            MessageBox.Show(EveMultiPreview.Services.LocalizationService.Str("L.Thumb.EnterSize", "Enter a width and height in pixels."), EveMultiPreview.Services.LocalizationService.Str("L.Thumb.Resize", "Resize Thumbnails"));
+            MessageBox.Show(EveCommandCenter.Services.LocalizationService.Str("L.Thumb.EnterSize", "Enter a width and height in pixels."), EveCommandCenter.Services.LocalizationService.Str("L.Thumb.Resize", "Resize Thumbnails"));
             return;
         }
         w = Math.Max(w, MinThumbW);
@@ -731,7 +731,7 @@ public partial class SettingsWindow
         if (active.Count == 0)
         {
             MessageBox.Show(
-                EveMultiPreview.Services.LocalizationService.Str("L.Groups.NoActiveClients", "No active clients found."),
+                EveCommandCenter.Services.LocalizationService.Str("L.Groups.NoActiveClients", "No active clients found."),
                 title);
             return 0;
         }
@@ -747,8 +747,8 @@ public partial class SettingsWindow
         if (added == 0)
             MessageBox.Show(
                 isGroup
-                    ? EveMultiPreview.Services.LocalizationService.Str("L.Groups.AllAlreadyAdded", "All active clients are already in this group.")
-                    : EveMultiPreview.Services.LocalizationService.Str("L.Common.AllAlreadyInList", "All active clients are already in this list."),
+                    ? EveCommandCenter.Services.LocalizationService.Str("L.Groups.AllAlreadyAdded", "All active clients are already in this group.")
+                    : EveCommandCenter.Services.LocalizationService.Str("L.Common.AllAlreadyInList", "All active clients are already in this list."),
                 title);
         return added;
     }
@@ -757,7 +757,7 @@ public partial class SettingsWindow
     {
         // Adds a blank label per character so the rows exist; Edit fills them in.
         int added = AddAllActiveClients(
-            EveMultiPreview.Services.LocalizationService.Str("L.Thumb.Annotations", "Annotations"),
+            EveCommandCenter.Services.LocalizationService.Str("L.Thumb.Annotations", "Annotations"),
             n => S.ThumbnailAnnotations.ContainsKey(n),
             n => S.ThumbnailAnnotations[n] = "");
         if (added > 0) { LoadAnnotations(); SaveDelayed(); }
@@ -768,7 +768,7 @@ public partial class SettingsWindow
         // Empty binding per character — the user then assigns keys via Edit.
         var profile = _svc.CurrentProfile;
         int added = AddAllActiveClients(
-            EveMultiPreview.Services.LocalizationService.Str("L.Hk.IndividualHeader", "Individual Character Hotkeys"),
+            EveCommandCenter.Services.LocalizationService.Str("L.Hk.IndividualHeader", "Individual Character Hotkeys"),
             n => profile.Hotkeys.ContainsKey(n),
             n => profile.Hotkeys[n] = new HotkeyBinding { Key = "" });
         if (added > 0) { LoadHotkeysList(); SaveDelayed(); }
@@ -1078,7 +1078,7 @@ public partial class SettingsWindow
             Content = "✕",
             Style = (Style)FindResource("IconBtn"),
             Margin = new Thickness(5, 0, 0, 0),
-            ToolTip = EveMultiPreview.Services.LocalizationService.Str("L.Groups.PillRemoveTip", "Remove from group")
+            ToolTip = EveCommandCenter.Services.LocalizationService.Str("L.Groups.PillRemoveTip", "Remove from group")
         };
         remove.Click += (_, _) => RemoveCharacterFromHotkeyGroup(charName);
         row.Children.Add(remove);
@@ -1095,7 +1095,7 @@ public partial class SettingsWindow
             Tag = charName,
             AllowDrop = true,
             Child = row,
-            ToolTip = EveMultiPreview.Services.LocalizationService.Str("L.Groups.PillDragTip", "Drag to change cycle order")
+            ToolTip = EveCommandCenter.Services.LocalizationService.Str("L.Groups.PillDragTip", "Drag to change cycle order")
         };
         pill.PreviewMouseMove += OnPillMouseMove;
         pill.Drop += OnPillDrop;
@@ -1238,14 +1238,14 @@ public partial class SettingsWindow
         var chars = CurrentHotkeyGroupChars;
         if (chars == null)
         {
-            MessageBox.Show(EveMultiPreview.Services.LocalizationService.Str("L.Groups.SelectGroupFirst", "Select or create a cycling group first."), EveMultiPreview.Services.LocalizationService.Str("L.Groups.CyclingHeader", "Cycling Hotkey Groups"));
+            MessageBox.Show(EveCommandCenter.Services.LocalizationService.Str("L.Groups.SelectGroupFirst", "Select or create a cycling group first."), EveCommandCenter.Services.LocalizationService.Str("L.Groups.CyclingHeader", "Cycling Hotkey Groups"));
             return;
         }
 
         var active = _thumbnailManager?.GetActiveCharacterNames().ToList() ?? new List<string>();
         if (active.Count == 0)
         {
-            MessageBox.Show(EveMultiPreview.Services.LocalizationService.Str("L.Groups.NoActiveClients", "No active clients found."), EveMultiPreview.Services.LocalizationService.Str("L.Groups.CyclingHeader", "Cycling Hotkey Groups"));
+            MessageBox.Show(EveCommandCenter.Services.LocalizationService.Str("L.Groups.NoActiveClients", "No active clients found."), EveCommandCenter.Services.LocalizationService.Str("L.Groups.CyclingHeader", "Cycling Hotkey Groups"));
             return;
         }
 
@@ -1259,6 +1259,6 @@ public partial class SettingsWindow
         }
 
         if (added > 0) SyncHotkeyGroupCharsUi();
-        else MessageBox.Show(EveMultiPreview.Services.LocalizationService.Str("L.Groups.AllAlreadyAdded", "All active clients are already in this group."), EveMultiPreview.Services.LocalizationService.Str("L.Groups.CyclingHeader", "Cycling Hotkey Groups"));
+        else MessageBox.Show(EveCommandCenter.Services.LocalizationService.Str("L.Groups.AllAlreadyAdded", "All active clients are already in this group."), EveCommandCenter.Services.LocalizationService.Str("L.Groups.CyclingHeader", "Cycling Hotkey Groups"));
     }
 }

@@ -5,7 +5,7 @@ using System.Net.Http;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
-namespace EveMultiPreview.Services;
+namespace EveCommandCenter.Services;
 
 /// <summary>
 /// Handles automatic update checking, downloading, and self-replacement via GitHub Releases.
@@ -14,7 +14,7 @@ namespace EveMultiPreview.Services;
 public sealed class UpdateService
 {
     // Fork builds must only install releases that contain our custom features.
-    private const string GITHUB_RELEASES_URL = "https://api.github.com/repos/Delerim/EVE-MultiPreview/releases";
+    private const string GITHUB_RELEASES_URL = "https://api.github.com/repos/Delerim/EVE-Command-Center/releases";
     private const string EXE_ASSET_NAME = "EVE.Command.Center.exe";
 
     private static readonly HttpClient _httpClient = new() { Timeout = TimeSpan.FromSeconds(30) };
@@ -51,7 +51,7 @@ public sealed class UpdateService
         try
         {
             _httpClient.DefaultRequestHeaders.UserAgent.Clear();
-            _httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("EVE-MultiPreview/" + CurrentVersion);
+            _httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("EVE-Command-Center/" + CurrentVersion);
 
             string apiUrl = allowPreRelease
                 ? GITHUB_RELEASES_URL
@@ -101,7 +101,7 @@ public sealed class UpdateService
         if (string.IsNullOrEmpty(DownloadUrl))
             throw new InvalidOperationException("No download URL available. Call CheckForUpdateAsync first.");
 
-        var tempDir = Path.Combine(Path.GetTempPath(), "EVEMultiPreview_update");
+        var tempDir = Path.Combine(Path.GetTempPath(), "EVECommandCenter_update");
         Directory.CreateDirectory(tempDir);
         var destPath = Path.Combine(tempDir, EXE_ASSET_NAME);
 
@@ -139,7 +139,7 @@ public sealed class UpdateService
     public void ApplyUpdate(string downloadedExePath)
     {
         var appDir = AppDomain.CurrentDomain.BaseDirectory;
-        var scriptPath = Path.Combine(Path.GetTempPath(), "EVEMultiPreview_update", "update.ps1");
+        var scriptPath = Path.Combine(Path.GetTempPath(), "EVECommandCenter_update", "update.ps1");
 
         var script = $@"
 # EVE Command Center Auto-Updater

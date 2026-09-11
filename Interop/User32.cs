@@ -5,7 +5,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace EveMultiPreview.Interop;
+namespace EveCommandCenter.Interop;
 
 /// <summary>
 /// P/Invoke wrappers for User32.dll — window enumeration, positioning, hotkeys, etc.
@@ -396,7 +396,7 @@ public static class User32
                 }
                 catch (Exception ex)
                 {
-                    EveMultiPreview.Services.DiagnosticsService.LogInjection(
+                    EveCommandCenter.Services.DiagnosticsService.LogInjection(
                         $"[HeldKeyPoller] ❌ Iteration faulted, continuing: {ex.GetType().Name}: {ex.Message}");
                 }
             }
@@ -417,7 +417,7 @@ public static class User32
                 foreach (var h in hwnds)
                     PostMessage(h, WM_KEYUP_LOCAL, (IntPtr)vk, lParam);
                 SendInputScan(vk, keyUp: true);
-                EveMultiPreview.Services.DiagnosticsService.LogInjection(
+                EveCommandCenter.Services.DiagnosticsService.LogInjection(
                     $"[HeldKeyPoller] ⤴ UP key 0x{vk:X} → PostMessage {hwnds.Count} client(s) + global SendInput");
             }
         }
@@ -485,7 +485,7 @@ public static class User32
 
         void LogInjection(string msg)
         {
-            EveMultiPreview.Services.DiagnosticsService.LogInjection(msg);
+            EveCommandCenter.Services.DiagnosticsService.LogInjection(msg);
         }
 
         List<int> keysToCheck = new List<int>
@@ -718,7 +718,7 @@ public static class User32
 
         if (GetForegroundWindow() == hwnd) return;
 
-        EveMultiPreview.Services.DiagnosticsService.LogWindowHook($"[ActivateWindow] Foreground shift requested for HWND {hwnd}");
+        EveCommandCenter.Services.DiagnosticsService.LogWindowHook($"[ActivateWindow] Foreground shift requested for HWND {hwnd}");
 
         // Iconic-state restoration is handled by the caller (ThumbnailManager.
         // ActivateEveWindow), which respects the AlwaysMaximize setting and
@@ -771,7 +771,7 @@ public static class User32
         if (GetForegroundWindow() == hwnd) return;
 
         // Tier 4 — async vk0xE8 RegisterHotKey bridge.
-        EveMultiPreview.Services.DiagnosticsService.LogWindowHook($"[ActivateWindow] All synchronous tiers failed, kicking async vk0xE8 fallback for HWND {hwnd}");
+        EveCommandCenter.Services.DiagnosticsService.LogWindowHook($"[ActivateWindow] All synchronous tiers failed, kicking async vk0xE8 fallback for HWND {hwnd}");
         PendingActivateHwnd = hwnd;
         InjectVirtualKey(VK_ACTIVATION);
     }
@@ -851,8 +851,8 @@ public static class User32
     public static bool IsAppProcessName(string? procName)
     {
         if (string.IsNullOrEmpty(procName)) return false;
-        return procName.Equals("EveMultiPreview", StringComparison.OrdinalIgnoreCase) ||
-               procName.Equals("EVE MultiPreview", StringComparison.OrdinalIgnoreCase);
+        return procName.Equals("EveCommandCenter", StringComparison.OrdinalIgnoreCase) ||
+               procName.Equals("EVE Command Center", StringComparison.OrdinalIgnoreCase);
     }
 
     public static bool IsEveOrAppProcess(string? procName)

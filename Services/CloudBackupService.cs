@@ -19,10 +19,10 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Threading;
-using EveMultiPreview.Models;
+using EveCommandCenter.Models;
 using WpfApplication = System.Windows.Application;
 
-namespace EveMultiPreview.Services;
+namespace EveCommandCenter.Services;
 
 public sealed class CloudBackupService : IDisposable
 {

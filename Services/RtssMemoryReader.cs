@@ -2,7 +2,7 @@ using System;
 using System.IO;
 using System.IO.MemoryMappedFiles;
 
-namespace EveMultiPreview.Services;
+namespace EveCommandCenter.Services;
 
 /// <summary>
 /// Reads current Framerate via the RTSS instance's Shared Memory (RTSSSharedMemoryV2).

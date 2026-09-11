@@ -9,7 +9,7 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
-namespace EveMultiPreview.Services;
+namespace EveCommandCenter.Services;
 
 /// <summary>
 /// EVE Settings Profile Manager — C# port of EveManager.ahk.
@@ -457,7 +457,7 @@ public sealed class EveManagerService
         const int batchSize = 250;
         const int errFloor = 20;
         const string esiUrl = "https://esi.evetech.net/v3/universe/names/?datasource=tranquility";
-        const string userAgent = "EVE-MultiPreview/CharNameLookup (+https://github.com/cjkondur/EVE-MultiPreview)";
+        const string userAgent = "EVE-Command-Center/CharNameLookup (+https://github.com/Delerim/EVE-Command-Center)";
 
         var missing = charIds
             .Where(id => !nameMap.ContainsKey(id) && Regex.IsMatch(id, @"^\d+$"))

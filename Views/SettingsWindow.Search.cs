@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace EveMultiPreview.Views;
+namespace EveCommandCenter.Views;
 
 // Settings search / Ctrl+F across all panels. Builds a one-time index of every
 // concise label/checkbox/button/group-header in each panel, then jumps to the

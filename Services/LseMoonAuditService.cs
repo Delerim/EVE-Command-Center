@@ -1,7 +1,7 @@
 using System.Collections.Generic;
-using EveMultiPreview.Models;
+using EveCommandCenter.Models;
 
-namespace EveMultiPreview.Services;
+namespace EveCommandCenter.Services;
 
 /// <summary>
 /// LSHI-operated moon profiles imported from the LSE Moons audit supplied

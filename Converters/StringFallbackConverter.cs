@@ -2,7 +2,7 @@ using System;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace EveMultiPreview.Converters;
+namespace EveCommandCenter.Converters;
 
 /// <summary>
 /// Handles AHK config files that store colors or other strings as raw numbers (e.g. 333333 instead of "333333").
