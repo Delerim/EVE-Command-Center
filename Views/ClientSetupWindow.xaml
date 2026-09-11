@@ -3,7 +3,9 @@
  <Window.Resources><ResourceDictionary><ResourceDictionary.MergedDictionaries><ResourceDictionary Source="ContractsTheme.xaml"/></ResourceDictionary.MergedDictionaries></ResourceDictionary></Window.Resources>
  <DockPanel Margin="24">
   <StackPanel DockPanel.Dock="Top"><TextBlock Text="COMMAND CENTER SETUP" FontSize="25" FontWeight="Bold" Foreground="#55D7D2"/><TextBlock Margin="0,8,0,18" Text="Link your pilots. Corporation views unlock only after EVE confirms access." TextWrapping="Wrap" Foreground="#8FB2B5"/></StackPanel>
-  <StackPanel DockPanel.Dock="Bottom"><TextBlock x:Name="StatusText" Margin="0,10" TextWrapping="Wrap" Foreground="#FFD166"/><StackPanel Orientation="Horizontal" HorizontalAlignment="Right"><Button x:Name="GeneralButton" Content="PREVIEW SETTINGS" ToolTip="Full thumbnail, hotkey, layout, sound and client settings" Click="General_Click" Margin="0,0,10,0"/><Button x:Name="ContinueButton" Content="SAVE AND CONTINUE" Click="Continue_Click"/></StackPanel></StackPanel>
+  <StackPanel DockPanel.Dock="Bottom"><CheckBox x:Name="EsiDebug" Content="ESI DEBUG LOGGING (rotates at 2 MB; about 6 MB maximum)" Foreground="#55D7D2" Margin="0,8" Click="EsiDebug_Click"/>
+<Button Content="OPEN ESI LOG FOLDER" HorizontalAlignment="Left" Click="OpenEsiLogs_Click" Margin="0,0,0,8"/>
+<TextBlock x:Name="StatusText" Margin="0,10" TextWrapping="Wrap" Foreground="#FFD166"/><StackPanel Orientation="Horizontal" HorizontalAlignment="Right"><Button x:Name="GeneralButton" Content="PREVIEW SETTINGS" ToolTip="Full thumbnail, hotkey, layout, sound and client settings" Click="General_Click" Margin="0,0,10,0"/><Button x:Name="ContinueButton" Content="SAVE AND CONTINUE" Click="Continue_Click"/></StackPanel></StackPanel>
   <ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel x:Name="LinkPanel">
    <Border Background="#0C2529" BorderBrush="#245058" BorderThickness="1" Padding="18" CornerRadius="8" Margin="0,0,0,12"><StackPanel>
     <TextBlock Text="1   YOUR PILOTS" FontSize="16" FontWeight="Bold"/>

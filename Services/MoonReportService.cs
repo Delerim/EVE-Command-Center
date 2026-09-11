@@ -88,6 +88,7 @@ public sealed class MoonReportService : IDisposable
 
     public async Task SelectPilotAsync(long characterId)
     {
+        if (_state.SelectedCharacterId == characterId) return;
         await _gate.WaitAsync();
         try
         {
@@ -1264,6 +1265,11 @@ public sealed class MoonReportService : IDisposable
 
         return new MoonAuditView
         {
+            OreRows = BuildOreRows(profile, pull),
+            Reliable = reliable,
+            TotalMined = FormatM3(Mined(pull, "zeolit") + Mined(pull, "sylvit") + Mined(pull, "bitumen") + Mined(pull, "coesite")),
+            TotalLeft = reliable ? FormatM3(zeoLeft + sylviteLeft + bitumensLeft + coesiteLeft) : "Unknown",
+
             MoonName = First(pull.MoonName, profile.MoonName),
             StructureName = First(pull.StructureName, profile.StructureName),
             SystemName = First(pull.SystemName, profile.SystemName),

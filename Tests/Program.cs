@@ -49,6 +49,7 @@ internal static partial class Program
             return;
         }
         CheckEsiQueue().GetAwaiter().GetResult();
+        Check(EveSsoService.IsShieldMindlink("ORE Mining Director Mindlink") && !EveSsoService.IsShieldMindlink("Mining Foreman Mindlink"), "ORE mindlink applies shield bonus; ordinary mining mindlink does not");
         CheckBuybackPeriods();
         CheckMoonAlerts();
         CheckContractHistory();
@@ -159,6 +160,15 @@ internal static partial class Program
             typeof(MoonReportWindow).GetMethod("ApplySnapshot", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!.Invoke(fuelWindow, new object[]{moonSnapshot});
             fuelWindow.FocusFuel();
             Render(fuelWindow, System.IO.Path.ChangeExtension(args[0], ".fuel.png"));
+        }
+        if (args.Length > 0)
+        {
+            var audit = new MoonReportWindow(); BackgroundOperations.Stop();
+            var grid = (DataGrid)audit.FindName("AuditGrid");
+            grid.ItemsSource = new[] { new MoonAuditView { MoonName="Joppaya VII - Moon 4", StructureName="Joppaya - Adventure", SystemName="Joppaya", Expired="11 Sept 2026 18:09", Fractured="09 Sept 2026 18:09", TotalMined="34.34M m3", TotalLeft="3.81M m3", Outcome="ORE LEFT", OutcomeBrush="#EF7770", Reliable=true, OreRows=new[] { new MoonOreRowView { Name="Zeolites", TypeId=45490, Color="#CE93D8", Mined="24.24M m3", Remaining="0 m3", InitialM3=24240000 }, new MoonOreRowView { Name="Sylvite", TypeId=45491, Color="#80CBC4", Mined="9.29M m3", Remaining="1.12M m3", InitialM3=10410000, RemainingM3=1120000 } } } };
+            grid.RowDetailsVisibilityMode = DataGridRowDetailsVisibilityMode.Visible;
+            ((TabControl)audit.FindName("MoonTabs")).SelectedIndex = 3;
+            Render(audit, System.IO.Path.ChangeExtension(args[0], ".audit.png"));
         }
         var toast = new OperatingToast("Mazitah - Example Moon", "Glistening ore confirmed in the mining ledger. Open the moon overview to inspect the field.", () => {}, "GLISTENING MOON DETECTED");
         if (args.Length > 0) Render(toast, System.IO.Path.ChangeExtension(args[0], ".toast.png"));

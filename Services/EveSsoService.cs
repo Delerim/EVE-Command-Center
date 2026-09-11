@@ -2121,15 +2121,7 @@ public sealed class EveSsoService
                             implantId,
                             cancellationToken);
 
-                    if (implantName.Contains(
-                            "Shield Command Mindlink",
-                            StringComparison.OrdinalIgnoreCase) ||
-                        implantName.Contains(
-                            "Republic Fleet Command Mindlink",
-                            StringComparison.OrdinalIgnoreCase) ||
-                        implantName.Contains(
-                            "Caldari Navy Command Mindlink",
-                            StringComparison.OrdinalIgnoreCase))
+                    if (IsShieldMindlink(implantName))
                     {
                         mindlinkMultiplier =
                             1.25;
@@ -2180,6 +2172,12 @@ public sealed class EveSsoService
                     : "")
         };
     }
+    public static bool IsShieldMindlink(string name) => new[]
+    {
+        "Shield Command Mindlink", "Republic Fleet Command Mindlink",
+        "Caldari Navy Command Mindlink", "ORE Mining Director Mindlink"
+    }.Any(n => name.Equals(n, StringComparison.OrdinalIgnoreCase));
+
     private static void ApplyHullCapacityBonuses(
         int shipTypeId,
         EveUniverseType hull,

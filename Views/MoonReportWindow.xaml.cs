@@ -779,6 +779,14 @@ public partial class MoonReportWindow : Window
         catch (Exception ex) { SetStatus("Could not import moon setup: " + ex.Message, true); }
     }
 
+    private void AuditExpand_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not System.Windows.Controls.Button button) return;
+        var row = System.Windows.Controls.ItemsControl.ContainerFromElement(AuditGrid, button) as System.Windows.Controls.DataGridRow;
+        if (row == null) return;
+        bool expand = row.DetailsVisibility != Visibility.Visible;
+        row.DetailsVisibility = expand ? Visibility.Visible : Visibility.Collapsed;
+    }
     private async void ImportLseAudit_Click(object sender, RoutedEventArgs e)
     {
         try

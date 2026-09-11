@@ -82,8 +82,10 @@ public sealed class CorporationAccessService
             return (false, pilot.CharacterName + ": reconnect to approve the required scopes.");
         try
         {
-            var token = await _token(pilot, ct);
-            return await ProbeEndpointsAsync(_http, token, pilot.CharacterId, moons, ct);
+            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            timeout.CancelAfter(TimeSpan.FromSeconds(45));
+            var token = await _token(pilot, timeout.Token);
+            return await ProbeEndpointsAsync(_http, token, pilot.CharacterId, moons, timeout.Token);
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
         catch (HttpRequestException ex) when (ex.StatusCode is System.Net.HttpStatusCode.Unauthorized or System.Net.HttpStatusCode.Forbidden)

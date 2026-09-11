@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Text.Json.Serialization;
 
@@ -255,6 +255,11 @@ public sealed class MoonLedgerRowView
 
 public sealed class MoonAuditView
 {
+    public IReadOnlyList<MoonOreRowView> OreRows { get; init; } = Array.Empty<MoonOreRowView>();
+    public string TotalMined { get; init; } = "";
+    public string TotalLeft { get; init; } = "";
+    public bool Reliable { get; init; }
+
     public string MoonName { get; init; } = "";
     public string StructureName { get; init; } = "";
     public string SystemName { get; init; } = "";

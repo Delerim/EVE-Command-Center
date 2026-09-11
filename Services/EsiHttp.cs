@@ -69,7 +69,7 @@ public static class EsiHttp
                 {
                     var now = DateTimeOffset.UtcNow;
                     if (get && scheduler.Cache.TryGetValue(key, out var cached) && cached.Until > now)
-                        return cached.Response();
+                        { EsiDiagnostics.Write($"CACHE {request.Method} {route} until {cached.Until:O}"); return cached.Response(); }
                     string bucket = owner + ":" + scheduler.Groups.GetValueOrDefault(route, route);
                     var due = new[] { scheduler.Next, scheduler.Paused, scheduler.Due.GetValueOrDefault(bucket) }.Max();
                     wait = due - now;
@@ -78,7 +78,12 @@ public static class EsiHttp
                         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
                         timeout.CancelAfter(TimeSpan.FromSeconds(35));
                         scheduler.Next = now.AddMilliseconds(750);
-                        var response = await base.SendAsync(request, timeout.Token).ConfigureAwait(false);
+                        EsiDiagnostics.Write($"SEND {request.Method} {route}");
+                        HttpResponseMessage response;
+                        var started = DateTimeOffset.UtcNow;
+                        try { response = await base.SendAsync(request, timeout.Token).ConfigureAwait(false); }
+                        catch (OperationCanceledException) { EsiDiagnostics.Write($"CANCEL/TIMEOUT {request.Method} {route} after {(DateTimeOffset.UtcNow-started).TotalSeconds:0.0}s"); throw; }
+                        catch (HttpRequestException) { EsiDiagnostics.Write($"NETWORK ERROR {request.Method} {route}"); throw; }
                         byte[] body;
                         try { body = await response.Content.ReadAsByteArrayAsync(timeout.Token).ConfigureAwait(false); }
                         catch { response.Dispose(); throw; }
@@ -103,6 +108,7 @@ public static class EsiHttp
                         if (int.TryParse(Header("X-ESI-Error-Limit-Remain"), out var errors) && errors < 25)
                             scheduler.Paused = now.AddSeconds(int.TryParse(Header("X-ESI-Error-Limit-Reset"), out var reset) ? Math.Max(60, reset) + 2 : 62);
                         int status = (int)response.StatusCode;
+                        EsiDiagnostics.Write($"HTTP {status} {request.Method} {route} {(now-started).TotalSeconds:0.0}s group={Header("X-Ratelimit-Group")} remaining={Header("X-Ratelimit-Remaining")} errors={Header("X-ESI-Error-Limit-Remain")} retry={Header("Retry-After")}");
                         if (status is 420 or 429 or 503)
                         {
                             var retry = response.Headers.RetryAfter;
@@ -126,7 +132,9 @@ public static class EsiHttp
                     }
                 }
                 finally { scheduler.Gate.Release(); }
-                await Task.Delay(wait, ct).ConfigureAwait(false);
+                EsiDiagnostics.Write($"QUEUE {request.Method} {route} wait {wait.TotalSeconds:0}s (pacing / provider cooldown)");
+                try { await Task.Delay(wait, ct).ConfigureAwait(false); }
+                catch (OperationCanceledException) { EsiDiagnostics.Write($"CANCEL queued {request.Method} {route}"); throw; }
             }
         }
     }

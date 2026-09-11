@@ -13,6 +13,11 @@ public partial class ClientSetupWindow : Window
     public ClientSetupWindow(bool firstRun = false)
     {
         InitializeComponent();
+        EsiDebug.IsChecked = EsiDiagnostics.Enabled;
+        var progress = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
+        progress.Tick += (_, _) => { if (_busy) StatusText.Text = "Working (permission checks allow 45 seconds per reader). ESI: " + EsiDiagnostics.Status; };
+        progress.Start();
+        Closed += (_, _) => progress.Stop();
         MaxHeight = SystemParameters.WorkArea.Height;
         Height = Math.Min(Height, MaxHeight);
         GeneralButton.Visibility = firstRun ? Visibility.Collapsed : Visibility.Visible;
@@ -91,6 +96,12 @@ public partial class ClientSetupWindow : Window
         try { await ValidateAsync(); _operations.Access.State.SetupCompleted = true; _operations.Access.Save(); DialogResult = true; }
         catch (Exception ex) { StatusText.Text = ex.Message; }
         finally { Busy(false); }
+    }
+    private void EsiDebug_Click(object sender, RoutedEventArgs e) => EsiDiagnostics.Enabled = EsiDebug.IsChecked == true;
+    private void OpenEsiLogs_Click(object sender, RoutedEventArgs e)
+    {
+        System.IO.Directory.CreateDirectory(EsiDiagnostics.DirectoryPath);
+        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(EsiDiagnostics.DirectoryPath) { UseShellExecute = true });
     }
     private void General_Click(object sender, RoutedEventArgs e) => (System.Windows.Application.Current as App)?.ShowGeneralSettings();
 }

@@ -1,9 +1,10 @@
-﻿# EVE Command Center v2.9.3
+﻿# EVE Command Center v2.9.4
 
-- Fixed Moon and Contracts tabs disappearing when permission verification encounters temporary ESI throttling, timeouts or server errors.
-- Successful verification is remembered for the same reader for up to 24 hours, including across restarts. Temporary failures show a delayed-verification status and retry automatically.
-- Explicit authentication or permission denial, missing scopes, unlinking or changing readers still removes access. Unverified readers do not gain access during an outage.
-- Moon access updates immediately after its check instead of waiting for the Contracts check.
-- Added Verify Access beside the Moon reader in Settings; reauthorization is no longer needed just to retry verification.
+- Despawn audit now uses compact totals, colored outcome badges and expandable ore cards with small EVE icons and remaining-volume bars. Unknown outcomes are not presented as reliable estimates.
+- Settings includes optional ESI debug logging and an Open ESI Log Folder button. Logs include request paths, cache hits, queue delays, response codes, rate-limit headers and network timeouts, without authorization headers or response bodies.
+- Debug logs rotate at 2 MB with two backups (roughly 6 MB maximum).
+- Settings displays current ESI activity while working. Each permission probe allows 45 seconds before reporting delayed verification; recently verified access remains available.
+- Reselecting the current Moon reader no longer waits behind a background Moon refresh.
+- Fixed missing ORE Mining Director Mindlink recognition in Orca shield command boost estimates. This applies its shield bonus when the implant is reported by ESI.
 
-Validation: 104 automated checks passed. Live ESI verification confirmed the configured Moon and Contracts readers have access.
+Validation: 105 checks passed; expanded audit visually rendered and checked.
