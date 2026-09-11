@@ -6,6 +6,7 @@ namespace EveMultiPreview.Models;
 
 public sealed class MoonReportState
 {
+    public bool DesktopNotificationsEnabled { get; set; } = true;
     public long SelectedCharacterId { get; set; }
     public DateTimeOffset? LastRefreshUtc { get; set; }
     public Dictionary<long, MoonProfile> Profiles { get; set; } = new();
@@ -310,6 +311,9 @@ public sealed class EsiMoonExtraction
 
 public sealed class EsiCorporationStructure
 {
+    [JsonPropertyName("fuel_expires")]
+    public DateTimeOffset? FuelExpires { get; set; }
+
     [JsonPropertyName("structure_id")]
     public long StructureId { get; set; }
 

@@ -38,6 +38,8 @@ public partial class MoonReportWindow : Window
     private string _calendarMode = "MONTH";
     private DateTime _calendarDate = DateTime.Today;
     private DateTime? _expandedMonthDate;
+    private readonly Dictionary<string, DateTimeOffset> _notified = new();
+    private bool _closed;
     private bool _busy;
     private bool _loadingReports;
     private bool _loadingLedger;
@@ -47,6 +49,7 @@ public partial class MoonReportWindow : Window
     {
         InitializeComponent();
         _service = new MoonReportService(_sso);
+        DesktopAlertsCheck.IsChecked = _service.DesktopNotificationsEnabled;
         _refreshTimer = new WpfDispatcherTimer
         {
             Interval = TimeSpan.FromMinutes(61)
@@ -74,6 +77,7 @@ public partial class MoonReportWindow : Window
 
     private void Window_Closed(object? sender, EventArgs e)
     {
+        _closed = true;
         _refreshTimer.Stop();
         _lifetime.Cancel();
         _lifetime.Dispose();
@@ -148,10 +152,50 @@ public partial class MoonReportWindow : Window
         {
             var progress = new Progress<string>(SetStatus);
             ApplySnapshot(await _service.RefreshAsync(pilot, progress, _lifetime.Token));
+            ShowOperatingAlerts();
         }
         catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
         catch (Exception ex) { SetStatus(ex.Message, true); }
         finally { SetBusy(false); }
+    }
+
+    private async void DesktopAlerts_Click(object sender, RoutedEventArgs e)
+    {
+        try { await _service.SetDesktopNotificationsAsync(DesktopAlertsCheck.IsChecked == true); }
+        catch (Exception ex) { SetStatus(ex.Message, true); }
+    }
+
+    private void TestAlert_Click(object sender, RoutedEventArgs e) =>
+        OperatingToast.Notify("Example moon ? Command Center", "No extraction scheduled. Set the next moon drill cycle.",
+            () => OpenOperatingAlert("", "This is a test notification. No live moon alert was triggered."));
+
+    private void ShowOperatingAlerts()
+    {
+        var alerts = _service.OperatingAlerts;
+        var keys = alerts.Select(a => a.Key).ToHashSet();
+        foreach (var key in _notified.Keys.Where(k => !keys.Contains(k)).ToArray()) _notified.Remove(key);
+        if (!_service.DesktopNotificationsEnabled || _closed) return;
+        var now = DateTimeOffset.UtcNow;
+        foreach (var alert in alerts)
+        {
+            if (_notified.TryGetValue(alert.Key, out var last) && now - last < TimeSpan.FromHours(6)) continue;
+            _notified[alert.Key] = now;
+            OperatingToast.Notify(alert.StructureName, alert.Message,
+                () => OpenOperatingAlert(alert.StructureName, alert.Message));
+        }
+    }
+
+    private void OpenOperatingAlert(string structure, string message)
+    {
+        if (_closed) return;
+        if (WindowState == WindowState.Minimized) WindowState = WindowState.Normal;
+        Show();
+        Activate();
+        _filter = "ALL";
+        SearchBox.Text = structure;
+        ApplyFilters();
+        System.Windows.MessageBox.Show(this, message, string.IsNullOrEmpty(structure) ? "Test moon alert" : structure,
+            MessageBoxButton.OK, MessageBoxImage.Information);
     }
 
     private void ApplySnapshot(MoonReportSnapshot snapshot)
@@ -369,9 +413,9 @@ public partial class MoonReportWindow : Window
         MoonCardView[] cards = CardsForDate(date);
         var root = new WpfStackPanel();
         root.Children.Add(Text(date.ToString("ddd dd MMM").ToUpperInvariant(), detailed ? 20 : 15, "#E8FFFF", true));
-        root.Children.Add(Text($"{cards.Length} moon(s) · mined {MoonReportService.FormatM3(total?.TotalM3 ?? 0)} · despawn {MoonReportService.FormatM3(total?.LostM3 ?? 0)}", detailed ? 12 : 10, "#7EA8AB"));
+        root.Children.Add(Text($"{cards.Length} moon(s) Â· mined {MoonReportService.FormatM3(total?.TotalM3 ?? 0)} Â· despawn {MoonReportService.FormatM3(total?.LostM3 ?? 0)}", detailed ? 12 : 10, "#7EA8AB"));
         if (detailed && total != null)
-            root.Children.Add(Text($"Zeo {MoonReportService.FormatM3(total.ZeolitesM3)}  ·  Syl {MoonReportService.FormatM3(total.SylviteM3)}  ·  Bit {MoonReportService.FormatM3(total.BitumensM3)}  ·  Coe {MoonReportService.FormatM3(total.CoesiteM3)}", 12, "#A8CFD0"));
+            root.Children.Add(Text($"Zeo {MoonReportService.FormatM3(total.ZeolitesM3)}  Â·  Syl {MoonReportService.FormatM3(total.SylviteM3)}  Â·  Bit {MoonReportService.FormatM3(total.BitumensM3)}  Â·  Coe {MoonReportService.FormatM3(total.CoesiteM3)}", 12, "#A8CFD0"));
         if (detailed)
         {
             var cardsHost = new WpfWrapPanel { Margin = new Thickness(0, 8, 0, 0) };
@@ -405,7 +449,7 @@ public partial class MoonReportWindow : Window
 
         var body = new WpfStackPanel();
         WpfGrid.SetColumn(body, 1);
-        body.Children.Add(Text((card.IsJackpot ? "★ " : "") + card.MoonName, detailed ? 16 : 12, card.IsJackpot ? "#FFD166" : "#E8FFFF", true));
+        body.Children.Add(Text((card.IsJackpot ? "â˜… " : "") + card.MoonName, detailed ? 16 : 12, card.IsJackpot ? "#FFD166" : "#E8FFFF", true));
         body.Children.Add(Text(card.StructureName, detailed ? 11 : 9, "#8FB2B5"));
         body.Children.Add(Text(card.ScheduleValue, detailed ? 11 : 9, "#55D7D2", true));
         var status = new WpfBorder
@@ -454,8 +498,8 @@ public partial class MoonReportWindow : Window
             foreach (MoonOreRowView ore in card.OreRows)
             {
                 WpfTextBlock row = Text(
-                    ore.Name + "  ·  mined " + ore.Mined +
-                    "  ·  est. left " + ore.Remaining,
+                    ore.Name + "  Â·  mined " + ore.Mined +
+                    "  Â·  est. left " + ore.Remaining,
                     11,
                     ore.Color);
                 row.Margin = new Thickness(0, 4, 0, 0);
@@ -474,7 +518,7 @@ public partial class MoonReportWindow : Window
         row.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new GridLength(23) });
         row.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition());
         row.Children.Add(BuildMoonStructureIcon(card, 19));
-        WpfTextBlock name = Text((card.IsJackpot ? "★ " : "") + card.MoonName,
+        WpfTextBlock name = Text((card.IsJackpot ? "â˜… " : "") + card.MoonName,
             10, card.IsJackpot ? "#FFD166" : "#B6D4D5", card.IsJackpot);
         name.VerticalAlignment = System.Windows.VerticalAlignment.Center;
         WpfGrid.SetColumn(name, 1); row.Children.Add(name);
@@ -595,7 +639,7 @@ public partial class MoonReportWindow : Window
             : pull.Rows.Count == 0
                 ? "NO MINING RECORDED"
                 : pull.JackpotObserved
-                    ? "★ JACKPOT OBSERVED"
+                    ? "â˜… JACKPOT OBSERVED"
                     : "STANDARD PULL";
         LedgerStatusText.Foreground = Brush(
             pull?.JackpotObserved == true ? "#FFD166" : "#8FB2B5");
@@ -722,12 +766,12 @@ public partial class MoonReportWindow : Window
 
     private MoonProfile? ShowProfileEditor(MoonProfile source)
     {
-        var window = new Window { Owner = this, Title = "Ore profile · " + source.MoonName, Width = 500, Height = 555, ResizeMode = ResizeMode.NoResize, WindowStartupLocation = WindowStartupLocation.CenterOwner, Background = Brush("#07181B"), Foreground = WpfBrushes.White, FontFamily = new System.Windows.Media.FontFamily("Segoe UI") };
+        var window = new Window { Owner = this, Title = "Ore profile Â· " + source.MoonName, Width = 500, Height = 555, ResizeMode = ResizeMode.NoResize, WindowStartupLocation = WindowStartupLocation.CenterOwner, Background = Brush("#07181B"), Foreground = WpfBrushes.White, FontFamily = new System.Windows.Media.FontFamily("Segoe UI") };
         var root = new WpfGrid { Margin = new Thickness(18) };
         for (int i = 0; i < 11; i++) root.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = GridLength.Auto });
         root.RowDefinitions.Add(new System.Windows.Controls.RowDefinition()); root.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = GridLength.Auto });
         WpfTextBlock title = Text(source.MoonName, 20, "#E8FFFF", true); WpfGrid.SetRow(title, 0); root.Children.Add(title);
-        WpfTextBlock sub = Text(source.StructureName + " · " + source.SystemName, 12, "#82ABAE"); sub.Margin = new Thickness(0, 0, 0, 12); WpfGrid.SetRow(sub, 1); root.Children.Add(sub);
+        WpfTextBlock sub = Text(source.StructureName + " Â· " + source.SystemName, 12, "#82ABAE"); sub.Margin = new Thickness(0, 0, 0, 12); WpfGrid.SetRow(sub, 1); root.Children.Add(sub);
         WpfTextBox zeo = AddEditorRow(root, 2, "Zeolites composition %", source.ZeolitesPercent);
         WpfTextBox syl = AddEditorRow(root, 3, "Sylvite composition %", source.SylvitePercent);
         WpfTextBox bit = AddEditorRow(root, 4, "Bitumens composition %", source.BitumensPercent);

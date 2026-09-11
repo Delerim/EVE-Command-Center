@@ -62,6 +62,17 @@ public sealed class MoonReportService : IDisposable
         RebuildPullMinedTotals();
     }
 
+    public IReadOnlyList<MoonOperatingAlert> OperatingAlerts { get; private set; } = Array.Empty<MoonOperatingAlert>();
+
+    public bool DesktopNotificationsEnabled => _state.DesktopNotificationsEnabled;
+
+    public async Task SetDesktopNotificationsAsync(bool enabled)
+    {
+        await _gate.WaitAsync();
+        try { _state.DesktopNotificationsEnabled = enabled; await SaveStateAsync(); }
+        finally { _gate.Release(); }
+    }
+
     public long SelectedCharacterId => _state.SelectedCharacterId;
 
     public static bool HasRequiredScopes(EvePilotProfile pilot)
@@ -217,6 +228,7 @@ public sealed class MoonReportService : IDisposable
 
             EvaluateExpiredFields(DateTimeOffset.UtcNow);
             _state.SelectedCharacterId = pilot.CharacterId;
+            OperatingAlerts = MoonOperatingAlert.Evaluate(structures, extractions, DateTimeOffset.UtcNow);
             _state.LastRefreshUtc = DateTimeOffset.UtcNow;
             await SaveStateAsync();
 
@@ -1097,7 +1109,7 @@ public sealed class MoonReportService : IDisposable
                     MoonName = pull.MoonName,
                     StructureName = pull.StructureName,
                     Label = fracture.ToLocalTime().ToString("dd MMM yyyy HH:mm") +
-                        (pull.JackpotObserved ? "  ·  ★ JACKPOT" : ""),
+                        (pull.JackpotObserved ? "  Â·  â˜… JACKPOT" : ""),
                     FractureUtc = fracture,
                     JackpotObserved = pull.JackpotObserved,
                     TotalM3 = rows.Sum(row => row.VolumeM3),
@@ -1126,7 +1138,7 @@ public sealed class MoonReportService : IDisposable
                 MoonId = profile.MoonId > 0 ? profile.MoonId : 0,
                 MoonName = profile.MoonName,
                 StructureName = profile.StructureName,
-                Label = profile.MoonName + "  ·  " + profile.StructureName
+                Label = profile.MoonName + "  Â·  " + profile.StructureName
             })
             .OrderBy(moon => moon.MoonName, StringComparer.OrdinalIgnoreCase)
             .ToArray();
@@ -1417,8 +1429,8 @@ public sealed class MoonReportService : IDisposable
                 break;
             start = dates[i];
         }
-        return "≈ " + start.ToString("dd MMM yyyy") +
-            " · inferred from ledger";
+        return "â‰ˆ " + start.ToString("dd MMM yyyy") +
+            " Â· inferred from ledger";
     }
 
     private MoonProfile ProfileFor(MoonPullRecord pull)
@@ -1757,7 +1769,7 @@ public sealed class MoonReportService : IDisposable
         string direction = delta >= TimeSpan.Zero ? "in " : "";
         string suffix = delta < TimeSpan.Zero ? " ago" : "";
         return value.ToLocalTime().ToString("dd MMM HH:mm") +
-            " · " + direction + FormatDuration(delta.Duration()) + suffix;
+            " Â· " + direction + FormatDuration(delta.Duration()) + suffix;
     }
 
     private static string FormatDuration(TimeSpan span)
@@ -1813,7 +1825,7 @@ public sealed class MoonReportService : IDisposable
             parts.Add($"BIT {profile.BitumensPercent:0.#}%");
         if (profile.CoesitePercent > 0)
             parts.Add($"COE {profile.CoesitePercent:0.#}%");
-        return parts.Count == 0 ? "NO R4 ORE PROFILE" : string.Join("  ·  ", parts);
+        return parts.Count == 0 ? "NO R4 ORE PROFILE" : string.Join("  Â·  ", parts);
     }
 
     private static MoonOreRowView[] BuildOreRows(
@@ -1889,7 +1901,7 @@ public sealed class MoonReportService : IDisposable
         if (sylvite > 0) parts.Add("Syl " + FormatM3(sylvite));
         if (bitumens > 0) parts.Add("Bit " + FormatM3(bitumens));
         if (coesite > 0) parts.Add("Coe " + FormatM3(coesite));
-        return parts.Count == 0 ? "-" : string.Join("  ·  ", parts);
+        return parts.Count == 0 ? "-" : string.Join("  Â·  ", parts);
     }
 
     private static MoonProfile CloneProfile(MoonProfile source)
