@@ -4,6 +4,10 @@ namespace EveCommandCenter.Models;
 
 public sealed class CorporationContract
 {
+    [JsonPropertyName("acceptor_id")] public long AcceptorId { get; set; }
+    [JsonPropertyName("date_accepted")] public DateTimeOffset? Accepted { get; set; }
+    [JsonPropertyName("date_completed")] public DateTimeOffset? Completed { get; set; }
+    public bool WasAccepted => Accepted.HasValue || Status is "in_progress" or "finished" or "finished_issuer" or "finished_contractor";
     [JsonPropertyName("contract_id")] public long Id { get; set; }
     [JsonPropertyName("issuer_id")] public long IssuerId { get; set; }
     [JsonPropertyName("assignee_id")] public long AssigneeId { get; set; }
@@ -18,6 +22,8 @@ public sealed class CorporationContract
 
 public sealed class ContractRow
 {
+    public string Acceptor { get; set; } = "Not reported";
+    public string AcceptedText => Contract.Accepted?.ToLocalTime().ToString("dd MMM yyyy HH:mm") ?? "-";
     public CorporationContract Contract { get; set; } = new();
     public long CorporationId { get; set; }
     public long ReaderCharacterId { get; set; }
@@ -58,6 +64,9 @@ public sealed class ContractItem
 
 public sealed class ContractState
 {
+    public List<ContractRow> History { get; set; } = new();
+    public HashSet<long> HistoryBaselines { get; set; } = new();
+    public Dictionary<long, HashSet<long>> AcceptedNotified { get; set; } = new();
     public long CharacterId { get; set; }
     public long CorporationId { get; set; }
     public string CorporationName { get; set; } = "";

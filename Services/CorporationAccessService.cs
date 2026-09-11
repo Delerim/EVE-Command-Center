@@ -1,4 +1,4 @@
-using System.IO;
+﻿using System.IO;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text.Json;
@@ -22,8 +22,8 @@ public sealed class CorporationAccessService
     public LinkState State { get; }
     public bool CanReadMoons { get; private set; }
     public bool CanReadContracts { get; private set; }
-    public string MoonStatus { get; private set; } = "Not verified — link a holding-corporation character.";
-    public string ContractStatus { get; private set; } = "Not verified — link a corporation contract reader.";
+    public string MoonStatus { get; private set; } = "Not verified - link a holding-corporation character.";
+    public string ContractStatus { get; private set; } = "Not verified - link a corporation contract reader.";
     public event Action? Changed;
 
     public CorporationAccessService(EveSsoService sso, HttpClient? http = null, string? directory = null)
@@ -56,7 +56,7 @@ public sealed class CorporationAccessService
     }
     private async Task<(bool, string)> ProbeAsync(EvePilotProfile? pilot, bool moons, CancellationToken ct)
     {
-        if (pilot == null) return (false, "Not linked — this view is hidden.");
+        if (pilot == null) return (false, "Not linked - this view is hidden.");
         if (moons ? !MoonReportService.HasRequiredScopes(pilot) : !ContractService.CanRead(pilot))
             return (false, pilot.CharacterName + ": reconnect to approve the required scopes.");
         try
@@ -90,6 +90,6 @@ public sealed class CorporationAccessService
             if (structures.RootElement.ValueKind != JsonValueKind.Array) throw new InvalidDataException("Unexpected structure response.");
         }
         using var corporation = await Read($"corporations/{corp}/");
-        return (true, $"Verified: {name} • {corporation.RootElement.GetProperty("name").GetString()}");
+        return (true, $"Verified: {name} | {corporation.RootElement.GetProperty("name").GetString()}");
     }
 }

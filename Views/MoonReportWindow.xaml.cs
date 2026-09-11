@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -148,10 +148,6 @@ public partial class MoonReportWindow : Window
         try { await _service.SetDesktopNotificationsAsync(DesktopAlertsCheck.IsChecked == true); }
         catch (Exception ex) { SetStatus(ex.Message, true); }
     }
-
-    private void TestAlert_Click(object sender, RoutedEventArgs e) =>
-        OperatingToast.Notify("Example moon ? Command Center", "No extraction scheduled. Set the next moon drill cycle.",
-            () => OpenOperatingAlert("", "This is a test notification. No live moon alert was triggered."));
 
     private void OnBackgroundRefresh()
     {

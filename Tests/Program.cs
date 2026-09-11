@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using System.Net;
 using System.Net.Http;
 using System.Windows;
@@ -27,6 +27,20 @@ internal static class Program
     [STAThread]
     private static void Main(string[] args)
     {
+        if (args.FirstOrDefault() == "--inspect-fit")
+        {
+            var sso = new EveSsoService();
+            foreach (var pilot in sso.LoadPilotsAsync().GetAwaiter().GetResult().Where(p => args.Skip(1).Contains(p.CharacterName)))
+            {
+                var fit = sso.GetInventoryAsync(pilot).GetAwaiter().GetResult();
+                Console.WriteLine(pilot.CharacterName + " low slots: " + string.Join(", ", fit.CurrentShipModules.Where(m => m.Slot.StartsWith("Low")).Select(m => m.Name)));
+                Console.WriteLine("Unboosted: " + fit.CurrentFitStats.OmniEhp + "; 19.7% shield bursts: " + fit.CurrentFitStats.ApplyShieldCommandBoost(19.7, 19.7).OmniEhp);
+            }
+            return;
+        }
+        CheckMoonAlerts();
+        CheckContractHistory();
+        CheckFitStacking();
         CheckAccessAsync().GetAwaiter().GetResult();
         var moonSnapshot = CheckMoonRecovery();
         using var appraisal = JsonDocument.Parse("{\"pricerMarket\":{\"name\":\"Jita 4-4\"},\"immediatePrices\":{\"totalBuyPrice\":1000}}");
@@ -79,6 +93,8 @@ internal static class Program
         current.Contracts.State.Rows = new() { good, Row(950, 2), wrong, unknown };
         foreach (var row in current.Contracts.State.Rows.Skip(1).Take(1)) ContractService.Evaluate(row, appraisal.RootElement, 90, 0.1m);
         current.Contracts.State.CorporationName = "Example Corporation";
+        current.Contracts.State.CorporationId = 42;
+        current.Contracts.State.History = new() { new ContractRow { CorporationId = 42, Issuer = "Example Miner", Acceptor = "Corporation Officer", Contract = new CorporationContract { Id = 123456, Status = "finished", AcceptorId = 123, Accepted = DateTimeOffset.UtcNow, Price = 650000000, Issued = DateTimeOffset.UtcNow.AddHours(-3) } } };
         current.Contracts.State.LastRefreshUtc = DateTimeOffset.UtcNow;
         typeof(ContractsWindow).GetMethod("Render", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.DeclaredOnly)!.Invoke(window, null);
         ((ComboBox)window.FindName("PilotCombo")).ItemsSource = new[] { new EvePilotProfile { CharacterName = "Corporation Data Toon" } };
@@ -86,7 +102,8 @@ internal static class Program
         BackgroundOperations.Stop();
         Check(((DataGrid)window.FindName("ContractsGrid")).Items.Count == 4, "Contract XAML loads and binds rows");
         ((DataGrid)window.FindName("ContractsGrid")).SelectedIndex = 1;
-        if (args.Length > 0) Render(window, args[0]);
+        Check(((DataGrid)window.FindName("HistoryGrid")).Items.Count == 1, "History view binds persisted acceptance records");
+        if (args.Length > 0) { ((TabControl)window.FindName("ContractTabs")).SelectedIndex = 1; Render(window, args[0]); }
         var details = new ContractContentsWindow(current.Contracts, current.Sso, good, 0);
         Check(((TextBlock)details.FindName("ResultText")).Text == "CHECKS PASSED", "Contents XAML loads check summary");
         if (args.Length > 0)
@@ -106,8 +123,52 @@ internal static class Program
         Check(((DataGrid)moonWindow.FindName("OverviewFields")).Items.Count == 2, "System selector filters active fields");
         ((ComboBox)moonWindow.FindName("OverviewSystem")).SelectedItem = "All systems";
         if (args.Length > 0) Render(moonWindow, System.IO.Path.ChangeExtension(args[0], ".moons.png"));
+        var toast = new OperatingToast("Mazitah - Example Moon", "Glistening ore confirmed in the mining ledger. Open the moon overview to inspect the field.", () => {}, "GLISTENING MOON DETECTED");
+        if (args.Length > 0) Render(toast, System.IO.Path.ChangeExtension(args[0], ".toast.png"));
         Console.WriteLine($"{_checks} checks passed.");
     }
+    private static void CheckMoonAlerts()
+    {
+        var seen = new Dictionary<string, DateTimeOffset>();
+        var now = DateTimeOffset.UtcNow;
+        var empty = new MoonReportSnapshot { LastRefreshUtc = now };
+        Check(MoonMilestones.Observe(empty, 1, seen, now).Count == 0, "Moon alerts establish a quiet baseline");
+        var snapshot = new MoonReportSnapshot { LastRefreshUtc = now, CalendarCards = new[] { new MoonCardView { PullId = "a", Status = "READY" }, new MoonCardView { PullId = "b", Status = "FIELD ACTIVE", IsJackpot = true } } };
+        var alerts = MoonMilestones.Observe(snapshot, 1, seen, now);
+        Check(alerts.Count == 3 && alerts.Any(a => a.Title.Contains("GLISTENING")), "Ready, fractured and Glistening fields create distinct alerts");
+        seen = JsonSerializer.Deserialize<Dictionary<string, DateTimeOffset>>(JsonSerializer.Serialize(seen))!;
+        Check(MoonMilestones.Observe(snapshot, 1, seen, now).Count == 0, "Moon milestone notifications do not repeat after restart");
+        Check(MoonMilestones.Observe(snapshot, 2, seen, now).Count == 0, "Another corporation reader establishes its own baseline");
+    }
+
+    private static void CheckContractHistory()
+    {
+        var state = new ContractState();
+        ContractRow History(long id, string status, DateTimeOffset? accepted = null) => new() { CorporationId = 42, Contract = new() { Id = id, Status = status, Accepted = accepted, AcceptorId = accepted.HasValue ? 123 : 0 } };
+        var now = DateTimeOffset.UtcNow;
+        Check(ContractService.RecordHistory(state, 42, new[] { History(1, "outstanding"), History(2, "finished", now.AddDays(-3)) }).Count == 0, "Historical acceptance import does not flood notifications");
+        Check(ContractService.RecordHistory(state, 42, new[] { History(1, "finished", now) }).Count == 1, "Outstanding to accepted emits one acceptance");
+        Check(state.History.Count == 2, "Contracts missing from later ESI pages remain archived");
+        state = JsonSerializer.Deserialize<ContractState>(JsonSerializer.Serialize(state))!;
+        Check(ContractService.RecordHistory(state, 42, new[] { History(1, "finished", now) }).Count == 0, "Accepted notification stays suppressed after restart");
+        Check(ContractService.RecordHistory(state, 42, new[] { History(3, "cancelled") }).Count == 0, "Cancellation is not acceptance");
+        state.LastRefreshUtc = now.AddMinutes(-1);
+        Check(ContractService.RecordHistory(state, 42, new[] { History(4, "finished", now) }).Count == 1, "Contract created and accepted between polls is detected");
+    }
+    private static void CheckFitStacking()
+    {
+        double[] baseline = { 0.8, 0.4, 0.48, 0.64 };
+        double[][] modules = { new[] { -43.125, -32.5, -32.5 }, new[] { -32.5, -32.5 }, new[] { -32.5, -32.5 }, new[] { -32.5, -32.5 } };
+        double average = Enumerable.Range(0, 4).Average(i => EveFitDefenseStats.StackedResonance(baseline[i], modules[i]));
+        var fit = new EveFitDefenseStats { Available = true, ShieldHp = 21000, ShieldAverageResonance = average, ShieldEhp = 21000 / average, ArmorEhp = 11000, StructureEhp = 12000, ShieldResonanceBeforeModules = baseline, ShieldModuleBonuses = modules };
+        var boosted = fit.ApplyShieldCommandBoost(19.7, 19.7);
+        double oldOverestimate = 21000 * 1.197 / (average * 0.803) + 23000;
+        Check(boosted.OmniEhp < oldOverestimate - 10000, "Harmonizing burst shares hardener penalties instead of inflating EHP");
+        Check(boosted.ArmorEhp == fit.ArmorEhp && boosted.StructureEhp == fit.StructureEhp, "Shield burst does not change low-slot armor or hull defenses");
+        Check(EveFitDefenseStats.StackedResonance(1, new[] { -20.0 }) == 0.8, "A lone resistance bonus keeps its full strength");
+        Check(Math.Abs(EveFitDefenseStats.StackedResonance(0.875, new[] { -32.5, -20.0 }) / EveFitDefenseStats.StackedResonance(1, new[] { -32.5, -20.0 }) - 0.875) < 0.00001, "Damage Control remains outside hardener and burst stacking");
+    }
+
     private static MoonReportSnapshot CheckMoonRecovery()
     {
         var directory = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "ecc-moon-checks-" + Guid.NewGuid().ToString("N"));
@@ -182,6 +243,7 @@ internal static class Program
         await service.RefreshAsync(pilot, CancellationToken.None);
         Check(service.State.Rows.Count == 2 && handler.ContractPages == 2, "ESI pagination loads all outstanding contracts");
         Check(notifications == 0, "Refresh baseline does not flood notifications");
+        Check(service.NextCheckUtc > DateTimeOffset.UtcNow.AddMinutes(20), "Contract scheduling honors ESI cache expiry");
         handler.AddNew = true;
         await service.RefreshAsync(pilot, CancellationToken.None);
         Check(notifications == 1, "Refresh dispatches only the new contract");
@@ -228,6 +290,7 @@ internal static class Program
             else throw new Exception("Unexpected request: " + path);
             var response = new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(json) };
             response.Headers.Add("X-Pages", pages.ToString());
+            if (path.EndsWith("/contracts/")) response.Content.Headers.Expires = DateTimeOffset.UtcNow.AddMinutes(30);
             return Task.FromResult(response);
         }
     }

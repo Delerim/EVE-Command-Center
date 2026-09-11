@@ -214,6 +214,8 @@ public sealed class EveShieldCommandBoostProfile
 }
 public sealed class EveFitDefenseStats
 {
+    public double[] ShieldResonanceBeforeModules { get; init; } = Array.Empty<double>();
+    public double[][] ShieldModuleBonuses { get; init; } = Array.Empty<double[]>();
     public bool Available { get; init; }
     public double ShieldHp { get; init; }
     public double ArmorHp { get; init; }
@@ -250,7 +252,7 @@ public sealed class EveFitDefenseStats
                         "\n\n"
                       : ""
               ) +
-              "Uniform 25/25/25/25 damage profile. Active fitted shield hardeners and Damage Control are assumed ON.";
+              "Uniform 25/25/25/25 damage profile. Fitted active shield hardeners are assumed ON. ESI assets can lag behind refits. Damage Control applies only when fitted.";
 
     public EveFitDefenseStats ApplyShieldCommandBoost(
         double extensionPercent,
@@ -274,6 +276,11 @@ public sealed class EveFitDefenseStats
                 0.01,
                 1.0);
 
+        if (ShieldResonanceBeforeModules.Length == 4 && ShieldModuleBonuses.Length == 4)
+            boostedShieldResonance = Enumerable.Range(0, 4).Average(i =>
+                StackedResonance(ShieldResonanceBeforeModules[i],
+                    ShieldModuleBonuses[i].Concat(harmonizingPercent > 0 ? new[] { -harmonizingPercent } : Array.Empty<double>())));
+
         double boostedShieldEhp =
             boostedShieldHp /
             boostedShieldResonance;
@@ -281,6 +288,8 @@ public sealed class EveFitDefenseStats
         return new EveFitDefenseStats
         {
             Available = true,
+            ShieldResonanceBeforeModules = ShieldResonanceBeforeModules,
+            ShieldModuleBonuses = ShieldModuleBonuses,
             ShieldHp = boostedShieldHp,
             ArmorHp = ArmorHp,
             StructureHp = StructureHp,
@@ -311,6 +320,18 @@ public sealed class EveFitDefenseStats
             return $"EHP ~{value / 1000.0:0.#}k";
 
         return $"EHP ~{value:0}";
+    }
+
+    public static double StackedResonance(double baseline, IEnumerable<double> bonuses)
+    {
+        var result = baseline;
+        int index = 0;
+        foreach (double bonus in bonuses.Where(b => b < 0).OrderBy(b => b))
+        {
+            double penalty = Math.Exp(-Math.Pow(index++ / 2.22292081, 2));
+            result *= 1 - Math.Clamp(-bonus / 100, 0, 1) * penalty;
+        }
+        return Math.Clamp(result, 0.01, 1);
     }
 }
 public sealed class EveInventorySnapshot

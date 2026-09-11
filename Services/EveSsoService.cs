@@ -2715,6 +2715,11 @@ public sealed class EveSsoService
         // normal stacking-penalized shield hardeners.
         // -------------------------------------------------------------------
 
+        if (!modules.Any(m => m.Name.Contains("Damage Control", StringComparison.OrdinalIgnoreCase)))
+            applied.Add("Damage Control: not fitted; no Damage Control resistance bonus");
+        int miningUpgrades = modules.Count(m => m.Name.Contains("Mining Laser Upgrade", StringComparison.OrdinalIgnoreCase));
+        if (miningUpgrades > 0) applied.Add($"Mining Laser Upgrades fitted: {miningUpgrades}; no defensive resistance bonus");
+
         int[] dcShieldIds =
         {
             271,
@@ -2956,6 +2961,7 @@ public sealed class EveSsoService
             }
         }
 
+        var shieldBeforeModules = shieldResonance.ToArray();
         for (int i = 0;
              i < 4;
              i++)
@@ -3074,6 +3080,8 @@ public sealed class EveSsoService
                 armorAverage,
             StructureAverageResonance =
                 structureAverage,
+            ShieldResonanceBeforeModules = shieldBeforeModules,
+            ShieldModuleBonuses = shieldPercentBonuses.Select(b => b.ToArray()).ToArray(),
             ShieldEhp = shieldEhp,
             ArmorEhp = armorEhp,
             StructureEhp = structureEhp,

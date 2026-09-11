@@ -158,6 +158,8 @@ public partial class App : Application
 
         // 4. Start stat tracker (needed before thumbnails fire)
         _statTracker = new StatTrackerService(_settings.Settings);
+        _statTracker.OreMined += (pilot, ore, timestamp) => Dispatcher.BeginInvoke(new Action(() =>
+            BackgroundOperations.Current.ReportGlistening(pilot, ore, timestamp)));
         // Wire CSV stat-logging from settings (#settings-audit). SetCsvLogging was never
         // called, so the "Enable Logging" checkbox + dir + retention did nothing. Applied
         // at startup (restart to take effect), consistent with the log-monitor toggles.

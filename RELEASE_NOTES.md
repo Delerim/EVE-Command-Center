@@ -1,24 +1,23 @@
-# EVE Command Center v2.6.0
+﻿# EVE Command Center v2.7.0
 
-## Setup and corporation access
+## Contract history and acceptance alerts
 
-- New setup screen links personal pilots and optional holding-corporation moon and operating-corporation contract readers. Existing installations see it once.
-- Live ESI extraction and structure reads validate moon access; a live corporation-contract read validates contracts. Unverified views stay hidden. Checks repeat every ten minutes.
-- Temporary ESI failures hide the affected view until verification succeeds. Rank labels and scopes alone never grant access.
-- Personal linking no longer requests corporation scopes. Use Settings to authorize corporation readers.
-- A denied mining ledger read no longer blocks permitted structure and extraction data; ore estimates display a warning.
+- New History and Acceptors tabs show recorded contracts, statuses, acceptance dates, reported acceptors, counts and total prices. Records remain archived when they disappear from later ESI responses.
+- Notify once when an observed contract is accepted, including contracts created and accepted between polls when ESI supplies a recent acceptance date. Initial historical imports do not flood alerts.
+- Acceptor identities come from ESI. If it reports a corporation, the app cannot identify the pilot acting for it.
+- Contract scheduling now checks each minute instead of every 30 minutes, respecting ESI cache expiry and rate-limit delays. This does not guarantee fresh data every minute.
+- Slow moon refreshes no longer hold up contract scheduling.
 
-## Overview navigation
+## Moon and Glistening alerts
 
-- Mining, Pilots, Moons and Contracts are grouped together, followed by Settings, Cloud and Order Clients.
-- Header measurement prevents controls and the close button being clipped with a single pilot.
+- Notifications when a moon is ready to fracture or an active field is newly detected.
+- Gold Glistening notifications from recent live mining logs, followed by moon-specific confirmation when Glistening ore appears in the corporation ledger.
+- Persistent milestone deduplication avoids repeated alerts after restart. Initial moon history is baselined quietly.
+- Removed the test-alert button. Notifications continue while views are closed or minimized and Command Center is running.
 
-## Moon operations
+## EHP and presentation fixes
 
-- New opening overview with system selection, active fields, upcoming extractions, the next system in the schedule, estimated R4 ore remaining and a selected-field ledger.
-- Recent extraction restarts recover inferred previous fields without waiting for mining activity. Their old pull duration is estimated from the new extraction and labelled accordingly.
-- Natural fracture is no longer treated as asteroid-field despawn. Fields remain active for their configured estimated lifetime after fracture.
-- Upcoming counts include refineries with a previous field still active. Freshness shows the last successful ESI refresh.
-- Switching readers preserves separate archived moon histories. Monitoring continues while windows are closed or minimized and Command Center is running.
-
-Ore remaining and field lifetimes are estimates, not live asteroid scans.
+- Shield Harmonizing now shares per-damage-type stacking penalties with fitted hardeners and amplifiers. It no longer applies an unpenalized resistance bonus after the fit calculation.
+- Damage Control remains outside that penalty group and only applies when fitted. Fit diagnostics explicitly show absent Damage Control and the number of mining laser upgrades.
+- EHP still uses cached ESI fit data and assumes active fitted hardeners and manually enabled fleet boosts are affecting the pilot.
+- Fixed broken separators in setup and notifications; refreshed the gold alert layout and contract history styling.

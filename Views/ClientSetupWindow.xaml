@@ -1,5 +1,5 @@
-<Window x:Class="EveCommandCenter.Views.ClientSetupWindow" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
- Title="EVE Command Center â€¢ Settings and character links" Width="800" Height="900" MinWidth="660" MinHeight="560" WindowStartupLocation="CenterScreen" Background="#07181B" Foreground="#DDF6F4">
+﻿<Window x:Class="EveCommandCenter.Views.ClientSetupWindow" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+ Title="EVE Command Center | Settings and character links" Width="800" Height="900" MinWidth="660" MinHeight="560" WindowStartupLocation="CenterScreen" Background="#07181B" Foreground="#DDF6F4">
  <Window.Resources><ResourceDictionary><ResourceDictionary.MergedDictionaries><ResourceDictionary Source="ContractsTheme.xaml"/></ResourceDictionary.MergedDictionaries></ResourceDictionary></Window.Resources>
  <DockPanel Margin="24">
   <StackPanel DockPanel.Dock="Top"><TextBlock Text="COMMAND CENTER SETUP" FontSize="25" FontWeight="Bold" Foreground="#55D7D2"/><TextBlock Margin="0,8,0,18" Text="Link your pilots. Corporation views unlock only after EVE confirms access." TextWrapping="Wrap" Foreground="#8FB2B5"/></StackPanel>
@@ -12,14 +12,14 @@
     <Button Content="LINK A PILOT" Tag="pilot" Click="Link_Click" HorizontalAlignment="Left"/>
    </StackPanel></Border>
    <Border Background="#0C2529" BorderBrush="#245058" BorderThickness="1" Padding="18" CornerRadius="8" Margin="0,0,0,12"><StackPanel>
-    <TextBlock Text="2   MOONS â€¢ HOLDING CORPORATION" FontSize="16" FontWeight="Bold"/>
+    <TextBlock Text="2   MOONS | HOLDING CORPORATION" FontSize="16" FontWeight="Bold"/>
     <TextBlock Text="Optional: choose a toon in the corporation that owns your refineries (for example LSHI). EVE must permit reading corporation extractions and structures. This unlocks moons, fuel alerts and the moon ledger." TextWrapping="Wrap" Foreground="#8FB2B5" Margin="0,8"/>
     <ComboBox x:Name="MoonPilot" DisplayMemberPath="CharacterName" Height="34"/>
     <TextBlock x:Name="MoonStatus" TextWrapping="Wrap" Margin="0,8" Foreground="#55D7D2"/>
     <StackPanel Orientation="Horizontal"><Button Content="AUTHORIZE MOON TOON" Tag="moon" Click="Link_Click"/><Button Content="CLEAR" Tag="moon" Click="Clear_Click" Margin="8,0"/></StackPanel>
    </StackPanel></Border>
    <Border Background="#0C2529" BorderBrush="#245058" BorderThickness="1" Padding="18" CornerRadius="8"><StackPanel>
-    <TextBlock Text="3   CONTRACTS â€¢ OPERATING CORPORATION" FontSize="16" FontWeight="Bold"/>
+    <TextBlock Text="3   CONTRACTS | OPERATING CORPORATION" FontSize="16" FontWeight="Bold"/>
     <TextBlock Text="Optional: choose a toon in the corporation receiving contracts (for example LSE). EVE must permit reading its corporation contracts. The same toon may serve both purposes if it has access. Rank labels alone do not grant access." TextWrapping="Wrap" Foreground="#8FB2B5" Margin="0,8"/>
     <ComboBox x:Name="ContractPilot" DisplayMemberPath="CharacterName" Height="34"/>
     <TextBlock x:Name="ContractStatus" TextWrapping="Wrap" Margin="0,8" Foreground="#55D7D2"/>

@@ -14,6 +14,14 @@ public partial class OperatingToast : Window
     {
         InitializeComponent();
         AlertTitle.Text = title;
+        if (title.Contains("GLISTENING"))
+        {
+            ToastShell.BorderBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(255, 209, 102));
+            ToastShell.Background = new System.Windows.Media.LinearGradientBrush(
+                System.Windows.Media.Color.FromRgb(40, 34, 17), System.Windows.Media.Color.FromRgb(7, 24, 27), 35);
+            AlertTitle.FontSize = 13;
+            MessageText.Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(225, 205, 150));
+        }
         StructureText.Text = structure;
         StructureText.ToolTip = structure;
         MessageText.Text = message;

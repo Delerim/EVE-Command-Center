@@ -31,6 +31,8 @@ public sealed class ContractService : IDisposable
     public ContractState State { get; private set; }
     public event Action? Changed;
     public event Action<IReadOnlyList<ContractRow>>? NewContracts;
+    public event Action<IReadOnlyList<ContractRow>>? AcceptedContracts;
+    public DateTimeOffset NextCheckUtc { get; private set; }
     public string? LastError { get; private set; }
     public bool IsRefreshing { get; private set; }
 
@@ -69,6 +71,7 @@ public sealed class ContractService : IDisposable
             var character = await GetAsync($"/characters/{pilot.CharacterId}/", null, token);
             long corp = character.GetProperty("corporation_id").GetInt64();
             var corporation = await GetAsync($"/corporations/{corp}/", null, token);
+            NextCheckUtc = default;
             var contracts = await PagesAsync<CorporationContract>($"/corporations/{corp}/contracts/", access, token);
             var rows = new List<ContractRow>();
             foreach (var contract in contracts.Where(c => c.Status == "outstanding" && c.AssigneeId == corp && c.Expires > DateTimeOffset.UtcNow).OrderBy(c => c.Expires))
@@ -88,6 +91,25 @@ public sealed class ContractService : IDisposable
                 Evaluate(row, appraisal, State.BuyPercent, State.TolerancePercent, appraisalError);
                 rows.Add(row);
             }
+            var history = new List<ContractRow>();
+            foreach (var contract in contracts)
+            {
+                var row = rows.FirstOrDefault(r => r.Contract.Id == contract.Id) ?? new ContractRow
+                {
+                    Contract = contract, CorporationId = corp, ReaderCharacterId = pilot.CharacterId,
+                    Issuer = await ResolveNameAsync($"/characters/{contract.IssuerId}/", contract.IssuerId, null, token),
+                    JaniceUrl = ExtractJaniceUrl(contract.Title),
+                    Location = State.History.FirstOrDefault(r => r.CorporationId == corp && r.Contract.Id == contract.Id)?.Location ?? contract.LocationId.ToString()
+                };
+                if (contract.AcceptorId > 0)
+                {
+                    row.Acceptor = await ResolveNameAsync($"/characters/{contract.AcceptorId}/", contract.AcceptorId, null, token);
+                    if (row.Acceptor.StartsWith("Unresolved"))
+                        row.Acceptor = await ResolveNameAsync($"/corporations/{contract.AcceptorId}/", contract.AcceptorId, null, token);
+                }
+                history.Add(row);
+            }
+            var accepted = RecordHistory(State, corp, history);
             var fresh = FindNew(State.SeenByCorporation, corp, rows);
             State.CharacterId = pilot.CharacterId;
             State.CorporationId = corp;
@@ -97,6 +119,7 @@ public sealed class ContractService : IDisposable
             LastError = null;
             Save();
             if (State.NotificationsEnabled && fresh.Count > 0) NewContracts?.Invoke(fresh);
+            if (State.NotificationsEnabled && accepted.Count > 0) AcceptedContracts?.Invoke(accepted);
         }
         catch (Exception ex) { LastError = ex.Message; throw; }
         finally { IsRefreshing = false; _gate.Release(); Changed?.Invoke(); }
@@ -110,6 +133,25 @@ public sealed class ContractService : IDisposable
         ids.UnionWith(rows.Select(r => r.Contract.Id));
         seen[corp] = ids;
         return fresh;
+    }
+
+    public static List<ContractRow> RecordHistory(ContractState state, long corp, IReadOnlyList<ContractRow> incoming)
+    {
+        var previous = state.History.Concat(state.Rows).Where(r => r.CorporationId == corp)
+            .GroupBy(r => r.Contract.Id).ToDictionary(g => g.Key, g => g.First());
+        bool baseline = state.HistoryBaselines.Add(corp);
+        if (!state.AcceptedNotified.TryGetValue(corp, out var notified)) state.AcceptedNotified[corp] = notified = new();
+        var accepted = new List<ContractRow>();
+        foreach (var row in incoming)
+        {
+            previous.TryGetValue(row.Contract.Id, out var old);
+            if (row.Contract.WasAccepted && notified.Add(row.Contract.Id) &&
+                (old != null && !old.Contract.WasAccepted || !baseline && old == null && row.Contract.Accepted > state.LastRefreshUtc))
+                accepted.Add(row);
+            previous[row.Contract.Id] = row;
+        }
+        state.History = state.History.Where(r => r.CorporationId != corp).Concat(previous.Values).ToList();
+        return accepted;
     }
 
     public static string? ExtractJaniceUrl(string title)
@@ -238,6 +280,14 @@ public sealed class ContractService : IDisposable
         {
             using var request = Request(path + "?page=" + page, access);
             using var response = await _http.SendAsync(request, token);
+            if (path.EndsWith("/contracts/"))
+            {
+                var expiry = response.Content.Headers.Expires ?? DateTimeOffset.UtcNow.Add(
+                    response.Headers.CacheControl?.MaxAge - (response.Headers.Age ?? TimeSpan.Zero) ?? TimeSpan.FromMinutes(1));
+                if (expiry > NextCheckUtc) NextCheckUtc = expiry;
+                if (response.Headers.RetryAfter?.Delta is { } retry) NextCheckUtc = DateTimeOffset.UtcNow.Add(retry);
+                if (response.Headers.RetryAfter?.Date is { } retryDate) NextCheckUtc = retryDate;
+            }
             await EnsureAsync(response, token);
             if (response.Headers.TryGetValues("X-Pages", out var values) && int.TryParse(values.First(), out var count)) pages = count;
             result.AddRange(JsonSerializer.Deserialize<List<T>>(await response.Content.ReadAsStringAsync(token)) ?? new());

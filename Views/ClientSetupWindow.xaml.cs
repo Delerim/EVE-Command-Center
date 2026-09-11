@@ -1,4 +1,4 @@
-using System.Windows;
+﻿using System.Windows;
 using EveCommandCenter.Models;
 using EveCommandCenter.Services;
 
@@ -22,7 +22,7 @@ public partial class ClientSetupWindow : Window
     private async Task ReloadAsync()
     {
         _pilots = await _operations.Sso.LoadPilotsAsync();
-        PilotText.Text = _pilots.Count == 0 ? "No characters linked yet." : string.Join(" â€¢ ", _pilots.Select(p => p.CharacterName));
+        PilotText.Text = _pilots.Count == 0 ? "No characters linked yet." : string.Join(" | ", _pilots.Select(p => p.CharacterName));
         MoonPilot.ItemsSource = ContractPilot.ItemsSource = _pilots;
         MoonPilot.SelectedItem = _pilots.FirstOrDefault(p => p.CharacterId == _operations.Access.State.MoonCharacterId);
         ContractPilot.SelectedItem = _pilots.FirstOrDefault(p => p.CharacterId == _operations.Access.State.ContractCharacterId);
@@ -48,7 +48,7 @@ public partial class ClientSetupWindow : Window
     }
     private async Task ValidateAsync()
     {
-        StatusText.Text = "Checking live EVE corporation permissionsâ€¦";
+        StatusText.Text = "Checking live EVE corporation permissions...";
         _operations.Access.State.MoonCharacterId = (MoonPilot.SelectedItem as EvePilotProfile)?.CharacterId ?? 0;
         _operations.Access.State.ContractCharacterId = (ContractPilot.SelectedItem as EvePilotProfile)?.CharacterId ?? 0;
         _operations.Access.Save();
@@ -60,6 +60,7 @@ public partial class ClientSetupWindow : Window
             {
                 _operations.Contracts.State.Rows.Clear();
                 _operations.Contracts.State.CorporationName = "";
+                _operations.Contracts.State.CorporationId = 0;
                 _operations.Contracts.State.LastRefreshUtc = null;
             }
             _operations.Contracts.State.CharacterId = _operations.Access.State.ContractCharacterId;

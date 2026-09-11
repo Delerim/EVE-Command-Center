@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -151,6 +151,7 @@ public sealed class StatTrackerService
     /// a critical-success flag so a crit can contribute to REAL yield without
     /// distorting the miner's stable BASE mÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â³/s estimate.
     /// </summary>
+    public event Action<string, string, DateTime>? OreMined;
     public void RecordMining(string character, int amount, string mineType = "ore",
         string oreType = "", bool isCriticalHint = false, DateTime? timestampUtc = null)
     {
@@ -204,6 +205,7 @@ public sealed class StatTrackerService
                 break;
         }
 
+        OreMined?.Invoke(character, oreType, now);
         TrimMiningCycles(stats);
         CheckAndPrune(character, stats);
         LogCsv(character, $"MINE_{mineType.ToUpperInvariant()}{(isCritical ? "_CRIT" : "")}", amount);

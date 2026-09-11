@@ -1,4 +1,4 @@
-<Window x:Class="EveCommandCenter.Views.ContractsWindow"
+﻿<Window x:Class="EveCommandCenter.Views.ContractsWindow"
  xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
  Title="EVE Command Center - Corporation Contracts" Width="1420" Height="830" MinWidth="1080" MinHeight="650"
  Background="#07181B" Foreground="#EAF7F7" FontFamily="Segoe UI" WindowStartupLocation="CenterScreen">
@@ -7,7 +7,7 @@
   <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
   <DockPanel Margin="0,0,0,16">
    <StackPanel><TextBlock Text="CORPORATION CONTRACTS" FontSize="27" FontWeight="Bold" Foreground="#EAF7F7"/><TextBlock Text="Buyback checks, Janice appraisals and a closer look at every delivery" Foreground="#8FB2B5" Margin="0,4,0,0"/></StackPanel>
-   <StackPanel HorizontalAlignment="Right"><TextBlock x:Name="FreshnessText" Foreground="#74D6C9" HorizontalAlignment="Right"/><CheckBox x:Name="AlertsCheck" Content="NEW CONTRACT ALERTS" Foreground="#55D7D2" Click="Alerts_Click" Margin="0,8,0,0" HorizontalAlignment="Right" ToolTip="Monitor every 30 minutes while Command Center is running, even with this window closed."/></StackPanel>
+   <StackPanel HorizontalAlignment="Right"><TextBlock x:Name="FreshnessText" Foreground="#74D6C9" HorizontalAlignment="Right"/><CheckBox x:Name="AlertsCheck" Content="CONTRACT ALERTS" Foreground="#55D7D2" Click="Alerts_Click" Margin="0,8,0,0" HorizontalAlignment="Right" ToolTip="Check each minute (subject to ESI cache expiry) while Command Center is running, even with this window closed."/></StackPanel>
   </DockPanel>
   <Border Grid.Row="1" Background="#0C2529" BorderBrush="#245058" BorderThickness="1" CornerRadius="8" Padding="12" Margin="0,0,0,12">
    <DockPanel><TextBlock Text="CORP DATA TOON" Foreground="#8FB2B5" VerticalAlignment="Center" Margin="0,0,12,0"/>
@@ -34,7 +34,8 @@
     <TextBlock Text="Double-click a row to inspect its contents" Foreground="#8FB2B5" VerticalAlignment="Center" HorizontalAlignment="Right"/>
    </DockPanel>
   </StackPanel>
-  <DataGrid Grid.Row="4" x:Name="ContractsGrid" AutoGenerateColumns="False" IsReadOnly="True" MouseDoubleClick="Row_DoubleClick" SelectionMode="Single" AlternationCount="2">
+  <TabControl x:Name="ContractTabs" Grid.Row="4" Background="#07181B" BorderBrush="#245058"><TabItem Header="OUTSTANDING" Background="#12383D" Foreground="#55D7D2">
+  <DataGrid x:Name="ContractsGrid" AutoGenerateColumns="False" IsReadOnly="True" MouseDoubleClick="Row_DoubleClick" SelectionMode="Single" AlternationCount="2">
    <DataGrid.RowStyle><Style TargetType="DataGridRow"><Setter Property="Background" Value="{Binding RowColor}"/><Setter Property="BorderBrush" Value="{Binding ResultColor}"/><Setter Property="BorderThickness" Value="4,0,0,0"/><Setter Property="ToolTip" Value="{Binding Reason}"/><Style.Triggers><Trigger Property="IsSelected" Value="True"><Setter Property="BorderThickness" Value="4,1,1,1"/></Trigger></Style.Triggers></Style></DataGrid.RowStyle>
    <DataGrid.Columns>
     <DataGridTextColumn Header="ISSUER" Binding="{Binding Issuer}" Width="1.1*"/>
@@ -49,6 +50,18 @@
     <DataGridTemplateColumn Header="IN GAME" Width="82"><DataGridTemplateColumn.CellTemplate><DataTemplate><Button Content="OPEN" Click="Game_Click" Padding="6,3" ToolTip="Open contract in the authorized character's EVE client"/></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
    </DataGrid.Columns>
   </DataGrid>
-  <StackPanel Grid.Row="5"><Border Background="#0C2529" BorderBrush="{Binding SelectedItem.ResultColor, ElementName=ContractsGrid}" BorderThickness="3,0,0,0" Padding="10,8" Margin="0,10,0,0"><TextBlock Text="{Binding SelectedItem.Reason, ElementName=ContractsGrid}" Foreground="#EAF7F7" TextWrapping="Wrap"/></Border><TextBlock x:Name="StatusText" Text="Choose your corporation-data character. Monitoring continues when this window is closed." Foreground="#8FB2B5" TextWrapping="Wrap" Margin="0,12,0,0"/></StackPanel>
+  </TabItem><TabItem Header="HISTORY" Background="#12383D" Foreground="#55D7D2"><DockPanel Margin="10">
+   <TextBlock x:Name="HistorySummary" DockPanel.Dock="Top" Foreground="#74D6C9" FontSize="17" Margin="0,0,0,10" TextWrapping="Wrap"/>
+   <TextBlock DockPanel.Dock="Bottom" Text="Recorded history includes ESI's available records and locally archived contracts. Acceptor may be a corporation; ESI does not always identify its acting pilot." Foreground="#8FB2B5" TextWrapping="Wrap" Margin="0,10,0,0"/>
+   <DataGrid x:Name="HistoryGrid" MouseDoubleClick="History_DoubleClick" AlternationCount="2"><DataGrid.Columns>
+    <DataGridTextColumn Header="CONTRACT" Binding="{Binding Contract.Id}" Width="95"/><DataGridTextColumn Header="STATUS" Binding="{Binding Contract.Status}" Width="110"/>
+    <DataGridTextColumn Header="ISSUER" Binding="{Binding Issuer}" Width="*"/><DataGridTextColumn Header="PRICE" Binding="{Binding PriceText}" Width="*"/>
+    <DataGridTextColumn Header="ACCEPTED BY" Binding="{Binding Acceptor}" Width="*"/><DataGridTextColumn Header="ACCEPTED" Binding="{Binding AcceptedText}" Width="145"/>
+    <DataGridTextColumn Header="ISSUED" Binding="{Binding Contract.Issued, StringFormat={}{0:dd MMM yyyy HH:mm}}" Width="145"/>
+    <DataGridTemplateColumn Header="JANICE" Width="75"><DataGridTemplateColumn.CellTemplate><DataTemplate><Button Content="VIEW" Click="Janice_Click" Padding="6,3"/></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
+    <DataGridTemplateColumn Header="IN GAME" Width="82"><DataGridTemplateColumn.CellTemplate><DataTemplate><Button Content="OPEN" Click="Game_Click" Padding="6,3"/></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
+   </DataGrid.Columns></DataGrid>
+  </DockPanel></TabItem><TabItem Header="ACCEPTORS" Background="#12383D" Foreground="#55D7D2"><DataGrid x:Name="AcceptorsGrid" Margin="10" AlternationCount="2"><DataGrid.Columns><DataGridTextColumn Header="ACCEPTOR REPORTED BY ESI" Binding="{Binding Name}" Width="2*"/><DataGridTextColumn Header="CONTRACTS ACCEPTED" Binding="{Binding Count}" Width="*"/><DataGridTextColumn Header="TOTAL PRICE (ISK)" Binding="{Binding Value, StringFormat=N2}" Width="*"/><DataGridTextColumn Header="LAST ACCEPTANCE" Binding="{Binding Last, StringFormat={}{0:dd MMM yyyy HH:mm}}" Width="*"/></DataGrid.Columns></DataGrid></TabItem></TabControl>
+  <StackPanel Grid.Row="5"><Border Background="#0C2529" BorderBrush="{Binding SelectedItem.ResultColor, ElementName=ContractsGrid}" BorderThickness="3,0,0,0" Padding="10,8" Margin="0,10,0,0"><Border.Style><Style TargetType="Border"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding SelectedIndex, ElementName=ContractTabs}" Value="0"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style></Border.Style><TextBlock Text="{Binding SelectedItem.Reason, ElementName=ContractsGrid}" Foreground="#EAF7F7" TextWrapping="Wrap"/></Border><TextBlock x:Name="StatusText" Text="Choose your corporation-data character. Monitoring continues when this window is closed." Foreground="#8FB2B5" TextWrapping="Wrap" Margin="0,12,0,0"/></StackPanel>
  </Grid>
 </Window>
