@@ -14,9 +14,14 @@ public sealed class CorporationAccessService
         public bool SetupCompleted { get; set; }
         public long MoonCharacterId { get; set; }
         public long ContractCharacterId { get; set; }
+        public long VerifiedMoonId { get; set; }
+        public long VerifiedContractId { get; set; }
+        public DateTimeOffset MoonVerifiedUtc { get; set; }
+        public DateTimeOffset ContractVerifiedUtc { get; set; }
     }
     private readonly EveSsoService _sso;
     private readonly HttpClient _http;
+    private readonly Func<EvePilotProfile, CancellationToken, Task<string>> _token;
     private readonly string _file;
     private readonly SemaphoreSlim _gate = new(1, 1);
     public LinkState State { get; }
@@ -26,9 +31,10 @@ public sealed class CorporationAccessService
     public string ContractStatus { get; private set; } = "Not verified - link a corporation contract reader.";
     public event Action? Changed;
 
-    public CorporationAccessService(EveSsoService sso, HttpClient? http = null, string? directory = null)
+    public CorporationAccessService(EveSsoService sso, HttpClient? http = null, string? directory = null, Func<EvePilotProfile, CancellationToken, Task<string>>? token = null)
     {
         _sso = sso;
+        _token = token ?? ((pilot, ct) => _sso.GetAccessTokenForAsync(pilot, ct));
         _http = http ?? EsiHttp.CreateClient();
         _file = Path.Combine(directory ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "EVE Command Center"), "corporation-access.json");
         try { State = JsonSerializer.Deserialize<LinkState>(File.ReadAllText(_file)) ?? new(); }
@@ -47,25 +53,42 @@ public sealed class CorporationAccessService
         {
             long moonId = State.MoonCharacterId, contractId = State.ContractCharacterId;
             var moon = await ProbeAsync(pilots.FirstOrDefault(p => p.CharacterId == moonId), true, cancellationToken);
+            Apply(moonId, true, moon);
+            Changed?.Invoke();
             var contracts = await ProbeAsync(pilots.FirstOrDefault(p => p.CharacterId == contractId), false, cancellationToken);
-            (CanReadMoons, MoonStatus) = moonId == State.MoonCharacterId ? moon : (false, "Reader changed; verification pending.");
-            (CanReadContracts, ContractStatus) = contractId == State.ContractCharacterId ? contracts : (false, "Reader changed; verification pending.");
+            Apply(contractId, false, contracts);
+            Save();
             Changed?.Invoke();
         }
         finally { _gate.Release(); }
     }
-    private async Task<(bool, string)> ProbeAsync(EvePilotProfile? pilot, bool moons, CancellationToken ct)
+    private void Apply(long id, bool moons, (bool? Allowed, string Status) result)
+    {
+        long selected = moons ? State.MoonCharacterId : State.ContractCharacterId;
+        long verified = moons ? State.VerifiedMoonId : State.VerifiedContractId;
+        var when = moons ? State.MoonVerifiedUtc : State.ContractVerifiedUtc;
+        if (id != selected) result = (false, "Reader changed; verification pending.");
+        bool allowed = result.Allowed ?? (id > 0 && id == verified && DateTimeOffset.UtcNow - when < TimeSpan.FromHours(24));
+        if (result.Allowed == true) { verified = id; when = DateTimeOffset.UtcNow; }
+        if (result.Allowed == false) { verified = 0; when = default; }
+        string status = result.Status + (result.Allowed == null && allowed ? " Keeping recently verified access." : "");
+        if (moons) { CanReadMoons = allowed; MoonStatus = status; State.VerifiedMoonId = verified; State.MoonVerifiedUtc = when; }
+        else { CanReadContracts = allowed; ContractStatus = status; State.VerifiedContractId = verified; State.ContractVerifiedUtc = when; }
+    }
+    private async Task<(bool?, string)> ProbeAsync(EvePilotProfile? pilot, bool moons, CancellationToken ct)
     {
         if (pilot == null) return (false, "Not linked - this view is hidden.");
         if (moons ? !MoonReportService.HasRequiredScopes(pilot) : !ContractService.CanRead(pilot))
             return (false, pilot.CharacterName + ": reconnect to approve the required scopes.");
         try
         {
-            var token = await _sso.GetAccessTokenForAsync(pilot, ct);
+            var token = await _token(pilot, ct);
             return await ProbeEndpointsAsync(_http, token, pilot.CharacterId, moons, ct);
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
-        catch (Exception ex) { return (false, pilot.CharacterName + ": access could not be verified. " + ex.Message); }
+        catch (HttpRequestException ex) when (ex.StatusCode is System.Net.HttpStatusCode.Unauthorized or System.Net.HttpStatusCode.Forbidden)
+        { return (false, pilot.CharacterName + ": EVE denied access. Reauthorize this reader and check its corporation roles."); }
+        catch (Exception ex) { return (null, pilot.CharacterName + ": verification delayed; will retry automatically. " + ex.Message); }
     }
     public static async Task<(bool Allowed, string Status)> ProbeEndpointsAsync(HttpClient http, string token, long characterId, bool moons, CancellationToken ct = default)
     {

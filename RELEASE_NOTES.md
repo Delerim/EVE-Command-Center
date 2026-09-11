@@ -1,11 +1,9 @@
-﻿# EVE Command Center v2.9.2
+﻿# EVE Command Center v2.9.3
 
-- All ESI services now share a paced request queue, including fits, skills, moons, contracts, market data and permission checks.
-- Startup builds data gradually. Waiting for a queue slot no longer consumes the network timeout.
-- ESI cache expiry is respected and duplicate GET requests reuse cached responses, with authentication isolation and pagination headers preserved.
-- Advertised rate-limit groups are paced at 70% of their published successful-request budget, with a conservative global request floor and extra slowdown near exhaustion.
-- Retry-After and low error-budget responses pause ESI traffic. Repeated denied or throttled reads are briefly cached to prevent retry storms.
-- Existing cached pilot data remains available while fresh data loads. Contract monitoring retains its 30-minute minimum interval.
-- Includes v2.9.1 live release prompts: checks every five minutes while running, with changelog, Update & Restart, and Skip & Continue.
+- Fixed Moon and Contracts tabs disappearing when permission verification encounters temporary ESI throttling, timeouts or server errors.
+- Successful verification is remembered for the same reader for up to 24 hours, including across restarts. Temporary failures show a delayed-verification status and retry automatically.
+- Explicit authentication or permission denial, missing scopes, unlinking or changing readers still removes access. Unverified readers do not gain access during an outage.
+- Moon access updates immediately after its check instead of waiting for the Contracts check.
+- Added Verify Access beside the Moon reader in Settings; reauthorization is no longer needed just to retry verification.
 
-Validation: 98 automated checks passed, including cache isolation, duplicate requests, shared cooldown, cancellation and group pacing.
+Validation: 104 automated checks passed. Live ESI verification confirmed the configured Moon and Contracts readers have access.

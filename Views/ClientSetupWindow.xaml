@@ -16,7 +16,7 @@
     <TextBlock Text="Optional: choose a toon in the corporation that owns your refineries (for example LSHI). EVE must permit reading corporation extractions and structures. This unlocks moons, fuel alerts and the moon ledger." TextWrapping="Wrap" Foreground="#8FB2B5" Margin="0,8"/>
     <ComboBox x:Name="MoonPilot" DisplayMemberPath="CharacterName" Height="34"/>
     <TextBlock x:Name="MoonStatus" TextWrapping="Wrap" Margin="0,8" Foreground="#55D7D2"/>
-    <StackPanel Orientation="Horizontal"><Button Content="AUTHORIZE MOON TOON" Tag="moon" Click="Link_Click"/><Button Content="CLEAR" Tag="moon" Click="Clear_Click" Margin="8,0"/></StackPanel>
+    <StackPanel Orientation="Horizontal"><Button Content="AUTHORIZE MOON TOON" Tag="moon" Click="Link_Click"/><Button Content="CLEAR" Tag="moon" Click="Clear_Click" Margin="8,0"/><Button Content="VERIFY ACCESS" Click="Verify_Click"/></StackPanel>
    </StackPanel></Border>
    <Border Background="#0C2529" BorderBrush="#245058" BorderThickness="1" Padding="18" CornerRadius="8"><StackPanel>
     <TextBlock Text="3   CONTRACTS | OPERATING CORPORATION" FontSize="16" FontWeight="Bold"/>

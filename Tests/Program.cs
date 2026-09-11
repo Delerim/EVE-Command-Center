@@ -38,6 +38,16 @@ internal static partial class Program
             }
             return;
         }
+        if (args.FirstOrDefault() == "--inspect-access")
+        {
+            var sso = new EveSsoService();
+            var access = new CorporationAccessService(sso);
+            using var stop = new CancellationTokenSource(TimeSpan.FromMinutes(2));
+            access.ValidateAsync(sso.LoadPilotsAsync().GetAwaiter().GetResult(), stop.Token).GetAwaiter().GetResult();
+            Console.WriteLine("Moons: " + access.MoonStatus);
+            Console.WriteLine("Contracts: " + access.ContractStatus);
+            return;
+        }
         CheckEsiQueue().GetAwaiter().GetResult();
         CheckBuybackPeriods();
         CheckMoonAlerts();
@@ -276,10 +286,39 @@ internal static partial class Program
         catch (HttpRequestException ex) when (ex.StatusCode == HttpStatusCode.Forbidden) { Check(true, "Contract permissions are validated by ESI"); }
         handler.Deny = "";
         Check((await CorporationAccessService.ProbeEndpointsAsync(http, "test", 123, false)).Allowed, "Empty successful contract list still grants access");
+        var folder = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "ecc-access-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            var access = new CorporationAccessService(new(), http, folder, (_, _) => Task.FromResult("test"));
+            var pilots = new[] { new EvePilotProfile { CharacterId = 123, Scopes = new[] { MoonReportService.MiningScope, MoonReportService.StructureScope } } };
+            access.State.MoonCharacterId = 123;
+            await access.ValidateAsync(pilots);
+            handler.Deny = "structures"; handler.DeniedStatus = (HttpStatusCode)429;
+            await access.ValidateAsync(pilots);
+            Check(access.CanReadMoons && access.MoonStatus.Contains("delayed"), "Rate limiting preserves recently verified Moon access");
+            var restarted = new CorporationAccessService(new(), http, folder, (_, _) => Task.FromResult("test"));
+            await restarted.ValidateAsync(pilots);
+            Check(restarted.CanReadMoons, "Recent verification survives restart during an ESI outage");
+            handler.DeniedStatus = HttpStatusCode.Forbidden;
+            await access.ValidateAsync(pilots);
+            Check(!access.CanReadMoons && access.State.VerifiedMoonId == 0, "Explicit permission denial revokes cached access");
+            handler.DeniedStatus = HttpStatusCode.ServiceUnavailable;
+            await access.ValidateAsync(pilots);
+            Check(!access.CanReadMoons, "Transient errors cannot grant unverified or revoked access");
+            handler.Deny = "";
+            await access.ValidateAsync(pilots);
+            Check(access.CanReadMoons, "Successful revalidation restores a hidden Moon tab");
+            access.State.MoonCharacterId = 456;
+            await access.ValidateAsync(pilots);
+            Check(!access.CanReadMoons, "Switching readers never inherits another character's access");
+        }
+        finally { if (System.IO.Directory.Exists(folder)) System.IO.Directory.Delete(folder, true); }
+
     }
     private sealed class AccessEsi : HttpMessageHandler
     {
         public string Deny = "";
+        public HttpStatusCode DeniedStatus = HttpStatusCode.Forbidden;
         public List<string> Paths = new();
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct)
         {
@@ -287,7 +326,7 @@ internal static partial class Program
             Paths.Add(path);
             var denied = Deny.Length > 0 && path.Contains(Deny);
             var body = path.Contains("characters/") ? "{\"name\":\"Test Pilot\",\"corporation_id\":42}" : path.EndsWith("corporations/42/") ? "{\"name\":\"Test Corporation\"}" : "[]";
-            return Task.FromResult(new HttpResponseMessage(denied ? HttpStatusCode.Forbidden : HttpStatusCode.OK) { Content = new StringContent(body) });
+            return Task.FromResult(new HttpResponseMessage(denied ? DeniedStatus : HttpStatusCode.OK) { Content = new StringContent(body) });
         }
     }
 
