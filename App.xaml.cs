@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
@@ -863,6 +863,11 @@ public partial class App : Application
         // ── PiP Individual Toggle Submenu (AHK: TrayMenu._TrayPiPToggle) ──
         var pipMenu = new ToolStripMenuItem();
         L(pipMenu, "L.Tray.PiP", "PiP Individual");
+        void RefreshPipMenu()
+        {
+        foreach (ToolStripItem item in pipMenu.DropDownItems.Cast<ToolStripItem>().ToArray())
+            item.Dispose();
+        pipMenu.DropDownItems.Clear();
         try
         {
             var secondarySettings = _settings?.CurrentProfile.SecondaryThumbnails;
@@ -899,6 +904,11 @@ public partial class App : Application
         {
             Debug.WriteLine($"[Tray:PiP] ❌ Failed to build PiP submenu: {ex.Message}");
         }
+        if (pipMenu.DropDownItems.Count == 0)
+            pipMenu.DropDownItems.Add(new ToolStripMenuItem("Add previews in Settings > Visibility > Secondary Thumbnails") { Enabled = false });
+        }
+        RefreshPipMenu();
+        menu.Opening += (_, _) => RefreshPipMenu();
         menu.Items.Add(pipMenu);
 
         menu.Items.Add(new ToolStripSeparator());
