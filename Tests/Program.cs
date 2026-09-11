@@ -192,6 +192,7 @@ internal static partial class Program
             var view = PlanetaryAnalysis.Build(piFixture, DateTimeOffset.UtcNow);
             ((ItemsControl)piWindow.FindName("Colonies")).ItemsSource = PlanetaryGroups.Build(view, new HashSet<string> { "pilot:1", "planet:1:40000001" });
             ((DataGrid)piWindow.FindName("Production")).ItemsSource = view.Production;
+            ((ItemsControl)piWindow.FindName("FactorySummary")).ItemsSource = view.FactoryTiers;
             ((ItemsControl)piWindow.FindName("Refills")).ItemsSource = PlanetaryGroups.Build(view, new HashSet<string>(), true);
             Render(piWindow, System.IO.Path.ChangeExtension(args[0], ".pi.png"));
         }

@@ -93,8 +93,34 @@ public sealed class PiAnalysis
 {
     public List<PiRow> Colonies { get; set; } = new();
     public List<PiRow> Pins { get; set; } = new();
+    public List<PiTierSummary> FactoryTiers { get; set; } = new();
     public List<PiRow> Factories { get; set; } = new();
     public List<PiRow> Production { get; set; } = new();
     public List<PiRow> Stock { get; set; } = new();
     public List<PiRefill> Refills { get; set; } = new();
+}
+
+public sealed class PiProductTotal
+{
+    public int TypeId { get; set; }
+    public string Name { get; set; } = "";
+    public int Tier { get; set; }
+    public int Factories { get; set; }
+    public double Capacity { get; set; }
+    public double Stored { get; set; }
+    public double Reserved { get; set; }
+    public double Collect => Math.Max(0, Stored - Reserved);
+    public string Icon => $"https://images.evetech.net/types/{TypeId}/icon?size=32";
+    public string RateText => $"{Capacity:N0}/h capacity";
+    public string StoredText => $"{Stored:N0} stored";
+    public string CollectText => $"{Collect:N0} collect";
+    public string ReservedText => $"{Reserved:N0} routed onward";
+}
+public sealed class PiTierSummary
+{
+    public int Tier { get; set; }
+    public List<PiProductTotal> Products { get; set; } = new();
+    public string Name => $"T{Tier} | " + (Tier == 1 ? "BASIC COMMODITIES" : Tier == 2 ? "REFINED COMMODITIES" : Tier == 3 ? "SPECIALIZED COMMODITIES" : "ADVANCED COMMODITIES");
+    public string Color => Tier == 1 ? "#74D6C9" : Tier == 2 ? "#80BFFF" : "#D4A5FF";
+    public string Summary => $"{Products.Sum(p => p.Factories)} factories | {Products.Sum(p => p.Capacity):N0} units/h capacity | {Products.Sum(p => p.Collect):N0} units to collect";
 }

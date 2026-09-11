@@ -34,7 +34,7 @@ public partial class PlanetaryWindow : Window
         if (!Dispatcher.CheckAccess()) { Dispatcher.BeginInvoke(Update); return; }
         _analysis = PlanetaryAnalysis.Build(_service.State, DateTimeOffset.UtcNow);
         Colonies.ItemsSource = PlanetaryGroups.Build(_analysis, _expanded); Production.ItemsSource = _analysis.Production;
-        FactorySummary.ItemsSource = _analysis.Factories;
+        FactorySummary.ItemsSource = _analysis.FactoryTiers;
         StockGrid.ItemsSource = _analysis.Stock; Refills.ItemsSource = PlanetaryGroups.Build(_analysis, _expanded, true);
         var refillGroups = PlanetaryGroups.Build(_analysis, _expanded, true);
         var t1 = _analysis.Refills.Where(r => PlanetaryAnalysis.Tier(r.TypeId) == 1).ToArray();

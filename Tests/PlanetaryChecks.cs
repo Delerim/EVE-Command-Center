@@ -79,6 +79,16 @@ internal static partial class Program
         var collected = PlanetaryAnalysis.Build(chainState, now);
         Check(collected.Pins.Where(p => p.IsFactory).All(p => p.Status.StartsWith("COLLECT")) && collected.Colonies.Single().Color == "#80BFFF", "Completed correctly routed factory runs flag collection instead of attention");
         Check(collected.Factories.Single().Quantity.StartsWith("3 factories") && collected.Factories.Single().Status.StartsWith("COLLECT"), "Factory summary counts facilities and collection readiness per planet");
+        var stockNode = json["pins"]![0]!;
+        stockNode["contents"] = new System.Text.Json.Nodes.JsonArray(
+            new System.Text.Json.Nodes.JsonObject { ["type_id"] = robotics.Inputs.Keys.First(), ["amount"] = 100 },
+            new System.Text.Json.Nodes.JsonObject { ["type_id"] = robotics.Outputs.Keys.Single(), ["amount"] = 30 });
+        chain.Layout = JsonSerializer.SerializeToElement(json);
+        var outputSummary = PlanetaryAnalysis.Build(chainState, now);
+        var products = outputSummary.FactoryTiers.SelectMany(t => t.Products).ToArray();
+        Check(products.Single(p => p.TypeId == robotics.Inputs.Keys.First()).Reserved == 100 && products.Single(p => p.TypeId == robotics.Inputs.Keys.First()).Collect == 0, "T2 inventory routed to T3 remains reserved rather than collectable");
+        Check(products.Single(p => p.TypeId == robotics.Outputs.Keys.Single()).Collect == 30, "Final T3 stock is counted once as available for collection");
+        Check(outputSummary.FactoryTiers.Select(t => t.Tier).SequenceEqual(new[] {2,3}) && products.Single(p => p.TypeId == robotics.Outputs.Keys.Single()).Capacity == 3, "Factory output is grouped by tier with recipe-based hourly capacity");
         return state;
     }
     private static void CheckMiningRates()

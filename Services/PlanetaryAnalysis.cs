@@ -32,6 +32,7 @@ public static class PlanetaryAnalysis
     public static PiAnalysis Build(PiState state, DateTimeOffset now)
     {
         var result = new PiAnalysis();
+        var factoryProducts = new Dictionary<int, PiProductTotal>();
         var production = new Dictionary<int, (double rate, double extracted)>();
         var stock = Stock(state);
         foreach (var item in stock.OrderByDescending(k => Tier(k.Key)).ThenBy(k => Type(k.Key).Name))
@@ -184,6 +185,21 @@ public static class PlanetaryAnalysis
             if (factoryRows.Length > 0)
             {
                 var outputs = factories.Values.SelectMany(r => r.Outputs.Keys).Distinct().ToArray();
+                foreach (int product in outputs.Where(p => Tier(p) > 0))
+                {
+                    if (!factoryProducts.TryGetValue(product, out var total)) factoryProducts[product] = total = new() { TypeId=product, Name=Type(product).Name, Tier=Tier(product) };
+                    var producers = factories.Where(f => f.Value.Outputs.ContainsKey(product)).ToArray();
+                    total.Factories += producers.Length;
+                    // Capacity is deliberately not actual throughput: input availability and cycle timing can limit it.
+                    total.Capacity += producers.Sum(f => f.Value.Outputs[product] * 3600 / f.Value.Cycle);
+                    foreach (var store in stores.Where(k => Type((int)Num(byId[k.Key], "type_id")).Capacity > 0))
+                    {
+                        double amount = store.Value.GetValueOrDefault(product);
+                        total.Stored += amount;
+                        bool downstream = routes.Any(r => (long)Num(r, "source_pin_id") == store.Key && (int)Num(r, "content_type_id") == product && factories.TryGetValue((long)Num(r, "destination_pin_id"), out var consumer) && consumer.Inputs.ContainsKey(product));
+                        if (downstream) total.Reserved += amount;
+                    }
+                }
                 string products = string.Join(" | ", outputs.Select(product => $"{Type(product).Name}: {stores.Values.Sum(c => c.GetValueOrDefault(product)):N0}"));
                 result.Factories.Add(new() { Colony = colony, Name = colony.Planet, Icon = colony.Portrait, Detail = colony.Character,
                     Quantity = $"{factoryRows.Length} factories | {collection} collect/refill | {factoryRows.Count(r => r.Color == "#FFD166")} need attention",
@@ -198,6 +214,8 @@ public static class PlanetaryAnalysis
                 Next = "ESI colony update " + colony.LastUpdate.ToLocalTime().ToString("dd MMM HH:mm"), Rate = "Fetched " + colony.Fetched.ToLocalTime().ToString("dd MMM HH:mm") });
         }
         foreach (var item in production.Where(p => p.Key > 0)) result.Production.Add(new() { Name = Type(item.Key).Name, Icon = Type(item.Key).Icon, Rate = $"{item.Value.rate:N0} nominal units/h", Quantity = $"{item.Value.extracted:N0} projected units", Detail = "Current extractor programs only; nominal cycle yield, not a mined ledger" });
+        result.FactoryTiers = factoryProducts.Values.GroupBy(p => p.Tier).OrderBy(g => g.Key)
+            .Select(g => new PiTierSummary { Tier=g.Key, Products=g.OrderByDescending(p => p.Collect > 0).ThenByDescending(p => p.Collect).ThenBy(p => p.Name).ToList() }).ToList();
         var available = new Dictionary<int, double>(stock);
         foreach (var refill in result.Refills)
         {
