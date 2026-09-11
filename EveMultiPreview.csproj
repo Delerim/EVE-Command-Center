@@ -15,7 +15,7 @@
     <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
     <AssemblyName>EVE Command Center</AssemblyName>
     <RootNamespace>EveMultiPreview</RootNamespace>
-    <Version>2.3.28</Version>
+    <Version>2.3.29</Version>
     <Title>EVE Command Center</Title>
     <Product>EVE Command Center</Product>
     <Description>EVE Online command center for multi-client preview, mining and pilot intelligence</Description>
@@ -38,13 +38,6 @@
     <Page Remove="Views\ThumbnailWindow.xaml" />
   </ItemGroup>
 
-  <!-- The upstream public repo omits the localization source XAML files that are
-       present in the official release binary. These are the precompiled BAML
-       dictionaries recovered from the official v2.3.25 release and embedded
-       directly into the WPF .g.resources bundle. -->
-  <ItemGroup>
-    <Resource Include="Resources\Strings.*.baml" />
-  </ItemGroup>
 
   <ItemGroup>
     <EmbeddedResource Include="Icon.ico" />

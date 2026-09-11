@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Diagnostics;
 using System.Windows;
 using EveMultiPreview.Services;
@@ -19,7 +19,7 @@ public partial class UpdateDialog : Window
         InitializeComponent();
         _updateService = updateService;
 
-        TxtVersionInfo.Text = $"A new version of EVE MultiPreview is available!\n" +
+        TxtVersionInfo.Text = $"A new version of EVE Command Center is available!\n" +
                               $"Current: v{_updateService.CurrentVersion}  →  New: v{_updateService.LatestVersion}";
 
         TxtReleaseNotes.Text = !string.IsNullOrWhiteSpace(_updateService.ReleaseNotes)

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Diagnostics;
 using System.IO;
 using System.Net.Http;
@@ -13,8 +13,9 @@ namespace EveMultiPreview.Services;
 /// </summary>
 public sealed class UpdateService
 {
-    private const string GITHUB_API_URL = "https://api.github.com/repos/CJKondur/EVE-MultiPreview/releases/latest";
-    private const string EXE_ASSET_NAME = "EVE.MultiPreview.exe";
+    // Fork builds must only install releases that contain our custom features.
+    private const string GITHUB_RELEASES_URL = "https://api.github.com/repos/Delerim/EVE-MultiPreview/releases";
+    private const string EXE_ASSET_NAME = "EVE.Command.Center.exe";
 
     private static readonly HttpClient _httpClient = new() { Timeout = TimeSpan.FromSeconds(30) };
 
@@ -52,9 +53,9 @@ public sealed class UpdateService
             _httpClient.DefaultRequestHeaders.UserAgent.Clear();
             _httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("EVE-MultiPreview/" + CurrentVersion);
 
-            string apiUrl = allowPreRelease 
-                ? "https://api.github.com/repos/CJKondur/EVE-MultiPreview/releases" 
-                : "https://api.github.com/repos/CJKondur/EVE-MultiPreview/releases/latest";
+            string apiUrl = allowPreRelease
+                ? GITHUB_RELEASES_URL
+                : GITHUB_RELEASES_URL + "/latest";
 
             var json = await _httpClient.GetStringAsync(apiUrl);
 
@@ -71,7 +72,7 @@ public sealed class UpdateService
             ReleaseNotes = bodyMatch.Success ? Regex.Unescape(bodyMatch.Groups[1].Value) : null;
 
             // Find the exe asset download URL
-            // Pattern: "browser_download_url":"https://...EVE.MultiPreview.exe"
+            // Pattern: "browser_download_url":"https://...EVE.Command.Center.exe"
             var assetPattern = $"\"browser_download_url\"\\s*:\\s*\"([^\"]*{Regex.Escape(EXE_ASSET_NAME)})\"";
             var assetMatch = Regex.Match(json, assetPattern);
             DownloadUrl = assetMatch.Success ? assetMatch.Groups[1].Value : null;
@@ -141,40 +142,40 @@ public sealed class UpdateService
         var scriptPath = Path.Combine(Path.GetTempPath(), "EVEMultiPreview_update", "update.ps1");
 
         var script = $@"
-# EVE MultiPreview Auto-Updater
+# EVE Command Center Auto-Updater
 # Wait for the main process to exit
 Start-Sleep -Seconds 2
 $maxWait = 30; $waited = 0
-while ((Get-Process -Name 'EVE MultiPreview' -ErrorAction SilentlyContinue) -and $waited -lt $maxWait) {{
+while ((Get-Process -Name 'EVE Command Center' -ErrorAction SilentlyContinue) -and $waited -lt $maxWait) {{
     Start-Sleep -Seconds 1; $waited++
 }}
 
 # Backup config file
 $appDir = '{EscapePs(appDir)}'
-$configFile = Join-Path $appDir 'EVE MultiPreview.json'
+$configFile = Join-Path $appDir 'EVE Command Center.json'
 if (Test-Path $configFile) {{
     $backupDir = Join-Path $appDir 'Backups'
     New-Item -ItemType Directory -Path $backupDir -Force | Out-Null
     $timestamp = Get-Date -Format 'yyyy-MM-dd_HH-mm-ss'
-    Copy-Item $configFile (Join-Path $backupDir ""EVE MultiPreview_pre-update_$timestamp.json"")
+    Copy-Item $configFile (Join-Path $backupDir ""EVE Command Center_pre-update_$timestamp.json"")
 }}
 
 # Replace the executable
 $newExe = '{EscapePs(downloadedExePath)}'
-$oldExe = Join-Path $appDir 'EVE MultiPreview.exe'
+$oldExe = Join-Path $appDir 'EVE Command Center.exe'
 Copy-Item $newExe $oldExe -Force
 
 # Clean up any stale dot-named exe / pdb left over from earlier installs
 # that pre-date the AssemblyName rename. The GitHub release ships the file
-# as 'EVE.MultiPreview.exe' (with a dot, GitHub-friendly), but the local
-# install is 'EVE MultiPreview.exe' (with a space). Old dot-named files
+# as 'EVE.Command.Center.exe' (with a dot, GitHub-friendly), but the local
+# install is 'EVE Command Center.exe' (with a space). Old dot-named files
 # from previous versions sit alongside the space-named live exe and show
 # up as confusing duplicates in the install folder (issue #42, bug #3).
-$dotExe = Join-Path $appDir 'EVE.MultiPreview.exe'
+$dotExe = Join-Path $appDir 'EVE.Command.Center.exe'
 if (Test-Path $dotExe) {{
     Remove-Item -Path $dotExe -Force -ErrorAction SilentlyContinue
 }}
-$dotPdb = Join-Path $appDir 'EVE.MultiPreview.pdb'
+$dotPdb = Join-Path $appDir 'EVE.Command.Center.pdb'
 if (Test-Path $dotPdb) {{
     Remove-Item -Path $dotPdb -Force -ErrorAction SilentlyContinue
 }}
