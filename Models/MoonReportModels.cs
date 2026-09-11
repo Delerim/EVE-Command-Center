@@ -90,6 +90,7 @@ public sealed class MoonLedgerRecord
 
 public sealed class MoonReportSnapshot
 {
+    public DateTimeOffset? LastRefreshUtc { get; init; }
     public DateTimeOffset GeneratedUtc { get; init; }
     public IReadOnlyList<MoonCardView> Cards { get; init; } =
         Array.Empty<MoonCardView>();
@@ -126,6 +127,8 @@ public sealed class MoonReportSnapshot
 
 public sealed class MoonCardView
 {
+    public string Evidence { get; init; } = "";
+
     public string PullId { get; init; } = "";
     public long MoonId { get; init; }
     public long StructureId { get; init; }

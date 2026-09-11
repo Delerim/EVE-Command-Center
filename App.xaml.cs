@@ -136,6 +136,15 @@ public partial class App : Application
             PerfLog($"Setup wizard: {startupSw.ElapsedMilliseconds}ms");
         }
 
+        if (!BackgroundOperations.Current.Access.State.SetupCompleted)
+        {
+            if (new ClientSetupWindow(firstRun: true).ShowDialog() != true)
+            {
+                Shutdown();
+                return;
+            }
+        }
+
         // 2. Window event hooks (single OS-level subscription shared across services)
         //    and window discovery. Hooks must be installed on the UI thread —
         //    OnStartup runs on it, so create here before anything backgrounds off.
@@ -1130,6 +1139,7 @@ public partial class App : Application
         _miningDashboardWindow.Activate();
     }
 
+    public void ShowGeneralSettings() => OpenSettings(startMinimized: false);
     private void OpenSettings() => OpenSettings(startMinimized: false);
 
     private void OpenSettings(bool startMinimized)

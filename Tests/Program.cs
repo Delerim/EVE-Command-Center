@@ -27,6 +27,8 @@ internal static class Program
     [STAThread]
     private static void Main(string[] args)
     {
+        CheckAccessAsync().GetAwaiter().GetResult();
+        var moonSnapshot = CheckMoonRecovery();
         using var appraisal = JsonDocument.Parse("{\"pricerMarket\":{\"name\":\"Jita 4-4\"},\"immediatePrices\":{\"totalBuyPrice\":1000}}");
         var good = Row();
         ContractService.Evaluate(good, appraisal.RootElement, 90, 0.1m);
@@ -92,8 +94,83 @@ internal static class Program
             ((DataGrid)details.FindName("ItemsGrid")).ItemsSource = new[] { new ContractItem { Name = "Compressed Veldspar", Quantity = 125000, Included = true, UnitVolume = 0.01 }, new ContractItem { Name = "Compressed Scordite", Quantity = 85000, Included = true, UnitVolume = 0.01 } };
             Render(details, System.IO.Path.ChangeExtension(args[0], ".contents.png"));
         }
+        var setup = new ClientSetupWindow();
+        BackgroundOperations.Stop();
+        Check(setup.FindName("MoonPilot") is ComboBox && setup.FindName("ContractPilot") is ComboBox, "Setup exposes separate corporation readers");
+        if (args.Length > 0) Render(setup, System.IO.Path.ChangeExtension(args[0], ".setup.png"));
+        var moonWindow = new MoonReportWindow();
+        BackgroundOperations.Stop();
+        typeof(MoonReportWindow).GetMethod("ApplySnapshot", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!.Invoke(moonWindow, new object[] { moonSnapshot });
+        Check(((DataGrid)moonWindow.FindName("OverviewFields")).Items.Count == 4, "Moon overview binds all four active fields");
+        ((ComboBox)moonWindow.FindName("OverviewSystem")).SelectedItem = "Mazitah";
+        Check(((DataGrid)moonWindow.FindName("OverviewFields")).Items.Count == 2, "System selector filters active fields");
+        ((ComboBox)moonWindow.FindName("OverviewSystem")).SelectedItem = "All systems";
+        if (args.Length > 0) Render(moonWindow, System.IO.Path.ChangeExtension(args[0], ".moons.png"));
         Console.WriteLine($"{_checks} checks passed.");
     }
+    private static MoonReportSnapshot CheckMoonRecovery()
+    {
+        var directory = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "ecc-moon-checks-" + Guid.NewGuid().ToString("N"));
+        System.IO.Directory.CreateDirectory(directory);
+        var now = DateTimeOffset.UtcNow;
+        var state = new MoonReportState();
+        for (int i = 1; i <= 4; i++)
+        {
+            string system = i <= 2 ? "Mazitah" : "Joppaya";
+            state.Profiles[i] = new MoonProfile { MoonId = i, StructureId = i, MoonName = system + " Moon " + i, StructureName = system + " - Refinery " + i, SystemName = system, ProfileConfigured = true, ZeolitesPercent = 50, SylvitePercent = 50, FieldLifetimeHours = 48 };
+            state.Pulls["next" + i] = new MoonPullRecord { Id = "next" + i, MoonId = i, StructureId = i, MoonName = system + " Moon " + i, StructureName = system + " - Refinery " + i, SystemName = system, ExtractionStartUtc = now.AddHours(-12), ChunkArrivalUtc = now.AddDays(50), NaturalDecayUtc = now.AddDays(50).AddHours(3), SeenInLatestExtractionList = true };
+        }
+        // Two fields must be recovered without any ledger activity. One observed and one formerly misclassified natural fracture.
+        state.Pulls["old3"] = new MoonPullRecord { Id = "old3", MoonId = 3, StructureId = 3, ExtractionStartUtc = now.AddDays(-54), ChunkArrivalUtc = now.AddHours(-14), NaturalDecayUtc = now.AddHours(-11), FracturedUtc = now.AddHours(-12), EstimatedFieldExpiryUtc = now.AddHours(36) };
+        state.Pulls["old4"] = new MoonPullRecord { Id = "old4", MoonId = 4, StructureId = 4, ExtractionStartUtc = now.AddDays(-54), ChunkArrivalUtc = now.AddHours(-15), NaturalDecayUtc = now.AddHours(-12), OutcomeUnobserved = true, ExpiredUtc = now.AddHours(-10) };
+        var file = System.IO.Path.Combine(directory, "moon-report.json");
+        System.IO.File.WriteAllText(file, JsonSerializer.Serialize(state));
+        try
+        {
+            using var service = new MoonReportService(new EveSsoService(), directory);
+            var snapshot = service.GetSnapshot();
+            var fields = snapshot.Cards.Where(c => c.MoonId is >= 1 and <= 4 && c.Status == "FIELD ACTIVE").ToArray();
+            Check(fields.Length == 4, "Four active fields survive new extraction and missing mining activity");
+            Check(fields.All(c => c.RemainingTotalM3 > 0), "Recovered fields retain ore estimates without ledger activity");
+            Check(fields.Count(c => c.Evidence.StartsWith("Inferred")) == 2, "Restart inference is labelled separately from known history");
+            Check(snapshot.CalendarCards.Count(c => c.Status == "SCHEDULED" && c.MoonId <= 4) == 4, "Active fields do not erase upcoming extraction schedules");
+            Check(service.GetSnapshot().CalendarCards.Count == snapshot.CalendarCards.Count, "Repeated snapshots do not duplicate recovered fields");
+            var expired = (MoonReportSnapshot)typeof(MoonReportService).GetMethod("BuildSnapshot", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!.Invoke(service, new object[] { now.AddDays(3) })!;
+            Check(expired.ActiveFieldCount == 0, "Recovered and observed fields expire without mining activity");
+            Check(expired.Audit.Count >= 4, "Expired fields enter the despawn audit");
+            return snapshot;
+        }
+        finally { System.IO.File.Delete(file); System.IO.Directory.Delete(directory); }
+    }
+    private static async Task CheckAccessAsync()
+    {
+        var handler = new AccessEsi();
+        using var http = new HttpClient(handler);
+        var result = await CorporationAccessService.ProbeEndpointsAsync(http, "test", 123, true);
+        Check(result.Allowed && handler.Paths.Any(p => p.Contains("structures")) && handler.Paths.Any(p => p.Contains("extractions")), "Moon gate checks both live structure and extraction endpoints");
+        handler.Deny = "structures";
+        try { await CorporationAccessService.ProbeEndpointsAsync(http, "test", 123, true); throw new Exception("Denied structures passed gate"); }
+        catch (HttpRequestException ex) when (ex.StatusCode == HttpStatusCode.Forbidden) { Check(true, "Scope approval cannot bypass denied structure permissions"); }
+        handler.Deny = "contracts";
+        try { await CorporationAccessService.ProbeEndpointsAsync(http, "test", 123, false); throw new Exception("Denied contracts passed gate"); }
+        catch (HttpRequestException ex) when (ex.StatusCode == HttpStatusCode.Forbidden) { Check(true, "Contract permissions are validated by ESI"); }
+        handler.Deny = "";
+        Check((await CorporationAccessService.ProbeEndpointsAsync(http, "test", 123, false)).Allowed, "Empty successful contract list still grants access");
+    }
+    private sealed class AccessEsi : HttpMessageHandler
+    {
+        public string Deny = "";
+        public List<string> Paths = new();
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct)
+        {
+            var path = request.RequestUri!.AbsolutePath;
+            Paths.Add(path);
+            var denied = Deny.Length > 0 && path.Contains(Deny);
+            var body = path.Contains("characters/") ? "{\"name\":\"Test Pilot\",\"corporation_id\":42}" : path.EndsWith("corporations/42/") ? "{\"name\":\"Test Corporation\"}" : "[]";
+            return Task.FromResult(new HttpResponseMessage(denied ? HttpStatusCode.Forbidden : HttpStatusCode.OK) { Content = new StringContent(body) });
+        }
+    }
+
     private static async Task CheckRefreshAsync()
     {
         var folder = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "ecc-contract-checks-" + Guid.NewGuid().ToString("N"));

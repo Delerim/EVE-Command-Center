@@ -33,7 +33,7 @@ public partial class ContractsWindow : Window
     {
         _pilots = await _operations.Sso.LoadPilotsAsync();
         if (_closed) return;
-        PilotCombo.ItemsSource = _pilots;
+        PilotCombo.ItemsSource = _pilots.Where(p => p.CharacterId == _operations.Access.State.ContractCharacterId).ToArray();
         PilotCombo.SelectedItem = _pilots.FirstOrDefault(p => p.CharacterId == (preferred > 0 ? preferred : Service.State.CharacterId)) ?? _pilots.FirstOrDefault();
     }
     private void Render()
@@ -68,6 +68,8 @@ public partial class ContractsWindow : Window
         if (!ContractService.CanRead(pilot)) { StatusText.Text = "Use RECONNECT / ADD to grant corporation contract access."; return; }
         try
         {
+            await _operations.Access.ValidateAsync(_pilots, _lifetime.Token);
+            if (!_operations.Access.CanReadContracts || pilot.CharacterId != _operations.Access.State.ContractCharacterId) return;
             if (Service.State.CharacterId != pilot.CharacterId)
             {
                 Service.State.CharacterId = pilot.CharacterId;
@@ -86,9 +88,8 @@ public partial class ContractsWindow : Window
         ReconnectButton.IsEnabled = false;
         try
         {
-            var pilot = await _operations.Sso.AddCharacterAsync(_lifetime.Token, ContractService.Scopes);
-            await LoadPilotsAsync(pilot.CharacterId);
-            StatusText.Text = "Character linked. Choose USE TOON / REFRESH to read its corporation contracts.";
+            new ClientSetupWindow().ShowDialog();
+            await LoadPilotsAsync();
         }
         catch (OperationCanceledException) { }
         catch (Exception ex) { if (!_closed) StatusText.Text = ex.Message; }

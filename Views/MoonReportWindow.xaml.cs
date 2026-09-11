@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -80,7 +80,7 @@ public partial class MoonReportWindow : Window
     private async Task ReloadPilotsAsync(long preferred = 0)
     {
         _pilots = await _sso.LoadPilotsAsync();
-        PilotCombo.ItemsSource = _pilots;
+        PilotCombo.ItemsSource = _pilots.Where(p => p.CharacterId == BackgroundOperations.Current.Access.State.MoonCharacterId).ToArray();
         long id = preferred > 0 ? preferred : _service.SelectedCharacterId;
         PilotCombo.SelectedItem = _pilots.FirstOrDefault(p => p.CharacterId == id)
             ?? _pilots.FirstOrDefault();
@@ -108,10 +108,8 @@ public partial class MoonReportWindow : Window
         SetBusy(true);
         try
         {
-            SetStatus("Complete EVE authorization in the browser.");
-            EvePilotProfile pilot = await _sso.AddCharacterAsync(_lifetime.Token);
-            await ReloadPilotsAsync(pilot.CharacterId);
-            await _service.SelectPilotAsync(pilot.CharacterId);
+            new ClientSetupWindow().ShowDialog();
+            await ReloadPilotsAsync();
         }
         catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { return; }
         catch (Exception ex) { SetStatus(ex.Message, true); return; }
@@ -133,6 +131,9 @@ public partial class MoonReportWindow : Window
         SetBusy(true);
         try
         {
+            var access = BackgroundOperations.Current.Access;
+            await access.ValidateAsync(_pilots, _lifetime.Token);
+            if (!access.CanReadMoons || pilot.CharacterId != access.State.MoonCharacterId) return;
             var progress = new Progress<string>(SetStatus);
             ApplySnapshot(await _service.RefreshAsync(pilot, progress, _lifetime.Token));
 
@@ -160,6 +161,7 @@ public partial class MoonReportWindow : Window
     public void FocusStructure(string structure)
     {
         _filter = "ALL";
+        MoonTabs.SelectedIndex = 2;
         SearchBox.Text = structure;
         ApplyFilters();
     }
@@ -171,6 +173,7 @@ public partial class MoonReportWindow : Window
         Show();
         Activate();
         _filter = "ALL";
+        MoonTabs.SelectedIndex = 2;
         SearchBox.Text = structure;
         ApplyFilters();
         System.Windows.MessageBox.Show(this, message, string.IsNullOrEmpty(structure) ? "Test moon alert" : structure,
@@ -187,12 +190,52 @@ public partial class MoonReportWindow : Window
         JackpotText.Text = snapshot.JackpotCount.ToString("N0");
         DespawnText.Text = snapshot.TargetDespawnCount.ToString("N0");
         AuditGrid.ItemsSource = snapshot.Audit;
-        UpdatedText.Text = snapshot.GeneratedUtc == default ? "Not refreshed" :
-            "Updated " + snapshot.GeneratedUtc.ToLocalTime().ToString("dd MMM yyyy HH:mm:ss");
+        UpdatedText.Text = snapshot.LastRefreshUtc is not { } refreshed ? "No live refresh yet" :
+            "ESI updated " + refreshed.ToLocalTime().ToString("dd MMM yyyy HH:mm:ss") +
+            (DateTimeOffset.UtcNow - refreshed > TimeSpan.FromMinutes(75) ? " | stale" : "");
         ApplyFilters();
         RenderCalendar();
         LoadLedger();
         LoadReporting();
+        RenderOverview();
+    }
+
+    private void RenderOverview()
+    {
+        if (OverviewSystem == null) return;
+        var selectedSystem = OverviewSystem.SelectedItem as string ?? "All systems";
+        var systems = new[] { "All systems" }.Concat(_snapshot.CalendarCards.Select(c => c.SystemName).Where(n => !string.IsNullOrWhiteSpace(n)).Distinct().OrderBy(n => n)).ToArray();
+        if (!(OverviewSystem.ItemsSource is string[] previous) || !previous.SequenceEqual(systems))
+        {
+            OverviewSystem.ItemsSource = systems;
+            OverviewSystem.SelectedItem = systems.Contains(selectedSystem) ? selectedSystem : "All systems";
+        }
+        bool InSystem(MoonCardView c) => selectedSystem == "All systems" || c.SystemName == selectedSystem;
+        var fields = _snapshot.CalendarCards.Where(c => c.Status == "FIELD ACTIVE" && InSystem(c)).OrderBy(c => c.FieldExpiry).ToArray();
+        var upcoming = _snapshot.CalendarCards.Where(c => c.Status is "SCHEDULED" or "READY").OrderBy(c => c.ScheduleUtc).ToArray();
+        var selected = (OverviewFields.SelectedItem as MoonCardView)?.PullId;
+        OverviewFields.ItemsSource = fields;
+        OverviewFields.SelectedItem = fields.FirstOrDefault(c => c.PullId == selected) ?? fields.FirstOrDefault();
+        OverviewUpcoming.ItemsSource = upcoming.Where(InSystem).Take(20).ToArray();
+        OverviewSummary.Text = $"{fields.Length} active fields   |   {upcoming.Count(c => c.Status == "READY" && InSystem(c))} ready to fracture   |   {MoonReportService.FormatM3(fields.Sum(c => c.RemainingTotalM3))} estimated R4 ore left";
+        var next = upcoming.FirstOrDefault(InSystem);
+        var change = next == null ? null : upcoming.FirstOrDefault(c => c.ScheduleUtc > next.ScheduleUtc && c.SystemName != next.SystemName);
+        OverviewNext.Text = next == null ? "No upcoming extraction in this system." : $"Next: {next.StructureName} | {next.ScheduleValue}" +
+            (change == null ? "" : $"   |   Next system: {change.SystemName} | {change.ScheduleValue}");
+        RenderOverviewLedger();
+    }
+    private void OverviewSystem_Changed(object sender, System.Windows.Controls.SelectionChangedEventArgs e) => RenderOverview();
+    private void OverviewField_Changed(object sender, System.Windows.Controls.SelectionChangedEventArgs e) => RenderOverviewLedger();
+    private void RenderOverviewLedger()
+    {
+        if (OverviewLedger == null) return;
+        var field = OverviewFields.SelectedItem as MoonCardView;
+        var ledger = _snapshot.LedgerPulls.FirstOrDefault(p => p.PullId == field?.PullId);
+        OverviewLedger.ItemsSource = ledger?.Rows;
+        OverviewLedgerTitle.Text = field == null ? "FIELD LEDGER | select an active field" : "FIELD LEDGER | " + field.StructureName;
+        OverviewEvidence.Text = field == null ? "No active field in the selected system." : field.Evidence + (_service.LedgerWarning == null ? "" : " | " + _service.LedgerWarning) +
+            $" | {field.RemainingSummary} | {MoonReportService.FormatM3(field.MinedTotalM3)} ledgered" +
+            (ledger?.Rows.Count > 0 ? "" : " | No mining recorded for this field yet; ESI ledger data can be delayed.");
     }
 
     private void Filter_Click(object sender, RoutedEventArgs e)
@@ -392,9 +435,9 @@ public partial class MoonReportWindow : Window
         MoonCardView[] cards = CardsForDate(date);
         var root = new WpfStackPanel();
         root.Children.Add(Text(date.ToString("ddd dd MMM").ToUpperInvariant(), detailed ? 20 : 15, "#E8FFFF", true));
-        root.Children.Add(Text($"{cards.Length} moon(s) Â· mined {MoonReportService.FormatM3(total?.TotalM3 ?? 0)} Â· despawn {MoonReportService.FormatM3(total?.LostM3 ?? 0)}", detailed ? 12 : 10, "#7EA8AB"));
+        root.Children.Add(Text($"{cards.Length} moon(s) | mined {MoonReportService.FormatM3(total?.TotalM3 ?? 0)} | despawn {MoonReportService.FormatM3(total?.LostM3 ?? 0)}", detailed ? 12 : 10, "#7EA8AB"));
         if (detailed && total != null)
-            root.Children.Add(Text($"Zeo {MoonReportService.FormatM3(total.ZeolitesM3)}  Â·  Syl {MoonReportService.FormatM3(total.SylviteM3)}  Â·  Bit {MoonReportService.FormatM3(total.BitumensM3)}  Â·  Coe {MoonReportService.FormatM3(total.CoesiteM3)}", 12, "#A8CFD0"));
+            root.Children.Add(Text($"Zeo {MoonReportService.FormatM3(total.ZeolitesM3)}  |  Syl {MoonReportService.FormatM3(total.SylviteM3)}  |  Bit {MoonReportService.FormatM3(total.BitumensM3)}  |  Coe {MoonReportService.FormatM3(total.CoesiteM3)}", 12, "#A8CFD0"));
         if (detailed)
         {
             var cardsHost = new WpfWrapPanel { Margin = new Thickness(0, 8, 0, 0) };
@@ -428,7 +471,7 @@ public partial class MoonReportWindow : Window
 
         var body = new WpfStackPanel();
         WpfGrid.SetColumn(body, 1);
-        body.Children.Add(Text((card.IsJackpot ? "â˜… " : "") + card.MoonName, detailed ? 16 : 12, card.IsJackpot ? "#FFD166" : "#E8FFFF", true));
+        body.Children.Add(Text((card.IsJackpot ? "★ " : "") + card.MoonName, detailed ? 16 : 12, card.IsJackpot ? "#FFD166" : "#E8FFFF", true));
         body.Children.Add(Text(card.StructureName, detailed ? 11 : 9, "#8FB2B5"));
         body.Children.Add(Text(card.ScheduleValue, detailed ? 11 : 9, "#55D7D2", true));
         var status = new WpfBorder
@@ -477,8 +520,8 @@ public partial class MoonReportWindow : Window
             foreach (MoonOreRowView ore in card.OreRows)
             {
                 WpfTextBlock row = Text(
-                    ore.Name + "  Â·  mined " + ore.Mined +
-                    "  Â·  est. left " + ore.Remaining,
+                    ore.Name + "  |  mined " + ore.Mined +
+                    "  |  est. left " + ore.Remaining,
                     11,
                     ore.Color);
                 row.Margin = new Thickness(0, 4, 0, 0);
@@ -497,7 +540,7 @@ public partial class MoonReportWindow : Window
         row.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new GridLength(23) });
         row.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition());
         row.Children.Add(BuildMoonStructureIcon(card, 19));
-        WpfTextBlock name = Text((card.IsJackpot ? "â˜… " : "") + card.MoonName,
+        WpfTextBlock name = Text((card.IsJackpot ? "★ " : "") + card.MoonName,
             10, card.IsJackpot ? "#FFD166" : "#B6D4D5", card.IsJackpot);
         name.VerticalAlignment = System.Windows.VerticalAlignment.Center;
         WpfGrid.SetColumn(name, 1); row.Children.Add(name);
@@ -618,7 +661,7 @@ public partial class MoonReportWindow : Window
             : pull.Rows.Count == 0
                 ? "NO MINING RECORDED"
                 : pull.JackpotObserved
-                    ? "â˜… JACKPOT OBSERVED"
+                    ? "★ JACKPOT OBSERVED"
                     : "STANDARD PULL";
         LedgerStatusText.Foreground = Brush(
             pull?.JackpotObserved == true ? "#FFD166" : "#8FB2B5");
@@ -745,12 +788,12 @@ public partial class MoonReportWindow : Window
 
     private MoonProfile? ShowProfileEditor(MoonProfile source)
     {
-        var window = new Window { Owner = this, Title = "Ore profile Â· " + source.MoonName, Width = 500, Height = 555, ResizeMode = ResizeMode.NoResize, WindowStartupLocation = WindowStartupLocation.CenterOwner, Background = Brush("#07181B"), Foreground = WpfBrushes.White, FontFamily = new System.Windows.Media.FontFamily("Segoe UI") };
+        var window = new Window { Owner = this, Title = "Ore profile | " + source.MoonName, Width = 500, Height = 555, ResizeMode = ResizeMode.NoResize, WindowStartupLocation = WindowStartupLocation.CenterOwner, Background = Brush("#07181B"), Foreground = WpfBrushes.White, FontFamily = new System.Windows.Media.FontFamily("Segoe UI") };
         var root = new WpfGrid { Margin = new Thickness(18) };
         for (int i = 0; i < 11; i++) root.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = GridLength.Auto });
         root.RowDefinitions.Add(new System.Windows.Controls.RowDefinition()); root.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = GridLength.Auto });
         WpfTextBlock title = Text(source.MoonName, 20, "#E8FFFF", true); WpfGrid.SetRow(title, 0); root.Children.Add(title);
-        WpfTextBlock sub = Text(source.StructureName + " Â· " + source.SystemName, 12, "#82ABAE"); sub.Margin = new Thickness(0, 0, 0, 12); WpfGrid.SetRow(sub, 1); root.Children.Add(sub);
+        WpfTextBlock sub = Text(source.StructureName + " | " + source.SystemName, 12, "#82ABAE"); sub.Margin = new Thickness(0, 0, 0, 12); WpfGrid.SetRow(sub, 1); root.Children.Add(sub);
         WpfTextBox zeo = AddEditorRow(root, 2, "Zeolites composition %", source.ZeolitesPercent);
         WpfTextBox syl = AddEditorRow(root, 3, "Sylvite composition %", source.SylvitePercent);
         WpfTextBox bit = AddEditorRow(root, 4, "Bitumens composition %", source.BitumensPercent);

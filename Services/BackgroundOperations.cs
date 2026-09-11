@@ -16,6 +16,8 @@ public sealed class BackgroundOperations : IDisposable
     public EveSsoService Sso { get; } = new();
     public MoonReportService Moons { get; }
     public ContractService Contracts { get; }
+    public CorporationAccessService Access { get; }
+    private DateTimeOffset _nextAccess;
     private readonly CancellationTokenSource _lifetime = new();
     private readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromMinutes(1) };
     private readonly string _file;
@@ -25,11 +27,23 @@ public sealed class BackgroundOperations : IDisposable
     private MoonReportWindow? _moonWindow;
     private ContractsWindow? _contractsWindow;
     public string? MoonError { get; private set; }
+    public void ScheduleRefresh() { _nextMoon = _nextContracts = default; }
 
     private BackgroundOperations()
     {
         Moons = new MoonReportService(Sso);
         Contracts = new ContractService(Sso);
+        Access = new CorporationAccessService(Sso);
+        if (!Access.State.SetupCompleted)
+        {
+            Access.State.MoonCharacterId = Moons.SelectedCharacterId;
+            Access.State.ContractCharacterId = Contracts.State.CharacterId;
+        }
+        Access.Changed += () =>
+        {
+            if (!Access.CanReadMoons) _moonWindow?.Close();
+            if (!Access.CanReadContracts) _contractsWindow?.Close();
+        };
         _file = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "EVE Command Center", "operating-alerts.json");
         try { _moonNotified = JsonSerializer.Deserialize<Dictionary<string, DateTimeOffset>>(File.ReadAllText(_file)) ?? new(); }
         catch { _moonNotified = new(); }
@@ -48,19 +62,24 @@ public sealed class BackgroundOperations : IDisposable
         {
             var pilots = await Sso.LoadPilotsAsync();
             var now = DateTimeOffset.UtcNow;
+            if (now >= _nextAccess)
+            {
+                _nextAccess = now.AddMinutes(10);
+                await Access.ValidateAsync(pilots, _lifetime.Token);
+            }
             var refreshes = new List<Task>();
             if (now >= _nextMoon)
             {
                 _nextMoon = now.AddMinutes(61);
                 var pilot = pilots.FirstOrDefault(p => p.CharacterId == Moons.SelectedCharacterId);
-                if (pilot != null && MoonReportService.HasRequiredScopes(pilot))
+                if (pilot != null && Access.CanReadMoons && pilot.CharacterId == Access.State.MoonCharacterId)
                     refreshes.Add(RefreshMoonsAsync(pilot, now));
             }
             if (now >= _nextContracts)
             {
                 _nextContracts = now.AddMinutes(30);
                 var pilot = pilots.FirstOrDefault(p => p.CharacterId == Contracts.State.CharacterId);
-                if (pilot != null && ContractService.CanRead(pilot))
+                if (pilot != null && Access.CanReadContracts && pilot.CharacterId == Access.State.ContractCharacterId)
                     refreshes.Add(RefreshContractsAsync(pilot, now));
             }
             await Task.WhenAll(refreshes);
@@ -83,6 +102,7 @@ public sealed class BackgroundOperations : IDisposable
 
     private void MoonRefreshed()
     {
+        if (!Access.CanReadMoons) return;
         _nextMoon = DateTimeOffset.UtcNow.AddMinutes(61);
         var prefix = Moons.SelectedCharacterId + ":";
         var keys = Moons.OperatingAlerts.Select(a => prefix + a.Key).ToHashSet();
@@ -100,12 +120,14 @@ public sealed class BackgroundOperations : IDisposable
     }
     private void NewContracts(IReadOnlyList<ContractRow> rows)
     {
+        if (!Access.CanReadContracts) return;
         foreach (var row in rows)
             OperatingToast.Notify(row.Issuer + " - " + row.Location, row.PriceText + " | Click to inspect contents",
                 () => OpenContracts(row), "NEW CONTRACT");
     }
     public void OpenMoons(string? search = null)
     {
+        if (!Access.CanReadMoons) { new ClientSetupWindow().ShowDialog(); return; }
         if (_moonWindow == null)
         {
             _moonWindow = new MoonReportWindow();
@@ -118,6 +140,7 @@ public sealed class BackgroundOperations : IDisposable
     }
     public void OpenContracts(ContractRow? row = null)
     {
+        if (!Access.CanReadContracts) { new ClientSetupWindow().ShowDialog(); return; }
         if (_contractsWindow == null)
         {
             _contractsWindow = new ContractsWindow();

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -35,7 +35,7 @@ public sealed class MoonReportService : IDisposable
     private readonly string _stateFile;
     private MoonReportState _state;
 
-    public MoonReportService(EveSsoService sso)
+    public MoonReportService(EveSsoService sso, string? stateDirectory = null)
     {
         _sso = sso;
         _http = new HttpClient { Timeout = TimeSpan.FromSeconds(45) };
@@ -50,7 +50,7 @@ public sealed class MoonReportService : IDisposable
             WriteIndented = true
         };
 
-        string root = Path.Combine(
+        string root = stateDirectory ?? Path.Combine(
             Environment.GetFolderPath(
                 Environment.SpecialFolder.LocalApplicationData),
             "EVE Command Center", "MoonReport");
@@ -63,6 +63,7 @@ public sealed class MoonReportService : IDisposable
     }
 
     public IReadOnlyList<MoonOperatingAlert> OperatingAlerts { get; private set; } = Array.Empty<MoonOperatingAlert>();
+    public string? LedgerWarning { get; private set; }
 
     public bool DesktopNotificationsEnabled => _state.DesktopNotificationsEnabled;
 
@@ -89,6 +90,19 @@ public sealed class MoonReportService : IDisposable
         await _gate.WaitAsync();
         try
         {
+            if (_state.SelectedCharacterId != characterId && _state.SelectedCharacterId > 0)
+            {
+                // Keep each reader's saved history separate when changing corporations/toons.
+                string root = Path.GetDirectoryName(_stateFile)!;
+                await File.WriteAllTextAsync(Path.Combine(root, $"moon-reader-{_state.SelectedCharacterId}.json"), JsonSerializer.Serialize(_state, _json));
+                string archive = Path.Combine(root, $"moon-reader-{characterId}.json");
+                _state = File.Exists(archive)
+                    ? JsonSerializer.Deserialize<MoonReportState>(await File.ReadAllTextAsync(archive), _json) ?? new()
+                    : new MoonReportState();
+                NormalizeState();
+                EnsureBundledLseProfilesLoaded();
+                RebuildPullMinedTotals();
+            }
             _state.SelectedCharacterId = characterId;
             await SaveStateAsync();
         }
@@ -184,6 +198,7 @@ public sealed class MoonReportService : IDisposable
 
             progress?.Report("Loading corporation mining observers...");
             List<EsiMiningObserver> observers;
+            LedgerWarning = null;
             try
             {
                 observers = await GetPagedAsync<EsiMiningObserver>(
@@ -194,9 +209,8 @@ public sealed class MoonReportService : IDisposable
             catch (EsiRequestException ex) when (
                 ex.StatusCode == HttpStatusCode.Forbidden)
             {
-                throw new InvalidOperationException(
-                    "The selected character needs the Accountant corporation role " +
-                    "to read the corporation mining ledger.", ex);
+                LedgerWarning = "Mining ledger unavailable: this character needs the Accountant corporation role. Ore estimates may omit mining.";
+                observers = new();
             }
 
             int observerIndex = 0;
@@ -491,8 +505,7 @@ public sealed class MoonReportService : IDisposable
                 }
                 else
                 {
-                    previous.OutcomeUnobserved = true;
-                    previous.ExpiredUtc = extraction.ExtractionStartTime;
+                    MarkFractured(previous, previous.NaturalDecayUtc, ProfileFor(previous));
                 }
             }
         }
@@ -504,11 +517,7 @@ public sealed class MoonReportService : IDisposable
         {
             if (now >= missing.NaturalDecayUtc)
             {
-                // The app did not observe the extraction disappear before its
-                // natural-decay deadline, so ESI cannot tell us whether pilots
-                // fractured it or allowed the chunk to decay.
-                missing.OutcomeUnobserved = true;
-                missing.ExpiredUtc = now;
+                MarkFractured(missing, missing.NaturalDecayUtc, ProfileFor(missing));
             }
             else if (now >= missing.ChunkArrivalUtc)
             {
@@ -744,6 +753,31 @@ public sealed class MoonReportService : IDisposable
         return inferred;
     }
 
+    private void RecoverFieldHistory(DateTimeOffset now)
+    {
+        // natural_decay_time is the automatic fracture deadline, not belt despawn.
+        foreach (var pull in _state.Pulls.Values.ToArray())
+        {
+            if (!pull.FracturedUtc.HasValue && pull.NaturalDecayUtc > pull.ChunkArrivalUtc && now >= pull.NaturalDecayUtc)
+            {
+                pull.OutcomeUnobserved = false;
+                pull.ExpiredUtc = null;
+                MarkFractured(pull, pull.NaturalDecayUtc, ProfileFor(pull));
+            }
+        }
+        foreach (var next in _state.Pulls.Values.Where(p => p.SeenInLatestExtractionList && p.ExtractionStartUtc <= now).ToArray())
+        {
+            var hours = ProfileFor(next).FieldLifetimeHours;
+            if (hours <= 0) hours = 48;
+            if (next.ExtractionStartUtc.AddHours(hours) <= now) continue;
+            // A restart is an inference, not a confirmed fracture. Do not duplicate a known prior pull.
+            if (_state.Pulls.Values.Any(p => p.StructureId == next.StructureId && p.Id != next.Id &&
+                p.ChunkArrivalUtc <= next.ExtractionStartUtc &&
+                p.ChunkArrivalUtc >= next.ExtractionStartUtc.AddHours(-hours))) continue;
+            FindOrCreateLedgerPull(next.StructureId, next.ExtractionStartUtc.UtcDateTime.Date);
+        }
+    }
+
     private void EvaluateExpiredFields(DateTimeOffset now)
     {
         foreach (MoonPullRecord pull in _state.Pulls.Values)
@@ -753,7 +787,7 @@ public sealed class MoonReportService : IDisposable
                 !pull.ExpiredUtc.HasValue &&
                 now >= pull.EstimatedFieldExpiryUtc.Value)
             {
-                pull.ExpiredUtc = now;
+                pull.ExpiredUtc = pull.EstimatedFieldExpiryUtc.Value;
             }
         }
     }
@@ -772,6 +806,7 @@ public sealed class MoonReportService : IDisposable
 
     private MoonReportSnapshot BuildSnapshot(DateTimeOffset now)
     {
+        RecoverFieldHistory(now);
         EvaluateExpiredFields(now);
         var cards = new List<MoonCardView>();
         var audit = new List<MoonAuditView>();
@@ -831,13 +866,14 @@ public sealed class MoonReportService : IDisposable
 
         return new MoonReportSnapshot
         {
+            LastRefreshUtc = _state.LastRefreshUtc,
             GeneratedUtc = now,
             Cards = orderedCards,
             CalendarCards = calendarCards,
             Audit = auditRows,
-            ScheduledCount = orderedCards.Count(c => c.Status == "SCHEDULED"),
-            ReadyCount = orderedCards.Count(c => c.Status == "READY"),
-            ActiveFieldCount = orderedCards.Count(c => c.Status == "FIELD ACTIVE"),
+            ScheduledCount = calendarCards.Count(c => c.Status == "SCHEDULED"),
+            ReadyCount = calendarCards.Count(c => c.Status == "READY"),
+            ActiveFieldCount = calendarCards.Count(c => c.Status == "FIELD ACTIVE"),
             TargetDespawnCount =
                 auditRows.Count(a => a.Outcome == "ORE LEFT"),
             ZeolitesLostM3 = zeoLost,
@@ -890,14 +926,14 @@ public sealed class MoonReportService : IDisposable
         string label;
         string value;
 
-        if (pull.SeenInLatestExtractionList && now < pull.ChunkArrivalUtc)
+        if (!pull.FracturedUtc.HasValue && pull.SeenInLatestExtractionList && now < pull.ChunkArrivalUtc)
         {
             status = "SCHEDULED";
             brush = "#46C7C7";
             label = "FRACTURES";
             value = DateAndRelative(pull.ChunkArrivalUtc, now);
         }
-        else if (pull.SeenInLatestExtractionList)
+        else if (!pull.FracturedUtc.HasValue && pull.SeenInLatestExtractionList)
         {
             status = "READY";
             brush = "#FFB74D";
@@ -962,6 +998,7 @@ public sealed class MoonReportService : IDisposable
         return new MoonCardView
         {
             PullId = pull.Id,
+            Evidence = pull.Id.StartsWith("ledger-field:") ? "Inferred from extraction restart / ledger" : "Estimated fracture from extraction history | estimated field lifetime",
             MoonId = pull.MoonId,
             StructureId = pull.StructureId,
             MoonName = First(pull.MoonName, profile.MoonName),
@@ -1112,7 +1149,7 @@ public sealed class MoonReportService : IDisposable
                     MoonName = pull.MoonName,
                     StructureName = pull.StructureName,
                     Label = fracture.ToLocalTime().ToString("dd MMM yyyy HH:mm") +
-                        (pull.JackpotObserved ? "  Â·  â˜… JACKPOT" : ""),
+                        (pull.JackpotObserved ? "  |  â˜… JACKPOT" : ""),
                     FractureUtc = fracture,
                     JackpotObserved = pull.JackpotObserved,
                     TotalM3 = rows.Sum(row => row.VolumeM3),
@@ -1141,7 +1178,7 @@ public sealed class MoonReportService : IDisposable
                 MoonId = profile.MoonId > 0 ? profile.MoonId : 0,
                 MoonName = profile.MoonName,
                 StructureName = profile.StructureName,
-                Label = profile.MoonName + "  Â·  " + profile.StructureName
+                Label = profile.MoonName + "  |  " + profile.StructureName
             })
             .OrderBy(moon => moon.MoonName, StringComparer.OrdinalIgnoreCase)
             .ToArray();
@@ -1433,7 +1470,7 @@ public sealed class MoonReportService : IDisposable
             start = dates[i];
         }
         return "â‰ˆ " + start.ToString("dd MMM yyyy") +
-            " Â· inferred from ledger";
+            " | inferred from ledger";
     }
 
     private MoonProfile ProfileFor(MoonPullRecord pull)
@@ -1772,7 +1809,7 @@ public sealed class MoonReportService : IDisposable
         string direction = delta >= TimeSpan.Zero ? "in " : "";
         string suffix = delta < TimeSpan.Zero ? " ago" : "";
         return value.ToLocalTime().ToString("dd MMM HH:mm") +
-            " Â· " + direction + FormatDuration(delta.Duration()) + suffix;
+            " | " + direction + FormatDuration(delta.Duration()) + suffix;
     }
 
     private static string FormatDuration(TimeSpan span)
@@ -1828,7 +1865,7 @@ public sealed class MoonReportService : IDisposable
             parts.Add($"BIT {profile.BitumensPercent:0.#}%");
         if (profile.CoesitePercent > 0)
             parts.Add($"COE {profile.CoesitePercent:0.#}%");
-        return parts.Count == 0 ? "NO R4 ORE PROFILE" : string.Join("  Â·  ", parts);
+        return parts.Count == 0 ? "NO R4 ORE PROFILE" : string.Join("  |  ", parts);
     }
 
     private static MoonOreRowView[] BuildOreRows(
@@ -1904,7 +1941,7 @@ public sealed class MoonReportService : IDisposable
         if (sylvite > 0) parts.Add("Syl " + FormatM3(sylvite));
         if (bitumens > 0) parts.Add("Bit " + FormatM3(bitumens));
         if (coesite > 0) parts.Add("Coe " + FormatM3(coesite));
-        return parts.Count == 0 ? "-" : string.Join("  Â·  ", parts);
+        return parts.Count == 0 ? "-" : string.Join("  |  ", parts);
     }
 
     private static MoonProfile CloneProfile(MoonProfile source)

@@ -24,7 +24,7 @@ jobs:
       - name: Restore
         run: dotnet restore EveCommandCenter.csproj
 
-      - name: Contract regression checks
+      - name: Command Center regression checks
         run: dotnet run --project Tests/CommandCenter.Checks.csproj -c Release
 
       - name: Publish EVE Command Center EXE

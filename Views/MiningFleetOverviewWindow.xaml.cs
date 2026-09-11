@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
@@ -53,6 +53,10 @@ public partial class MiningFleetOverviewWindow : Window
         MiningDashboardPreferences prefs)
     {
         InitializeComponent();
+        BackgroundOperations.Current.Access.Changed += UpdateAccess;
+        Closed += (_, _) => BackgroundOperations.Current.Access.Changed -= UpdateAccess;
+        UpdateAccess();
+
         _tracker = tracker;
         _watchdog = watchdog;
         _prefs = prefs;
@@ -910,6 +914,8 @@ public partial class MiningFleetOverviewWindow : Window
 
         ApplyResizeMode();
 
+        OverviewHeader.Measure(new System.Windows.Size(double.PositiveInfinity, double.PositiveInfinity));
+        MinWidth = Math.Max(620, OverviewHeader.DesiredSize.Width + 24);
         if (!_prefs.AllowFleetOverviewResize)
         {
             double desiredWidth = minerCount > 0
@@ -917,7 +923,7 @@ public partial class MiningFleetOverviewWindow : Window
                   minerCount * (cardWidth + cardGap)
                 : 620;
 
-            desiredWidth = Math.Max(620, desiredWidth);
+            desiredWidth = Math.Max(MinWidth, desiredWidth);
 
             if (Math.Abs(Width - desiredWidth) > 1)
                 Width = desiredWidth;
@@ -1370,6 +1376,18 @@ public partial class MiningFleetOverviewWindow : Window
         if (System.Windows.Application.Current is EveCommandCenter.App app)
             app.ShowPilotCommandCenter();
     }
+
+    private void UpdateAccess()
+    {
+        var access = BackgroundOperations.Current.Access;
+        MoonsButton.Visibility = access.CanReadMoons ? Visibility.Visible : Visibility.Collapsed;
+        ContractsButton.Visibility = access.CanReadContracts ? Visibility.Visible : Visibility.Collapsed;
+        OverviewHeader.Measure(new System.Windows.Size(double.PositiveInfinity, double.PositiveInfinity));
+        MinWidth = Math.Max(620, OverviewHeader.DesiredSize.Width + 24);
+        if (Width < MinWidth) Width = MinWidth;
+    }
+
+    private void OpenClientSettings_Click(object sender, RoutedEventArgs e) => new ClientSetupWindow().ShowDialog();
 
     private void OpenMoonReport_Click(object sender, RoutedEventArgs e) => BackgroundOperations.Current.OpenMoons();
     private void OpenContracts_Click(object sender, RoutedEventArgs e) => BackgroundOperations.Current.OpenContracts();

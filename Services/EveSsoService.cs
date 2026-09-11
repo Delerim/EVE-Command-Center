@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -35,9 +35,7 @@ public sealed class EveSsoService
         "esi-location.read_ship_type.v1",
         "esi-clones.read_implants.v1",
         "esi-assets.read_assets.v1",
-        "esi-fittings.read_fittings.v1",
-        "esi-industry.read_corporation_mining.v1",
-        "esi-corporations.read_structures.v1"
+        "esi-fittings.read_fittings.v1"
     };
 
     private sealed class TokenCache

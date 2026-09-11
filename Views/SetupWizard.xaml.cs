@@ -72,7 +72,7 @@ public partial class SetupWizard : Window
     {
         BtnBack.Visibility = _currentStep > 1 ? Visibility.Visible : Visibility.Collapsed;
         BtnSkip.Visibility = _currentStep < 5 ? Visibility.Visible : Visibility.Collapsed;
-        BtnNext.Content = _currentStep == 5 ? "✅ Done" : "Next →";
+        BtnNext.Content = _currentStep == 5 ? "Done" : "Next >";
     }
 
     private void OnNext(object sender, RoutedEventArgs e)
