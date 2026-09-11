@@ -173,7 +173,9 @@ try {{
     Copy-Item -LiteralPath $oldExe -Destination $backupExe -Force
     try {{
         Copy-Item -LiteralPath $newExe -Destination $oldExe -Force
-        Start-Process -FilePath $oldExe -WorkingDirectory $appDir
+        $restarted = Start-Process -FilePath $oldExe -WorkingDirectory $appDir -PassThru
+        if ($restarted.WaitForExit(2000)) {{ throw 'Updated application exited during startup.' }}
+        Remove-Item -LiteralPath $backupExe -Force -ErrorAction SilentlyContinue
     }} catch {{
         Copy-Item -LiteralPath $backupExe -Destination $oldExe -Force
         throw

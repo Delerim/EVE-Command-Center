@@ -18,8 +18,11 @@ Upgrading: close the app and replace its executable. Keep your settings JSON fil
 - Mining fleet overview with idle alerts, cycle timers, ore valuation, and history.
 - Pilot skills, training, assets, fittings, wallet information, and ship defense calculations.
 - Corporation moon calendar, mining ledger, ore profiles, and period reporting.
-- Desktop moon alerts for low fuel and drills without an extraction scheduled. Monitoring runs while Moon Report is open, including minimized.
+- Corporation contracts with Janice buyback checks, approved destinations, in-game links, contents inspection, and new-contract alerts.
+- Desktop moon alerts for low fuel and drills without an extraction scheduled. Moon and contract monitoring runs in the background while Command Center is running, even when their windows are closed.
 - Dark teal interface, configurable overlays, translated settings, and per-character controls.
+
+Contracts: open CONTRACTS in the fleet overview, reconnect a corporation-data toon to grant the required scopes, then choose USE TOON / REFRESH. The first successful refresh establishes a notification baseline; later new contracts generate alerts. [Contract checks and permissions](docs/contracts.md).
 
 ## Build
 

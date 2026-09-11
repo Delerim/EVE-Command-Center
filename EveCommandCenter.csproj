@@ -15,7 +15,7 @@
     <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
     <AssemblyName>EVE Command Center</AssemblyName>
     <RootNamespace>EveCommandCenter</RootNamespace>
-    <Version>2.4.3</Version>
+    <Version>2.5.0</Version>
     <Title>EVE Command Center</Title>
     <Product>EVE Command Center</Product>
     <Description>EVE Online command center for multi-client preview, mining and pilot intelligence</Description>
@@ -34,6 +34,8 @@
        WPF ThumbnailWindow.xaml/.xaml.cs files are still present upstream but
        must not be compiled, otherwise both define EveCommandCenter.Views.ThumbnailWindow. -->
   <ItemGroup>
+    <Compile Remove="Tests\**\*.cs" />
+    <Page Remove="Tests\**\*.xaml" />
     <Compile Remove="Views\ThumbnailWindow.xaml.cs" />
     <Page Remove="Views\ThumbnailWindow.xaml" />
   </ItemGroup>

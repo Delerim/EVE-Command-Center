@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -72,6 +72,8 @@ public sealed class MoonReportService : IDisposable
         try { _state.DesktopNotificationsEnabled = enabled; await SaveStateAsync(); }
         finally { _gate.Release(); }
     }
+
+    public event Action? Refreshed;
 
     public long SelectedCharacterId => _state.SelectedCharacterId;
 
@@ -235,6 +237,7 @@ public sealed class MoonReportService : IDisposable
             progress?.Report(
                 $"Moon report updated at " +
                 $"{DateTime.Now:HH:mm:ss}.");
+            Refreshed?.Invoke();
             return BuildSnapshot(DateTimeOffset.UtcNow);
         }
         finally

@@ -6,13 +6,14 @@ namespace EveCommandCenter.Views;
 public partial class OperatingToast : Window
 {
     private static readonly List<OperatingToast> Active = new();
-    private static readonly Queue<(string Structure, string Message, Action Open)> Pending = new();
+    private static readonly Queue<(string Structure, string Message, Action Open, string Title)> Pending = new();
     private readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromSeconds(20) };
     private readonly Action _open;
 
-    public OperatingToast(string structure, string message, Action open)
+    public OperatingToast(string structure, string message, Action open, string title = "MOON ALERT")
     {
         InitializeComponent();
+        AlertTitle.Text = title;
         StructureText.Text = structure;
         StructureText.ToolTip = structure;
         MessageText.Text = message;
@@ -20,13 +21,13 @@ public partial class OperatingToast : Window
         _timer.Tick += (_, _) => Close();
         MouseEnter += (_, _) => _timer.Stop();
         MouseLeave += (_, _) => _timer.Start();
-        Closed += (_, _) => { _timer.Stop(); Active.Remove(this); Reflow(); if (Pending.TryDequeue(out var next)) Notify(next.Structure, next.Message, next.Open); };
+        Closed += (_, _) => { _timer.Stop(); Active.Remove(this); Reflow(); if (Pending.TryDequeue(out var next)) Notify(next.Structure, next.Message, next.Open, next.Title); };
     }
 
-    public static void Notify(string structure, string message, Action open)
+    public static void Notify(string structure, string message, Action open, string title = "MOON ALERT")
     {
-        if (Active.Count >= 3) { Pending.Enqueue((structure, message, open)); return; }
-        var toast = new OperatingToast(structure, message, open);
+        if (Active.Count >= 3) { Pending.Enqueue((structure, message, open, title)); return; }
+        var toast = new OperatingToast(structure, message, open, title);
         Active.Add(toast);
         Reflow();
         toast.Show();
@@ -41,6 +42,12 @@ public partial class OperatingToast : Window
             Active[i].Left = Math.Max(area.Left, area.Right - Active[i].Width - 16);
             Active[i].Top = Math.Max(area.Top, area.Bottom - (i + 1) * (Active[i].Height + 10) - 6);
         }
+    }
+
+    public static void Clear()
+    {
+        Pending.Clear();
+        foreach (var toast in Active.ToArray()) toast.Close();
     }
 
     private void Dismiss_Click(object sender, RoutedEventArgs e) { e.Handled = true; Close(); }

@@ -434,6 +434,8 @@ public partial class App : Application
 
             PerfLog($"[Deferred] ✅ All deferred startup complete: {deferSw.ElapsedMilliseconds}ms total");
 
+            _ = BackgroundOperations.Current;
+
             // ── Auto-Update Check (fire-and-forget, non-blocking) ──
             // Gated on CheckForUpdatesOnStartup (About tab toggle). When off, no
             // network call and no popup — users can still check via Settings → About.
@@ -1310,6 +1312,7 @@ public partial class App : Application
         _isShuttingDown = true;
 
         // Single disposal path — ExitApplication calls Shutdown() which triggers this
+        BackgroundOperations.Stop();
         _alertHub?.Dispose();
         _broadcastHud?.Dispose();
         _logMonitor?.Dispose();

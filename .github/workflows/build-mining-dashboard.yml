@@ -24,6 +24,9 @@ jobs:
       - name: Restore
         run: dotnet restore EveCommandCenter.csproj
 
+      - name: Contract regression checks
+        run: dotnet run --project Tests/CommandCenter.Checks.csproj -c Release
+
       - name: Publish EVE Command Center EXE
         run: dotnet publish EveCommandCenter.csproj -c Release -r win-x64 --self-contained true /p:PublishSingleFile=true /p:IncludeNativeLibrariesForSelfExtract=true -o artifacts/publish
 

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
@@ -14,7 +14,6 @@ namespace EveCommandCenter.Views;
 
 public partial class MiningFleetOverviewWindow : Window
 {
-    private MoonReportWindow? _moonReportWindow;
     private CloudBackupWindow? _cloudBackupWindow;
     private readonly CloudBackupCoordinator _cloudBackupCoordinator =
         CloudBackupCoordinator.Attach();
@@ -1372,23 +1371,9 @@ public partial class MiningFleetOverviewWindow : Window
             app.ShowPilotCommandCenter();
     }
 
-    private void OpenMoonReport_Click(
-        object sender,
-        RoutedEventArgs e)
-    {
-        if (_moonReportWindow != null)
-        {
-            if (_moonReportWindow.WindowState == WindowState.Minimized)
-                _moonReportWindow.WindowState = WindowState.Normal;
-            _moonReportWindow.Activate();
-            return;
-        }
+    private void OpenMoonReport_Click(object sender, RoutedEventArgs e) => BackgroundOperations.Current.OpenMoons();
+    private void OpenContracts_Click(object sender, RoutedEventArgs e) => BackgroundOperations.Current.OpenContracts();
 
-        _moonReportWindow = new MoonReportWindow();
-        _moonReportWindow.Closed += (_, _) => _moonReportWindow = null;
-        _moonReportWindow.Show();
-        _moonReportWindow.Activate();
-    }
     private void OpenCloudBackup_Click(
         object sender,
         RoutedEventArgs e)

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -38,23 +38,17 @@ public partial class MoonReportWindow : Window
     private string _calendarMode = "MONTH";
     private DateTime _calendarDate = DateTime.Today;
     private DateTime? _expandedMonthDate;
-    private readonly Dictionary<string, DateTimeOffset> _notified = new();
     private bool _closed;
     private bool _busy;
     private bool _loadingReports;
     private bool _loadingLedger;
-    private readonly WpfDispatcherTimer _refreshTimer;
 
     public MoonReportWindow()
     {
         InitializeComponent();
-        _service = new MoonReportService(_sso);
+        _service = BackgroundOperations.Current.Moons;
+        _service.Refreshed += OnBackgroundRefresh;
         DesktopAlertsCheck.IsChecked = _service.DesktopNotificationsEnabled;
-        _refreshTimer = new WpfDispatcherTimer
-        {
-            Interval = TimeSpan.FromMinutes(61)
-        };
-        _refreshTimer.Tick += RefreshTimer_Tick;
         Loaded += Window_Loaded;
         Closed += Window_Closed;
     }
@@ -70,7 +64,7 @@ public partial class MoonReportWindow : Window
             else if (PilotCombo.SelectedItem is EvePilotProfile selected &&
                      !MoonReportService.HasRequiredScopes(selected))
                 SetStatus("This toon needs reconnecting once to approve the moon report scopes.", true);
-            _refreshTimer.Start();
+            // Polling belongs to BackgroundOperations, including while this window is closed.
         }
         catch (Exception ex) { SetStatus(ex.Message, true); }
     }
@@ -78,20 +72,9 @@ public partial class MoonReportWindow : Window
     private void Window_Closed(object? sender, EventArgs e)
     {
         _closed = true;
-        _refreshTimer.Stop();
         _lifetime.Cancel();
         _lifetime.Dispose();
-        _service.Dispose();
-    }
-
-    private async void RefreshTimer_Tick(object? sender, EventArgs e)
-    {
-        if (_busy || !IsVisible ||
-            PilotCombo.SelectedItem is not EvePilotProfile pilot ||
-            !MoonReportService.HasRequiredScopes(pilot))
-            return;
-        SetStatus("Hourly ESI moon and ledger refresh started...");
-        await RefreshSelectedPilotAsync();
+        _service.Refreshed -= OnBackgroundRefresh;
     }
 
     private async Task ReloadPilotsAsync(long preferred = 0)
@@ -152,7 +135,7 @@ public partial class MoonReportWindow : Window
         {
             var progress = new Progress<string>(SetStatus);
             ApplySnapshot(await _service.RefreshAsync(pilot, progress, _lifetime.Token));
-            ShowOperatingAlerts();
+
         }
         catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
         catch (Exception ex) { SetStatus(ex.Message, true); }
@@ -169,20 +152,16 @@ public partial class MoonReportWindow : Window
         OperatingToast.Notify("Example moon ? Command Center", "No extraction scheduled. Set the next moon drill cycle.",
             () => OpenOperatingAlert("", "This is a test notification. No live moon alert was triggered."));
 
-    private void ShowOperatingAlerts()
+    private void OnBackgroundRefresh()
     {
-        var alerts = _service.OperatingAlerts;
-        var keys = alerts.Select(a => a.Key).ToHashSet();
-        foreach (var key in _notified.Keys.Where(k => !keys.Contains(k)).ToArray()) _notified.Remove(key);
-        if (!_service.DesktopNotificationsEnabled || _closed) return;
-        var now = DateTimeOffset.UtcNow;
-        foreach (var alert in alerts)
-        {
-            if (_notified.TryGetValue(alert.Key, out var last) && now - last < TimeSpan.FromHours(6)) continue;
-            _notified[alert.Key] = now;
-            OperatingToast.Notify(alert.StructureName, alert.Message,
-                () => OpenOperatingAlert(alert.StructureName, alert.Message));
-        }
+        if (!_closed) ApplySnapshot(_service.GetSnapshot());
+    }
+
+    public void FocusStructure(string structure)
+    {
+        _filter = "ALL";
+        SearchBox.Text = structure;
+        ApplyFilters();
     }
 
     private void OpenOperatingAlert(string structure, string message)

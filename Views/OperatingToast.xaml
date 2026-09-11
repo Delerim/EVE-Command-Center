@@ -7,7 +7,7 @@
  <Border Background="#F207181B" BorderBrush="#55D7D2" BorderThickness="1" CornerRadius="8" Padding="14" MouseLeftButtonUp="Open_Click" Cursor="Hand">
   <Grid>
    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-   <TextBlock Text="MOON ALERT" Foreground="#FFD166" FontSize="11" FontWeight="Bold"/>
+   <TextBlock x:Name="AlertTitle" Text="MOON ALERT" Foreground="#FFD166" FontSize="11" FontWeight="Bold"/>
    <Button Content="×" HorizontalAlignment="Right" Width="24" Height="22" Margin="0,-6,-6,0" Background="Transparent" BorderThickness="0" Foreground="#8FB2B5" Click="Dismiss_Click" ToolTip="Dismiss notification"/>
    <StackPanel Grid.Row="1" Margin="0,8,0,4">
     <TextBlock x:Name="StructureText" Foreground="#EAF7F7" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -133,8 +133,9 @@ public sealed class EveSsoService
     }
 
     public async Task<EvePilotProfile> AddCharacterAsync(
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default, IEnumerable<string>? additionalScopes = null)
     {
+        var requestedScopes = InitialScopes.Concat(additionalScopes ?? Array.Empty<string>()).Distinct().ToArray();
         string verifier = Base64Url(RandomNumberGenerator.GetBytes(48));
         string challenge = Base64Url(
             SHA256.HashData(Encoding.ASCII.GetBytes(verifier)));
@@ -157,7 +158,7 @@ public sealed class EveSsoService
             "?response_type=code" +
             "&client_id=" + Uri.EscapeDataString(ClientId) +
             "&redirect_uri=" + Uri.EscapeDataString(RedirectUri) +
-            "&scope=" + Uri.EscapeDataString(string.Join(" ", InitialScopes)) +
+            "&scope=" + Uri.EscapeDataString(string.Join(" ", requestedScopes)) +
             "&state=" + Uri.EscapeDataString(state) +
             "&code_challenge=" + Uri.EscapeDataString(challenge) +
             "&code_challenge_method=S256";
@@ -258,7 +259,7 @@ public sealed class EveSsoService
                 CharacterId = identity.CharacterID,
                 CharacterName = identity.CharacterName,
                 Scopes = identity.Scopes.Length > 0
-                    ? identity.Scopes : InitialScopes,
+                    ? identity.Scopes : requestedScopes,
                 AddedUtc = DateTime.UtcNow
             };
 
