@@ -179,9 +179,9 @@ internal static partial class Program
         {
             var piWindow = new PlanetaryWindow(); BackgroundOperations.Stop();
             var view = PlanetaryAnalysis.Build(piFixture, DateTimeOffset.UtcNow);
-            ((DataGrid)piWindow.FindName("Colonies")).ItemsSource = view.Colonies;
+            ((ItemsControl)piWindow.FindName("Colonies")).ItemsSource = PlanetaryGroups.Build(view, new HashSet<string> { "pilot:1", "planet:1:40000001" });
             ((DataGrid)piWindow.FindName("Production")).ItemsSource = view.Production;
-            ((DataGrid)piWindow.FindName("Refills")).ItemsSource = view.Refills;
+            ((ItemsControl)piWindow.FindName("Refills")).ItemsSource = PlanetaryGroups.Build(view, new HashSet<string>(), true);
             Render(piWindow, System.IO.Path.ChangeExtension(args[0], ".pi.png"));
         }
         var toast = new OperatingToast("Mazitah - Example Moon", "Glistening ore confirmed in the mining ledger. Open the moon overview to inspect the field.", () => {}, "GLISTENING MOON DETECTED");

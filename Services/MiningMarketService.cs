@@ -575,7 +575,7 @@ public sealed class MiningMarketService
         return 0;
     }
 
-    private static async Task<(double? BestSell, double? BestBuy)> FetchStationPricesAsync(
+    internal static async Task<(double? BestSell, double? BestBuy)> FetchStationPricesAsync(
         int regionId, long stationId, int typeId, CancellationToken cancellationToken)
     {
         double? bestSell = null;

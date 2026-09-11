@@ -81,7 +81,7 @@ public sealed class PlanetaryService
                                 try { name = (await Read($"/universe/planets/{id}/", null, ct)).GetProperty("name").GetString() ?? name; }
                                 catch (HttpRequestException) { }
                             var next = new PiColony { CharacterId = pilot.CharacterId, Character = pilot.CharacterName, PlanetId = id, Planet = name,
-                                PlanetType = colony.GetProperty("planet_type").GetString() ?? "", LastUpdate = colony.GetProperty("last_update").GetDateTimeOffset(), Fetched = DateTimeOffset.UtcNow, Layout = layout };
+                                UpgradeLevel = colony.TryGetProperty("upgrade_level", out var level) ? level.GetInt32() : null, PlanetType = colony.GetProperty("planet_type").GetString() ?? "", LastUpdate = colony.GetProperty("last_update").GetDateTimeOffset(), Fetched = DateTimeOffset.UtcNow, Layout = layout };
                             if (previous != null) State.Colonies.Remove(previous);
                             State.Colonies.Add(next);
                             Save(); Changed?.Invoke();
@@ -96,6 +96,18 @@ public sealed class PlanetaryService
                 Save(); Changed?.Invoke();
             }
             State.Colonies.RemoveAll(c => !pilots.Any(p => p.CharacterId == c.CharacterId));
+            foreach (var type in PlanetaryAnalysis.Stock(State).Keys)
+            {
+                if (State.Prices.TryGetValue(type, out var cached) && cached.Checked > DateTimeOffset.UtcNow.AddHours(-1)) continue;
+                try
+                {
+                    var quote = await MiningMarketService.FetchStationPricesAsync(MiningMarketService.TheForgeRegionId, MiningMarketService.Jita44StationId, type, ct);
+                    State.Prices[type] = new() { Buy = quote.BestBuy, Checked = DateTimeOffset.UtcNow };
+                }
+                catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
+                catch (Exception ex) { EsiDiagnostics.Write("PI price deferred: " + ex.GetType().Name); break; }
+            }
+
             Update("PI refresh finished. Next check " + State.NextRefresh.ToLocalTime().ToString("HH:mm") + ". Timers update locally; colony amounts may need an in-game visit.");
         }
         catch (OperationCanceledException) { Update("PI refresh cancelled; last snapshots retained."); }

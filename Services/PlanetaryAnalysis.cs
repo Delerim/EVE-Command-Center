@@ -14,6 +14,7 @@ public static class PlanetaryAnalysis
         using var stream = typeof(PlanetaryAnalysis).Assembly.GetManifestResourceStream("EveCommandCenter.Resources.pi-catalog.json")!;
         return JsonSerializer.Deserialize<Catalog>(stream)!;
     }
+    public static int Tier(int id) => Types.GetValueOrDefault(id)?.Group switch { 1042 => 1, 1034 => 2, 1040 => 3, 1041 => 4, _ => 0 };
     private static PiType Type(int id) => Types.GetValueOrDefault(id) ?? new() { Id = id, Name = "Type " + id };
     private static double Num(JsonElement p, string name) => p.TryGetProperty(name, out var v) && v.TryGetDouble(out double n) ? n : 0;
     private static DateTimeOffset? Date(JsonElement p, string name) => p.TryGetProperty(name, out var v) && v.TryGetDateTimeOffset(out var d) ? d : null;
@@ -33,10 +34,12 @@ public static class PlanetaryAnalysis
         var result = new PiAnalysis();
         var production = new Dictionary<int, (double rate, double extracted)>();
         var stock = Stock(state);
-        foreach (var item in stock.OrderBy(k => Type(k.Key).Name))
+        foreach (var item in stock.OrderByDescending(k => Tier(k.Key)).ThenBy(k => Type(k.Key).Name))
         {
             var type = Type(item.Key);
-            result.Stock.Add(new() { Name = type.Name, Icon = type.Icon, Quantity = item.Value.ToString("N0"), Detail = type.Commodity ? "PI commodity" : "Equipment / other", Rate = (item.Value * type.Volume).ToString("N1") + " m3", Next = state.StockFetched == default ? "Unknown" : state.StockFetched.ToLocalTime().ToString("dd MMM HH:mm") });
+            var quote = state.Prices.GetValueOrDefault(item.Key);
+            int tier = Tier(item.Key);
+            result.Stock.Add(new() { Color = tier >= 2 ? "#FFD166" : "#74D6C9", Status = quote?.Buy is {} buy ? buy.ToString("N2") + " ISK" : "Unavailable", Remaining = quote?.Buy is {} value ? (value * item.Value).ToString("N0") + " ISK" : "--", Name = type.Name, Icon = type.Icon, Quantity = item.Value.ToString("N0"), Detail = tier >= 2 ? $"T{tier} | Sale stock" : tier == 1 ? "T1 | Factory feed" : type.Group == 1027 ? "Command centre | Equipment" : "Raw / other", Rate = (item.Value * type.Volume).ToString("N1") + " m3", Next = quote == null ? "Price pending" : "Price: " + quote.Checked.ToLocalTime().ToString("dd MMM HH:mm") });
         }
         foreach (var colony in state.Colonies.OrderBy(c => c.Character).ThenBy(c => c.Planet))
         {
@@ -86,11 +89,33 @@ public static class PlanetaryAnalysis
                     row.Rate = cycle > 0 ? $"{quantity * 3600 / cycle:N0} nominal units/h" : "No program";
                     row.Remaining = expiry.HasValue ? Time((expiry.Value - now).TotalSeconds) + " to program end" : "No expiry reported";
                     row.Next = active && (last ?? install) is { } start ? Time(cycle - Math.Max(0, (now - start).TotalSeconds) % cycle) + " to next cycle (est.)" : "--";
-                    if (!active || expiry < now.AddHours(24)) attention++;
+                    if (!active) attention++;
                     if (expiry.HasValue) nextAction = Math.Min(nextAction, Math.Max(0, (expiry.Value - now).TotalSeconds));
                 }
                 else if (factories.TryGetValue(id, out var recipe))
                 {
+                    bool HasActiveFeed(int product)
+                    {
+                        var visited = new HashSet<long>();
+                        var pending = new Queue<long>(); pending.Enqueue(id);
+                        while (pending.Count > 0)
+                        {
+                            long destination = pending.Dequeue();
+                            if (!visited.Add(destination)) continue;
+                            foreach (var route in routes.Where(r => (long)Num(r, "destination_pin_id") == destination && (int)Num(r, "content_type_id") == product))
+                            {
+                                long source = (long)Num(route, "source_pin_id");
+                                if (!byId.TryGetValue(source, out var sourcePin)) continue;
+                                if (sourcePin.TryGetProperty("extractor_details", out var e) && (int)Num(e, "product_type_id") == product && Num(e, "cycle_time") > 0 && Date(sourcePin, "expiry_time") > now) return true;
+                                // Follow storage transit only; never assume another factory creates this input.
+                                if (Type((int)Num(sourcePin, "type_id")).Capacity > 0) pending.Enqueue(source);
+                            }
+                        }
+                        return false;
+                    }
+                    bool routed = recipe.Inputs.Keys.All(product => routes.Any(r => (long)Num(r, "destination_pin_id") == id && (int)Num(r, "content_type_id") == product))
+                        && recipe.Outputs.Keys.All(product => routes.Any(r => (long)Num(r, "source_pin_id") == id && (int)Num(r, "content_type_id") == product));
+                    bool extractingFeed = routed && recipe.Inputs.Keys.All(HasActiveFeed);
                     double hours = double.PositiveInfinity;
                     foreach (var input in recipe.Inputs)
                     {
@@ -106,20 +131,21 @@ public static class PlanetaryAnalysis
                     // Supply is a snapshot, not evidence that a factory is actively routed/running now.
                     double ageHours = Math.Max(0, (now - colony.LastUpdate).TotalHours);
                     double projected = double.IsFinite(hours) ? Math.Max(0, hours - ageHours) : 0;
-                    row.Name = recipe.Name; row.Status = projected > 0 ? "SUPPLIED (EST.)" : "CHECK INPUTS";
-                    row.Color = projected > 0 ? "#74D6C9" : "#FFD166";
+                    row.Name = recipe.Name; row.Status = !routed ? "CHECK ROUTES" : extractingFeed ? "EXTRACTING / WAITING FOR INPUT" : projected > 0 ? "SUPPLIED (EST.)" : "CHECK INPUTS";
+                    row.Color = routed && (extractingFeed || projected > 0) ? "#74D6C9" : "#FFD166";
                     row.Quantity = string.Join(" + ", recipe.Inputs.Select(i => $"{i.Value:N0} {Type(i.Key).Name}"));
                     row.Rate = string.Join(" + ", recipe.Outputs.Select(i => $"{i.Value * 3600 / recipe.Cycle:N0} {Type(i.Key).Name}/h capacity"));
-                    row.Remaining = Time(projected * 3600) + " input runway (est.)";
+                    row.Remaining = extractingFeed ? "Active extractor feed; intermittent processing is normal" : Time(projected * 3600) + " input runway (est.)";
                     var last = Date(pin, "last_cycle_start");
                     row.Next = projected > 0 && last.HasValue ? Time(recipe.Cycle - Math.Max(0, (now - last.Value).TotalSeconds) % recipe.Cycle) + " to cycle (est.)" : "Check in game";
-                    if (projected < 24) attention++;
-                    nextAction = Math.Min(nextAction, projected * 3600);
+                    if (!routed || (!extractingFeed && projected <= 0)) attention++;
+                    if (!extractingFeed) nextAction = Math.Min(nextAction, projected * 3600);
                 }
                 else
                 {
                     double used = stores[id].Sum(c => c.Value * Type(c.Key).Volume);
-                    row.Status = type.Capacity > 0 ? "STORAGE SNAPSHOT" : "PIN";
+                    row.Status = type.Group == 1028 ? "CONFIGURE RECIPE" : type.Capacity > 0 ? "STORAGE SNAPSHOT" : "PIN";
+                    if (type.Group == 1028) { row.Color = "#FFD166"; attention++; }
                     row.Quantity = string.Join(" | ", stores[id].Select(c => $"{Type(c.Key).Name}: {c.Value:N0}"));
                     row.Remaining = type.Capacity > 0 ? $"{used:N1} / {type.Capacity:N0} m3" : "";
                     row.Rate = type.Capacity > 0 ? $"{used / type.Capacity:P0} full" : "";
@@ -143,7 +169,7 @@ public static class PlanetaryAnalysis
                 }
                 double fullHours = low;
                 foreach (var input in inputs)
-                    result.Refills.Add(new() { Colony = colony.Character + " | " + colony.Planet, Pin = id, TypeId = input.Key.type, Name = Type(input.Key.type).Name, Current = stores[id].GetValueOrDefault(input.Key.type), Target = Math.Floor(input.Value * fullHours) });
+                    result.Refills.Add(new() { CharacterId = colony.CharacterId, PlanetId = colony.PlanetId, Colony = colony.Character + " | " + colony.Planet, Pin = id, TypeId = input.Key.type, Name = Type(input.Key.type).Name, Current = stores[id].GetValueOrDefault(input.Key.type), Target = Math.Floor(input.Value * fullHours) });
             }
             result.Colonies.Add(new() { Colony = colony, Name = colony.Planet, Icon = colony.Portrait, Detail = colony.Character + " | " + colony.PlanetType,
                 Status = colony.Error.Length > 0 ? "STALE / REFRESH FAILED" : attention > 0 ? $"{attention} NEED ATTENTION" : "MONITORING",

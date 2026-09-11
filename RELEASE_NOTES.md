@@ -1,11 +1,9 @@
-# EVE Command Center v3.0.2
+# EVE Command Center v3.1.0
 
-- App-owned background refresh keeps pilot summaries and fitted ship data updating even when their windows are closed. Successful snapshots survive refresh failures and restarts.
-- Contracts target five-minute checks and PI ten-minute checks. Moon refresh follows ESI cache expiry, including hourly corporation mining ledgers. The shared queue still respects server cooldowns, cache expiry and request budgets.
-- Independent refresh jobs prevent a slow contract or permission request from blocking other monitoring.
-- Each mining observer saves its successful ledger separately. Failed observers retain previous data and retry; Moon status reports ledger freshness and pending retries.
-- Fixed cached responses without an Expires header repeatedly postponing their next refresh deadline.
+- PI overview groups colonies into collapsible pilot summaries, including factory-world counts and overall attention. Planet cards show command-centre level, extractors, heads, products and expandable facility details; the separate colony-details tab is consolidated into Overview.
+- Expansion choices survive timer refreshes. The extraction summary retains its adjustable splitter.
+- Stockpile items are ordered by tier and name, with sale stock and factory feed colour-coded. Jita 4-4 best-buy unit and total estimates include quote timestamps and refresh hourly through the shared ESI queue; fees and market depth are excluded.
+- Factory refills group T1 hauling targets by pilot and planet, showing combined requirements, stock allocation and shortfalls. Higher-tier inputs are hidden from this hauling view without changing capacity calculations.
+- Correctly routed, active extractor supply keeps waiting basic factories healthy, even when extraction cannot keep all factories continuously running. Missing recipes or routes and exhausted inputs without active extraction remain flagged.
 
-Monitoring requires Command Center to remain running. ESI caching and rate limits can delay new data; local estimates do not force the provider to update.
-
-Validation: 121 checks passed.
+Validation: 125 checks passed, including grouped factory-world classification and active extractor supply through storage. Overview render inspected.

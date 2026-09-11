@@ -27,6 +27,7 @@ public sealed class PiColony
     public string Character { get; set; } = "";
     public long PlanetId { get; set; }
     public string Planet { get; set; } = "";
+    public int? UpgradeLevel { get; set; }
     public string PlanetType { get; set; } = "";
     public DateTimeOffset LastUpdate { get; set; }
     public DateTimeOffset Fetched { get; set; }
@@ -43,6 +44,7 @@ public sealed class PiContainer
 }
 public sealed class PiState
 {
+    public Dictionary<int, PiQuote> Prices { get; set; } = new();
     public long StockCharacterId { get; set; }
     public long ContainerId { get; set; }
     public DateTimeOffset NextRefresh { get; set; }
@@ -52,6 +54,11 @@ public sealed class PiState
     public List<PiContainer> Containers { get; set; } = new();
     public List<EveAssetItem> Assets { get; set; } = new();
     public Dictionary<long, string> PilotStatus { get; set; } = new();
+}
+public sealed class PiQuote
+{
+    public double? Buy { get; set; }
+    public DateTimeOffset Checked { get; set; }
 }
 public sealed class PiRow
 {
@@ -68,6 +75,8 @@ public sealed class PiRow
 }
 public sealed class PiRefill
 {
+    public long CharacterId { get; set; }
+    public long PlanetId { get; set; }
     public string Colony { get; set; } = "";
     public long Pin { get; set; }
     public int TypeId { get; set; }

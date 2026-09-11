@@ -35,7 +35,22 @@ internal static partial class Program
         analysis = PlanetaryAnalysis.Build(state, now);
         Check(analysis.Pins.Any(p => p.Status == "RESTART / CHECK"), "Expired PI programs are flagged for restart");
         Check(analysis.Production.Single().Quantity.StartsWith("400") && analysis.Production.Single().Rate.StartsWith("0"), "Nominal extraction projection stops at program expiry");
-        Check(analysis.Pins.Any(p => p.Status == "CHECK INPUTS"), "Empty factory inputs are flagged without inventing future production");
+        Check(analysis.Pins.Any(p => p.Status == "CHECK ROUTES"), "Missing factory output routes are flagged");
+        var groups = EveCommandCenter.Views.PlanetaryGroups.Build(analysis, new HashSet<string>());
+        Check(groups.Count == 3 && groups.Sum(g => g.Planets.Count(p => p.FactoryWorld)) == 2, "PI groups distinguish factory worlds from extraction colonies");
+        Check(PlanetaryAnalysis.Tier(inputs[0]) == 1 && PlanetaryAnalysis.Tier(recipe.Outputs.Keys.First()) == 2, "PI stock tiers distinguish factory feed from sale stock");
+        var basic = PlanetaryAnalysis.Recipes.Values.First(r => r.Name == "Toxic Metals");
+        int raw = basic.Inputs.Keys.Single(), output = basic.Outputs.Keys.Single();
+        var feedPins = new object[] {
+            new { pin_id=1L, type_id=2256, contents=System.Array.Empty<object>() },
+            new { pin_id=2L, type_id=2470, schematic_id=basic.Id, contents=System.Array.Empty<object>() },
+            new { pin_id=3L, type_id=2848, install_time=now, expiry_time=now.AddDays(2), extractor_details=new { cycle_time=900, qty_per_cycle=100, product_type_id=raw }, contents=System.Array.Empty<object>() }
+        };
+        var feedRoutes = new[] { new { source_pin_id=3L, destination_pin_id=1L, content_type_id=raw }, new { source_pin_id=1L, destination_pin_id=2L, content_type_id=raw }, new { source_pin_id=2L, destination_pin_id=1L, content_type_id=output } };
+        var feeding = new PiState { Colonies = new() { new() { CharacterId=4, PlanetId=44, LastUpdate=now, Layout=JsonSerializer.SerializeToElement(new { pins=feedPins, routes=feedRoutes }) } } };
+        var healthy = PlanetaryAnalysis.Build(feeding, now);
+        Check(healthy.Pins.Any(p => p.Status == "EXTRACTING / WAITING FOR INPUT" && p.Color == "#74D6C9") && healthy.Colonies.Single().Status == "MONITORING", "Routed active extraction keeps intermittently supplied basic factories healthy");
+        Check(PlanetaryAnalysis.Build(feeding, now.AddDays(3)).Pins.Any(p => p.Status == "CHECK INPUTS"), "Expired extraction no longer hides empty factory inputs");
         return state;
     }
     private static void CheckMiningRates()
