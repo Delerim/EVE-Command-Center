@@ -1,0 +1,163 @@
+﻿using System.Text.Json;
+using EveCommandCenter.Models;
+
+namespace EveCommandCenter.Services;
+
+public static class PlanetaryAnalysis
+{
+    private sealed class Catalog { public List<PiType> Types { get; set; } = new(); public List<PiRecipe> Recipes { get; set; } = new(); }
+    private static readonly Catalog Data = Load();
+    public static readonly Dictionary<int, PiType> Types = Data.Types.ToDictionary(t => t.Id);
+    public static readonly Dictionary<int, PiRecipe> Recipes = Data.Recipes.ToDictionary(t => t.Id);
+    private static Catalog Load()
+    {
+        using var stream = typeof(PlanetaryAnalysis).Assembly.GetManifestResourceStream("EveCommandCenter.Resources.pi-catalog.json")!;
+        return JsonSerializer.Deserialize<Catalog>(stream)!;
+    }
+    private static PiType Type(int id) => Types.GetValueOrDefault(id) ?? new() { Id = id, Name = "Type " + id };
+    private static double Num(JsonElement p, string name) => p.TryGetProperty(name, out var v) && v.TryGetDouble(out double n) ? n : 0;
+    private static DateTimeOffset? Date(JsonElement p, string name) => p.TryGetProperty(name, out var v) && v.TryGetDateTimeOffset(out var d) ? d : null;
+    private static JsonElement[] Array(JsonElement p, string name) => p.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.Array ? v.EnumerateArray().ToArray() : System.Array.Empty<JsonElement>();
+    private static Dictionary<int, double> Contents(JsonElement p) => Array(p, "contents").GroupBy(c => (int)Num(c, "type_id")).ToDictionary(g => g.Key, g => g.Sum(c => Num(c, "amount")));
+    private static string Time(double seconds) => !double.IsFinite(seconds) ? "Unknown" : seconds <= 0 ? "Now" : TimeSpan.FromSeconds(seconds) is var t ? $"{(int)t.TotalDays}d {t.Hours}h {t.Minutes}m" : "";
+    public static Dictionary<int, double> Stock(PiState state)
+    {
+        if (state.ContainerId == 0) return new();
+        var parents = new HashSet<long> { state.ContainerId };
+        bool changed;
+        do { changed = false; foreach (var a in state.Assets) if (parents.Contains(a.LocationId)) changed |= parents.Add(a.ItemId); } while (changed);
+        return state.Assets.Where(a => parents.Contains(a.LocationId)).GroupBy(a => a.TypeId).ToDictionary(g => g.Key, g => g.Sum(a => (double)a.Quantity));
+    }
+    public static PiAnalysis Build(PiState state, DateTimeOffset now)
+    {
+        var result = new PiAnalysis();
+        var production = new Dictionary<int, (double rate, double extracted)>();
+        var stock = Stock(state);
+        foreach (var item in stock.OrderBy(k => Type(k.Key).Name))
+        {
+            var type = Type(item.Key);
+            result.Stock.Add(new() { Name = type.Name, Icon = type.Icon, Quantity = item.Value.ToString("N0"), Detail = type.Commodity ? "PI commodity" : "Equipment / other", Rate = (item.Value * type.Volume).ToString("N1") + " m3", Next = state.StockFetched == default ? "Unknown" : state.StockFetched.ToLocalTime().ToString("dd MMM HH:mm") });
+        }
+        foreach (var colony in state.Colonies.OrderBy(c => c.Character).ThenBy(c => c.Planet))
+        {
+            if (colony.Layout.ValueKind != JsonValueKind.Object) continue;
+            var pins = Array(colony.Layout, "pins"); var routes = Array(colony.Layout, "routes");
+            var byId = pins.ToDictionary(p => (long)Num(p, "pin_id"));
+            var stores = byId.ToDictionary(p => p.Key, p => Contents(p.Value));
+            var demands = new Dictionary<(long pin, int type), double>();
+            var factories = new Dictionary<long, PiRecipe>();
+            foreach (var pin in pins)
+            {
+                int schematic = (int)Num(pin, "schematic_id");
+                if (schematic == 0 && pin.TryGetProperty("factory_details", out var f)) schematic = (int)Num(f, "schematic_id");
+                if (!Recipes.TryGetValue(schematic, out var recipe) || recipe.Cycle <= 0) continue;
+                long id = (long)Num(pin, "pin_id"); factories[id] = recipe;
+                foreach (var input in recipe.Inputs)
+                {
+                    var sources = routes.Where(r => (long)Num(r, "destination_pin_id") == id && (int)Num(r, "content_type_id") == input.Key).Select(r => (long)Num(r, "source_pin_id")).Distinct().ToArray();
+                    foreach (var source in sources)
+                    {
+                        var key = (source, input.Key);
+                        demands[key] = demands.GetValueOrDefault(key) + input.Value * 3600 / recipe.Cycle / Math.Max(1, sources.Length);
+                    }
+                }
+            }
+            int attention = 0, extractors = 0;
+            double nextAction = double.PositiveInfinity;
+            foreach (var pin in pins)
+            {
+                long id = (long)Num(pin, "pin_id"); var type = Type((int)Num(pin, "type_id"));
+                var row = new PiRow { Name = type.Name, Icon = type.Icon, Colony = colony, Detail = colony.Character + " | " + colony.Planet + " | pin " + id };
+                if (pin.TryGetProperty("extractor_details", out var extractor))
+                {
+                    extractors++;
+                    double cycle = Num(extractor, "cycle_time"), quantity = Num(extractor, "qty_per_cycle");
+                    var expiry = Date(pin, "expiry_time"); var install = Date(pin, "install_time"); var last = Date(pin, "last_cycle_start");
+                    bool active = expiry > now && cycle > 0;
+                    int product = (int)Num(extractor, "product_type_id");
+                    double elapsed = install.HasValue && expiry.HasValue ? Math.Max(0, ((now < expiry ? now : expiry.Value) - install.Value).TotalSeconds) : 0;
+                    double extracted = cycle > 0 ? Math.Floor(elapsed / cycle) * quantity : 0;
+                    var totals = production.GetValueOrDefault(product);
+                    production[product] = (totals.rate + (active ? quantity * 3600 / cycle : 0), totals.extracted + extracted);
+                    row.Name = Type(product).Name + " extractor"; row.Icon = Type(product).Icon;
+                    row.Status = active ? "EXTRACTING (EST.)" : "RESTART / CHECK";
+                    row.Color = active ? "#74D6C9" : "#FFD166";
+                    row.Quantity = $"{quantity:N0} nominal units/cycle";
+                    row.Rate = cycle > 0 ? $"{quantity * 3600 / cycle:N0} nominal units/h" : "No program";
+                    row.Remaining = expiry.HasValue ? Time((expiry.Value - now).TotalSeconds) + " to program end" : "No expiry reported";
+                    row.Next = active && (last ?? install) is { } start ? Time(cycle - Math.Max(0, (now - start).TotalSeconds) % cycle) + " to next cycle (est.)" : "--";
+                    if (!active || expiry < now.AddHours(24)) attention++;
+                    if (expiry.HasValue) nextAction = Math.Min(nextAction, Math.Max(0, (expiry.Value - now).TotalSeconds));
+                }
+                else if (factories.TryGetValue(id, out var recipe))
+                {
+                    double hours = double.PositiveInfinity;
+                    foreach (var input in recipe.Inputs)
+                    {
+                        var sources = routes.Where(r => (long)Num(r, "destination_pin_id") == id && (int)Num(r, "content_type_id") == input.Key).Select(r => (long)Num(r, "source_pin_id")).Distinct().ToArray();
+                        double supplyHours = stores[id].GetValueOrDefault(input.Key) / (input.Value * 3600 / recipe.Cycle);
+                        foreach (var source in sources)
+                        {
+                            double demand = demands.GetValueOrDefault((source, input.Key));
+                            if (demand > 0 && stores.TryGetValue(source, out var contents)) supplyHours += contents.GetValueOrDefault(input.Key) / demand / Math.Max(1, sources.Length);
+                        }
+                        hours = Math.Min(hours, supplyHours);
+                    }
+                    // Supply is a snapshot, not evidence that a factory is actively routed/running now.
+                    double ageHours = Math.Max(0, (now - colony.LastUpdate).TotalHours);
+                    double projected = double.IsFinite(hours) ? Math.Max(0, hours - ageHours) : 0;
+                    row.Name = recipe.Name; row.Status = projected > 0 ? "SUPPLIED (EST.)" : "CHECK INPUTS";
+                    row.Color = projected > 0 ? "#74D6C9" : "#FFD166";
+                    row.Quantity = string.Join(" + ", recipe.Inputs.Select(i => $"{i.Value:N0} {Type(i.Key).Name}"));
+                    row.Rate = string.Join(" + ", recipe.Outputs.Select(i => $"{i.Value * 3600 / recipe.Cycle:N0} {Type(i.Key).Name}/h capacity"));
+                    row.Remaining = Time(projected * 3600) + " input runway (est.)";
+                    var last = Date(pin, "last_cycle_start");
+                    row.Next = projected > 0 && last.HasValue ? Time(recipe.Cycle - Math.Max(0, (now - last.Value).TotalSeconds) % recipe.Cycle) + " to cycle (est.)" : "Check in game";
+                    if (projected < 24) attention++;
+                    nextAction = Math.Min(nextAction, projected * 3600);
+                }
+                else
+                {
+                    double used = stores[id].Sum(c => c.Value * Type(c.Key).Volume);
+                    row.Status = type.Capacity > 0 ? "STORAGE SNAPSHOT" : "PIN";
+                    row.Quantity = string.Join(" | ", stores[id].Select(c => $"{Type(c.Key).Name}: {c.Value:N0}"));
+                    row.Remaining = type.Capacity > 0 ? $"{used:N1} / {type.Capacity:N0} m3" : "";
+                    row.Rate = type.Capacity > 0 ? $"{used / type.Capacity:P0} full" : "";
+                }
+                result.Pins.Add(row);
+            }
+            foreach (var pin in pins.Where(p => Type((int)Num(p, "type_id")).Group == 1030))
+            {
+                long id = (long)Num(pin, "pin_id"); double capacity = Type((int)Num(pin, "type_id")).Capacity;
+                var inputs = demands.Where(d => d.Key.pin == id && Type(d.Key.type).Volume > 0).ToArray();
+                if (inputs.Length == 0 || capacity <= 0) continue;
+                var relevant = inputs.Select(i => i.Key.type).ToHashSet();
+                double otherVolume = stores[id].Where(c => !relevant.Contains(c.Key)).Sum(c => c.Value * Type(c.Key).Volume);
+                double volumePerHour = inputs.Sum(i => i.Value * Type(i.Key.type).Volume);
+                double low = 0, high = Math.Max(0, capacity - otherVolume) / volumePerHour;
+                for (int step = 0; step < 50; step++)
+                {
+                    double mid = (low + high) / 2;
+                    double used = inputs.Sum(i => Math.Max(stores[id].GetValueOrDefault(i.Key.type), i.Value * mid) * Type(i.Key.type).Volume);
+                    if (used + otherVolume <= capacity) low = mid; else high = mid;
+                }
+                double fullHours = low;
+                foreach (var input in inputs)
+                    result.Refills.Add(new() { Colony = colony.Character + " | " + colony.Planet, Pin = id, TypeId = input.Key.type, Name = Type(input.Key.type).Name, Current = stores[id].GetValueOrDefault(input.Key.type), Target = Math.Floor(input.Value * fullHours) });
+            }
+            result.Colonies.Add(new() { Colony = colony, Name = colony.Planet, Icon = colony.Portrait, Detail = colony.Character + " | " + colony.PlanetType,
+                Status = colony.Error.Length > 0 ? "STALE / REFRESH FAILED" : attention > 0 ? $"{attention} NEED ATTENTION" : "MONITORING",
+                Color = attention > 0 || colony.Error.Length > 0 ? "#FFD166" : "#74D6C9",
+                Quantity = $"{extractors} extractors | {factories.Count} factories", Remaining = Time(nextAction),
+                Next = "ESI colony update " + colony.LastUpdate.ToLocalTime().ToString("dd MMM HH:mm"), Rate = "Fetched " + colony.Fetched.ToLocalTime().ToString("dd MMM HH:mm") });
+        }
+        foreach (var item in production.Where(p => p.Key > 0)) result.Production.Add(new() { Name = Type(item.Key).Name, Icon = Type(item.Key).Icon, Rate = $"{item.Value.rate:N0} nominal units/h", Quantity = $"{item.Value.extracted:N0} projected units", Detail = "Current extractor programs only; nominal cycle yield, not a mined ledger" });
+        var available = new Dictionary<int, double>(stock);
+        foreach (var refill in result.Refills)
+        {
+            refill.Allocated = Math.Min(refill.Need, available.GetValueOrDefault(refill.TypeId));
+            available[refill.TypeId] = available.GetValueOrDefault(refill.TypeId) - refill.Allocated;
+        }
+        return result;
+    }
+}

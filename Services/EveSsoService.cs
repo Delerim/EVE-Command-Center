@@ -592,6 +592,12 @@ public sealed class EveSsoService
             AssetsAvailable = true
         };
     }
+    public async Task<IReadOnlyList<EveAssetItem>> GetAssetsForPlanningAsync(EvePilotProfile pilot, CancellationToken ct)
+    {
+        var token = await GetAccessTokenForAsync(pilot, ct);
+        return await GetCharacterAssetsCachedAsync(pilot.CharacterId, token, ct);
+    }
+
     public async Task<EveInventorySnapshot> GetInventoryAsync(
         EvePilotProfile pilot,
         CancellationToken cancellationToken = default)

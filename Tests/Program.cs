@@ -50,6 +50,8 @@ internal static partial class Program
         }
         CheckEsiQueue().GetAwaiter().GetResult();
         Check(EveSsoService.IsShieldMindlink("ORE Mining Director Mindlink") && !EveSsoService.IsShieldMindlink("Mining Foreman Mindlink"), "ORE mindlink applies shield bonus; ordinary mining mindlink does not");
+        var piFixture = CheckPlanetary();
+        CheckMiningRates();
         CheckBuybackPeriods();
         CheckMoonAlerts();
         CheckContractHistory();
@@ -169,6 +171,15 @@ internal static partial class Program
             grid.RowDetailsVisibilityMode = DataGridRowDetailsVisibilityMode.Visible;
             ((TabControl)audit.FindName("MoonTabs")).SelectedIndex = 3;
             Render(audit, System.IO.Path.ChangeExtension(args[0], ".audit.png"));
+        }
+        if (args.Length > 0)
+        {
+            var piWindow = new PlanetaryWindow(); BackgroundOperations.Stop();
+            var view = PlanetaryAnalysis.Build(piFixture, DateTimeOffset.UtcNow);
+            ((DataGrid)piWindow.FindName("Colonies")).ItemsSource = view.Colonies;
+            ((DataGrid)piWindow.FindName("Production")).ItemsSource = view.Production;
+            ((DataGrid)piWindow.FindName("Refills")).ItemsSource = view.Refills;
+            Render(piWindow, System.IO.Path.ChangeExtension(args[0], ".pi.png"));
         }
         var toast = new OperatingToast("Mazitah - Example Moon", "Glistening ore confirmed in the mining ledger. Open the moon overview to inspect the field.", () => {}, "GLISTENING MOON DETECTED");
         if (args.Length > 0) Render(toast, System.IO.Path.ChangeExtension(args[0], ".toast.png"));

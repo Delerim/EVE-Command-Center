@@ -17,6 +17,8 @@ public sealed class BackgroundOperations : IDisposable
     public MoonReportService Moons { get; }
     public ContractService Contracts { get; }
     public CorporationAccessService Access { get; }
+    public PlanetaryService Planetary { get; }
+    private PlanetaryWindow? _planetaryWindow;
     private DateTimeOffset _nextAccess;
     private readonly CancellationTokenSource _lifetime = new();
     private readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromMinutes(1) };
@@ -35,6 +37,7 @@ public sealed class BackgroundOperations : IDisposable
         Moons = new MoonReportService(Sso);
         Contracts = new ContractService(Sso);
         Access = new CorporationAccessService(Sso);
+        Planetary = new PlanetaryService(Sso);
         if (!Access.State.SetupCompleted)
         {
             Access.State.MoonCharacterId = Moons.SelectedCharacterId;
@@ -62,6 +65,7 @@ public sealed class BackgroundOperations : IDisposable
         _busy = true;
         try
         {
+            _ = Planetary.RefreshAsync(_lifetime.Token);
             var pilots = await Sso.LoadPilotsAsync();
             var now = DateTimeOffset.UtcNow;
             if (now >= _nextAccess)
@@ -163,6 +167,17 @@ public sealed class BackgroundOperations : IDisposable
         if (Moons.DesktopNotificationsEnabled)
             OperatingToast.Notify(pilot + " | " + ore, "Glistening ore detected in a live mining log. The corporation ledger will identify the moon when available.",
                 () => { if (Access.CanReadMoons) OpenMoons(); }, "GLISTENING ORE DETECTED");
+    }
+    public void OpenPlanetary()
+    {
+        if (_planetaryWindow == null)
+        {
+            _planetaryWindow = new PlanetaryWindow();
+            _planetaryWindow.Closed += (_, _) => _planetaryWindow = null;
+        }
+        _planetaryWindow.Show();
+        if (_planetaryWindow.WindowState == WindowState.Minimized) _planetaryWindow.WindowState = WindowState.Normal;
+        _planetaryWindow.Activate();
     }
     public void OpenMoons(string? search = null)
     {

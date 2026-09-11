@@ -829,15 +829,17 @@ public partial class MiningFleetOverviewWindow : Window
                     $"Current ore: {(string.IsNullOrWhiteSpace(s.CurrentOre) ? "-" : s.CurrentOre)}{Environment.NewLine}" +
                     $"Last mining pull: {lastPullAge} ago at {lastPullClock}.",
                 BaseToolTip =
-                    $"BASE = recent non-critical mining yield.{Environment.NewLine}" +
-                    $"Current BASE: {displayBaseRate:F1} m3/s{Environment.NewLine}" +
+                    $"BASE = normal logged mining yield. Separate critical bonus lines add zero to BASE.{Environment.NewLine}" +
+                    $"Current BASE: {displayBaseRate:F1} m3/s | measured span: {s.MiningRateSeconds:F1}s{Environment.NewLine}" +
+                    "Average: completed intervals around the latest 90 seconds (up to 2 minutes of retained logs). Nearby pulls are grouped; the first boundary yield is excluded. This includes logged mining drones and is not a fitted-module simulation.\n" +
                     (isOrca && s.BaseM3PerSec <= 0 && droneAverage.Ready
                         ? $"Using longer observed drone-mining average ({droneAverage.SampleCount} pulls).{Environment.NewLine}"
                         : "") +
                     $"Last mining pull: {lastPullAge} ago at {lastPullClock}.",
                 RealToolTip =
-                    $"REAL = observed yield including critical pulls.{Environment.NewLine}" +
+                    $"REAL = observed log yield including critical pulls.{Environment.NewLine}" +
                     $"Current REAL: {displayActualRate:F1} m3/s{Environment.NewLine}" +
+                    "Same completed-interval window as BASE; critical yield is included in the numerator. Partial cycles and changed fits can affect the average.\n" +
                     (isOrca && s.ActualM3PerSec <= 0 && droneAverage.Ready
                         ? $"Using longer observed drone-mining average ({droneAverage.SampleCount} pulls).{Environment.NewLine}"
                         : "") +
@@ -1395,6 +1397,7 @@ public partial class MiningFleetOverviewWindow : Window
     private void OpenClientSettings_Click(object sender, RoutedEventArgs e) => new ClientSetupWindow().ShowDialog();
 
     private void OpenMoonReport_Click(object sender, RoutedEventArgs e) => BackgroundOperations.Current.OpenMoons();
+    private void OpenPlanetary_Click(object sender, RoutedEventArgs e) => BackgroundOperations.Current.OpenPlanetary();
     private void OpenContracts_Click(object sender, RoutedEventArgs e) => BackgroundOperations.Current.OpenContracts();
 
     private void OpenCloudBackup_Click(

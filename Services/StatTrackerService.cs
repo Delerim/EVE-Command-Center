@@ -379,32 +379,6 @@ public sealed class StatTrackerService
         if (recent.Count < 2)
             return new ObservedMiningRate();
 
-        var baselineUnits =
-            new Dictionary<string, double>(
-                StringComparer.OrdinalIgnoreCase);
-
-        foreach (var group in
-                 recent.GroupBy(
-                     cycle => cycle.OreType,
-                     StringComparer.OrdinalIgnoreCase))
-        {
-            var normal =
-                group
-                    .Where(
-                        cycle =>
-                            !cycle.IsCritical)
-                    .Select(
-                        cycle =>
-                            (double)cycle.Units)
-                    .OrderBy(
-                        value => value)
-                    .ToList();
-
-            if (normal.Count > 0)
-                baselineUnits[group.Key] =
-                    Median(normal);
-        }
-
         var valued =
             new List<(
                 DateTime Timestamp,
@@ -425,16 +399,9 @@ public sealed class StatTrackerService
                 cycle.Units *
                 quote.UnitVolumeM3;
 
-            double normalUnits =
-                baselineUnits.TryGetValue(
-                    cycle.OreType,
-                    out double baseline)
-                    ? baseline
-                    : cycle.Units;
-
             double baseM3 =
                 (cycle.IsCritical
-                    ? normalUnits
+                    ? 0
                     : cycle.Units) *
                 quote.UnitVolumeM3;
 
@@ -945,6 +912,7 @@ public sealed class StatTrackerService
             LastMineCycle = stats.LastMineCycle,
             GasLastCycle = stats.GasLastCycle,
             CurrentOre = mining.CurrentOre,
+            MiningRateSeconds = mining.MiningRateSeconds,
             BaseM3PerSec = mining.BaseM3PerSec,
             ActualM3PerSec = mining.ActualM3PerSec,
             MiningCritCount = mining.CritCount,
@@ -1205,13 +1173,6 @@ public sealed class StatTrackerService
             .OrderBy(c => c.Timestamp)
             .ToList();
 
-        var baselineUnits = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
-        foreach (var group in recent.GroupBy(c => c.OreType, StringComparer.OrdinalIgnoreCase))
-        {
-            var normal = group.Where(c => !c.IsCritical).Select(c => (double)c.Units).OrderBy(v => v).ToList();
-            if (normal.Count > 0) baselineUnits[group.Key] = Median(normal);
-        }
-
         var valued = new List<ValuedMiningCycle>();
         double critBonusM3 = 0;
         foreach (var cycle in recent)
@@ -1222,8 +1183,7 @@ public sealed class StatTrackerService
                 continue;
 
             double actualM3 = cycle.Units * quote.UnitVolumeM3;
-            double normalUnits = baselineUnits.TryGetValue(cycle.OreType, out var b) ? b : cycle.Units;
-            double baseM3 = (cycle.IsCritical ? normalUnits : cycle.Units) * quote.UnitVolumeM3;
+            double baseM3 = (cycle.IsCritical ? 0 : cycle.Units) * quote.UnitVolumeM3;
             if (cycle.IsCritical) critBonusM3 += Math.Max(0, actualM3 - baseM3);
 
             double jita = cycle.Units * GetMarketUnitPrice(quote, "Jita", _settings.MiningMarketPriceMode);
@@ -1240,79 +1200,12 @@ public sealed class StatTrackerService
         double amarrIskPerHour = 0;
         double buybackIskPerHour = 0;
 
-        // Stable BASE / realised REAL from the CURRENT continuous mining segment.
-        //
-        // V1.5 capped long pauses before summing elapsed time. After a break that
-        // made the denominator artificially tiny, so BASE could jump from a correct
-        // ~44.8 m3/s to 100+ m3/s even though the strips had not changed.
-        //
-        // V1.6 splits at the latest real pause instead. Crit pulls keep their
-        // timestamp but use BaseM3 (normalised normal-cycle yield), so a crit raises
-        // REAL while BASE remains tied to normal production.
-        if (valued.Count >= 4)
-        {
-            var ordered = valued.OrderBy(c => c.Timestamp).ToList();
-
-            var positiveGaps = new List<double>();
-            for (int i = 1; i < ordered.Count; i++)
-            {
-                double gap = (ordered[i].Timestamp - ordered[i - 1].Timestamp).TotalSeconds;
-                if (gap > 0.25)
-                    positiveGaps.Add(gap);
-            }
-
-            if (positiveGaps.Count > 0)
-            {
-                double typicalGap = Math.Max(0.25, Median(positiveGaps));
-                double pauseGap = Math.Max(45.0, typicalGap * 4.0);
-
-                int segmentStart = 0;
-                for (int i = 1; i < ordered.Count; i++)
-                {
-                    double gap = (ordered[i].Timestamp - ordered[i - 1].Timestamp).TotalSeconds;
-                    if (gap > pauseGap)
-                        segmentStart = i;
-                }
-
-                var active = ordered.Skip(segmentStart).ToList();
-
-                // Keep the rate responsive to a current boost / fit change without
-                // carrying early-session warm-up forever.
-                if (active.Count >= 4)
-                {
-                    var latest = active[^1].Timestamp;
-                    var shortWindowStart = latest - TimeSpan.FromSeconds(90);
-                    var shortActive = active.Where(c => c.Timestamp >= shortWindowStart).ToList();
-                    if (shortActive.Count >= 4)
-                        active = shortActive;
-                }
-
-                if (active.Count >= 4)
-                {
-                    var activeGaps = new List<double>();
-                    for (int i = 1; i < active.Count; i++)
-                    {
-                        double gap = (active[i].Timestamp - active[i - 1].Timestamp).TotalSeconds;
-                        if (gap > 0.25 && gap <= pauseGap)
-                            activeGaps.Add(gap);
-                    }
-
-                    if (activeGaps.Count > 0)
-                    {
-                        double endpointGap = Math.Max(0.25, Median(activeGaps));
-                        double duration = Math.Max(
-                            endpointGap,
-                            (active[^1].Timestamp - active[0].Timestamp).TotalSeconds + endpointGap);
-
-                        baseM3PerSec = active.Sum(c => c.BaseM3) / duration;
-                        actualM3PerSec = active.Sum(c => c.ActualM3) / duration;
-                        jitaIskPerHour = active.Sum(c => c.JitaIsk) / duration * 3600.0;
-                        amarrIskPerHour = active.Sum(c => c.AmarrIsk) / duration * 3600.0;
-                        buybackIskPerHour = active.Sum(c => c.BuybackIsk) / duration * 3600.0;
-                    }
-                }
-            }
-        }
+        var measured = MiningRateEstimator.Calculate(valued.Select(c => new MiningRateEstimator.Pull(c.Timestamp, c.BaseM3, c.ActualM3, c.JitaIsk, c.AmarrIsk, c.BuybackIsk)), DateTime.UtcNow);
+        baseM3PerSec = measured.Base;
+        actualM3PerSec = measured.Actual;
+        jitaIskPerHour = measured.Jita;
+        amarrIskPerHour = measured.Amarr;
+        buybackIskPerHour = measured.Buyback;
 
         double sessionM3 = 0;
         double sessionJita = 0;
@@ -1365,6 +1258,7 @@ public sealed class StatTrackerService
         return new MiningAnalytics
         {
             CurrentOre = currentOreName,
+            MiningRateSeconds = measured.Seconds,
             BaseM3PerSec = baseM3PerSec,
             ActualM3PerSec = actualM3PerSec,
             CritCount = stats.MiningCritCount,
@@ -1571,7 +1465,8 @@ public sealed class StatTrackerService
     private sealed class MiningAnalytics
     {
         public string CurrentOre { get; init; } = "";
-        public double BaseM3PerSec { get; init; }
+        public double MiningRateSeconds { get; init; }
+    public double BaseM3PerSec { get; init; }
         public double ActualM3PerSec { get; init; }
         public int CritCount { get; init; }
         public int CycleCount { get; init; }
@@ -1632,6 +1527,7 @@ public record CharacterStatSnapshot
 
     // Rich mining dashboard values
     public string CurrentOre { get; init; } = "";
+    public double MiningRateSeconds { get; init; }
     public double BaseM3PerSec { get; init; }
     public double ActualM3PerSec { get; init; }
     public int MiningCritCount { get; init; }
@@ -1661,6 +1557,7 @@ public record CharacterStatSnapshot
 public record ObservedMiningRate
 {
     public bool Ready { get; init; }
+    public double MiningRateSeconds { get; init; }
     public double BaseM3PerSec { get; init; }
     public double ActualM3PerSec { get; init; }
     public int SampleCount { get; init; }

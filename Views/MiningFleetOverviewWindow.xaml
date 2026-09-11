@@ -142,6 +142,7 @@
                             Click="OpenMoonReport_Click"
                             ToolTip="Open Moon Report"/>
                     <Button x:Name="ContractsButton" Visibility="Collapsed" Content="CONTRACTS" MinWidth="72" Height="21" Padding="7,1" FontSize="10" FontWeight="SemiBold" Margin="4,0,0,0" Click="OpenContracts_Click" ToolTip="Corporation contracts and buyback checks"/>
+                    <Button Content="PI" Height="21" FontSize="10" Margin="4,0,0,0" Click="OpenPlanetary_Click" ToolTip="Planetary industry across all linked pilots"/>
                     <Button Content="SETTINGS" Height="21" FontSize="10" Margin="18,0,4,0" Click="OpenClientSettings_Click"/>
                     <Button Content="PREVIEW SETTINGS" Height="21" FontSize="10" Margin="4,0,4,0" Click="OpenPreviewSettings_Click"/>
                     <Button Content="CLOUD"

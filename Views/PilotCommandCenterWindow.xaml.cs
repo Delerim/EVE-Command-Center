@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
@@ -22,6 +22,9 @@ public partial class PilotCommandCenterWindow : Window
     private readonly EveSkillCatalogService _skillCatalog = new();
     private CancellationTokenSource? _loadCts;
     private bool _loaded;
+    private readonly CancellationTokenSource _windowLife = new();
+    private readonly Dictionary<long, EvePilotSummary> _summaryCache = new();
+    private readonly string _summaryFile = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "EVE Command Center", "PilotData", "pilot-summaries.json");
     private string _skillFilter = "all";
     private List<SkillRowViewModel> _allSkillRows = new();
     private List<QueueRowViewModel> _queueRows = new();
@@ -36,6 +39,8 @@ public partial class PilotCommandCenterWindow : Window
     {
         InitializeComponent();
         DataContext = this;
+        try { foreach (var item in System.Text.Json.JsonSerializer.Deserialize<Dictionary<long, EvePilotSummary>>(System.IO.File.ReadAllText(_summaryFile)) ?? new()) _summaryCache[item.Key] = item.Value; } catch { }
+        Closed += (_, _) => _windowLife.Cancel();
 
         Loaded += async (_, _) =>
         {
@@ -54,7 +59,11 @@ public partial class PilotCommandCenterWindow : Window
 
         Pilots.Clear();
         foreach (var profile in profiles)
-            Pilots.Add(new PilotCardViewModel(profile));
+        {
+            var card = new PilotCardViewModel(profile);
+            if (_summaryCache.TryGetValue(profile.CharacterId, out var cached)) { card.Apply(cached); card.TrainingText += " (cached; refreshing)"; }
+            Pilots.Add(card);
+        }
 
         if (Pilots.Count == 0)
         {
@@ -68,11 +77,13 @@ public partial class PilotCommandCenterWindow : Window
         using var gate = new SemaphoreSlim(3);
         var tasks = Pilots.Select(async card =>
         {
-            await gate.WaitAsync();
+            await gate.WaitAsync(_windowLife.Token);
             try
             {
-                var summary =
-                    await _sso.GetSummaryAsync(card.Profile);
+                using var timeout = CancellationTokenSource.CreateLinkedTokenSource(_windowLife.Token);
+                timeout.CancelAfter(TimeSpan.FromMinutes(2));
+                var summary = await _sso.GetSummaryAsync(card.Profile, timeout.Token);
+                _summaryCache[card.CharacterId] = summary;
 
                 await Dispatcher.InvokeAsync(
                     () => card.Apply(summary));
@@ -89,7 +100,8 @@ public partial class PilotCommandCenterWindow : Window
             }
         });
 
-        await Task.WhenAll(tasks);
+        try { await Task.WhenAll(tasks); } catch (OperationCanceledException) { }
+        try { System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(_summaryFile)!); System.IO.File.WriteAllText(_summaryFile, System.Text.Json.JsonSerializer.Serialize(_summaryCache)); } catch { }
         SetStatus($"{Pilots.Count} connected pilot(s)");
     }
 
@@ -176,7 +188,8 @@ public partial class PilotCommandCenterWindow : Window
     {
         _loadCts?.Cancel();
         _loadCts?.Dispose();
-        _loadCts = new CancellationTokenSource();
+        _loadCts = CancellationTokenSource.CreateLinkedTokenSource(_windowLife.Token);
+        _loadCts.CancelAfter(TimeSpan.FromMinutes(2));
 
         try
         {
@@ -240,6 +253,7 @@ public partial class PilotCommandCenterWindow : Window
         }
         catch (OperationCanceledException)
         {
+            if (!_windowLife.IsCancellationRequested) SetStatus("ESI sync paused or timed out. Cached values are retained; retry Refresh after the provider cooldown.");
         }
         catch (Exception ex)
         {
@@ -681,6 +695,7 @@ public partial class PilotCommandCenterWindow : Window
         }
         catch (OperationCanceledException)
         {
+            if (!_windowLife.IsCancellationRequested) ShipAssetsStatusText.Text = "ESI ship sync paused or timed out. Retry Refresh Ship Data after the provider cooldown.";
         }
         catch (Exception ex)
         {
