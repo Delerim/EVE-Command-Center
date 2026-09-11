@@ -29,6 +29,7 @@ public partial class App : Application
     // so a language change applies without an app restart (issue #86).
     private readonly List<(System.Windows.Forms.ToolStripItem item, string key, string en)> _trayLoc = new();
     private SettingsService? _settings;
+    private ReleaseMonitor? _releaseMonitor;
     private WindowDiscoveryService? _discovery;
     private WinEventHookService? _winEvents;
     private ThumbnailManager? _thumbnailManager;
@@ -447,32 +448,17 @@ public partial class App : Application
 
             _ = BackgroundOperations.Current;
 
-            // ── Auto-Update Check (fire-and-forget, non-blocking) ──
-            // Gated on CheckForUpdatesOnStartup (About tab toggle). When off, no
-            // network call and no popup — users can still check via Settings → About.
-            if (_settings?.Settings?.CheckForUpdatesOnStartup ?? true)
-            _ = Task.Run(async () =>
-            {
-                try
+            _releaseMonitor = new ReleaseMonitor(
+                () => _settings?.Settings?.CheckForUpdatesOnStartup ?? true,
+                () => _settings?.Settings?.ReceivePreReleaseUpdates ?? false,
+                update =>
                 {
-                    var updateService = new UpdateService();
-                    bool allowPreRelease = _settings?.Settings?.ReceivePreReleaseUpdates ?? false;
-                    bool hasUpdate = await updateService.CheckForUpdateAsync(allowPreRelease);
-                    if (hasUpdate)
-                    {
-                        PerfLog($"[Update] ⬆ Update available: v{updateService.LatestVersion}");
-                        await Dispatcher.InvokeAsync(() => new UpdateDialog(updateService).Show());
-                    }
-                    else
-                    {
-                        PerfLog($"[Update] ✅ Up to date (v{updateService.CurrentVersion})");
-                    }
-                }
-                catch (Exception ex)
-                {
-                    PerfLog($"[Update] ⚠ Auto-check failed (non-fatal): {ex.Message}");
-                }
-            });
+                    if (_isShuttingDown || Windows.OfType<UpdateDialog>().Any()) return false;
+                    var dialog = new UpdateDialog(update) { Topmost = true, ShowActivated = false };
+                    dialog.Show();
+                    return true;
+                });
+            _releaseMonitor.Start();
         };
         deferTimer.Start();
 
@@ -1324,6 +1310,7 @@ public partial class App : Application
         _isShuttingDown = true;
 
         // Single disposal path — ExitApplication calls Shutdown() which triggers this
+        _releaseMonitor?.Dispose();
         BackgroundOperations.Stop();
         _alertHub?.Dispose();
         _broadcastHud?.Dispose();

@@ -19,6 +19,7 @@ public sealed class UpdateService
     private const string EXE_ASSET_NAME = "EVE.Command.Center.exe";
 
     private static readonly HttpClient _httpClient = new() { Timeout = TimeSpan.FromSeconds(30) };
+    static UpdateService() => _httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("EVE-Command-Center");
 
     /// <summary>Current app version from assembly metadata.</summary>
     public string CurrentVersion { get; }
@@ -47,18 +48,19 @@ public sealed class UpdateService
     /// Query the GitHub Releases API and determine if an update is available.
     /// Returns true if an update is available.
     /// </summary>
-    public async Task<bool> CheckForUpdateAsync(bool allowPreRelease = false)
+    public async Task<bool> CheckForUpdateAsync(bool allowPreRelease = false, CancellationToken cancellationToken = default)
     {
         try
         {
-            _httpClient.DefaultRequestHeaders.UserAgent.Clear();
-            _httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("EVE-Command-Center/" + CurrentVersion);
-
             string apiUrl = allowPreRelease
                 ? GITHUB_RELEASES_URL
                 : GITHUB_RELEASES_URL + "/latest";
 
-            var json = await _httpClient.GetStringAsync(apiUrl);
+            using var request = new HttpRequestMessage(HttpMethod.Get, apiUrl);
+            request.Headers.UserAgent.ParseAdd("EVE-Command-Center/" + CurrentVersion);
+            using var response = await _httpClient.SendAsync(request, cancellationToken);
+            response.EnsureSuccessStatusCode();
+            var json = await response.Content.ReadAsStringAsync(cancellationToken);
 
             ReadRelease(json, allowPreRelease);
 

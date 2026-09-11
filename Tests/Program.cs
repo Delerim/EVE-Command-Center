@@ -44,6 +44,7 @@ internal static partial class Program
         CheckFitStacking();
         CheckSaberlashFit().GetAwaiter().GetResult();
         CheckCycleAndFuel();
+        CheckReleaseMonitor().GetAwaiter().GetResult();
         CheckAccessAsync().GetAwaiter().GetResult();
         var moonSnapshot = CheckMoonRecovery();
         using var appraisal = JsonDocument.Parse("{\"pricerMarket\":{\"name\":\"Jita 4-4\"},\"immediatePrices\":{\"totalBuyPrice\":1000}}");
