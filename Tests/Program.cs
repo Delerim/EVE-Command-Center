@@ -38,6 +38,7 @@ internal static partial class Program
             }
             return;
         }
+        CheckEsiQueue().GetAwaiter().GetResult();
         CheckBuybackPeriods();
         CheckMoonAlerts();
         CheckContractHistory();

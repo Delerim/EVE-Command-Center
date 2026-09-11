@@ -40,7 +40,7 @@ public sealed class ContractService : IDisposable
         Func<EvePilotProfile, CancellationToken, Task<string>>? getAccessToken = null)
     {
         _sso = sso;
-        _http = http ?? new HttpClient { Timeout = TimeSpan.FromSeconds(35) };
+        _http = http ?? EsiHttp.CreateClient();
         _getAccessToken = getAccessToken ?? sso.GetAccessTokenForAsync;
         _http.DefaultRequestHeaders.UserAgent.ParseAdd("EVE-Command-Center/2.5.0");
         _http.DefaultRequestHeaders.Add("X-Compatibility-Date", "2026-08-25");

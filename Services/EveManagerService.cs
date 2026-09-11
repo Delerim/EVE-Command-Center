@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -466,7 +466,7 @@ public sealed class EveManagerService
 
         if (missing.Count == 0) return;
 
-        using var http = new HttpClient();
+        using var http = EsiHttp.CreateClient();
         http.DefaultRequestHeaders.Add("User-Agent", userAgent);
         http.DefaultRequestHeaders.Add("Accept", "application/json");
 

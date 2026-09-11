@@ -29,7 +29,7 @@ public sealed class CorporationAccessService
     public CorporationAccessService(EveSsoService sso, HttpClient? http = null, string? directory = null)
     {
         _sso = sso;
-        _http = http ?? new HttpClient { Timeout = TimeSpan.FromSeconds(25) };
+        _http = http ?? EsiHttp.CreateClient();
         _file = Path.Combine(directory ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "EVE Command Center"), "corporation-access.json");
         try { State = JsonSerializer.Deserialize<LinkState>(File.ReadAllText(_file)) ?? new(); }
         catch { State = new(); }

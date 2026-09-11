@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -42,10 +42,7 @@ public sealed class EveSkillCatalogService
 
     public EveSkillCatalogService()
     {
-        _http = new HttpClient
-        {
-            Timeout = TimeSpan.FromSeconds(30)
-        };
+        _http = EsiHttp.CreateClient();
 
         _http.DefaultRequestHeaders.UserAgent.ParseAdd(
             "EVE-Command-Center/0.2 (+https://github.com/Delerim/EVE-Command-Center)");

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -46,7 +46,7 @@ public sealed class MiningMarketService
 
     private static HttpClient CreateHttpClient()
     {
-        var client = new HttpClient { Timeout = TimeSpan.FromSeconds(15) };
+        var client = EsiHttp.CreateClient();
         client.DefaultRequestHeaders.UserAgent.Clear();
         client.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("EVE-Command-Center-Mining", "1.0"));
         client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));

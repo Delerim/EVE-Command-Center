@@ -1,12 +1,11 @@
-# EVE Command Center v2.9.1
+﻿# EVE Command Center v2.9.2
 
-## Update prompts while Command Center is running
+- All ESI services now share a paced request queue, including fits, skills, moons, contracts, market data and permission checks.
+- Startup builds data gradually. Waiting for a queue slot no longer consumes the network timeout.
+- ESI cache expiry is respected and duplicate GET requests reuse cached responses, with authentication isolation and pagination headers preserved.
+- Advertised rate-limit groups are paced at 70% of their published successful-request budget, with a conservative global request floor and extra slowdown near exhaustion.
+- Retry-After and low error-budget responses pause ESI traffic. Repeated denied or throttled reads are briefly cached to prevent retry storms.
+- Existing cached pilot data remains available while fresh data loads. Contract monitoring retains its 30-minute minimum interval.
+- Includes v2.9.1 live release prompts: checks every five minutes while running, with changelog, Update & Restart, and Skip & Continue.
 
-- Check GitHub Releases at startup and every five minutes while Command Center is open, including when views are closed or minimized.
-- A newer downloadable release opens the existing themed changelog window with Update & Restart and Skip & Continue. The prompt appears above other windows without taking keyboard focus.
-- Each release prompts once per running session. Skipping keeps the current client running; a newer version can prompt again. Another open update dialog defers the background prompt.
-- Automatic checking and prerelease preferences remain respected. The About setting now explicitly says it covers startup and background checks.
-- Stop the timer and cancel in-flight checks on shutdown. Prevent overlapping checks and avoid changing shared HTTP headers during active requests.
-- Installation and restart only happen after choosing Update & Restart. ESI polling is unchanged.
-
-Install this version once through the existing startup updater to enable prompts for future releases while running.
+Validation: 98 automated checks passed, including cache isolation, duplicate requests, shared cooldown, cancellation and group pacing.

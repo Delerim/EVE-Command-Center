@@ -39,7 +39,7 @@ public sealed class MoonReportService : IDisposable
     public MoonReportService(EveSsoService sso, string? stateDirectory = null)
     {
         _sso = sso;
-        _http = new HttpClient { Timeout = TimeSpan.FromSeconds(45) };
+        _http = EsiHttp.CreateClient();
         _http.DefaultRequestHeaders.UserAgent.ParseAdd(
             "EVE-Command-Center-Moon-Report/0.7");
         _http.DefaultRequestHeaders.TryAddWithoutValidation(
