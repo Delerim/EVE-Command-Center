@@ -2,7 +2,7 @@
 using System.Diagnostics;
 using System.IO;
 using System.Net.Http;
-using System.Text.RegularExpressions;
+using System.Text.Json;
 using System.Threading.Tasks;
 
 namespace EveCommandCenter.Services;
@@ -59,28 +59,7 @@ public sealed class UpdateService
 
             var json = await _httpClient.GetStringAsync(apiUrl);
 
-            // Parse tag_name
-            var tagMatch = Regex.Match(json, "\"tag_name\"\\s*:\\s*\"([^\"]+)\"");
-            var urlMatch = Regex.Match(json, "\"html_url\"\\s*:\\s*\"([^\"]+)\"");
-            var bodyMatch = Regex.Match(json, "\"body\"\\s*:\\s*\"((?:[^\"\\\\]|\\\\.)*)\"");
-
-            if (!tagMatch.Success) return false;
-
-            var latestTag = tagMatch.Groups[1].Value.TrimStart('v', 'V');
-            LatestVersion = latestTag;
-            ReleasePageUrl = urlMatch.Success ? urlMatch.Groups[1].Value : null;
-            ReleaseNotes = bodyMatch.Success ? Regex.Unescape(bodyMatch.Groups[1].Value) : null;
-
-            // Find the exe asset download URL
-            // Pattern: "browser_download_url":"https://...EVE.Command.Center.exe"
-            var assetPattern = $"\"browser_download_url\"\\s*:\\s*\"([^\"]*{Regex.Escape(EXE_ASSET_NAME)})\"";
-            var assetMatch = Regex.Match(json, assetPattern);
-            DownloadUrl = assetMatch.Success ? assetMatch.Groups[1].Value : null;
-
-            if (Version.TryParse(latestTag, out var latest) && Version.TryParse(CurrentVersion, out var current))
-            {
-                UpdateAvailable = latest > current && DownloadUrl != null;
-            }
+            ReadRelease(json, allowPreRelease);
 
             Debug.WriteLine($"[Update] Current={CurrentVersion}, Latest={LatestVersion}, Available={UpdateAvailable}");
             return UpdateAvailable;
@@ -89,6 +68,37 @@ public sealed class UpdateService
         {
             Debug.WriteLine($"[Update] Check failed: {ex.Message}");
             return false;
+        }
+    }
+
+    private void ReadRelease(string json, bool allowPreRelease)
+    {
+        UpdateAvailable = false;
+        LatestVersion = ReleaseNotes = DownloadUrl = ReleasePageUrl = null;
+        using var document = JsonDocument.Parse(json);
+        var releases = document.RootElement.ValueKind == JsonValueKind.Array
+            ? document.RootElement.EnumerateArray().ToArray()
+            : new[] { document.RootElement };
+        foreach (var release in releases)
+        {
+            if (release.TryGetProperty("draft", out var draft) && draft.GetBoolean()) continue;
+            if (!allowPreRelease && release.TryGetProperty("prerelease", out var pre) && pre.GetBoolean()) continue;
+            var tag = release.GetProperty("tag_name").GetString()?.TrimStart('v', 'V');
+            if (!Version.TryParse(tag, out var version)) continue;
+            if (LatestVersion != null && Version.Parse(LatestVersion) >= version) continue;
+            string? download = null;
+            if (release.TryGetProperty("assets", out var assets))
+                foreach (var asset in assets.EnumerateArray())
+                    if (asset.GetProperty("name").GetString() == EXE_ASSET_NAME)
+                        download = asset.GetProperty("browser_download_url").GetString();
+            if (!Uri.TryCreate(download, UriKind.Absolute, out var uri) ||
+                uri.Scheme != "https" || uri.Host != "github.com" ||
+                !uri.AbsolutePath.StartsWith("/Delerim/EVE-Command-Center/releases/download/", StringComparison.OrdinalIgnoreCase)) continue;
+            LatestVersion = tag;
+            DownloadUrl = download;
+            ReleasePageUrl = release.GetProperty("html_url").GetString();
+            ReleaseNotes = release.TryGetProperty("body", out var body) ? body.GetString() : null;
+            UpdateAvailable = version > Version.Parse(CurrentVersion);
         }
     }
 
@@ -101,7 +111,7 @@ public sealed class UpdateService
         if (string.IsNullOrEmpty(DownloadUrl))
             throw new InvalidOperationException("No download URL available. Call CheckForUpdateAsync first.");
 
-        var tempDir = Path.Combine(Path.GetTempPath(), "EVECommandCenter_update");
+        var tempDir = Path.Combine(Path.GetTempPath(), "EVECommandCenter_update", Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(tempDir);
         var destPath = Path.Combine(tempDir, EXE_ASSET_NAME);
 
@@ -138,54 +148,39 @@ public sealed class UpdateService
     /// </summary>
     public void ApplyUpdate(string downloadedExePath)
     {
-        var appDir = AppDomain.CurrentDomain.BaseDirectory;
-        var scriptPath = Path.Combine(Path.GetTempPath(), "EVECommandCenter_update", "update.ps1");
-
+        var executable = Environment.ProcessPath
+            ?? throw new InvalidOperationException("Cannot find the running executable.");
+        var appDir = Path.GetDirectoryName(executable)!;
+        var scriptPath = Path.Combine(Path.GetDirectoryName(downloadedExePath)!, "update.ps1");
         var script = $@"
-# EVE Command Center Auto-Updater
-# Wait for the main process to exit
-Start-Sleep -Seconds 2
-$maxWait = 30; $waited = 0
-while ((Get-Process -Name 'EVE Command Center' -ErrorAction SilentlyContinue) -and $waited -lt $maxWait) {{
-    Start-Sleep -Seconds 1; $waited++
-}}
-
-# Backup config file
+$ErrorActionPreference = 'Stop'
 $appDir = '{EscapePs(appDir)}'
-$configFile = Join-Path $appDir 'EVE Command Center.json'
-if (Test-Path $configFile) {{
-    $backupDir = Join-Path $appDir 'Backups'
-    New-Item -ItemType Directory -Path $backupDir -Force | Out-Null
-    $timestamp = Get-Date -Format 'yyyy-MM-dd_HH-mm-ss'
-    Copy-Item $configFile (Join-Path $backupDir ""EVE Command Center_pre-update_$timestamp.json"")
-}}
-
-# Replace the executable
 $newExe = '{EscapePs(downloadedExePath)}'
-$oldExe = Join-Path $appDir 'EVE Command Center.exe'
-Copy-Item $newExe $oldExe -Force
-
-# Clean up any stale dot-named exe / pdb left over from earlier installs
-# that pre-date the AssemblyName rename. The GitHub release ships the file
-# as 'EVE.Command.Center.exe' (with a dot, GitHub-friendly), but the local
-# install is 'EVE Command Center.exe' (with a space). Old dot-named files
-# from previous versions sit alongside the space-named live exe and show
-# up as confusing duplicates in the install folder (issue #42, bug #3).
-$dotExe = Join-Path $appDir 'EVE.Command.Center.exe'
-if (Test-Path $dotExe) {{
-    Remove-Item -Path $dotExe -Force -ErrorAction SilentlyContinue
+$oldExe = '{EscapePs(executable)}'
+$backupExe = $oldExe + '.previous'
+try {{
+    $running = Get-Process -Id {Environment.ProcessId} -ErrorAction SilentlyContinue
+    if ($running) {{
+        if (-not $running.WaitForExit(60000)) {{ throw 'Application did not exit in time.' }}
+    }}
+    $configFile = Join-Path $appDir 'EVE Command Center.json'
+    if (Test-Path -LiteralPath $configFile) {{
+        $backupDir = Join-Path $appDir 'Backups'
+        New-Item -ItemType Directory -Path $backupDir -Force | Out-Null
+        Copy-Item -LiteralPath $configFile -Destination (Join-Path $backupDir ('EVE Command Center_' + (Get-Date -Format 'yyyy-MM-dd_HH-mm-ss') + '.json'))
+    }}
+    Copy-Item -LiteralPath $oldExe -Destination $backupExe -Force
+    try {{
+        Copy-Item -LiteralPath $newExe -Destination $oldExe -Force
+        Start-Process -FilePath $oldExe -WorkingDirectory $appDir
+    }} catch {{
+        Copy-Item -LiteralPath $backupExe -Destination $oldExe -Force
+        throw
+    }}
+    Remove-Item -LiteralPath $newExe -Force -ErrorAction SilentlyContinue
+}} catch {{
+    $_ | Out-String | Set-Content -LiteralPath (Join-Path $appDir 'EVE Command Center Update Error.txt')
 }}
-$dotPdb = Join-Path $appDir 'EVE.Command.Center.pdb'
-if (Test-Path $dotPdb) {{
-    Remove-Item -Path $dotPdb -Force -ErrorAction SilentlyContinue
-}}
-
-# Restart the app
-Start-Process $oldExe
-
-# Clean up temp download
-Start-Sleep -Seconds 3
-Remove-Item -Path (Split-Path $newExe -Parent) -Recurse -Force -ErrorAction SilentlyContinue
 ";
 
         File.WriteAllText(scriptPath, script);
@@ -198,7 +193,8 @@ Remove-Item -Path (Split-Path $newExe -Parent) -Recurse -Force -ErrorAction Sile
             UseShellExecute = false,
             CreateNoWindow = true
         };
-        Process.Start(psi);
+        if (Process.Start(psi) == null)
+            throw new InvalidOperationException("Could not start the updater.");
 
         Debug.WriteLine("[Update] Updater script launched — shutting down app");
         System.Windows.Application.Current?.Dispatcher.Invoke(() =>

@@ -8,7 +8,7 @@ A Windows command center for EVE Online: live client previews, mining fleet moni
 
 Extract the ZIP to a writable folder and run **EVE Command Center.exe**. Requires Windows 10 version 2004 or later. The .NET runtime is included.
 
-Upgrading: close the app and replace its executable. Keep your settings JSON files beside it. Older filenames migrate automatically. Linked credentials and moon history remain in local application data.
+Upgrading: close the app and replace its executable. Keep your settings JSON files beside it. Linked credentials and moon history remain in local application data.
 
 [Release notes](https://github.com/Delerim/EVE-Command-Center/releases) | [Report a bug](https://github.com/Delerim/EVE-Command-Center/issues)
 
@@ -35,7 +35,7 @@ Output: `artifacts/publish/EVE Command Center.exe`.
 
 ## Releases
 
-Push a version tag matching the project version, such as `v2.4.0`, to publish a GitHub Release with a portable ZIP, updater executable, and SHA-256 checksums. Pushes to `main` also produce a GitHub Actions build artifact. The app checks this repository for updates.
+Push a version tag matching the project version, such as `v2.4.0`, to publish a GitHub Release with a portable ZIP, updater executable, and SHA-256 checksums. Pushes to `main` also produce a GitHub Actions build artifact. On startup, the app checks this repository and automatically installs a newer release, then relaunches. Disable startup updates in Settings > About if needed.
 
 ## Credits
 

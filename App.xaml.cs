@@ -448,14 +448,8 @@ public partial class App : Application
                     if (hasUpdate)
                     {
                         PerfLog($"[Update] ⬆ Update available: v{updateService.LatestVersion}");
-                        await Dispatcher.InvokeAsync(() =>
-                        {
-                            // Non-modal: a modal ShowDialog() runs a nested message loop
-                            // that swallows global hotkeys until dismissed. Show() lets the
-                            // user keep playing while the "update available" prompt sits open.
-                            var dialog = new UpdateDialog(updateService);
-                            dialog.Show();
-                        });
+                        var downloadedPath = await updateService.DownloadUpdateAsync();
+                        await Dispatcher.InvokeAsync(() => updateService.ApplyUpdate(downloadedPath));
                     }
                     else
                     {
