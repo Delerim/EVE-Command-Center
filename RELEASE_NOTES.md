@@ -1,9 +1,8 @@
-# EVE Command Center v3.1.1
+# EVE Command Center v3.1.2
 
-- Moon ledger valuations now use Jita 4-4 compressed-ore best-buy prices, replacing raw-ore ESI average/adjusted prices. Exact ledger ore variants retain their own quotes.
-- Existing saved ledger estimates are recalculated from their original quantities when quotes refresh, so Moon ledger totals and field-ledger rows use the corrected basis without reimporting history.
-- Remaining-ore value, ISK/hour and best-value highlighting use the same compressed-price basis per raw mined m3. Family-level remaining estimates use the most-mined observed variant, or base ore until observed; this assumption is labelled.
-- Old raw-price caches are invalidated. Missing compressed quotes are reported as partial totals rather than silently falling back to raw prices. Quote timestamps are displayed; successful quotes refresh hourly through the paced ESI queue.
-- Values are current market estimates before fees and order depth, not historical sale proceeds.
+- PI factory health now follows routed upstream production through factories and storage. T3 factories awaiting supplied T2 output show Waiting for upstream production instead of Check inputs.
+- Missing routes, missing recipes and exhausted upstream supplies still require attention. Dependency loops cannot invent a healthy supply source; future output is not counted as stockpile inventory or an exact completion time.
+- Planet cards now include small EVE planet-type icons and planet-type labels in both Overview and Factory Refills.
+- Includes v3.1.1 compressed Jita pricing corrections for Moon ledgers, remaining-ore values and ISK/hour estimates.
 
-Validation: 128 checks passed, including exact-variant repricing, unchanged mined volumes and revaluation of saved records.
+Validation: 130 checks passed, including supplied T2-to-T3 routes through storage and exhausted-chain detection. Planet icon endpoint verified.

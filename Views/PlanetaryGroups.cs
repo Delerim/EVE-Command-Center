@@ -18,6 +18,7 @@ public sealed class PiPlanetView
     public string Key { get; set; } = "";
     public bool Expanded { get; set; }
     public PiRow Row { get; set; } = new();
+    public string PlanetIcon => "https://images.evetech.net/types/" + (Row.Colony?.PlanetType.ToLowerInvariant() switch { "temperate" => 11, "ice" => 12, "gas" => 13, "oceanic" => 2014, "lava" => 2015, "barren" => 2016, "storm" => 2017, "plasma" => 2063, _ => 2016 }) + "/icon?size=64";
     public string Facilities { get; set; } = "";
     public string Products { get; set; } = "";
     public bool FactoryWorld { get; set; }

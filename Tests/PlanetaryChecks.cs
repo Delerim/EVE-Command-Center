@@ -49,8 +49,24 @@ internal static partial class Program
         var feedRoutes = new[] { new { source_pin_id=3L, destination_pin_id=1L, content_type_id=raw }, new { source_pin_id=1L, destination_pin_id=2L, content_type_id=raw }, new { source_pin_id=2L, destination_pin_id=1L, content_type_id=output } };
         var feeding = new PiState { Colonies = new() { new() { CharacterId=4, PlanetId=44, LastUpdate=now, Layout=JsonSerializer.SerializeToElement(new { pins=feedPins, routes=feedRoutes }) } } };
         var healthy = PlanetaryAnalysis.Build(feeding, now);
-        Check(healthy.Pins.Any(p => p.Status == "EXTRACTING / WAITING FOR INPUT" && p.Color == "#74D6C9") && healthy.Colonies.Single().Status == "MONITORING", "Routed active extraction keeps intermittently supplied basic factories healthy");
+        Check(healthy.Pins.Any(p => p.Status == "WAITING FOR UPSTREAM PRODUCTION" && p.Color == "#74D6C9") && healthy.Colonies.Single().Status == "MONITORING", "Routed active extraction keeps intermittently supplied basic factories healthy");
         Check(PlanetaryAnalysis.Build(feeding, now.AddDays(3)).Pins.Any(p => p.Status == "CHECK INPUTS"), "Expired extraction no longer hides empty factory inputs");
+        var robotics = PlanetaryAnalysis.Recipes.Values.First(r => r.Name == "Robotics");
+        var upstreamRecipes = robotics.Inputs.Keys.Select(product => PlanetaryAnalysis.Recipes.Values.First(r => r.Outputs.ContainsKey(product))).ToArray();
+        var chainPins = new List<object> { new { pin_id=10L, type_id=2256, contents=upstreamRecipes.SelectMany(r => r.Inputs.Keys).Distinct().Select(t => new { type_id=t, amount=10000 }).ToArray() }, new { pin_id=20L, type_id=2470, schematic_id=robotics.Id, contents=System.Array.Empty<object>() } };
+        var chainRoutes = new List<object>();
+        for (int i=0; i<upstreamRecipes.Length; i++)
+        {
+            long id = 30+i; var r = upstreamRecipes[i];
+            chainPins.Add(new { pin_id=id, type_id=2470, schematic_id=r.Id, contents=System.Array.Empty<object>() });
+            foreach (int input in r.Inputs.Keys) chainRoutes.Add(new { source_pin_id=10L, destination_pin_id=id, content_type_id=input });
+            foreach (int product in r.Outputs.Keys) { chainRoutes.Add(new { source_pin_id=id, destination_pin_id=10L, content_type_id=product }); chainRoutes.Add(new { source_pin_id=10L, destination_pin_id=20L, content_type_id=product }); }
+        }
+        chainRoutes.Add(new { source_pin_id=20L, destination_pin_id=10L, content_type_id=robotics.Outputs.Keys.Single() });
+        var chain = new PiColony { CharacterId=5, PlanetId=55, LastUpdate=now, Layout=JsonSerializer.SerializeToElement(new { pins=chainPins, routes=chainRoutes }) };
+        var chainState = new PiState { Colonies = new() { chain } };
+        Check(PlanetaryAnalysis.Build(chainState,now).Pins.Any(p => p.Name == "Robotics" && p.Status == "WAITING FOR UPSTREAM PRODUCTION" && p.Color == "#74D6C9"), "T3 factories waiting for supplied T2 factories through storage remain healthy");
+        Check(PlanetaryAnalysis.Build(chainState,now.AddYears(1)).Pins.Any(p => p.Name == "Robotics" && p.Status == "CHECK INPUTS"), "Exhausted upstream stock does not hide a stalled production chain");
         return state;
     }
     private static void CheckMiningRates()

@@ -96,22 +96,27 @@ public static class PlanetaryAnalysis
                 {
                     bool HasActiveFeed(int product)
                     {
-                        var visited = new HashSet<long>();
-                        var pending = new Queue<long>(); pending.Enqueue(id);
-                        while (pending.Count > 0)
+                        bool Supply(long destination, int input, HashSet<(long, int)> path, bool allowStock)
                         {
-                            long destination = pending.Dequeue();
-                            if (!visited.Add(destination)) continue;
-                            foreach (var route in routes.Where(r => (long)Num(r, "destination_pin_id") == destination && (int)Num(r, "content_type_id") == product))
+                            if (!path.Add((destination, input)) || !byId.TryGetValue(destination, out var target)) return false;
+                            if (allowStock && stores[destination].GetValueOrDefault(input) > demands.GetValueOrDefault((destination, input)) * Math.Max(0, (now - colony.LastUpdate).TotalHours)) return true;
+                            if (target.TryGetProperty("extractor_details", out var extractorFeed) && (int)Num(extractorFeed, "product_type_id") == input && Num(extractorFeed, "cycle_time") > 0 && Date(target, "expiry_time") > now) return true;
+                            if (factories.TryGetValue(destination, out var upstream) && upstream.Outputs.ContainsKey(input))
+                            {
+                                return upstream.Inputs.All(i =>
+                                    routes.Any(r => (long)Num(r, "destination_pin_id") == destination && (int)Num(r, "content_type_id") == i.Key) &&
+                                    (stores[destination].GetValueOrDefault(i.Key) >= i.Value || Supply(destination, i.Key, new(path), false)));
+                            }
+                            foreach (var route in routes.Where(r => (long)Num(r, "destination_pin_id") == destination && (int)Num(r, "content_type_id") == input))
                             {
                                 long source = (long)Num(route, "source_pin_id");
-                                if (!byId.TryGetValue(source, out var sourcePin)) continue;
-                                if (sourcePin.TryGetProperty("extractor_details", out var e) && (int)Num(e, "product_type_id") == product && Num(e, "cycle_time") > 0 && Date(sourcePin, "expiry_time") > now) return true;
-                                // Follow storage transit only; never assume another factory creates this input.
-                                if (Type((int)Num(sourcePin, "type_id")).Capacity > 0) pending.Enqueue(source);
+                                if (Supply(source, input, new(path), true)) return true;
                             }
+                            return false;
                         }
-                        return false;
+                        // A route-backed producer must be present; direct inventory is handled by the runway calculation.
+                        return routes.Where(r => (long)Num(r, "destination_pin_id") == id && (int)Num(r, "content_type_id") == product)
+                            .Any(r => Supply((long)Num(r, "source_pin_id"), product, new() { (id, product) }, false));
                     }
                     bool routed = recipe.Inputs.Keys.All(product => routes.Any(r => (long)Num(r, "destination_pin_id") == id && (int)Num(r, "content_type_id") == product))
                         && recipe.Outputs.Keys.All(product => routes.Any(r => (long)Num(r, "source_pin_id") == id && (int)Num(r, "content_type_id") == product));
@@ -131,13 +136,13 @@ public static class PlanetaryAnalysis
                     // Supply is a snapshot, not evidence that a factory is actively routed/running now.
                     double ageHours = Math.Max(0, (now - colony.LastUpdate).TotalHours);
                     double projected = double.IsFinite(hours) ? Math.Max(0, hours - ageHours) : 0;
-                    row.Name = recipe.Name; row.Status = !routed ? "CHECK ROUTES" : extractingFeed ? "EXTRACTING / WAITING FOR INPUT" : projected > 0 ? "SUPPLIED (EST.)" : "CHECK INPUTS";
+                    row.Name = recipe.Name; row.Status = !routed ? "CHECK ROUTES" : extractingFeed ? "WAITING FOR UPSTREAM PRODUCTION" : projected > 0 ? "SUPPLIED (EST.)" : "CHECK INPUTS";
                     row.Color = routed && (extractingFeed || projected > 0) ? "#74D6C9" : "#FFD166";
                     row.Quantity = string.Join(" + ", recipe.Inputs.Select(i => $"{i.Value:N0} {Type(i.Key).Name}"));
                     row.Rate = string.Join(" + ", recipe.Outputs.Select(i => $"{i.Value * 3600 / recipe.Cycle:N0} {Type(i.Key).Name}/h capacity"));
-                    row.Remaining = extractingFeed ? "Active extractor feed; intermittent processing is normal" : Time(projected * 3600) + " input runway (est.)";
+                    row.Remaining = extractingFeed ? "Routed upstream supply; intermittent processing is normal" : Time(projected * 3600) + " input runway (est.)";
                     var last = Date(pin, "last_cycle_start");
-                    row.Next = projected > 0 && last.HasValue ? Time(recipe.Cycle - Math.Max(0, (now - last.Value).TotalSeconds) % recipe.Cycle) + " to cycle (est.)" : "Check in game";
+                    row.Next = projected > 0 && last.HasValue ? Time(recipe.Cycle - Math.Max(0, (now - last.Value).TotalSeconds) % recipe.Cycle) + " to cycle (est.)" : extractingFeed ? "Waiting for upstream cycle" : "Check in game";
                     if (!routed || (!extractingFeed && projected <= 0)) attention++;
                     if (!extractingFeed) nextAction = Math.Min(nextAction, projected * 3600);
                 }
