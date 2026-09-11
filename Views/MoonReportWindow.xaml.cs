@@ -192,7 +192,7 @@ public partial class MoonReportWindow : Window
         FuelSummary.Text = $"{snapshot.Fuel.Count:N0} structures | {snapshot.Fuel.Count(s => s.NeedsFuel):N0} below 80 days | {snapshot.Fuel.Count(s => s.Days == null):N0} unknown";
         FuelStatus.Text = snapshot.FuelStatus;
         AuditGrid.ItemsSource = snapshot.Audit;
-        StatusText.Text = _service.LedgerFreshness;
+        StatusText.Text = _service.LedgerFreshness + " | " + _service.PriceStatus;
         UpdatedText.Text = snapshot.LastRefreshUtc is not { } refreshed ? "No live refresh yet" :
             "ESI updated " + refreshed.ToLocalTime().ToString("dd MMM yyyy HH:mm:ss") +
             (DateTimeOffset.UtcNow - refreshed > TimeSpan.FromMinutes(75) ? " | stale" : "");

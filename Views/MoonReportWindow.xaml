@@ -39,7 +39,7 @@
      <TextBlock Text="{Binding HourText}" Foreground="{Binding ValueColor}" Margin="0,3,0,0"/>
     </StackPanel></Border>
    </DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
-   <TextBlock Text="ESI average market prices; estimates use the mining rate above. No boost, travel, reprocessing or selling time is included." Foreground="#8FB2B5" FontSize="11" TextWrapping="Wrap"/>
+   <TextBlock Text="Jita 4-4 compressed buy prices, per raw mined m3. Remaining ore uses the most-mined observed variant (base ore until observed); estimates use the mining rate above. No boost, travel, reprocessing or selling time is included." Foreground="#8FB2B5" FontSize="11" TextWrapping="Wrap"/>
   </StackPanel></Border></DataTemplate>
 </ResourceDictionary></Window.Resources>
  <Grid Margin="14">

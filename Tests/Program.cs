@@ -50,6 +50,17 @@ internal static partial class Program
         }
         CheckEsiQueue().GetAwaiter().GetResult();
         Check(EveSsoService.IsShieldMindlink("ORE Mining Director Mindlink") && !EveSsoService.IsShieldMindlink("Mining Foreman Mindlink"), "ORE mindlink applies shield bonus; ordinary mining mindlink does not");
+        var values = new MoonReportState { TypePrices = new() { [45490] = 1400, [45494] = 1800 }, LedgerHistory = new()
+        {
+            ["base"] = new() { TypeId=45490, Quantity=100, VolumeM3=1000, EstimatedIsk=1 },
+            ["rich"] = new() { TypeId=45494, Quantity=100, VolumeM3=1000, EstimatedIsk=1 },
+            ["missing"] = new() { TypeId=999, Quantity=100, EstimatedIsk=9999 }
+        } };
+        MoonReportService.RevalueLedger(values);
+        Check(values.LedgerHistory["base"].EstimatedIsk == 140000 && values.LedgerHistory["rich"].EstimatedIsk == 180000, "Ledger revaluation preserves variant prices and one-to-one mined unit quantities");
+        Check(values.LedgerHistory["base"].VolumeM3 == 1000 && values.LedgerHistory["missing"].EstimatedIsk == 0, "Repricing preserves raw mined volume and removes obsolete unpriced values");
+        values.TypePrices[45490] = 1500; MoonReportService.RevalueLedger(values);
+        Check(values.LedgerHistory["base"].EstimatedIsk == 150000, "Saved ledger entries update when current compressed quotes change");
         var piFixture = CheckPlanetary();
         CheckMiningRates();
         CheckBuybackPeriods();

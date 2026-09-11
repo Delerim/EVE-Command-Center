@@ -33,6 +33,8 @@ public sealed class MoonReportState
     public Dictionary<int, string> SystemNames { get; set; } = new();
     public Dictionary<long, string> CharacterNames { get; set; } = new();
     public Dictionary<long, string> CorporationNames { get; set; } = new();
+    public string PriceBasis { get; set; } = "";
+    public Dictionary<int, DateTimeOffset> PriceChecked { get; set; } = new();
     public Dictionary<int, double> TypePrices { get; set; } = new();
 }
 

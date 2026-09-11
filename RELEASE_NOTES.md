@@ -1,9 +1,9 @@
-# EVE Command Center v3.1.0
+# EVE Command Center v3.1.1
 
-- PI overview groups colonies into collapsible pilot summaries, including factory-world counts and overall attention. Planet cards show command-centre level, extractors, heads, products and expandable facility details; the separate colony-details tab is consolidated into Overview.
-- Expansion choices survive timer refreshes. The extraction summary retains its adjustable splitter.
-- Stockpile items are ordered by tier and name, with sale stock and factory feed colour-coded. Jita 4-4 best-buy unit and total estimates include quote timestamps and refresh hourly through the shared ESI queue; fees and market depth are excluded.
-- Factory refills group T1 hauling targets by pilot and planet, showing combined requirements, stock allocation and shortfalls. Higher-tier inputs are hidden from this hauling view without changing capacity calculations.
-- Correctly routed, active extractor supply keeps waiting basic factories healthy, even when extraction cannot keep all factories continuously running. Missing recipes or routes and exhausted inputs without active extraction remain flagged.
+- Moon ledger valuations now use Jita 4-4 compressed-ore best-buy prices, replacing raw-ore ESI average/adjusted prices. Exact ledger ore variants retain their own quotes.
+- Existing saved ledger estimates are recalculated from their original quantities when quotes refresh, so Moon ledger totals and field-ledger rows use the corrected basis without reimporting history.
+- Remaining-ore value, ISK/hour and best-value highlighting use the same compressed-price basis per raw mined m3. Family-level remaining estimates use the most-mined observed variant, or base ore until observed; this assumption is labelled.
+- Old raw-price caches are invalidated. Missing compressed quotes are reported as partial totals rather than silently falling back to raw prices. Quote timestamps are displayed; successful quotes refresh hourly through the paced ESI queue.
+- Values are current market estimates before fees and order depth, not historical sale proceeds.
 
-Validation: 125 checks passed, including grouped factory-world classification and active extractor supply through storage. Overview render inspected.
+Validation: 128 checks passed, including exact-variant repricing, unchanged mined volumes and revaluation of saved records.

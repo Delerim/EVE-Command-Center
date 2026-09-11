@@ -29,6 +29,7 @@ public sealed class MoonReportService : IDisposable
     private const double AlertFloorM3 = 1000.0;
     private const int HistoryRetentionDays = 365;
 
+    private readonly MiningMarketService _market = new();
     private readonly EveSsoService _sso;
     private readonly HttpClient _http;
     private readonly JsonSerializerOptions _json;
@@ -229,10 +230,6 @@ public sealed class MoonReportService : IDisposable
                 foreach (var id in _state.LedgerFailures.Keys.Where(id => !currentIds.Contains(id)).ToArray()) _state.LedgerFailures.Remove(id);
             }
             int observerIndex = 0;
-            progress?.Report("Refreshing moon ore market values...");
-            try { await UpdateMarketPricesAsync(cancellationToken); }
-            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
-            catch (Exception ex) { EsiDiagnostics.Write("Moon price refresh deferred: " + ex.GetType().Name); }
             foreach (EsiMiningObserver observer in observers)
             {
                 cancellationToken.ThrowIfCancellationRequested();
@@ -265,6 +262,8 @@ public sealed class MoonReportService : IDisposable
 
             progress?.Report("Resolving miner and corporation names...");
             await ResolveLedgerNamesAsync(cancellationToken);
+            progress?.Report("Updating compressed Jita ore valuations...");
+            await UpdateMarketPricesAsync(cancellationToken);
             PruneHistory(DateTimeOffset.UtcNow);
             RebuildPullMinedTotals();
 
@@ -282,7 +281,7 @@ public sealed class MoonReportService : IDisposable
 
             progress?.Report(
                 $"Moon report updated at " +
-                $"{DateTime.Now:HH:mm:ss}. {LedgerFreshness}");
+                $"{DateTime.Now:HH:mm:ss}. {LedgerFreshness} | {PriceStatus}");
             Refreshed?.Invoke();
             return BuildSnapshot(DateTimeOffset.UtcNow);
         }
@@ -1576,26 +1575,36 @@ public sealed class MoonReportService : IDisposable
             };
     }
 
-    private async Task UpdateMarketPricesAsync(
-        CancellationToken cancellationToken)
+    public const string CompressedPriceBasis = "Jita 4-4 compressed best buy / raw unit v1";
+    public string PriceStatus => "Jita 4-4 compressed buy; current-value estimates, before fees. " +
+        (_state.PriceChecked.Count == 0 ? "Prices pending." : "Oldest quote: " + _state.PriceChecked.Values.Min().ToLocalTime().ToString("dd MMM HH:mm")) +
+        (_state.LedgerHistory.Values.Any(r => !_state.TypePrices.ContainsKey(r.TypeId)) ? " Some ore prices unavailable; totals are partial." : "");
+    public static void RevalueLedger(MoonReportState state)
     {
-        try
+        foreach (var row in state.LedgerHistory.Values)
+            row.EstimatedIsk = row.Quantity * Math.Max(0, state.TypePrices.GetValueOrDefault(row.TypeId));
+    }
+    private async Task UpdateMarketPricesAsync(CancellationToken cancellationToken)
+    {
+        var ids = new[] { 45490, 45491, 45492, 45493 }.Concat(_state.LedgerHistory.Values.Select(r => r.TypeId)).Distinct();
+        foreach (int id in ids)
         {
-            List<EsiMarketPrice> prices =
-                await GetPublicAsync<List<EsiMarketPrice>>(
-                    "/markets/prices/", cancellationToken);
-            foreach (EsiMarketPrice price in prices)
+            cancellationToken.ThrowIfCancellationRequested();
+            if (_state.PriceChecked.GetValueOrDefault(id) > DateTimeOffset.UtcNow.AddHours(-1)) continue;
+            try
             {
-                double value = price.AveragePrice ?? price.AdjustedPrice ?? 0;
-                if (value > 0)
-                    _state.TypePrices[price.TypeId] = value;
+                var type = await GetTypeAsync(id, cancellationToken);
+                var quote = await _market.EnsureQuoteAsync(type.Name, cancellationToken);
+                if (quote is { UsesCompressedMarket: true, JitaBestBuy: > 0 } && string.IsNullOrEmpty(quote.Error))
+                {
+                    _state.TypePrices[id] = quote.JitaBestBuy.Value;
+                    _state.PriceChecked[id] = new DateTimeOffset(quote.FetchedAtUtc, TimeSpan.Zero);
+                }
             }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
+            catch (Exception ex) { EsiDiagnostics.Write("Moon compressed quote deferred: " + ex.GetType().Name); }
         }
-        catch (Exception)
-        {
-            // Prices are optional presentation data. A temporary public market
-            // endpoint failure must not prevent schedules and ledgers loading.
-        }
+        RevalueLedger(_state);
     }
 
     private async Task ResolveLedgerNamesAsync(
@@ -1834,6 +1843,13 @@ public sealed class MoonReportService : IDisposable
         _state.CharacterNames ??= new();
         _state.CorporationNames ??= new();
         _state.TypePrices ??= new();
+        _state.PriceChecked ??= new();
+        if (_state.PriceBasis != CompressedPriceBasis)
+        {
+            _state.TypePrices.Clear(); _state.PriceChecked.Clear();
+            _state.PriceBasis = CompressedPriceBasis;
+            RevalueLedger(_state);
+        }
         foreach (MoonPullRecord pull in _state.Pulls.Values)
             pull.MinedM3ByOre ??= new(StringComparer.OrdinalIgnoreCase);
     }
@@ -1985,7 +2001,7 @@ public sealed class MoonReportService : IDisposable
             if (percentage <= 0 && mined <= 0)
                 return;
             int baseId = name switch { "Zeolites" => 45490, "Sylvite" => 45491, "Bitumens" => 45492, _ => 45493 };
-            var observed = pull?.MinedM3ByOre.Keys.FirstOrDefault(n => n.Contains(family, StringComparison.OrdinalIgnoreCase) && n.Contains("Glistening", StringComparison.OrdinalIgnoreCase));
+            var observed = pull?.MinedM3ByOre.Where(n => n.Key.Contains(family, StringComparison.OrdinalIgnoreCase)).OrderByDescending(n => n.Value).Select(n => n.Key).FirstOrDefault();
             int typeId = observed == null ? baseId : _state.TypeNames.FirstOrDefault(t => t.Value.Equals(observed, StringComparison.OrdinalIgnoreCase)).Key;
             if (typeId <= 0) typeId = baseId;
             double volume = _state.TypeVolumes.TryGetValue(typeId, out var unitVolume) && unitVolume > 0 ? unitVolume : 10;
