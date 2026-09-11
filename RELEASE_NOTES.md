@@ -1,4 +1,4 @@
-# EVE Command Center v2.4.2
+# EVE Command Center v2.4.3
 
 ## Update overview
 
