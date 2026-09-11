@@ -18,6 +18,7 @@ namespace EveCommandCenter.Views;
 
 public partial class PilotCommandCenterWindow : Window
 {
+    private readonly BackgroundPilotRefresh _backgroundPilots = BackgroundOperations.Current.Pilots;
     private readonly EveSsoService _sso = new();
     private readonly EveSkillCatalogService _skillCatalog = new();
     private CancellationTokenSource? _loadCts;
@@ -39,6 +40,8 @@ public partial class PilotCommandCenterWindow : Window
     {
         InitializeComponent();
         DataContext = this;
+        _backgroundPilots.Changed += ApplyBackgroundSummaries;
+        Closed += (_, _) => _backgroundPilots.Changed -= ApplyBackgroundSummaries;
         try { foreach (var item in System.Text.Json.JsonSerializer.Deserialize<Dictionary<long, EvePilotSummary>>(System.IO.File.ReadAllText(_summaryFile)) ?? new()) _summaryCache[item.Key] = item.Value; } catch { }
         Closed += (_, _) => _windowLife.Cancel();
 
@@ -52,6 +55,11 @@ public partial class PilotCommandCenterWindow : Window
         Closed += (_, _) => _loadCts?.Cancel();
     }
 
+    private void ApplyBackgroundSummaries()
+    {
+        foreach (var card in Pilots)
+            if (_backgroundPilots.Summaries.TryGetValue(card.CharacterId, out var summary)) card.Apply(summary);
+    }
     private async Task LoadPilotsAsync()
     {
         SetStatus("Loading connected pilots...");

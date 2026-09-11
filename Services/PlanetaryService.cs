@@ -15,7 +15,7 @@ public sealed class PlanetaryService
     private readonly string _file = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "EVE Command Center", "planetary.json");
     public PiState State { get; private set; }
     public bool Busy { get; private set; }
-    public string Status { get; private set; } = "Saved snapshots; refresh checks every 30 minutes.";
+    public string Status { get; private set; } = "Saved snapshots; refresh checks every 10 minutes.";
     public event Action? Changed;
     public PlanetaryService(EveSsoService sso)
     {
@@ -46,7 +46,7 @@ public sealed class PlanetaryService
     {
         if (Busy || DateTimeOffset.UtcNow < State.NextRefresh) return;
         Busy = true;
-        State.NextRefresh = DateTimeOffset.UtcNow.AddMinutes(30);
+        State.NextRefresh = DateTimeOffset.UtcNow.AddMinutes(10);
         try
         {
             var pilots = await _sso.LoadPilotsAsync();

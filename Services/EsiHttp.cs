@@ -31,6 +31,7 @@ public static class EsiHttp
             var response = new HttpResponseMessage(Status) { Content = new ByteArrayContent(Body) };
             foreach (var h in Headers) response.Headers.TryAddWithoutValidation(h.Key, h.Value);
             foreach (var h in ContentHeaders) response.Content.Headers.TryAddWithoutValidation(h.Key, h.Value);
+            response.Content.Headers.Expires = Until;
             return response;
         }
     }

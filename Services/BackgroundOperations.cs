@@ -18,6 +18,7 @@ public sealed class BackgroundOperations : IDisposable
     public ContractService Contracts { get; }
     public CorporationAccessService Access { get; }
     public PlanetaryService Planetary { get; }
+    public BackgroundPilotRefresh Pilots { get; }
     private PlanetaryWindow? _planetaryWindow;
     private DateTimeOffset _nextAccess;
     private readonly CancellationTokenSource _lifetime = new();
@@ -27,6 +28,8 @@ public sealed class BackgroundOperations : IDisposable
     private DateTimeOffset _nextMoon, _nextContracts;
     private bool _busy;
     private bool _moonBusy;
+    private bool _contractBusy;
+    private bool _accessBusy;
     private MoonReportWindow? _moonWindow;
     private ContractsWindow? _contractsWindow;
     public string? MoonError { get; private set; }
@@ -38,6 +41,7 @@ public sealed class BackgroundOperations : IDisposable
         Contracts = new ContractService(Sso);
         Access = new CorporationAccessService(Sso);
         Planetary = new PlanetaryService(Sso);
+        Pilots = new BackgroundPilotRefresh(Sso);
         if (!Access.State.SetupCompleted)
         {
             Access.State.MoonCharacterId = Moons.SelectedCharacterId;
@@ -66,35 +70,44 @@ public sealed class BackgroundOperations : IDisposable
         try
         {
             _ = Planetary.RefreshAsync(_lifetime.Token);
+            _ = Pilots.RefreshAsync(_lifetime.Token);
             var pilots = await Sso.LoadPilotsAsync();
             var now = DateTimeOffset.UtcNow;
-            if (now >= _nextAccess)
+            if (now >= _nextAccess && !_accessBusy)
             {
                 _nextAccess = now.AddMinutes(10);
-                await Access.ValidateAsync(pilots, _lifetime.Token);
+                _ = RefreshAccessAsync(pilots);
             }
-            var refreshes = new List<Task>();
+
             if (now >= _nextMoon && !_moonBusy)
             {
-                _nextMoon = now.AddMinutes(61);
+                _nextMoon = now.AddMinutes(1);
                 var pilot = pilots.FirstOrDefault(p => p.CharacterId == Moons.SelectedCharacterId);
                 if (pilot != null && Access.CanReadMoons && pilot.CharacterId == Access.State.MoonCharacterId)
                     _ = RefreshMoonsAsync(pilot, now);
             }
-            if (now >= _nextContracts)
+            if (now >= _nextContracts && !_contractBusy)
             {
-                _nextContracts = now.AddMinutes(30);
+                _nextContracts = now.AddMinutes(5);
                 var pilot = pilots.FirstOrDefault(p => p.CharacterId == Contracts.State.CharacterId);
                 if (pilot != null && Access.CanReadContracts && pilot.CharacterId == Access.State.ContractCharacterId)
-                    refreshes.Add(RefreshContractsAsync(pilot, now));
+                    _ = RefreshContractsAsync(pilot, now);
             }
-            await Task.WhenAll(refreshes);
+
         }
         catch (OperationCanceledException) { }
         catch (Exception ex) { System.Diagnostics.Debug.WriteLine("[Operations] " + ex.Message); }
         finally { _busy = false; }
     }
 
+    private async Task RefreshAccessAsync(IReadOnlyList<EvePilotProfile> pilots)
+    {
+        _accessBusy = true;
+        try { bool moons = Access.CanReadMoons, contracts = Access.CanReadContracts; await Access.ValidateAsync(pilots, _lifetime.Token); if (moons != Access.CanReadMoons || contracts != Access.CanReadContracts) ScheduleRefresh(); }
+        catch (OperationCanceledException) { }
+        catch (Exception ex) { EsiDiagnostics.Write("Access refresh failed: " + ex.GetType().Name); }
+        finally { _accessBusy = false; }
+    }
     private async Task RefreshMoonsAsync(EvePilotProfile pilot, DateTimeOffset now)
     {
         _moonBusy = true;
@@ -105,15 +118,18 @@ public sealed class BackgroundOperations : IDisposable
     }
     private async Task RefreshContractsAsync(EvePilotProfile pilot, DateTimeOffset now)
     {
-        try { await Contracts.RefreshAsync(pilot, _lifetime.Token); _nextContracts = Contracts.NextCheckUtc > now.AddMinutes(30) ? Contracts.NextCheckUtc : now.AddMinutes(30); }
-        catch (Exception ex) when (ex is not OperationCanceledException) { System.Diagnostics.Debug.WriteLine(ex.Message); _nextContracts = Contracts.NextCheckUtc > now.AddMinutes(30) ? Contracts.NextCheckUtc : now.AddMinutes(30); }
+        _contractBusy = true;
+        try { await Contracts.RefreshAsync(pilot, _lifetime.Token); _nextContracts = Contracts.NextCheckUtc > now.AddMinutes(5) ? Contracts.NextCheckUtc : now.AddMinutes(5); }
+        catch (OperationCanceledException) { }
+        catch (Exception ex) { System.Diagnostics.Debug.WriteLine(ex.Message); _nextContracts = Contracts.NextCheckUtc > now.AddMinutes(5) ? Contracts.NextCheckUtc : now.AddMinutes(5); }
+        finally { _contractBusy = false; }
     }
 
     private void MoonRefreshed()
     {
         if (!Access.CanReadMoons) return;
         CheckMoonEvents();
-        _nextMoon = DateTimeOffset.UtcNow.AddMinutes(61);
+        _nextMoon = Moons.NextRefreshUtc;
         var prefix = Moons.SelectedCharacterId + ":";
         var keys = Moons.OperatingAlerts.Select(a => prefix + a.Key).ToHashSet();
         foreach (var key in _moonNotified.Keys.Where(k => k.StartsWith(prefix) && !keys.Contains(k)).ToArray()) _moonNotified.Remove(key);

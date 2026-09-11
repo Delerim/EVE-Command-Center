@@ -14,6 +14,7 @@ namespace EveCommandCenter.Views;
 
 public partial class MiningFleetOverviewWindow : Window
 {
+    private readonly BackgroundPilotRefresh _backgroundPilots = BackgroundOperations.Current.Pilots;
     private CloudBackupWindow? _cloudBackupWindow;
     private readonly CloudBackupCoordinator _cloudBackupCoordinator =
         CloudBackupCoordinator.Attach();
@@ -104,6 +105,7 @@ public partial class MiningFleetOverviewWindow : Window
             async (_, _) =>
                 await RefreshPilotIntelAsync();
         _pilotIntelTimer.Start();
+        _backgroundPilots.Changed += ApplyBackgroundPilotIntel;
 
         _plexMarketTimer = new DispatcherTimer
         {
@@ -130,6 +132,7 @@ public partial class MiningFleetOverviewWindow : Window
         {
             _timer.Stop();
             _pilotIntelTimer.Stop();
+            _backgroundPilots.Changed -= ApplyBackgroundPilotIntel;
             _plexMarketTimer.Stop();
             _prefs.FleetOverviewX = Left;
             _prefs.FleetOverviewY = Top;
@@ -307,8 +310,20 @@ public partial class MiningFleetOverviewWindow : Window
                 CultureInfo.InvariantCulture) +
             "M";
     }
+    private void ApplyBackgroundPilotIntel()
+    {
+        if (!Dispatcher.CheckAccess()) { Dispatcher.BeginInvoke(ApplyBackgroundPilotIntel); return; }
+        foreach (var intel in _backgroundPilots.Intel.Values)
+        {
+            if (!_pilotIntel.TryGetValue(intel.CharacterName, out var old) || intel.SyncedUtc > old.SyncedUtc)
+                _pilotIntel[intel.CharacterName] = intel;
+            _portraitUrls[intel.CharacterName] = $"https://images.evetech.net/characters/{intel.CharacterId}/portrait?size=64";
+        }
+        if (!IsMouseOver) RefreshCards();
+    }
     private async Task RefreshPilotIntelAsync()
     {
+        ApplyBackgroundPilotIntel();
         if (_pilotIntelRefreshBusy)
             return;
 

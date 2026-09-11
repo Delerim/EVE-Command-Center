@@ -80,7 +80,7 @@ public sealed class ContractService : IDisposable
             var character = await GetAsync($"/characters/{pilot.CharacterId}/", null, token);
             long corp = character.GetProperty("corporation_id").GetInt64();
             var corporation = await GetAsync($"/corporations/{corp}/", null, token);
-            NextCheckUtc = DateTimeOffset.UtcNow.AddMinutes(30);
+            NextCheckUtc = DateTimeOffset.UtcNow.AddMinutes(5);
             var contracts = await PagesAsync<CorporationContract>($"/corporations/{corp}/contracts/", access, token);
             await ResolveEntitiesAsync(contracts.SelectMany(c => new[] { c.IssuerId, c.AcceptorId }), token);
             var rows = new List<ContractRow>();
@@ -126,7 +126,7 @@ public sealed class ContractService : IDisposable
             if (State.NotificationsEnabled && fresh.Count > 0) NewContracts?.Invoke(fresh);
             if (State.NotificationsEnabled && accepted.Count > 0) AcceptedContracts?.Invoke(accepted);
         }
-        catch (Exception ex) { LastError = ex.Message; NextCheckUtc = NextCheckUtc > DateTimeOffset.UtcNow.AddMinutes(30) ? NextCheckUtc : DateTimeOffset.UtcNow.AddMinutes(30); Save(); throw; }
+        catch (Exception ex) { LastError = ex.Message; NextCheckUtc = NextCheckUtc > DateTimeOffset.UtcNow.AddMinutes(5) ? NextCheckUtc : DateTimeOffset.UtcNow.AddMinutes(5); Save(); throw; }
         finally { IsRefreshing = false; _gate.Release(); Changed?.Invoke(); }
     }
 

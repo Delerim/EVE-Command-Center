@@ -77,6 +77,9 @@ public sealed class MoonReportService : IDisposable
 
     public event Action? Refreshed;
 
+    private readonly Dictionary<string, DateTimeOffset> _pageExpiry = new();
+    public DateTimeOffset NextRefreshUtc { get; private set; }
+    public string LedgerFreshness => _state.LedgerCheckedUtc.Count == 0 ? "Ledger has not completed a check yet" : "Oldest ledger check: " + _state.LedgerCheckedUtc.Values.Min().ToLocalTime().ToString("dd MMM HH:mm") + ($" | {_state.LedgerFailures.Count} pending retries") + (LedgerWarning == null ? "" : " | " + LedgerWarning);
     public long SelectedCharacterId => _state.SelectedCharacterId;
 
     public static bool HasRequiredScopes(EvePilotProfile pilot)
@@ -184,7 +187,9 @@ public sealed class MoonReportService : IDisposable
                     "role to read corporation structure names.", ex);
             }
 
-            await UpdateFuelAsync(structures, corporationId, pilot, token, cancellationToken);
+            try { await UpdateFuelAsync(structures, corporationId, pilot, token, cancellationToken); }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
+            catch (Exception ex) { EsiDiagnostics.Write("Fuel refresh deferred: " + ex.GetType().Name); }
             var structureMap = structures.ToDictionary(
                 item => item.StructureId);
 
@@ -216,9 +221,18 @@ public sealed class MoonReportService : IDisposable
                 observers = new();
             }
 
+            if (LedgerWarning == null)
+            {
+                var currentIds = observers.Select(o => o.ObserverId).ToHashSet();
+                foreach (var id in _state.LedgerCheckedUtc.Keys.Where(id => !currentIds.Contains(id)).ToArray()) _state.LedgerCheckedUtc.Remove(id);
+                foreach (var id in _state.LedgerNextCheck.Keys.Where(id => !currentIds.Contains(id)).ToArray()) _state.LedgerNextCheck.Remove(id);
+                foreach (var id in _state.LedgerFailures.Keys.Where(id => !currentIds.Contains(id)).ToArray()) _state.LedgerFailures.Remove(id);
+            }
             int observerIndex = 0;
             progress?.Report("Refreshing moon ore market values...");
-            await UpdateMarketPricesAsync(cancellationToken);
+            try { await UpdateMarketPricesAsync(cancellationToken); }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
+            catch (Exception ex) { EsiDiagnostics.Write("Moon price refresh deferred: " + ex.GetType().Name); }
             foreach (EsiMiningObserver observer in observers)
             {
                 cancellationToken.ThrowIfCancellationRequested();
@@ -227,17 +241,26 @@ public sealed class MoonReportService : IDisposable
                     $"Reading mining ledger {observerIndex:N0} of " +
                     $"{observers.Count:N0}...");
 
-                List<EsiMiningLedgerEntry> ledger =
-                    await GetPagedAsync<EsiMiningLedgerEntry>(
-                        $"/corporation/{corporationId}/mining/observers/" +
-                        $"{observer.ObserverId}/",
-                        token,
-                        cancellationToken);
-
-                await ApplyLedgerAsync(
-                    observer.ObserverId,
-                    ledger,
-                    cancellationToken);
+                if (_state.LedgerNextCheck.GetValueOrDefault(observer.ObserverId) > DateTimeOffset.UtcNow) continue;
+                string path = $"/corporation/{corporationId}/mining/observers/{observer.ObserverId}/";
+                try
+                {
+                    var ledger = await GetPagedAsync<EsiMiningLedgerEntry>(path, token, cancellationToken);
+                    await ApplyLedgerAsync(observer.ObserverId, ledger, cancellationToken);
+                    _state.LedgerFailures.Remove(observer.ObserverId);
+                    _state.LedgerCheckedUtc[observer.ObserverId] = DateTimeOffset.UtcNow;
+                    _state.LedgerNextCheck[observer.ObserverId] = _pageExpiry.GetValueOrDefault(path, DateTimeOffset.UtcNow.AddHours(1));
+                    await SaveStateAsync();
+                }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
+                catch (Exception ex)
+                {
+                    _state.LedgerFailures[observer.ObserverId] = ex.GetType().Name;
+                    _state.LedgerNextCheck[observer.ObserverId] = DateTimeOffset.UtcNow.AddMinutes(5);
+                    LedgerWarning = "Some ledgers could not refresh; saved data retained, retry in 5 minutes or after ESI cooldown.";
+                    EsiDiagnostics.Write($"Ledger {observer.ObserverId} deferred: {ex.GetType().Name}");
+                    if (ex is EsiRequestException esi && (int)esi.StatusCode is 420 or 429) break;
+                }
             }
 
             progress?.Report("Resolving miner and corporation names...");
@@ -250,11 +273,16 @@ public sealed class MoonReportService : IDisposable
             _state.SelectedCharacterId = pilot.CharacterId;
             OperatingAlerts = MoonOperatingAlert.Evaluate(structures, extractions, DateTimeOffset.UtcNow);
             _state.LastRefreshUtc = DateTimeOffset.UtcNow;
+            var activeObservers = observers.Select(o => o.ObserverId).ToHashSet();
+            var deadline = _pageExpiry.Where(k => !k.Key.Contains("/observers/") || k.Key.EndsWith("/mining/observers/")).Select(k => k.Value)
+                .Concat(_state.LedgerNextCheck.Where(k => activeObservers.Contains(k.Key)).Select(k => k.Value)).DefaultIfEmpty(DateTimeOffset.UtcNow.AddMinutes(5)).Min();
+            NextRefreshUtc = deadline > DateTimeOffset.UtcNow.AddMinutes(1) ? deadline : DateTimeOffset.UtcNow.AddMinutes(1);
+
             await SaveStateAsync();
 
             progress?.Report(
                 $"Moon report updated at " +
-                $"{DateTime.Now:HH:mm:ss}.");
+                $"{DateTime.Now:HH:mm:ss}. {LedgerFreshness}");
             Refreshed?.Invoke();
             return BuildSnapshot(DateTimeOffset.UtcNow);
         }
@@ -1726,6 +1754,7 @@ public sealed class MoonReportService : IDisposable
         var result = new List<T>();
         int page = 1;
         int pages = 1;
+        DateTimeOffset? earliest = null;
 
         do
         {
@@ -1747,6 +1776,8 @@ public sealed class MoonReportService : IDisposable
                     $"ESI {path} failed: {(int)response.StatusCode} " +
                     response.ReasonPhrase + ". " + TrimBody(body));
 
+            var freshAt = response.Content.Headers.Expires ?? DateTimeOffset.UtcNow.Add(response.Headers.CacheControl?.MaxAge - (response.Headers.Age ?? TimeSpan.Zero) ?? TimeSpan.FromMinutes(30));
+            earliest = earliest == null || freshAt < earliest ? freshAt : earliest;
             List<T> items =
                 JsonSerializer.Deserialize<List<T>>(body, _json) ?? new();
             result.AddRange(items);
@@ -1762,6 +1793,7 @@ public sealed class MoonReportService : IDisposable
         }
         while (page <= pages);
 
+        _pageExpiry[path] = earliest ?? DateTimeOffset.UtcNow.AddMinutes(30);
         return result;
     }
 

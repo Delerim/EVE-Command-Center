@@ -6,6 +6,10 @@ namespace EveCommandCenter.Models;
 
 public sealed class MoonReportState
 {
+    public Dictionary<long, string> LedgerFailures { get; set; } = new();
+    public Dictionary<long, DateTimeOffset> LedgerNextCheck { get; set; } = new();
+    public Dictionary<long, DateTimeOffset> LedgerCheckedUtc { get; set; } = new();
+
     public long CycleAnchorStructureId { get; set; }
     public List<EsiCorporationStructure> Structures { get; set; } = new();
     public List<EveAssetItem> FuelAssets { get; set; } = new();

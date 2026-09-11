@@ -1,4 +1,4 @@
-using System.Net;
+﻿using System.Net;
 using System.Net.Http;
 using EveCommandCenter.Services;
 
@@ -28,6 +28,17 @@ internal static partial class Program
         authenticated.Headers.Authorization = new("Bearer", "different-reader");
         using var isolated = await client.SendAsync(authenticated);
         Check(fake.Calls == 2, "Authenticated data is isolated from another reader's cache");
+
+        var ageOnly = new EsiFake(_ => {
+            var r = new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("[]") };
+            r.Headers.CacheControl = new System.Net.Http.Headers.CacheControlHeaderValue { MaxAge=TimeSpan.FromHours(1) };
+            return r;
+        });
+        using var cacheClient = new HttpClient(new EsiHttp.Handler(new(), ageOnly));
+        using var fetched = await cacheClient.GetAsync("https://esi.evetech.net/latest/corporation/1/mining/observers/1/");
+        using var cacheOne = await cacheClient.GetAsync("https://esi.evetech.net/latest/corporation/1/mining/observers/1/");
+        using var cacheTwo = await cacheClient.GetAsync("https://esi.evetech.net/latest/corporation/1/mining/observers/1/");
+        Check(cacheOne.Content.Headers.Expires.HasValue && cacheOne.Content.Headers.Expires == cacheTwo.Content.Headers.Expires && ageOnly.Calls == 1, "Cache hits preserve an absolute ledger expiry instead of postponing freshness");
 
         var throttle = new EsiFake(_ => {
             var r = new HttpResponseMessage((HttpStatusCode)429) { Content = new StringContent("limited") };

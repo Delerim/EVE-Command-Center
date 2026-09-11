@@ -365,7 +365,7 @@ internal static partial class Program
         await service.RefreshAsync(pilot, CancellationToken.None, respectCooldown: false);
         Check(service.State.Rows.Count == 2 && handler.ContractPages == 2, "ESI pagination loads all outstanding contracts");
         Check(notifications == 0, "Refresh baseline does not flood notifications");
-        Check(service.NextCheckUtc > DateTimeOffset.UtcNow.AddMinutes(20), "Contract scheduling honors ESI cache expiry");
+        Check(service.NextCheckUtc > DateTimeOffset.UtcNow.AddMinutes(4), "Contract scheduling honors ESI cache expiry");
         int beforeCooldown = handler.ContractPages;
         await service.RefreshAsync(pilot, CancellationToken.None);
         Check(handler.ContractPages == beforeCooldown, "Manual refresh cannot bypass provider cooldown");
@@ -388,7 +388,7 @@ internal static partial class Program
         handler.Throttle = true;
         try { await service.RefreshAsync(pilot, CancellationToken.None, respectCooldown: false); throw new Exception("Expected throttle"); }
         catch (Exception ex) when (ex.Message.Contains("rate limiting")) { }
-        Check(service.NextCheckUtc > DateTimeOffset.UtcNow.AddMinutes(59), "Provider Retry-After extends the 30-minute interval");
+        Check(service.NextCheckUtc > DateTimeOffset.UtcNow.AddMinutes(59), "Provider Retry-After extends the five-minute interval");
         using var restored = new ContractService(new EveSsoService(), new HttpClient(new FakeEsi()), folder);
         Check(restored.NextCheckUtc == service.NextCheckUtc && restored.State.EntityNames[999] == "Example Miner", "Cooldown and resolved names survive restart");
         Check(restored.State.Rows.Count == 3 && restored.State.SeenByCorporation[42].Count == 3, "Snapshot and deduplication state persist");
