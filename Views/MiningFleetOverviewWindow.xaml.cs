@@ -34,6 +34,7 @@ public partial class MiningFleetOverviewWindow : Window
         _portraitUrls =
             new(StringComparer.OrdinalIgnoreCase);
 
+    private readonly string _intelCacheFile = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "EVE Command Center", "PilotData", "overview-intel-v2.json");
     private bool _pilotIntelRefreshBusy;
     private bool _plexMarketRefreshBusy;
 
@@ -74,6 +75,13 @@ public partial class MiningFleetOverviewWindow : Window
         Width = Math.Max(MinWidth, prefs.FleetOverviewWidth);
         Height = Math.Max(MinHeight, prefs.FleetOverviewHeight);
 
+        try
+        {
+            if (System.IO.File.Exists(_intelCacheFile))
+                foreach (var intel in System.Text.Json.JsonSerializer.Deserialize<List<EveMiningShipIntel>>(System.IO.File.ReadAllText(_intelCacheFile)) ?? new())
+                    if (intel.SyncedUtc > DateTimeOffset.UtcNow.AddDays(-7)) _pilotIntel[intel.CharacterName] = intel;
+        }
+        catch (Exception ex) { System.Diagnostics.Debug.WriteLine("[Overview cache] " + ex.Message); }
         ApplyResizeMode();
 
         _timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
@@ -316,31 +324,15 @@ public partial class MiningFleetOverviewWindow : Window
                     _tracker.GetMiningDashboardCharacters(),
                     StringComparer.OrdinalIgnoreCase);
 
-            try
-            {
-                IReadOnlyDictionary<string, long> ids =
-                    await _pilotSso.ResolveCharacterIdsAsync(
-                        wanted);
+            // Linked IDs are already known locally; portraits must not wait on ESI.
+            foreach (var profile in profiles)
+                _portraitUrls[profile.CharacterName] = $"https://images.evetech.net/characters/{profile.CharacterId}/portrait?size=64";
+            foreach (var name in _pilotIntel.Keys.Where(n => !profiles.Any(p => p.CharacterName.Equals(n, StringComparison.OrdinalIgnoreCase))).ToArray())
+                _pilotIntel.Remove(name);
+            RefreshCards();
+            var portraitTask = ResolveMissingPortraitsAsync(wanted.Where(n => !_portraitUrls.ContainsKey(n)).ToArray());
 
-                _portraitUrls.Clear();
-
-                foreach (KeyValuePair<string, long> entry in ids)
-                {
-                    _portraitUrls[entry.Key] =
-                        "https://images.evetech.net/characters/" +
-                        entry.Value.ToString(
-                            CultureInfo.InvariantCulture) +
-                        "/portrait?size=64";
-                }
-            }
-            catch
-            {
-                // Portraits are cosmetic. Never block miner tracking if the
-                // public universe name resolver is temporarily unavailable.
-            }
-
-            var gate =
-                new SemaphoreSlim(2);
+            using var gate = new SemaphoreSlim(2);
 
             var tasks =
                 profiles
@@ -348,6 +340,7 @@ public partial class MiningFleetOverviewWindow : Window
                         profile =>
                             wanted.Contains(
                                 profile.CharacterName))
+                    .OrderByDescending(profile => _prefs.OrcaShieldBoostModes.ContainsKey(profile.CharacterName))
                     .Select(
                         async profile =>
                         {
@@ -355,9 +348,18 @@ public partial class MiningFleetOverviewWindow : Window
 
                             try
                             {
-                                return await _pilotSso
-                                    .GetMiningShipIntelAsync(
-                                        profile);
+                                var intel = await _pilotSso.GetMiningShipIntelAsync(profile, shipIdentified: ship =>
+                                {
+                                    if (!_pilotIntel.TryGetValue(profile.CharacterName, out var cached) || cached.CurrentShip.ShipItemId != ship.ShipItemId)
+                                        _pilotIntel[profile.CharacterName] = new EveMiningShipIntel { CharacterId=profile.CharacterId, CharacterName=profile.CharacterName, CurrentShip=ship };
+                                    if (!IsMouseOver) RefreshCards();
+                                });
+                                if (!_pilotIntel.TryGetValue(intel.CharacterName, out var previous) ||
+                                    previous.CurrentShip.ShipItemId != intel.CurrentShip.ShipItemId ||
+                                    intel.Defense.Available || !previous.Defense.Available)
+                                    _pilotIntel[intel.CharacterName] = intel;
+                                if (!IsMouseOver) RefreshCards();
+                                return intel;
                             }
                             catch
                             {
@@ -370,22 +372,12 @@ public partial class MiningFleetOverviewWindow : Window
                         })
                     .ToArray();
 
-            EveMiningShipIntel?[] resolved =
-                await Task.WhenAll(tasks);
+            await Task.WhenAll(tasks);
 
-            _pilotIntel.Clear();
-
-            foreach (EveMiningShipIntel? intel
-                     in resolved)
-            {
-                if (intel == null ||
-                    string.IsNullOrWhiteSpace(
-                        intel.CharacterName))
-                    continue;
-
-                _pilotIntel[intel.CharacterName] =
-                    intel;
-            }
+            // Retain successful data when one pilot fails or ESI is slow.
+            try { await System.IO.File.WriteAllTextAsync(_intelCacheFile, System.Text.Json.JsonSerializer.Serialize(_pilotIntel.Values)); }
+            catch (Exception ex) { System.Diagnostics.Debug.WriteLine("[Overview cache] " + ex.Message); }
+            await portraitTask;
 
             if (!IsMouseOver)
                 RefreshCards();
@@ -394,6 +386,17 @@ public partial class MiningFleetOverviewWindow : Window
         {
             _pilotIntelRefreshBusy = false;
         }
+    }
+
+    private async Task ResolveMissingPortraitsAsync(string[] names)
+    {
+        if (names.Length == 0) return;
+        try
+        {
+            foreach (var pair in await _pilotSso.ResolveCharacterIdsAsync(names))
+                _portraitUrls[pair.Key] = $"https://images.evetech.net/characters/{pair.Value}/portrait?size=64";
+        }
+        catch { /* Cosmetic lookup cannot prevent fitting data from loading. */ }
     }
 
     private void RefreshCards()
@@ -419,7 +422,7 @@ public partial class MiningFleetOverviewWindow : Window
                 fleetShieldExtension =
                     Math.Max(
                         fleetShieldExtension,
-                        ManualOrcaShieldBoostPercent);
+                        pair.Value.ShieldBoost.ExtensionPercent > 0 ? pair.Value.ShieldBoost.ExtensionPercent : ManualOrcaShieldBoostPercent);
             }
 
             if (mode is "HARM" or "BOTH")
@@ -427,13 +430,13 @@ public partial class MiningFleetOverviewWindow : Window
                 fleetShieldHarmonizing =
                     Math.Max(
                         fleetShieldHarmonizing,
-                        ManualOrcaShieldBoostPercent);
+                        pair.Value.ShieldBoost.HarmonizingPercent > 0 ? pair.Value.ShieldBoost.HarmonizingPercent : ManualOrcaShieldBoostPercent);
             }
 
             if (mode != "OFF")
             {
                 fleetBoostSource =
-                    $"{pair.Key}: manual {mode} boost";
+                    $"{pair.Key}: manual {mode} enabled | " + (pair.Value.ShieldBoost.Configured ? pair.Value.ShieldBoost.SourceText : "fallback assumed 19.7%; burst fit not resolved");
             }
         }
         foreach (var character in _tracker.GetMiningDashboardCharacters())
@@ -728,16 +731,16 @@ public partial class MiningFleetOverviewWindow : Window
                 ShipText =
                     string.IsNullOrWhiteSpace(
                         shipIntel?.CurrentShip.TypeName)
-                        ? "Ship: reconnect/sync"
+                        ? (_pilotIntelRefreshBusy ? "Ship: syncing..." : "Ship: not synced")
                         : "Ship: " +
                           shipIntel.CurrentShip.TypeName,
                 ShipToolTip =
                     shipIntel == null
                         ? "Connect this character in Pilot Command Center to sync ship and fitting data."
-                        : shipIntel.CurrentShip.DisplayName +
+                        : shipIntel.CurrentShip.DisplayName + (shipIntel.SyncedUtc == default ? "\nFitting data is syncing..." : $"\nLast successful sync: {shipIntel.SyncedUtc.ToLocalTime():dd MMM HH:mm} (cached while refreshing)") +
                           (shipIntel.AssetsAvailable
                               ? $"{Environment.NewLine}Asset/fitting access available."
-                              : $"{Environment.NewLine}Reconnect for asset access to identify fitted mining lasers."),
+                              : shipIntel.SyncedUtc == default ? "" : $"{Environment.NewLine}Reconnect for asset access to identify fitted mining lasers."),
                 Ore = string.IsNullOrWhiteSpace(s.CurrentOre) ? "-" : s.CurrentOre,
                 BaseText =
                     $"{Math.Max(0, displayBaseRate).ToString("N1", CultureInfo.CurrentCulture)} m3/s",
@@ -794,7 +797,7 @@ public partial class MiningFleetOverviewWindow : Window
                             .ApplyShieldCommandBoost(
                                 fleetShieldExtension,
                                 fleetShieldHarmonizing)
-                            .ToolTip +
+                            .ToolTip + $"\nFit snapshot: {shipIntel.SyncedUtc.ToLocalTime():dd MMM yyyy HH:mm}. Last successful data is retained while refreshing.\n" +
                           (
                               fleetShieldExtension > 0 ||
                               fleetShieldHarmonizing > 0
@@ -803,23 +806,23 @@ public partial class MiningFleetOverviewWindow : Window
                                     fleetBoostSource
                                   : ""
                           )
-                        : "Connect this pilot with asset access to calculate fit EHP.",
+                        : _pilotIntelRefreshBusy ? "Fitting data is syncing; EHP will appear as this pilot finishes loading." : "Fit EHP unavailable. Check the pilot link and asset access.",
                 IsDroneMining = isOrca,
                 BoostMode = orcaBoostMode,
                 BoostButtonText =
                     orcaBoostMode switch
                     {
-                        "HARM" => "RES 19.7",
-                        "EXT" => "HP 19.7",
-                        "BOTH" => "BOTH 19.7",
+                        "HARM" => "RES",
+                        "EXT" => "HP",
+                        "BOTH" => "BOTH",
                         _ => "BOOST -"
                     },
                 BoostToolTip =
                     isOrca
                         ? "Manual live shield-command state.\n" +
-                          "Click cycles: OFF -> RES 19.7 -> HP 19.7 -> BOTH 19.7 -> OFF.\n\n" +
-                          "RES = Shield Harmonizing: 19.7% resonance reduction.\n" +
-                          "HP = Shield Extension: +19.7% shield capacity.\n" +
+                          "Click cycles: OFF -> RES -> HP -> BOTH -> OFF.\n\n" +
+                          "RES = Shield Harmonizing resistance boost.\n" +
+                          "HP = Shield Extension capacity boost; uses fitted burst and pilot skills when resolved, otherwise assumes 19.7%.\n" +
                           "This manual state is used for fleet EHP because ESI cannot confirm whether a burst is actually running/in range."
                         : "",
                 OreToolTip =

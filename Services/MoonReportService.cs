@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -18,6 +18,7 @@ namespace EveCommandCenter.Services;
 public sealed class MoonReportService : IDisposable
 {
     public const int SchemaVersion = 7;
+    public const string FuelAssetsScope = "esi-assets.read_corporation_assets.v1";
     public const string MiningScope =
         "esi-industry.read_corporation_mining.v1";
     public const string StructureScope =
@@ -182,6 +183,7 @@ public sealed class MoonReportService : IDisposable
                     "role to read corporation structure names.", ex);
             }
 
+            await UpdateFuelAsync(structures, corporationId, pilot, token, cancellationToken);
             var structureMap = structures.ToDictionary(
                 item => item.StructureId);
 
@@ -243,6 +245,7 @@ public sealed class MoonReportService : IDisposable
             RebuildPullMinedTotals();
 
             EvaluateExpiredFields(DateTimeOffset.UtcNow);
+            if (_state.CycleAnchorStructureId == 0) _state.CycleAnchorStructureId = MoonCycle.ChooseAnchor(_state.Pulls.Values);
             _state.SelectedCharacterId = pilot.CharacterId;
             OperatingAlerts = MoonOperatingAlert.Evaluate(structures, extractions, DateTimeOffset.UtcNow);
             _state.LastRefreshUtc = DateTimeOffset.UtcNow;
@@ -259,6 +262,45 @@ public sealed class MoonReportService : IDisposable
             _gate.Release();
         }
     }
+
+    private async Task UpdateFuelAsync(List<EsiCorporationStructure> structures, long corporationId, EvePilotProfile pilot, string token, CancellationToken ct)
+    {
+        _state.Structures = structures;
+        _state.FuelUpdatedUtc = DateTimeOffset.UtcNow;
+        foreach (int system in structures.Select(s => s.SystemId).Where(id => id > 0).Distinct()) await GetSystemNameAsync(system, ct);
+        if (!pilot.Scopes.Contains(FuelAssetsScope))
+        {
+            _state.FuelAssetsUpdatedUtc = null;
+            _state.FuelAssets.Clear();
+            _state.FuelQuantityStatus = "Expiry is available. Reauthorize the moon reader with corporation asset access for fuel quantities.";
+            return;
+        }
+        try
+        {
+            var assets = await GetPagedAsync<EveAssetItem>($"/corporations/{corporationId}/assets/", token, ct);
+            var fuel = assets.Where(a => a.LocationFlag == "StructureFuel").ToList();
+            foreach (var type in fuel.Select(a => a.TypeId).Distinct()) await GetTypeAsync(type, ct);
+            _state.FuelAssets = fuel;
+            _state.FuelAssetsUpdatedUtc = DateTimeOffset.UtcNow;
+            _state.FuelQuantityStatus = $"Fuel-bay quantities: {_state.FuelAssetsUpdatedUtc:dd MMM HH:mm} UTC. Alert threshold: 80 days.";
+        }
+        catch (EsiRequestException ex) when (ex.StatusCode == HttpStatusCode.Forbidden)
+        {
+            _state.FuelQuantityStatus = "ESI denied corporation asset access. Expiry remains available; quantities need an authorized reader.";
+            _state.FuelAssetsUpdatedUtc = null;
+            _state.FuelAssets.Clear();
+        }
+    }
+
+    private StationFuelRow[] BuildFuelRows(DateTimeOffset now) => _state.Structures.Select(s => new StationFuelRow
+    {
+        StructureId = s.StructureId, StructureName = string.IsNullOrWhiteSpace(s.Name) ? $"Structure {s.StructureId}" : s.Name,
+        SystemName = _state.SystemNames.GetValueOrDefault(s.SystemId, $"System {s.SystemId}"), TypeId = s.TypeId,
+        Expires = s.FuelExpires, Now = now,
+        Services = string.Join(", ", s.Services.Select(service => service.Name + " (" + service.State + ")")),
+        Quantity = _state.FuelAssetsUpdatedUtc == null ? "Access needed" :
+            string.Join(" | ", _state.FuelAssets.Where(a => a.LocationId == s.StructureId).GroupBy(a => a.TypeId).Select(g => $"{g.Sum(a => a.Quantity):N0} {_state.TypeNames.GetValueOrDefault(g.Key, "Type " + g.Key)}")) is { Length: > 0 } quantity ? quantity : "0 recorded",
+    }).OrderBy(s => s.Days ?? double.MaxValue).ThenBy(s => s.StructureName).ToArray();
 
     public async Task SaveProfileAsync(MoonProfile profile)
     {
@@ -866,6 +908,9 @@ public sealed class MoonReportService : IDisposable
 
         return new MoonReportSnapshot
         {
+            Cycle = MoonCycle.Build(_state, now, p => new[] { "zeolit", "sylvit", "bitumen", "coesite" }.Sum(f => ProfileFor(p).ProfileConfigured ? Remaining(p, ProfileFor(p), f) : 0)),
+            Fuel = BuildFuelRows(now),
+            FuelStatus = (_state.FuelUpdatedUtc is { } updated ? $"Expiry data: {updated:dd MMM HH:mm} UTC. " : "Refresh ESI to load fuel. ") + _state.FuelQuantityStatus,
             LastRefreshUtc = _state.LastRefreshUtc,
             GeneratedUtc = now,
             Cards = orderedCards,
@@ -895,6 +940,12 @@ public sealed class MoonReportService : IDisposable
         };
     }
 
+    private string StructureIcon(long id)
+    {
+        int type = _state.Structures.FirstOrDefault(s => s.StructureId == id)?.TypeId ?? 0;
+        return type > 0 ? $"https://images.evetech.net/types/{type}/icon?size=32" : "";
+    }
+
     private MoonCardView BuildCard(
         MoonProfile profile,
         MoonPullRecord? pull,
@@ -904,6 +955,7 @@ public sealed class MoonReportService : IDisposable
         {
             return new MoonCardView
             {
+                StructureImageUri = StructureIcon(profile.StructureId),
                 MoonId = profile.MoonId,
                 StructureId = profile.StructureId,
                 MoonName = First(profile.MoonName, $"Moon {profile.MoonId}"),
@@ -997,6 +1049,7 @@ public sealed class MoonReportService : IDisposable
 
         return new MoonCardView
         {
+            StructureImageUri = StructureIcon(profile.StructureId),
             PullId = pull.Id,
             Evidence = pull.Id.StartsWith("ledger-field:") ? "Inferred from extraction restart / ledger" : "Estimated fracture from extraction history | estimated field lifetime",
             MoonId = pull.MoonId,
@@ -1730,6 +1783,9 @@ public sealed class MoonReportService : IDisposable
         _state.PendingProfilesByMoonName ??=
             new(StringComparer.OrdinalIgnoreCase);
         _state.Pulls ??= new();
+        _state.Structures ??= new();
+        _state.FuelAssets ??= new();
+        if (_state.CycleAnchorStructureId == 0) _state.CycleAnchorStructureId = MoonCycle.ChooseAnchor(_state.Pulls.Values);
         _state.LedgerTotals ??= new();
         _state.LedgerHistory ??= new(StringComparer.OrdinalIgnoreCase);
         _state.DailyMinedM3 ??= new();

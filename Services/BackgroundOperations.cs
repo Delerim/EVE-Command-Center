@@ -117,9 +117,10 @@ public sealed class BackgroundOperations : IDisposable
             foreach (var alert in Moons.OperatingAlerts)
             {
                 var key = prefix + alert.Key;
-                if (_moonNotified.TryGetValue(key, out var last) && DateTimeOffset.UtcNow - last < TimeSpan.FromHours(6)) continue;
+                bool fuel = alert.Key == "fuel:all";
+                if (_moonNotified.TryGetValue(key, out var last) && DateTimeOffset.UtcNow - last < TimeSpan.FromHours(fuel ? 24 : 6)) continue;
                 _moonNotified[key] = DateTimeOffset.UtcNow;
-                OperatingToast.Notify(alert.StructureName, alert.Message, () => OpenMoons(alert.StructureName));
+                OperatingToast.Notify(alert.StructureName, alert.Message, () => { if (fuel) OpenFuel(); else OpenMoons(alert.StructureName); }, fuel ? "STATION FUEL" : "MOON ALERT");
             }
         try { File.WriteAllText(_file, JsonSerializer.Serialize(_moonNotified)); }
         catch (Exception ex) { System.Diagnostics.Debug.WriteLine(ex.Message); }
@@ -175,6 +176,11 @@ public sealed class BackgroundOperations : IDisposable
         if (_moonWindow.WindowState == WindowState.Minimized) _moonWindow.WindowState = WindowState.Normal;
         _moonWindow.Activate();
         if (search != null) _moonWindow.FocusStructure(search);
+    }
+    public void OpenFuel()
+    {
+        OpenMoons();
+        _moonWindow?.FocusFuel();
     }
     public void OpenContracts(ContractRow? row = null)
     {

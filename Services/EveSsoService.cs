@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -355,12 +355,15 @@ public sealed class EveSsoService
 
     public async Task<EveMiningShipIntel> GetMiningShipIntelAsync(
         EvePilotProfile pilot,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        Action<EveCurrentShipView>? shipIdentified = null)
     {
         EveCurrentShipView ship =
             await GetCurrentShipIdentityAsync(
                 pilot,
                 cancellationToken);
+
+        shipIdentified?.Invoke(ship);
 
         bool canReadAssets =
             HasScope(
@@ -372,6 +375,7 @@ public sealed class EveSsoService
         {
             return new EveMiningShipIntel
             {
+                SyncedUtc = DateTimeOffset.UtcNow,
                 CharacterId = pilot.CharacterId,
                 CharacterName = pilot.CharacterName,
                 CurrentShip = ship,
@@ -567,6 +571,7 @@ public sealed class EveSsoService
 
         return new EveMiningShipIntel
         {
+            SyncedUtc = DateTimeOffset.UtcNow,
             CharacterId = pilot.CharacterId,
             CharacterName = pilot.CharacterName,
             CurrentShip = ship,
@@ -3080,6 +3085,7 @@ public sealed class EveSsoService
                 armorAverage,
             StructureAverageResonance =
                 structureAverage,
+            ShieldResonances = shieldResonance.ToArray(),
             ShieldResonanceBeforeModules = shieldBeforeModules,
             ShieldModuleBonuses = shieldPercentBonuses.Select(b => b.ToArray()).ToArray(),
             ShieldEhp = shieldEhp,
@@ -3337,56 +3343,8 @@ public sealed class EveSsoService
             0.01,
             1.0);
 
-    private static double ApplyStackedResistanceBonuses(
-        double baseResonance,
-        IReadOnlyList<double> bonuses)
-    {
-        if (bonuses.Count == 0)
-            return ClampResonance(baseResonance);
-
-        double[] penalties =
-        {
-            1.0,
-            0.86911998,
-            0.57058314,
-            0.28295515,
-            0.10599265,
-            0.02999117
-        };
-
-        double result =
-            ClampResonance(baseResonance);
-
-        double[] strongestFirst =
-            bonuses
-                .Where(value => value < 0)
-                .OrderBy(value => value)
-                .ToArray();
-
-        for (int i = 0;
-             i < strongestFirst.Length &&
-             i < penalties.Length;
-             i++)
-        {
-            double strength =
-                Math.Abs(
-                    strongestFirst[i]) /
-                100.0;
-
-            double multiplier =
-                1.0 -
-                strength *
-                penalties[i];
-
-            result *=
-                Math.Clamp(
-                    multiplier,
-                    0.01,
-                    1.0);
-        }
-
-        return ClampResonance(result);
-    }
+    private static double ApplyStackedResistanceBonuses(double baseResonance, IReadOnlyList<double> bonuses)
+        => EveFitDefenseStats.StackedResonance(baseResonance, bonuses);
     private static bool IsMiningLaserType(
         EveUniverseType type)
     {

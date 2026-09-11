@@ -9,7 +9,7 @@ using EveCommandCenter.Models;
 using EveCommandCenter.Services;
 using EveCommandCenter.Views;
 
-internal static class Program
+internal static partial class Program
 {
     private static int _checks;
     private static void Check(bool passed, string name)
@@ -42,6 +42,8 @@ internal static class Program
         CheckMoonAlerts();
         CheckContractHistory();
         CheckFitStacking();
+        CheckSaberlashFit().GetAwaiter().GetResult();
+        CheckCycleAndFuel();
         CheckAccessAsync().GetAwaiter().GetResult();
         var moonSnapshot = CheckMoonRecovery();
         using var appraisal = JsonDocument.Parse("{\"pricerMarket\":{\"name\":\"Jita 4-4\"},\"immediatePrices\":{\"totalBuyPrice\":1000}}");
@@ -139,6 +141,13 @@ internal static class Program
         Check(((DataGrid)moonWindow.FindName("OverviewFields")).Items.Count == 2, "System selector filters active fields");
         ((ComboBox)moonWindow.FindName("OverviewSystem")).SelectedItem = "All systems";
         if (args.Length > 0) Render(moonWindow, System.IO.Path.ChangeExtension(args[0], ".moons.png"));
+        if (args.Length > 0)
+        {
+            var fuelWindow = new MoonReportWindow(); BackgroundOperations.Stop();
+            typeof(MoonReportWindow).GetMethod("ApplySnapshot", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!.Invoke(fuelWindow, new object[]{moonSnapshot});
+            fuelWindow.FocusFuel();
+            Render(fuelWindow, System.IO.Path.ChangeExtension(args[0], ".fuel.png"));
+        }
         var toast = new OperatingToast("Mazitah - Example Moon", "Glistening ore confirmed in the mining ledger. Open the moon overview to inspect the field.", () => {}, "GLISTENING MOON DETECTED");
         if (args.Length > 0) Render(toast, System.IO.Path.ChangeExtension(args[0], ".toast.png"));
         var appMarkup = System.Xml.Linq.XDocument.Load("App.xaml");
@@ -217,18 +226,27 @@ internal static class Program
         {
             string system = i <= 2 ? "Mazitah" : "Joppaya";
             state.TypePrices[45490] = 1000; state.TypePrices[45491] = 500;
+            state.Structures.Add(new EsiCorporationStructure { StructureId=i, TypeId=35835, Name=system+" - Refinery "+i, SystemId=i, FuelExpires=i==4?null:now.AddDays(i==1?12:i==2?65:110), Services=new(){new(){Name="Moon Drilling",State="online"}} });
+            state.SystemNames[i]=system;
+            state.FuelUpdatedUtc=now; state.FuelAssetsUpdatedUtc=now;
+            state.FuelQuantityStatus="Fuel bay quantities shown from ESI snapshot. Alert threshold: 80 days.";
+            state.TypeNames[4051]="Nitrogen Fuel Block";
+            state.FuelAssets.Add(new EveAssetItem{LocationId=i,LocationFlag="StructureFuel",TypeId=4051,Quantity=1000*i});
             state.Profiles[i] = new MoonProfile { MoonId = i, StructureId = i, MoonName = system + " Moon " + i, StructureName = system + " - Refinery " + i, SystemName = system, ProfileConfigured = true, ZeolitesPercent = 50, SylvitePercent = 50, FieldLifetimeHours = 48 };
             state.Pulls["next" + i] = new MoonPullRecord { Id = "next" + i, MoonId = i, StructureId = i, MoonName = system + " Moon " + i, StructureName = system + " - Refinery " + i, SystemName = system, ExtractionStartUtc = now.AddHours(-12), ChunkArrivalUtc = now.AddDays(50), NaturalDecayUtc = now.AddDays(50).AddHours(3), SeenInLatestExtractionList = true };
         }
         // Two fields must be recovered without any ledger activity. One observed and one formerly misclassified natural fracture.
         state.Pulls["old3"] = new MoonPullRecord { Id = "old3", MoonId = 3, StructureId = 3, ExtractionStartUtc = now.AddDays(-54), ChunkArrivalUtc = now.AddHours(-14), NaturalDecayUtc = now.AddHours(-11), FracturedUtc = now.AddHours(-12), EstimatedFieldExpiryUtc = now.AddHours(36) };
         state.Pulls["old4"] = new MoonPullRecord { Id = "old4", MoonId = 4, StructureId = 4, ExtractionStartUtc = now.AddDays(-54), ChunkArrivalUtc = now.AddHours(-15), NaturalDecayUtc = now.AddHours(-12), OutcomeUnobserved = true, ExpiredUtc = now.AddHours(-10) };
+        state.Pulls["anchor"] = new MoonPullRecord { Id="anchor",StructureId=99,MoonId=99,StructureName="Raren - Jean-Luc Peckard",SystemName="Raren",FracturedUtc=now.AddDays(-5),ChunkArrivalUtc=now.AddDays(-5),ExpiredUtc=now.AddDays(-3),OutcomeUnobserved=true };
         var file = System.IO.Path.Combine(directory, "moon-report.json");
         System.IO.File.WriteAllText(file, JsonSerializer.Serialize(state));
         try
         {
             using var service = new MoonReportService(new EveSsoService(), directory);
             var snapshot = service.GetSnapshot();
+            Check(snapshot.Fuel.Count==4 && snapshot.Fuel.Single(s=>s.StructureId==2).Quantity.Contains("2,000"), "Fuel snapshot joins bay quantities to the correct structure");
+            Check(snapshot.CalendarCards.Where(c=>c.StructureId is >=1 and <=4).All(c=>c.StructureImageUri.Contains("35835")), "Moon icons use actual structure type IDs");
             var fields = snapshot.Cards.Where(c => c.MoonId is >= 1 and <= 4 && c.Status == "FIELD ACTIVE").ToArray();
             Check(fields.Length == 4, "Four active fields survive new extraction and missing mining activity");
             Check(fields.All(c => c.RemainingTotalM3 > 0), "Recovered fields retain ore estimates without ledger activity");
@@ -360,6 +378,11 @@ internal static class Program
         root.Measure(new Size(width, height)); root.Arrange(new Rect(0, 0, width, height)); root.UpdateLayout();
         System.Windows.Threading.Dispatcher.CurrentDispatcher.Invoke(() => {}, System.Windows.Threading.DispatcherPriority.ContextIdle);
         root.UpdateLayout();
+        var frame = new System.Windows.Threading.DispatcherFrame();
+        var until = DateTime.UtcNow.AddSeconds(2);
+        var timer = new System.Windows.Threading.DispatcherTimer { Interval=TimeSpan.FromMilliseconds(100) };
+        timer.Tick += (_,_) => { if (DateTime.UtcNow >= until) { timer.Stop(); frame.Continue=false; } };
+        timer.Start(); System.Windows.Threading.Dispatcher.PushFrame(frame);
         var bitmap = new RenderTargetBitmap(width, height, 96, 96, PixelFormats.Pbgra32);
         var backdrop = new DrawingVisual();
         using (var context = backdrop.RenderOpen()) context.DrawRectangle(new SolidColorBrush(Color.FromRgb(7, 24, 27)), null, new Rect(0, 0, width, height));

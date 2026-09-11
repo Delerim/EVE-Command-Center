@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Text.Json.Serialization;
 
@@ -214,6 +214,10 @@ public sealed class EveShieldCommandBoostProfile
 }
 public sealed class EveFitDefenseStats
 {
+    public double[] ShieldResonances { get; init; } = Array.Empty<double>();
+    public string ShieldResistanceText => ShieldResonances.Length == 4
+        ? $"Shield resists EM/TH/KI/EX: {1-ShieldResonances[0]:P2} / {1-ShieldResonances[3]:P2} / {1-ShieldResonances[2]:P2} / {1-ShieldResonances[1]:P2}\n"
+        : "";
     public double[] ShieldResonanceBeforeModules { get; init; } = Array.Empty<double>();
     public double[][] ShieldModuleBonuses { get; init; } = Array.Empty<double[]>();
     public bool Available { get; init; }
@@ -242,7 +246,7 @@ public sealed class EveFitDefenseStats
             : $"Fit EHP estimate: {OmniEhp:N0}\n" +
               $"Shield: {ShieldHp:N0} HP / {ShieldEhp:N0} EHP\n" +
               $"Armor: {ArmorHp:N0} HP / {ArmorEhp:N0} EHP\n" +
-              $"Structure: {StructureHp:N0} HP / {StructureEhp:N0} EHP\n\n" +
+              $"Structure: {StructureHp:N0} HP / {StructureEhp:N0} EHP\n" + ShieldResistanceText + "\n" +
               (
                   AppliedTankEffects.Count > 0
                       ? "Applied fit effects:\n- " +
@@ -276,10 +280,13 @@ public sealed class EveFitDefenseStats
                 0.01,
                 1.0);
 
+        var boostedResonances = ShieldResonances;
         if (ShieldResonanceBeforeModules.Length == 4 && ShieldModuleBonuses.Length == 4)
-            boostedShieldResonance = Enumerable.Range(0, 4).Average(i =>
-                StackedResonance(ShieldResonanceBeforeModules[i],
-                    ShieldModuleBonuses[i].Concat(harmonizingPercent > 0 ? new[] { -harmonizingPercent } : Array.Empty<double>())));
+        {
+            boostedResonances = Enumerable.Range(0, 4).Select(i => StackedResonance(ShieldResonanceBeforeModules[i],
+                ShieldModuleBonuses[i].Concat(harmonizingPercent > 0 ? new[] { -harmonizingPercent } : Array.Empty<double>()))).ToArray();
+            boostedShieldResonance = boostedResonances.Average();
+        }
 
         double boostedShieldEhp =
             boostedShieldHp /
@@ -288,6 +295,7 @@ public sealed class EveFitDefenseStats
         return new EveFitDefenseStats
         {
             Available = true,
+            ShieldResonances = boostedResonances,
             ShieldResonanceBeforeModules = ShieldResonanceBeforeModules,
             ShieldModuleBonuses = ShieldModuleBonuses,
             ShieldHp = boostedShieldHp,
@@ -328,7 +336,7 @@ public sealed class EveFitDefenseStats
         int index = 0;
         foreach (double bonus in bonuses.Where(b => b < 0).OrderBy(b => b))
         {
-            double penalty = Math.Exp(-Math.Pow(index++ / 2.22292081, 2));
+            double penalty = Math.Exp(-Math.Pow(index++ / 2.67, 2));
             result *= 1 - Math.Clamp(-bonus / 100, 0, 1) * penalty;
         }
         return Math.Clamp(result, 0.01, 1);
@@ -356,6 +364,7 @@ public sealed class EveInventorySnapshot
 
 public sealed class EveMiningShipIntel
 {
+    public DateTimeOffset SyncedUtc { get; init; }
     public long CharacterId { get; init; }
     public string CharacterName { get; init; } = "";
     public EveCurrentShipView CurrentShip { get; init; } = new();

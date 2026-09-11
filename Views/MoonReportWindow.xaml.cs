@@ -154,6 +154,8 @@ public partial class MoonReportWindow : Window
         if (!_closed) ApplySnapshot(_service.GetSnapshot());
     }
 
+    public void FocusFuel() => MoonTabs.SelectedItem = FuelTab;
+
     public void FocusStructure(string structure)
     {
         _filter = "ALL";
@@ -179,12 +181,16 @@ public partial class MoonReportWindow : Window
     private void ApplySnapshot(MoonReportSnapshot snapshot)
     {
         _snapshot = snapshot;
-        ScheduledText.Text = snapshot.ScheduledCount.ToString("N0");
+        CycleLabel.Text = snapshot.Cycle.Description;
+        ScheduledText.Text = snapshot.Cycle.Start.HasValue ? snapshot.Cycle.Fractured.ToString("N0") : "--";
         ActiveText.Text = $"{snapshot.ActiveFieldCount:N0} / {snapshot.ReadyCount:N0}";
-        MinedText.Text = MoonReportService.FormatM3(snapshot.TotalMinedM3);
-        LostText.Text = MoonReportService.FormatM3(snapshot.TotalLostM3);
-        JackpotText.Text = snapshot.JackpotCount.ToString("N0");
-        DespawnText.Text = snapshot.TargetDespawnCount.ToString("N0");
+        MinedText.Text = snapshot.Cycle.Start.HasValue ? MoonReportService.FormatM3(snapshot.Cycle.MinedM3) : "--";
+        LostText.Text = snapshot.Cycle.Start.HasValue ? MoonReportService.FormatM3(snapshot.Cycle.LostM3) : "--";
+        JackpotText.Text = snapshot.Cycle.Start.HasValue ? snapshot.Cycle.Jackpots.ToString("N0") : "--";
+        DespawnText.Text = snapshot.Cycle.Start.HasValue ? snapshot.Cycle.ExpiredWithOre.ToString("N0") : "--";
+        FuelGrid.ItemsSource = snapshot.Fuel;
+        FuelSummary.Text = $"{snapshot.Fuel.Count:N0} structures | {snapshot.Fuel.Count(s => s.NeedsFuel):N0} below 80 days | {snapshot.Fuel.Count(s => s.Days == null):N0} unknown";
+        FuelStatus.Text = snapshot.FuelStatus;
         AuditGrid.ItemsSource = snapshot.Audit;
         UpdatedText.Text = snapshot.LastRefreshUtc is not { } refreshed ? "No live refresh yet" :
             "ESI updated " + refreshed.ToLocalTime().ToString("dd MMM yyyy HH:mm:ss") +

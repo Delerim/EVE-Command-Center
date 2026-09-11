@@ -6,6 +6,12 @@ namespace EveCommandCenter.Models;
 
 public sealed class MoonReportState
 {
+    public long CycleAnchorStructureId { get; set; }
+    public List<EsiCorporationStructure> Structures { get; set; } = new();
+    public List<EveAssetItem> FuelAssets { get; set; } = new();
+    public DateTimeOffset? FuelUpdatedUtc { get; set; }
+    public DateTimeOffset? FuelAssetsUpdatedUtc { get; set; }
+    public string FuelQuantityStatus { get; set; } = "Reconnect the moon reader with corporation asset access to show fuel quantities.";
     public bool DesktopNotificationsEnabled { get; set; } = true;
     public long SelectedCharacterId { get; set; }
     public DateTimeOffset? LastRefreshUtc { get; set; }
@@ -90,6 +96,9 @@ public sealed class MoonLedgerRecord
 
 public sealed class MoonReportSnapshot
 {
+    public MoonCycleSummary Cycle { get; init; } = new();
+    public IReadOnlyList<StationFuelRow> Fuel { get; init; } = Array.Empty<StationFuelRow>();
+    public string FuelStatus { get; init; } = "Refresh ESI to load station fuel.";
     public DateTimeOffset? LastRefreshUtc { get; init; }
     public DateTimeOffset GeneratedUtc { get; init; }
     public IReadOnlyList<MoonCardView> Cards { get; init; } =
@@ -329,6 +338,8 @@ public sealed class EsiMoonExtraction
 
 public sealed class EsiCorporationStructure
 {
+    [JsonPropertyName("type_id")]
+    public int TypeId { get; set; }
     [JsonPropertyName("fuel_expires")]
     public DateTimeOffset? FuelExpires { get; set; }
 

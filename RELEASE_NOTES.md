@@ -1,28 +1,32 @@
-# EVE Command Center v2.8.0
+# EVE Command Center v2.9.0
 
-## Expanded moon overview
+## Fitting EHP correction
 
-- Select an active field or upcoming extraction to expand its ore breakdown, with small EVE icons, remaining volume and percentage bars, estimated value and ISK per hour.
-- Gold highlights the most valuable remaining ore per cubic metre. Adjust the assumed mining rate in the overview to compare income estimates.
-- Values use cached ESI average market prices, not guaranteed Jita sale prices. Remaining ore is estimated from saved composition, pull duration, mining ledger and waste; it is not a live asteroid scan.
-- Small miner portraits accompany the field ledger. Changing systems clears unrelated field details.
-- Summary tiles distinguish active fields, ready chunks and historical despawn audits instead of presenting historical estimates as fields currently in space.
+- Fixed the fleet resistance stacking formula. Capacity-only command bursts previously recalculated fitted resistance modules with overly strong penalties, lowering EHP.
+- Fit and fleet calculations now share one stacking implementation. Damage Control remains outside the normal resistance penalty group and applies only when fitted.
+- Use the Orca's calculated burst strength when available, retaining precision from its fit, skills and implants. Manual activation remains necessary because ESI cannot verify an active burst or its range; unresolved burst data uses an explicitly labelled 19.7% assumption.
+- Shield resistances by damage type and the fitting snapshot time are now visible in the EHP tooltip.
+- Regression fixture for Saberlash's supplied three-MLU Skiff reproduces approximately 122,833 EHP, including duplicate rigs, skills, MC-805 implant and the shield extension burst.
 
-## Preview settings
+## Overview startup
 
-- Added a clearly labelled Preview Settings button to the overview bar and settings hub.
-- Restyled the full settings window with Command Center's dark teal colours, rounded panels and matching buttons while retaining its existing controls and handlers.
-- Profile toolbar buttons wrap when space is limited.
+- Linked character portraits no longer wait for a public name lookup or the entire fleet's fitting requests.
+- Show each pilot as it loads; prioritize configured Orca boosters and display ship identity before finishing the fitting calculation so drone mode can appear earlier.
+- Retain successful fitting data during refresh errors and cache recent results across restarts. Tooltips identify the saved snapshot time. A ship change clears the previous ship's fitting data.
+- The first launch without saved fitting data still needs ESI to return it; syncing text replaces misleading reconnect prompts while requests are running.
 
-## Buyback history chart
+## Moon cycles and layout
 
-- Added a Buyback Report tab with week, month and year views, calendar selection, previous/next and today navigation.
-- Date input and the day/month/year calendar use the matching dark teal theme, with selected-day and today highlights.
-- Bars show accepted contract prices and counts, grouped by UTC acceptance date. Weeks start Monday.
-- Includes completed incoming item exchanges with Janice links for the selected corporation. Coverage depends on available ESI history and the local archive; missing history does not prove there was no activity.
+- Small structure icons use the actual ESI structure type in active fields, upcoming extractions and the fuel view.
+- Added drag dividers between active fields, the upcoming schedule and the field ledger. Table columns remain resizable.
+- Current-cycle counts start at the latest recorded fracture of the persistent first Raren anchor moon. The anchor is initially chosen from the earliest recorded Raren fracture, and the name/start date are displayed.
+- Fractured pulls, mined ore, estimated losses, observed jackpots and expired fields with ore left now refer to that cycle. Live fields/ready chunks are labelled separately. All historical records remain available.
+- Missing anchor history is shown explicitly rather than presenting all-time totals as a current cycle.
+- Matched the Buyback Report tab's inactive colour to the other contract tabs.
 
-## Provider request limits
+## Station fuel
 
-- Contract refreshes now wait at least 30 minutes and respect longer ESI cache expiry or provider Retry-After delays. Manual refresh and restarts preserve the cooldown.
-- Batch and persist issuer/acceptor name lookups instead of repeatedly probing character and corporation endpoints for every historical contract.
-- Saved contract data remains visible when a refresh fails. Notifications arrive when the next successful poll observes the change; they are no longer checked for fresh contract data every minute.
+- New Station Fuel tab shows structures, systems, fuel expiry, days remaining, status, reserve bars, services and fuel-bay quantities when permitted.
+- One combined low-fuel notification covers all structures below 80 days, with at most one reminder per day. Clicking it opens Station Fuel. Unknown expiry is not treated as an empty fuel bay.
+- Fuel expiry uses the existing corporation structure permission. Exact quantities require reauthorizing the moon reader with corporation asset scope and sufficient ESI permissions; the view explains missing access.
+- Fuel data is refreshed with the existing moon polling schedule. Contract polling remains at least 30 minutes with provider cooldowns respected.
