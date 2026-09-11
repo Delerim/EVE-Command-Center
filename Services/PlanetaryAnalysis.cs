@@ -70,7 +70,7 @@ public static class PlanetaryAnalysis
             foreach (var pin in pins)
             {
                 long id = (long)Num(pin, "pin_id"); var type = Type((int)Num(pin, "type_id"));
-                var row = new PiRow { Name = type.Name, Icon = type.Icon, Colony = colony, Detail = colony.Character + " | " + colony.Planet + " | pin " + id };
+                var row = new PiRow { IsFactory = type.Group == 1028, Name = type.Name, Icon = type.Icon, Colony = colony, Detail = colony.Character + " | " + colony.Planet + " | pin " + id };
                 if (pin.TryGetProperty("extractor_details", out var extractor))
                 {
                     extractors++;
@@ -136,14 +136,17 @@ public static class PlanetaryAnalysis
                     // Supply is a snapshot, not evidence that a factory is actively routed/running now.
                     double ageHours = Math.Max(0, (now - colony.LastUpdate).TotalHours);
                     double projected = double.IsFinite(hours) ? Math.Max(0, hours - ageHours) : 0;
-                    row.Name = recipe.Name; row.Status = !routed ? "CHECK ROUTES" : extractingFeed ? "WAITING FOR UPSTREAM PRODUCTION" : projected > 0 ? "SUPPLIED (EST.)" : "CHECK INPUTS";
-                    row.Color = routed && (extractingFeed || projected > 0) ? "#74D6C9" : "#FFD166";
+                    bool ran = Date(pin, "last_cycle_start").HasValue || recipe.Outputs.Keys.Any(product => stores.Values.Any(c => c.GetValueOrDefault(product) > 0));
+                    bool finishing = routed && Date(pin, "last_cycle_start") is {} started && started <= now && started.AddSeconds(recipe.Cycle) > now;
+                    bool collect = routed && !extractingFeed && !finishing && projected <= 0 && ran;
+                    row.Name = recipe.Name; row.Status = !routed ? "CHECK ROUTES" : extractingFeed ? "WAITING FOR UPSTREAM PRODUCTION" : projected > 0 ? "SUPPLIED (EST.)" : finishing ? "FINISHING CURRENT CYCLE" : collect ? "COLLECT / REFILL (EST.)" : "NOT STARTED / CHECK INPUTS";
+                    row.Color = collect ? "#80BFFF" : routed && (extractingFeed || finishing || projected > 0) ? "#74D6C9" : "#FFD166";
                     row.Quantity = string.Join(" + ", recipe.Inputs.Select(i => $"{i.Value:N0} {Type(i.Key).Name}"));
                     row.Rate = string.Join(" + ", recipe.Outputs.Select(i => $"{i.Value * 3600 / recipe.Cycle:N0} {Type(i.Key).Name}/h capacity"));
-                    row.Remaining = extractingFeed ? "Routed upstream supply; intermittent processing is normal" : Time(projected * 3600) + " input runway (est.)";
+                    row.Remaining = finishing ? "Finishing current cycle before collection" : collect ? "Input run complete; collect products and reload" : extractingFeed ? "Routed upstream supply; intermittent processing is normal" : Time(projected * 3600) + " input runway (est.)";
                     var last = Date(pin, "last_cycle_start");
-                    row.Next = projected > 0 && last.HasValue ? Time(recipe.Cycle - Math.Max(0, (now - last.Value).TotalSeconds) % recipe.Cycle) + " to cycle (est.)" : extractingFeed ? "Waiting for upstream cycle" : "Check in game";
-                    if (!routed || (!extractingFeed && projected <= 0)) attention++;
+                    row.Next = (projected > 0 || finishing) && last.HasValue ? Time(recipe.Cycle - Math.Max(0, (now - last.Value).TotalSeconds) % recipe.Cycle) + " to cycle (est.)" : extractingFeed ? "Waiting for upstream cycle" : "Check in game";
+                    if (!routed || (!extractingFeed && projected <= 0 && !collect && !finishing)) attention++;
                     if (!extractingFeed) nextAction = Math.Min(nextAction, projected * 3600);
                 }
                 else
@@ -176,9 +179,21 @@ public static class PlanetaryAnalysis
                 foreach (var input in inputs)
                     result.Refills.Add(new() { CharacterId = colony.CharacterId, PlanetId = colony.PlanetId, Colony = colony.Character + " | " + colony.Planet, Pin = id, TypeId = input.Key.type, Name = Type(input.Key.type).Name, Current = stores[id].GetValueOrDefault(input.Key.type), Target = Math.Floor(input.Value * fullHours) });
             }
+            var factoryRows = result.Pins.Where(r => ReferenceEquals(r.Colony, colony) && r.IsFactory).ToArray();
+            int collection = factoryRows.Count(r => r.Status.StartsWith("COLLECT"));
+            if (factoryRows.Length > 0)
+            {
+                var outputs = factories.Values.SelectMany(r => r.Outputs.Keys).Distinct().ToArray();
+                string products = string.Join(" | ", outputs.Select(product => $"{Type(product).Name}: {stores.Values.Sum(c => c.GetValueOrDefault(product)):N0}"));
+                result.Factories.Add(new() { Colony = colony, Name = colony.Planet, Icon = colony.Portrait, Detail = colony.Character,
+                    Quantity = $"{factoryRows.Length} factories | {collection} collect/refill | {factoryRows.Count(r => r.Color == "#FFD166")} need attention",
+                    Status = factoryRows.Any(r => r.Color == "#FFD166") ? "NEEDS ATTENTION" : collection > 0 ? "COLLECT / REFILL (EST.)" : "PRODUCING / WAITING",
+                    Color = factoryRows.Any(r => r.Color == "#FFD166") ? "#FFD166" : collection > 0 ? "#80BFFF" : "#74D6C9",
+                    Rate = products, Remaining = Time(nextAction), Next = "Stored output snapshot; intermediate products may still be in use" });
+            }
             result.Colonies.Add(new() { Colony = colony, Name = colony.Planet, Icon = colony.Portrait, Detail = colony.Character + " | " + colony.PlanetType,
-                Status = colony.Error.Length > 0 ? "STALE / REFRESH FAILED" : attention > 0 ? $"{attention} NEED ATTENTION" : "MONITORING",
-                Color = attention > 0 || colony.Error.Length > 0 ? "#FFD166" : "#74D6C9",
+                Status = colony.Error.Length > 0 ? "STALE / REFRESH FAILED" : attention > 0 ? $"{attention} NEED ATTENTION" : collection > 0 ? $"{collection} COLLECT / REFILL (EST.)" : "MONITORING",
+                Color = attention > 0 || colony.Error.Length > 0 ? "#FFD166" : collection > 0 ? "#80BFFF" : "#74D6C9",
                 Quantity = $"{extractors} extractors | {factories.Count} factories", Remaining = Time(nextAction),
                 Next = "ESI colony update " + colony.LastUpdate.ToLocalTime().ToString("dd MMM HH:mm"), Rate = "Fetched " + colony.Fetched.ToLocalTime().ToString("dd MMM HH:mm") });
         }

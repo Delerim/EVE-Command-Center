@@ -1,8 +1,8 @@
-# EVE Command Center v3.1.2
+# EVE Command Center v3.1.3
 
-- PI factory health now follows routed upstream production through factories and storage. T3 factories awaiting supplied T2 output show Waiting for upstream production instead of Check inputs.
-- Missing routes, missing recipes and exhausted upstream supplies still require attention. Dependency loops cannot invent a healthy supply source; future output is not counted as stockpile inventory or an exact completion time.
-- Planet cards now include small EVE planet-type icons and planet-type labels in both Overview and Factory Refills.
-- Includes v3.1.1 compressed Jita pricing corrections for Moon ledgers, remaining-ore values and ISK/hour estimates.
+- Added Factory Summary alongside Extraction in the adjustable Overview summary panel: per-planet factory counts, collection/refill counts, status and stored output snapshots.
+- Correctly routed factory runs with exhausted inputs and evidence of prior production now show blue Collect / refill, rather than Needs attention. Factory cycles still finishing are not flagged as complete.
+- Missing recipes/routes and empty factories without evidence of a started run retain attention status. Healthy upstream production remains a normal waiting state.
+- Pilot and planet summaries expose collection readiness separately from attention. Readiness is estimated from ESI snapshots; stored intermediate products may still be required by downstream factories.
 
-Validation: 130 checks passed, including supplied T2-to-T3 routes through storage and exhausted-chain detection. Planet icon endpoint verified.
+Validation: 132 checks passed, including completed-run collection status and per-planet factory summaries.

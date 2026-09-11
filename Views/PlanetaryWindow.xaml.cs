@@ -34,6 +34,7 @@ public partial class PlanetaryWindow : Window
         if (!Dispatcher.CheckAccess()) { Dispatcher.BeginInvoke(Update); return; }
         _analysis = PlanetaryAnalysis.Build(_service.State, DateTimeOffset.UtcNow);
         Colonies.ItemsSource = PlanetaryGroups.Build(_analysis, _expanded); Production.ItemsSource = _analysis.Production;
+        FactorySummary.ItemsSource = _analysis.Factories;
         StockGrid.ItemsSource = _analysis.Stock; Refills.ItemsSource = PlanetaryGroups.Build(_analysis, _expanded, true);
         var refillGroups = PlanetaryGroups.Build(_analysis, _expanded, true);
         var t1 = _analysis.Refills.Where(r => PlanetaryAnalysis.Tier(r.TypeId) == 1).ToArray();
@@ -41,7 +42,7 @@ public partial class PlanetaryWindow : Window
         Container.ItemsSource = _service.State.Containers;
         Container.SelectedItem = _service.State.Containers.FirstOrDefault(c => c.Id == _service.State.ContainerId);
         StockPilot.SelectedItem ??= _pilots.FirstOrDefault(p => p.CharacterId == _service.State.StockCharacterId);
-        Summary.Text = $"{_analysis.Colonies.Count} colonies | {_analysis.Colonies.Count(c => c.Color == "#FFD166")} need attention";
+        Summary.Text = $"{_analysis.Colonies.Count} colonies | {_analysis.Colonies.Count(c => c.Color == "#FFD166")} need attention | {_analysis.Factories.Count(c => c.Status.StartsWith("COLLECT"))} factory planets collect/refill";
         StockStatus.Text = _service.State.ContainerId == 0 ? "Pick a stockpile character, click Use Selection to load containers, then choose a container and apply it." : $"Only selected-container contents (including nested containers). Asset snapshot: {_service.State.StockFetched.ToLocalTime():dd MMM HH:mm}. Other station cargo is excluded. Values use Jita 4-4 best buy, before fees and order depth; quotes refresh hourly.";
         if (_service.State.StockError.Length > 0) StockStatus.Text += " " + _service.State.StockError;
         Links.Text = string.Join(Environment.NewLine + Environment.NewLine, _pilots.Select(p => p.CharacterName + ": " + _service.State.PilotStatus.GetValueOrDefault(p.CharacterId, "Waiting")));

@@ -62,6 +62,7 @@ public sealed class PiQuote
 }
 public sealed class PiRow
 {
+    public bool IsFactory { get; set; }
     public string Name { get; set; } = "";
     public string Detail { get; set; } = "";
     public string Status { get; set; } = "";
@@ -92,6 +93,7 @@ public sealed class PiAnalysis
 {
     public List<PiRow> Colonies { get; set; } = new();
     public List<PiRow> Pins { get; set; } = new();
+    public List<PiRow> Factories { get; set; } = new();
     public List<PiRow> Production { get; set; } = new();
     public List<PiRow> Stock { get; set; } = new();
     public List<PiRefill> Refills { get; set; } = new();
