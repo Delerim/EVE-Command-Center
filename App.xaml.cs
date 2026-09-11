@@ -448,8 +448,7 @@ public partial class App : Application
                     if (hasUpdate)
                     {
                         PerfLog($"[Update] ⬆ Update available: v{updateService.LatestVersion}");
-                        var downloadedPath = await updateService.DownloadUpdateAsync();
-                        await Dispatcher.InvokeAsync(() => updateService.ApplyUpdate(downloadedPath));
+                        await Dispatcher.InvokeAsync(() => new UpdateDialog(updateService).Show());
                     }
                     else
                     {

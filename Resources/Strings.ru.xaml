@@ -329,7 +329,7 @@
     <sys:String x:Key="L.About.Ported">Портировано на C# WPF ради лучшей производительности, стабильности и расширяемости.</sys:String>
     <sys:String x:Key="L.About.GitHub">🔗 GitHub</sys:String>
     <sys:String x:Key="L.About.CheckUpdates">🔄 Проверить обновления</sys:String>
-    <sys:String x:Key="L.About.CheckOnStartup">Automatically install updates at startup</sys:String>
+    <sys:String x:Key="L.About.CheckOnStartup">Check for updates at startup</sys:String>
     <sys:String x:Key="L.About.PreRelease">Получать предварительные обновления</sys:String>
     <sys:String x:Key="L.About.PreReleaseNote">Предварительные сборки могут содержать ошибки или несовместимые изменения. Настройки могут сбрасываться между предварительными обновлениями.</sys:String>
 

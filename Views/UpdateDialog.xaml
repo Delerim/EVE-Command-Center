@@ -1,87 +1,63 @@
 <Window x:Class="EveCommandCenter.Views.UpdateDialog"
-        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="{DynamicResource L.Upd.Title}"
-        Width="520" Height="400" WindowStartupLocation="CenterScreen"
-        ResizeMode="NoResize" Background="#1a1a2e">
-
-    <Window.Resources>
-        <!-- Button style matching the app's premium dark theme -->
-        <Style x:Key="UpdateBtn" TargetType="Button">
-            <Setter Property="FontSize" Value="13"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Padding" Value="20,8"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border x:Name="bd" Background="{TemplateBinding Background}"
-                                CornerRadius="6" Padding="{TemplateBinding Padding}">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="bd" Property="Opacity" Value="0.85"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-    </Window.Resources>
-
-    <Grid Margin="24">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-        </Grid.RowDefinitions>
-
-        <!-- Header -->
-        <TextBlock Grid.Row="0" Text="{DynamicResource L.Upd.Header}" FontSize="22" FontWeight="Bold"
-                   Foreground="#4a9eff" Margin="0,0,0,8"/>
-
-        <!-- Version info -->
-        <TextBlock x:Name="TxtVersionInfo" Grid.Row="1" FontSize="13" Foreground="#cccccc"
-                   Margin="0,0,0,12" TextWrapping="Wrap"/>
-
-        <!-- Release notes -->
-        <Border Grid.Row="2" Background="#0d0d1a" CornerRadius="6" Padding="12" Margin="0,0,0,12">
-            <ScrollViewer VerticalScrollBarVisibility="Auto">
-                <TextBlock x:Name="TxtReleaseNotes" FontSize="12" Foreground="#aaaaaa"
-                           TextWrapping="Wrap" Text="{DynamicResource L.Upd.LoadingNotes}"/>
-            </ScrollViewer>
-        </Border>
-
-        <!-- Progress bar (hidden until download starts) -->
-        <Grid Grid.Row="3" x:Name="ProgressPanel" Visibility="Collapsed" Margin="0,0,0,12">
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
-            </Grid.RowDefinitions>
-            <ProgressBar x:Name="DownloadProgress" Grid.Row="0" Height="8"
-                         Minimum="0" Maximum="100" Value="0"
-                         Background="#0d0d1a" Foreground="#4a9eff"/>
-            <TextBlock x:Name="TxtProgressStatus" Grid.Row="1" FontSize="11"
-                       Foreground="#888888" Margin="0,4,0,0" Text="{DynamicResource L.Upd.Downloading}"/>
-        </Grid>
-
-        <!-- Status text (shown during apply phase) -->
-        <TextBlock x:Name="TxtStatus" Grid.Row="4" FontSize="12" Foreground="#FFA500"
-                   Margin="0,0,0,12" Visibility="Collapsed" TextWrapping="Wrap"/>
-
-        <!-- Buttons -->
-        <StackPanel Grid.Row="5" Orientation="Horizontal" HorizontalAlignment="Right">
-            <Button x:Name="BtnReleaseNotes" Content="{DynamicResource L.Upd.ReleasePage}" Style="{StaticResource UpdateBtn}"
-                    Background="#2a2a4a" Foreground="#cccccc" Click="OnReleaseNotes" Margin="0,0,8,0"/>
-            <Button x:Name="BtnLater" Content="{DynamicResource L.Upd.Later}" Style="{StaticResource UpdateBtn}"
-                    Background="#333355" Foreground="#cccccc" Click="OnLater" Margin="0,0,8,0"/>
-            <Button x:Name="BtnUpdateNow" Content="{DynamicResource L.Upd.UpdateNow}" Style="{StaticResource UpdateBtn}"
-                    Background="#4a9eff" Foreground="White" Click="OnUpdateNow"/>
-        </StackPanel>
-    </Grid>
+ xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+ xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+ Title="EVE Command Center ? Update available" Width="760" Height="620" MinWidth="660" MinHeight="500"
+ WindowStartupLocation="CenterScreen" Background="#07181B" Foreground="#EAF7F7" FontFamily="Segoe UI" UseLayoutRounding="True">
+ <Window.Resources>
+  <Style x:Key="UpdateBtn" TargetType="Button">
+   <Setter Property="FontSize" Value="12"/><Setter Property="FontWeight" Value="SemiBold"/>
+   <Setter Property="Padding" Value="18,11"/><Setter Property="Cursor" Value="Hand"/>
+   <Setter Property="BorderBrush" Value="#2C6269"/><Setter Property="BorderThickness" Value="1"/>
+   <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button">
+    <Border x:Name="Shell" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="7" Padding="{TemplateBinding Padding}">
+     <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+    </Border><ControlTemplate.Triggers>
+     <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Shell" Property="Opacity" Value="0.8"/></Trigger>
+     <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Shell" Property="BorderBrush" Value="#FFD166"/></Trigger>
+     <Trigger Property="IsEnabled" Value="False"><Setter TargetName="Shell" Property="Opacity" Value="0.45"/></Trigger>
+    </ControlTemplate.Triggers>
+   </ControlTemplate></Setter.Value></Setter>
+  </Style>
+ </Window.Resources>
+ <Grid Margin="24">
+  <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+  <StackPanel Margin="0,0,0,18">
+   <TextBlock Text="EVE COMMAND CENTER" Foreground="#55D7D2" FontSize="11" FontWeight="Bold"/>
+   <TextBlock Text="A new update is ready" Foreground="#EAF7F7" FontSize="28" FontWeight="Bold" Margin="0,6,0,5"/>
+   <TextBlock Text="See what changed, then update now or continue with your current version." Foreground="#8FB2B5" TextWrapping="Wrap"/>
+  </StackPanel>
+  <Grid Grid.Row="1" Margin="0,0,0,18">
+   <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="12"/><ColumnDefinition/></Grid.ColumnDefinitions>
+   <Border Background="#0C2529" BorderBrush="#245058" BorderThickness="1" CornerRadius="8" Padding="16,12">
+    <StackPanel><TextBlock Text="INSTALLED VERSION" Foreground="#8FB2B5" FontSize="10"/><TextBlock x:Name="TxtCurrentVersion" Foreground="#EAF7F7" FontSize="23" FontWeight="SemiBold" Margin="0,4,0,0"/></StackPanel>
+   </Border>
+   <Border Grid.Column="2" Background="#0D2B30" BorderBrush="#55D7D2" BorderThickness="1" CornerRadius="8" Padding="16,12">
+    <StackPanel><TextBlock Text="AVAILABLE UPDATE" Foreground="#55D7D2" FontSize="10"/><TextBlock x:Name="TxtLatestVersion" Foreground="#FFD166" FontSize="23" FontWeight="SemiBold" Margin="0,4,0,0"/></StackPanel>
+   </Border>
+  </Grid>
+  <Border Grid.Row="2" Background="#0C2529" BorderBrush="#245058" BorderThickness="1" CornerRadius="8" Padding="16" Margin="0,0,0,16">
+   <DockPanel><TextBlock DockPanel.Dock="Top" Text="WHAT?S NEW" Foreground="#55D7D2" FontWeight="Bold" FontSize="11" Margin="0,0,0,10"/>
+    <FlowDocumentScrollViewer x:Name="NotesViewer" IsToolBarVisible="False" VerticalScrollBarVisibility="Auto"/>
+   </DockPanel>
+  </Border>
+  <StackPanel Grid.Row="3">
+   <Grid x:Name="ProgressPanel" Visibility="Collapsed" Margin="0,0,0,12">
+    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+    <ProgressBar x:Name="DownloadProgress" Height="7" Minimum="0" Maximum="100" Background="#12383D" Foreground="#55D7D2"/>
+    <TextBlock x:Name="TxtProgressStatus" Grid.Row="1" Foreground="#8FB2B5" FontSize="11" Margin="0,6,0,0"/>
+   </Grid>
+   <TextBlock x:Name="TxtStatus" Foreground="#FFD166" Margin="0,0,0,12" Visibility="Collapsed" TextWrapping="Wrap"/>
+  </StackPanel>
+  <Grid Grid.Row="4">
+   <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+   <TextBlock Text="Updating restarts Command Center. Skipping keeps this version running." Foreground="#8FB2B5" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,12"/>
+   <DockPanel Grid.Row="1">
+    <Button x:Name="BtnReleaseNotes" DockPanel.Dock="Left" Content="VIEW ON GITHUB" Style="{StaticResource UpdateBtn}" Background="#12383D" Foreground="#DDF6F4" Click="OnReleaseNotes"/>
+    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+     <Button x:Name="BtnLater" Content="SKIP &amp; LAUNCH" Style="{StaticResource UpdateBtn}" Background="#12383D" Foreground="#DDF6F4" Click="OnLater" Margin="12,0,8,0"/>
+     <Button x:Name="BtnUpdateNow" Content="UPDATE &amp; RESTART" Style="{StaticResource UpdateBtn}" Background="#17656A" Foreground="#EAF7F7" BorderBrush="#55D7D2" Click="OnUpdateNow"/>
+    </StackPanel>
+   </DockPanel>
+  </Grid>
+ </Grid>
 </Window>

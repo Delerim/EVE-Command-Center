@@ -1,91 +1,114 @@
-﻿using System;
 using System.Diagnostics;
+using System.Text.RegularExpressions;
+using System.Threading;
 using System.Windows;
+using System.Windows.Documents;
+using System.Windows.Media;
 using EveCommandCenter.Services;
 
 namespace EveCommandCenter.Views;
 
-/// <summary>
-/// Modal dialog shown when a new version is available.
-/// Handles download with progress and triggers the self-update.
-/// </summary>
+/// <summary>Release overview shared by startup and manual update checks.</summary>
 public partial class UpdateDialog : Window
 {
     private readonly UpdateService _updateService;
-    private bool _downloading = false;
+    private readonly CancellationTokenSource _lifetime = new();
+    private bool _downloading;
 
     public UpdateDialog(UpdateService updateService)
     {
         InitializeComponent();
         _updateService = updateService;
-
-        TxtVersionInfo.Text = $"A new version of EVE Command Center is available!\n" +
-                              $"Current: v{_updateService.CurrentVersion}  →  New: v{_updateService.LatestVersion}";
-
-        TxtReleaseNotes.Text = !string.IsNullOrWhiteSpace(_updateService.ReleaseNotes)
-            ? _updateService.ReleaseNotes
-            : "No release notes available.";
+        TxtCurrentVersion.Text = "v" + updateService.CurrentVersion;
+        TxtLatestVersion.Text = updateService.LatestVersion is { } latest ? "v" + latest : "Unknown";
+        BtnUpdateNow.IsEnabled = updateService.UpdateAvailable;
+        BtnReleaseNotes.IsEnabled = !string.IsNullOrWhiteSpace(updateService.ReleasePageUrl);
+        NotesViewer.Document = BuildNotes(updateService.ReleaseNotes);
+        Closed += (_, _) => { _lifetime.Cancel(); _lifetime.Dispose(); };
     }
 
-    private void OnReleaseNotes(object s, RoutedEventArgs e)
+    private static FlowDocument BuildNotes(string? notes)
     {
-        if (!string.IsNullOrEmpty(_updateService.ReleasePageUrl))
+        var document = new FlowDocument
         {
-            try { Process.Start(new ProcessStartInfo(_updateService.ReleasePageUrl) { UseShellExecute = true }); }
-            catch { }
+            FontFamily = new System.Windows.Media.FontFamily("Segoe UI"), FontSize = 13,
+            Foreground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(0xDD, 0xF6, 0xF4)),
+            PagePadding = new Thickness(0),
+        };
+        foreach (var raw in (string.IsNullOrWhiteSpace(notes) ? "No release notes were provided for this version." : notes).Split('\n'))
+        {
+            var line = raw.Trim();
+            if (line.Length == 0) continue;
+            bool heading = line.StartsWith('#');
+            line = heading ? line.TrimStart('#', ' ') : Regex.Replace(line, @"^[-*]\s+", "\u2022  ");
+            var paragraph = new Paragraph { Margin = new Thickness(0, heading ? 10 : 0, 0, 8) };
+            if (heading) { paragraph.FontSize = 16; paragraph.FontWeight = FontWeights.SemiBold; }
+            // Support headings, bullets, inline code and bold without interpreting HTML or executing links.
+            foreach (var part in Regex.Split(line, @"(\*\*.*?\*\*|`[^`]+`)") )
+            {
+                if (part.StartsWith("**") && part.EndsWith("**") && part.Length >= 4)
+                    paragraph.Inlines.Add(new Bold(new Run(part[2..^2])));
+                else if (part.StartsWith('`') && part.EndsWith('`') && part.Length >= 2)
+                    paragraph.Inlines.Add(new Run(part[1..^1]) { FontFamily = new System.Windows.Media.FontFamily("Consolas") });
+                else paragraph.Inlines.Add(new Run(part));
+            }
+            document.Blocks.Add(paragraph);
         }
+        return document;
     }
 
-    private void OnLater(object s, RoutedEventArgs e)
+    private void OnReleaseNotes(object sender, RoutedEventArgs e)
     {
-        if (!_downloading) Close();
+        if (_updateService.ReleasePageUrl is not { } url) return;
+        try { Process.Start(new ProcessStartInfo(url) { UseShellExecute = true }); }
+        catch (Exception ex) { ShowStatus("Could not open the release page: " + ex.Message); }
     }
 
-    private async void OnUpdateNow(object s, RoutedEventArgs e)
+    private void OnLater(object sender, RoutedEventArgs e) => Close();
+
+    private void ShowStatus(string message)
+    {
+        TxtStatus.Text = message;
+        TxtStatus.Visibility = Visibility.Visible;
+    }
+
+    private async void OnUpdateNow(object sender, RoutedEventArgs e)
     {
         if (_downloading) return;
+        var token = _lifetime.Token;
         _downloading = true;
-
-        // Disable buttons during download
         BtnUpdateNow.IsEnabled = false;
-        BtnUpdateNow.Content = "⏳ Downloading...";
-        BtnLater.IsEnabled = false;
-        BtnReleaseNotes.IsEnabled = false;
-
-        // Show progress bar
+        BtnUpdateNow.Content = "DOWNLOADING...";
+        TxtStatus.Visibility = Visibility.Collapsed;
         ProgressPanel.Visibility = Visibility.Visible;
-
+        DownloadProgress.Value = 0;
+        DownloadProgress.IsIndeterminate = true;
+        TxtProgressStatus.Text = "Preparing download... You can still skip and continue.";
         try
         {
-            var progress = new Progress<double>(p =>
+            var progress = new Progress<double>(value =>
             {
-                DownloadProgress.Value = p * 100;
-                TxtProgressStatus.Text = $"Downloading... {p:P0}";
+                if (token.IsCancellationRequested) return;
+                DownloadProgress.IsIndeterminate = false;
+                DownloadProgress.Value = value * 100;
+                TxtProgressStatus.Text = $"Downloading update - {value:P0}";
             });
-
-            var downloadedPath = await _updateService.DownloadUpdateAsync(progress);
-
-            // Download complete — apply update
-            TxtProgressStatus.Text = "Download complete. Applying update...";
-            TxtStatus.Text = "🔄 Restarting with updated version...";
-            TxtStatus.Visibility = Visibility.Visible;
-
-            // Brief pause so user sees the message
-            await System.Threading.Tasks.Task.Delay(800);
-
-            _updateService.ApplyUpdate(downloadedPath);
+            var path = await _updateService.DownloadUpdateAsync(progress, token);
+            token.ThrowIfCancellationRequested();
+            BtnLater.IsEnabled = false;
+            ShowStatus("Download complete. Restarting with the updated version...");
+            _updateService.ApplyUpdate(path);
         }
+        catch (OperationCanceledException) when (token.IsCancellationRequested) { }
         catch (Exception ex)
         {
+            if (token.IsCancellationRequested) return;
             _downloading = false;
             BtnUpdateNow.IsEnabled = true;
-            BtnUpdateNow.Content = "⬆ Update Now";
+            BtnUpdateNow.Content = "RETRY UPDATE";
             BtnLater.IsEnabled = true;
-            BtnReleaseNotes.IsEnabled = true;
             ProgressPanel.Visibility = Visibility.Collapsed;
-
-            TxtStatus.Text = $"❌ Update failed: {ex.Message}";
-            TxtStatus.Visibility = Visibility.Visible;
+            ShowStatus("Update failed. You can retry or skip and continue. " + ex.Message);
             Debug.WriteLine($"[Update] Download/apply failed: {ex}");
         }
     }

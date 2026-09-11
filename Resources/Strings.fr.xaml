@@ -329,7 +329,7 @@
     <sys:String x:Key="L.About.Ported">Porté en C# WPF pour une meilleure performance, stabilité et extensibilité.</sys:String>
     <sys:String x:Key="L.About.GitHub">🔗 GitHub</sys:String>
     <sys:String x:Key="L.About.CheckUpdates">🔄 Rechercher des mises à jour</sys:String>
-    <sys:String x:Key="L.About.CheckOnStartup">Automatically install updates at startup</sys:String>
+    <sys:String x:Key="L.About.CheckOnStartup">Check for updates at startup</sys:String>
     <sys:String x:Key="L.About.PreRelease">Recevoir les mises à jour préliminaires</sys:String>
     <sys:String x:Key="L.About.PreReleaseNote">Les versions préliminaires peuvent contenir des bugs ou des changements incompatibles. Les paramètres peuvent être réinitialisés entre les mises à jour préliminaires.</sys:String>
 

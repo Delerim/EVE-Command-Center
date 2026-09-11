@@ -35,7 +35,7 @@ Output: `artifacts/publish/EVE Command Center.exe`.
 
 ## Releases
 
-Push a version tag matching the project version, such as `v2.4.0`, to publish a GitHub Release with a portable ZIP, updater executable, and SHA-256 checksums. Pushes to `main` also produce a GitHub Actions build artifact. On startup, the app checks this repository and automatically installs a newer release, then relaunches. Disable startup updates in Settings > About if needed.
+Push a version tag matching the project version, such as `v2.4.0`, to publish a GitHub Release with a portable ZIP, updater executable, and SHA-256 checksums. Pushes to `main` also produce a GitHub Actions build artifact. On startup, the app checks this repository and shows release notes for newer versions. Choose Update & Restart or Skip & Launch. Disable startup updates in Settings > About if needed.
 
 ## Credits
 

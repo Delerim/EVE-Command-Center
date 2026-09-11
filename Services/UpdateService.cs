@@ -4,6 +4,7 @@ using System.IO;
 using System.Net.Http;
 using System.Text.Json;
 using System.Threading.Tasks;
+using System.Threading;
 
 namespace EveCommandCenter.Services;
 
@@ -106,7 +107,7 @@ public sealed class UpdateService
     /// Download the new exe to a temp directory. Reports progress 0.0–1.0.
     /// Returns the path to the downloaded file.
     /// </summary>
-    public async Task<string> DownloadUpdateAsync(IProgress<double>? progress = null)
+    public async Task<string> DownloadUpdateAsync(IProgress<double>? progress = null, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrEmpty(DownloadUrl))
             throw new InvalidOperationException("No download URL available. Call CheckForUpdateAsync first.");
@@ -118,20 +119,20 @@ public sealed class UpdateService
         // Delete any old download
         if (File.Exists(destPath)) File.Delete(destPath);
 
-        using var response = await _httpClient.GetAsync(DownloadUrl, HttpCompletionOption.ResponseHeadersRead);
+        using var response = await _httpClient.GetAsync(DownloadUrl, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
         response.EnsureSuccessStatusCode();
 
         var totalBytes = response.Content.Headers.ContentLength ?? -1;
         long downloadedBytes = 0;
 
-        await using var contentStream = await response.Content.ReadAsStreamAsync();
+        await using var contentStream = await response.Content.ReadAsStreamAsync(cancellationToken);
         await using var fileStream = new FileStream(destPath, FileMode.Create, FileAccess.Write, FileShare.None, 81920);
 
         var buffer = new byte[81920];
         int bytesRead;
-        while ((bytesRead = await contentStream.ReadAsync(buffer)) > 0)
+        while ((bytesRead = await contentStream.ReadAsync(buffer.AsMemory(), cancellationToken)) > 0)
         {
-            await fileStream.WriteAsync(buffer.AsMemory(0, bytesRead));
+            await fileStream.WriteAsync(buffer.AsMemory(0, bytesRead), cancellationToken);
             downloadedBytes += bytesRead;
             if (totalBytes > 0)
                 progress?.Report((double)downloadedBytes / totalBytes);
