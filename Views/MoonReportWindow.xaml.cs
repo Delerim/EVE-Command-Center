@@ -180,7 +180,7 @@ public partial class MoonReportWindow : Window
     {
         _snapshot = snapshot;
         ScheduledText.Text = snapshot.ScheduledCount.ToString("N0");
-        ActiveText.Text = (snapshot.ReadyCount + snapshot.ActiveFieldCount).ToString("N0");
+        ActiveText.Text = $"{snapshot.ActiveFieldCount:N0} / {snapshot.ReadyCount:N0}";
         MinedText.Text = MoonReportService.FormatM3(snapshot.TotalMinedM3);
         LostText.Text = MoonReportService.FormatM3(snapshot.TotalLostM3);
         JackpotText.Text = snapshot.JackpotCount.ToString("N0");
@@ -209,10 +209,15 @@ public partial class MoonReportWindow : Window
         bool InSystem(MoonCardView c) => selectedSystem == "All systems" || c.SystemName == selectedSystem;
         var fields = _snapshot.CalendarCards.Where(c => c.Status == "FIELD ACTIVE" && InSystem(c)).OrderBy(c => c.FieldExpiry).ToArray();
         var upcoming = _snapshot.CalendarCards.Where(c => c.Status is "SCHEDULED" or "READY").OrderBy(c => c.ScheduleUtc).ToArray();
-        var selected = (OverviewFields.SelectedItem as MoonCardView)?.PullId;
+        var selected = _selectedOverviewCard?.PullId;
+        var visibleUpcoming = upcoming.Where(InSystem).Take(20).ToArray();
+        _selectedOverviewCard = null;
         OverviewFields.ItemsSource = fields;
-        OverviewFields.SelectedItem = fields.FirstOrDefault(c => c.PullId == selected) ?? fields.FirstOrDefault();
-        OverviewUpcoming.ItemsSource = upcoming.Where(InSystem).Take(20).ToArray();
+        OverviewUpcoming.ItemsSource = visibleUpcoming;
+        if (visibleUpcoming.FirstOrDefault(c => c.PullId == selected) is MoonCardView selectedUpcoming)
+            OverviewUpcoming.SelectedItem = selectedUpcoming;
+        else
+            OverviewFields.SelectedItem = fields.FirstOrDefault(c => c.PullId == selected) ?? fields.FirstOrDefault();
         OverviewSummary.Text = $"{fields.Length} active fields   |   {upcoming.Count(c => c.Status == "READY" && InSystem(c))} ready to fracture   |   {MoonReportService.FormatM3(fields.Sum(c => c.RemainingTotalM3))} estimated R4 ore left";
         var next = upcoming.FirstOrDefault(InSystem);
         var change = next == null ? null : upcoming.FirstOrDefault(c => c.ScheduleUtc > next.ScheduleUtc && c.SystemName != next.SystemName);
@@ -221,11 +226,31 @@ public partial class MoonReportWindow : Window
         RenderOverviewLedger();
     }
     private void OverviewSystem_Changed(object sender, System.Windows.Controls.SelectionChangedEventArgs e) => RenderOverview();
-    private void OverviewField_Changed(object sender, System.Windows.Controls.SelectionChangedEventArgs e) => RenderOverviewLedger();
+    private MoonCardView? _selectedOverviewCard;
+    private void OverviewField_Changed(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+    {
+        if (OverviewFields.SelectedItem is not MoonCardView card) return;
+        _selectedOverviewCard = card;
+        if (OverviewUpcoming != null) OverviewUpcoming.SelectedItem = null;
+        RenderOverviewLedger();
+    }
+    private void OverviewUpcoming_Changed(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+    {
+        if (OverviewUpcoming.SelectedItem is not MoonCardView card) return;
+        _selectedOverviewCard = card;
+        OverviewFields.SelectedItem = null;
+        RenderOverviewLedger();
+    }
+    private void OverviewRate_Changed(object sender, System.Windows.Controls.TextChangedEventArgs e)
+    {
+        if (_service == null || OverviewRate == null) return;
+        if (double.TryParse(OverviewRate.Text, NumberStyles.Float, CultureInfo.InvariantCulture, out var rate) && double.IsFinite(rate) && rate > 0 && rate <= 100000)
+        { _service.EstimateMiningRateM3PerSecond = rate; ApplySnapshot(_service.GetSnapshot()); }
+    }
     private void RenderOverviewLedger()
     {
         if (OverviewLedger == null) return;
-        var field = OverviewFields.SelectedItem as MoonCardView;
+        var field = _selectedOverviewCard ?? OverviewFields.SelectedItem as MoonCardView;
         var ledger = _snapshot.LedgerPulls.FirstOrDefault(p => p.PullId == field?.PullId);
         OverviewLedger.ItemsSource = ledger?.Rows;
         OverviewLedgerTitle.Text = field == null ? "FIELD LEDGER | select an active field" : "FIELD LEDGER | " + field.StructureName;

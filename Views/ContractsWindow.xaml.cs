@@ -18,6 +18,7 @@ public partial class ContractsWindow : Window
     public ContractsWindow()
     {
         InitializeComponent();
+        ReportDate.SelectedDate = DateTime.UtcNow.Date;
         RateBox.Text = Service.State.BuyPercent.ToString(CultureInfo.InvariantCulture);
         ToleranceBox.Text = Service.State.TolerancePercent.ToString(CultureInfo.InvariantCulture);
         AlertsCheck.IsChecked = Service.State.NotificationsEnabled;
@@ -49,8 +50,9 @@ public partial class ContractsWindow : Window
         RefreshButton.IsEnabled = !Service.IsRefreshing;
         if (Service.IsRefreshing) StatusText.Text = "Refreshing corporation contracts and checking appraisals...";
         else if (Service.LastError != null) StatusText.Text = "Refresh failed; showing last successful data. " + Service.LastError;
-        else StatusText.Text = state.Rows.Count == 0 ? "No outstanding contracts in the current snapshot. Checks run each minute, subject to ESI cache expiry." : "Double-click for contents. Monitoring remains active with this window closed. Checks do not verify item-by-item appraisal contents.";
+        else StatusText.Text = state.Rows.Count == 0 ? "No outstanding contracts in the current snapshot. Checks run every 30 minutes, subject to provider cooldown." : "Double-click for contents. Monitoring remains active with this window closed. Checks do not verify item-by-item appraisal contents.";
         ApplyFilter();
+        RenderReport();
     }
     private void ApplyFilter()
     {
@@ -66,6 +68,25 @@ public partial class ContractsWindow : Window
         HistoryGrid.ItemsSource = history.Where(r => text.Length == 0 || (r.Issuer + " " + r.Acceptor + " " + r.Contract.Status + " " + r.Contract.Title + " " + r.Contract.Id).Contains(text, StringComparison.OrdinalIgnoreCase)).OrderByDescending(r => r.Contract.Accepted ?? r.Contract.Issued).ToArray();
         AcceptorsGrid.ItemsSource = history.Where(r => r.Contract.WasAccepted).GroupBy(r => r.Contract.AcceptorId).Select(g => new { Name = g.First().Acceptor, Count = g.Count(), Value = g.Sum(r => r.Contract.Price ?? 0), Last = g.Max(r => r.Contract.Accepted) }).OrderByDescending(r => r.Count).ToArray();
     }
+    private string Period => (ReportPeriod.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "Month";
+    private void RenderReport()
+    {
+        if (ReportDate == null || ReportBars == null || ReportTitle == null) return;
+        var date = ReportDate.SelectedDate ?? DateTime.UtcNow.Date;
+        var buckets = BuybackReport.Build(Service.State.History, Service.State.CorporationId, date, Period);
+        ReportBars.ItemsSource = buckets;
+        ReportTitle.Text = $"{Period.ToUpperInvariant()} | {BuybackReport.Start(date, Period):dd MMM yyyy} - {BuybackReport.End(BuybackReport.Start(date, Period), Period).AddDays(-1):dd MMM yyyy}";
+        ReportSummary.Text = $"{buckets.Sum(b => b.Count):N0} recorded buybacks | {buckets.Sum(b => b.Value):N2} ISK | tallest bar {buckets.Max(b => b.Value):N0} ISK";
+    }
+    private void Report_Changed(object sender, SelectionChangedEventArgs e) => RenderReport();
+    private void ReportPrevious_Click(object sender, RoutedEventArgs e) => MoveReport(-1);
+    private void ReportNext_Click(object sender, RoutedEventArgs e) => MoveReport(1);
+    private void ReportToday_Click(object sender, RoutedEventArgs e) => ReportDate.SelectedDate = DateTime.UtcNow.Date;
+    private void MoveReport(int direction)
+    {
+        var date = ReportDate.SelectedDate ?? DateTime.UtcNow.Date;
+        ReportDate.SelectedDate = Period == "Week" ? date.AddDays(direction * 7) : Period == "Year" ? date.AddYears(direction) : date.AddMonths(direction);
+    }
     private void History_DoubleClick(object sender, MouseButtonEventArgs e)
     {
         if (HistoryGrid.SelectedItem is ContractRow row) OpenContents(row);
@@ -73,6 +94,7 @@ public partial class ContractsWindow : Window
     private void Search_Changed(object sender, RoutedEventArgs e) => ApplyFilter();
     private async void Refresh_Click(object sender, RoutedEventArgs e)
     {
+        if (DateTimeOffset.UtcNow < Service.NextCheckUtc) { StatusText.Text = $"Provider cooldown: next check {Service.NextCheckUtc.ToLocalTime():HH:mm}. Showing saved data."; return; }
         if (PilotCombo.SelectedItem is not EvePilotProfile pilot) { StatusText.Text = "Choose a linked character first."; return; }
         if (!ContractService.CanRead(pilot)) { StatusText.Text = "Use RECONNECT / ADD to grant corporation contract access."; return; }
         try

@@ -38,6 +38,7 @@ internal static class Program
             }
             return;
         }
+        CheckBuybackPeriods();
         CheckMoonAlerts();
         CheckContractHistory();
         CheckFitStacking();
@@ -94,7 +95,7 @@ internal static class Program
         foreach (var row in current.Contracts.State.Rows.Skip(1).Take(1)) ContractService.Evaluate(row, appraisal.RootElement, 90, 0.1m);
         current.Contracts.State.CorporationName = "Example Corporation";
         current.Contracts.State.CorporationId = 42;
-        current.Contracts.State.History = new() { new ContractRow { CorporationId = 42, Issuer = "Example Miner", Acceptor = "Corporation Officer", Contract = new CorporationContract { Id = 123456, Status = "finished", AcceptorId = 123, Accepted = DateTimeOffset.UtcNow, Price = 650000000, Issued = DateTimeOffset.UtcNow.AddHours(-3) } } };
+        current.Contracts.State.History = new() { new ContractRow { CorporationId = 42, Issuer = "Example Miner", Acceptor = "Corporation Officer", JaniceUrl = "https://janice.e-351.com/a/example", Contract = new CorporationContract { Id = 123456, Status = "finished", AssigneeId = 42, Type = "item_exchange", AcceptorId = 123, Accepted = DateTimeOffset.UtcNow, Price = 650000000, Issued = DateTimeOffset.UtcNow.AddHours(-3) } } };
         current.Contracts.State.LastRefreshUtc = DateTimeOffset.UtcNow;
         typeof(ContractsWindow).GetMethod("Render", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.DeclaredOnly)!.Invoke(window, null);
         ((ComboBox)window.FindName("PilotCombo")).ItemsSource = new[] { new EvePilotProfile { CharacterName = "Corporation Data Toon" } };
@@ -103,7 +104,22 @@ internal static class Program
         Check(((DataGrid)window.FindName("ContractsGrid")).Items.Count == 4, "Contract XAML loads and binds rows");
         ((DataGrid)window.FindName("ContractsGrid")).SelectedIndex = 1;
         Check(((DataGrid)window.FindName("HistoryGrid")).Items.Count == 1, "History view binds persisted acceptance records");
-        if (args.Length > 0) { ((TabControl)window.FindName("ContractTabs")).SelectedIndex = 1; Render(window, args[0]); }
+        if (args.Length > 0) { ((TabControl)window.FindName("ContractTabs")).SelectedIndex = 3; Render(window, args[0]); }
+        var calendar = new System.Windows.Controls.Calendar { Style = (Style)window.FindResource("CommandCalendar"), DisplayDate = new DateTime(2026, 9, 11), SelectedDate = new DateTime(2026, 9, 11) };
+        calendar.ApplyTemplate(); calendar.Measure(new Size(300, 330)); calendar.Arrange(new Rect(0, 0, 300, 330)); calendar.UpdateLayout();
+        var calendarItem = (System.Windows.Controls.Primitives.CalendarItem)calendar.Template.FindName("PART_CalendarItem", calendar);
+        var header = (Button)calendarItem.Template.FindName("PART_HeaderButton", calendarItem);
+        header.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        Check(calendar.DisplayMode == CalendarMode.Year, "Themed calendar header navigates to months");
+        header.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        Check(calendar.DisplayMode == CalendarMode.Decade, "Themed calendar header navigates to years");
+        calendar.DisplayMode = CalendarMode.Month;
+        var monthView = (Grid)calendarItem.Template.FindName("PART_MonthView", calendarItem);
+        var day = monthView.Children.OfType<System.Windows.Controls.Primitives.CalendarDayButton>().First(b => b.DataContext is DateTime d && d == new DateTime(2026, 9, 15));
+        day.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        System.Windows.Threading.Dispatcher.CurrentDispatcher.Invoke(() => {}, System.Windows.Threading.DispatcherPriority.ContextIdle);
+        Check(calendar.SelectedDate == new DateTime(2026, 9, 15), "Themed calendar day selection remains functional");
+        if (args.Length > 0) Render(new Window { Content = calendar, Width = 340, Height = 380 }, System.IO.Path.ChangeExtension(args[0], ".calendar.png"));
         var details = new ContractContentsWindow(current.Contracts, current.Sso, good, 0);
         Check(((TextBlock)details.FindName("ResultText")).Text == "CHECKS PASSED", "Contents XAML loads check summary");
         if (args.Length > 0)
@@ -125,8 +141,30 @@ internal static class Program
         if (args.Length > 0) Render(moonWindow, System.IO.Path.ChangeExtension(args[0], ".moons.png"));
         var toast = new OperatingToast("Mazitah - Example Moon", "Glistening ore confirmed in the mining ledger. Open the moon overview to inspect the field.", () => {}, "GLISTENING MOON DETECTED");
         if (args.Length > 0) Render(toast, System.IO.Path.ChangeExtension(args[0], ".toast.png"));
+        var appMarkup = System.Xml.Linq.XDocument.Load("App.xaml");
+        var resources = appMarkup.Descendants().First(e => e.Name.LocalName == "ResourceDictionary");
+        resources.SetAttributeValue(System.Xml.Linq.XNamespace.Xmlns + "x", "http://schemas.microsoft.com/winfx/2006/xaml");
+        foreach (var source in resources.Descendants().SelectMany(e => e.Attributes("Source"))) source.Value = "/EVE Command Center;component/" + source.Value;
+        System.Windows.Application.Current.Resources = (ResourceDictionary)System.Windows.Markup.XamlReader.Parse(resources.ToString());
+        var previewSettings = new SettingsWindow(new SettingsService());
+        Check(previewSettings.FindName("NavHotkeys") != null && previewSettings.FindName("NavThumbnails") != null && previewSettings.FindName("NavCrop") != null, "Restyled preview settings retain hotkey, thumbnail and crop navigation");
+        if (args.Length > 0) Render(previewSettings, System.IO.Path.ChangeExtension(args[0], ".preview.png"));
         Console.WriteLine($"{_checks} checks passed.");
     }
+    private static void CheckBuybackPeriods()
+    {
+        var row = new ContractRow { CorporationId = 42, JaniceUrl = "https://janice.e-351.com/a/test", Contract = new CorporationContract { Id = 1, AssigneeId = 42, Status = "finished", Type = "item_exchange", Accepted = new DateTimeOffset(2024, 2, 29, 23, 59, 0, TimeSpan.Zero), Price = 100 } };
+        var month = BuybackReport.Build(new[] { row }, 42, new DateTime(2024, 2, 10), "Month");
+        Check(month.Count == 29 && month.Last().Value == 100, "Buyback month includes leap day and end-of-day acceptance");
+        Check(BuybackReport.Build(new[] { row }, 42, new DateTime(2024, 3, 1), "Month").Sum(b => b.Count) == 0, "Adjacent month does not double-count acceptance");
+        Check(BuybackReport.Start(new DateTime(2024, 3, 3), "Week") == new DateTime(2024, 2, 26), "Buyback weeks start Monday across month boundaries");
+        Check(BuybackReport.Build(new[] { row }, 99, new DateTime(2024, 2, 1), "Year").Sum(b => b.Count) == 0, "Buyback chart isolates the selected corporation");
+        row.Contract.Status = "cancelled";
+        Check(BuybackReport.Build(new[] { row }, 42, new DateTime(2024, 2, 1), "Year").Sum(b => b.Count) == 0, "Cancelled contracts are excluded from completed buybacks");
+        var ore = new MoonOreRowView { InitialM3 = 1000, RemainingM3 = 400, IskPerM3 = 10, MiningRate = 50 };
+        Check(ore.RemainingPercent == 40 && ore.RemainingValue == 4000 && ore.IskPerHour == 1800000, "Ore bars, value and mining-rate estimate use consistent units");
+    }
+
     private static void CheckMoonAlerts()
     {
         var seen = new Dictionary<string, DateTimeOffset>();
@@ -178,6 +216,7 @@ internal static class Program
         for (int i = 1; i <= 4; i++)
         {
             string system = i <= 2 ? "Mazitah" : "Joppaya";
+            state.TypePrices[45490] = 1000; state.TypePrices[45491] = 500;
             state.Profiles[i] = new MoonProfile { MoonId = i, StructureId = i, MoonName = system + " Moon " + i, StructureName = system + " - Refinery " + i, SystemName = system, ProfileConfigured = true, ZeolitesPercent = 50, SylvitePercent = 50, FieldLifetimeHours = 48 };
             state.Pulls["next" + i] = new MoonPullRecord { Id = "next" + i, MoonId = i, StructureId = i, MoonName = system + " Moon " + i, StructureName = system + " - Refinery " + i, SystemName = system, ExtractionStartUtc = now.AddHours(-12), ChunkArrivalUtc = now.AddDays(50), NaturalDecayUtc = now.AddDays(50).AddHours(3), SeenInLatestExtractionList = true };
         }
@@ -240,13 +279,17 @@ internal static class Program
         var pilot = new EvePilotProfile { CharacterId = 123, Scopes = ContractService.Scopes };
         int notifications = 0;
         service.NewContracts += rows => notifications += rows.Count;
-        await service.RefreshAsync(pilot, CancellationToken.None);
+        await service.RefreshAsync(pilot, CancellationToken.None, respectCooldown: false);
         Check(service.State.Rows.Count == 2 && handler.ContractPages == 2, "ESI pagination loads all outstanding contracts");
         Check(notifications == 0, "Refresh baseline does not flood notifications");
         Check(service.NextCheckUtc > DateTimeOffset.UtcNow.AddMinutes(20), "Contract scheduling honors ESI cache expiry");
-        handler.AddNew = true;
+        int beforeCooldown = handler.ContractPages;
         await service.RefreshAsync(pilot, CancellationToken.None);
+        Check(handler.ContractPages == beforeCooldown, "Manual refresh cannot bypass provider cooldown");
+        handler.AddNew = true;
+        await service.RefreshAsync(pilot, CancellationToken.None, respectCooldown: false);
         Check(notifications == 1, "Refresh dispatches only the new contract");
+        Check(handler.NameCalls == 1 && service.State.Rows.All(r => r.Issuer == "Example Miner"), "Issuer identities are batched once and cached across refreshes");
         var items = await service.ItemsAsync(service.State.Rows[0], pilot, CancellationToken.None);
         Check(items.Count == 2 && items.Any(i => !i.Included) && items[0].Name == "Test ore", "Contents preserve receive and provide directions");
         int calls = handler.ItemCalls;
@@ -255,27 +298,40 @@ internal static class Program
         await service.OpenInGameAsync(1, pilot, CancellationToken.None);
         Check(handler.OpenedInGame, "In-game action uses ESI POST on selected character token");
         handler.Deny = true;
-        try { await service.RefreshAsync(pilot, CancellationToken.None); throw new Exception("Expected access error"); }
+        try { await service.RefreshAsync(pilot, CancellationToken.None, respectCooldown: false); throw new Exception("Expected access error"); }
         catch (InvalidOperationException) { }
         Check(service.LastError != null && service.State.Rows.Count == 3 && !service.IsRefreshing, "Failed refresh preserves last successful snapshot");
+        handler.Deny = false;
+        handler.Throttle = true;
+        try { await service.RefreshAsync(pilot, CancellationToken.None, respectCooldown: false); throw new Exception("Expected throttle"); }
+        catch (Exception ex) when (ex.Message.Contains("rate limiting")) { }
+        Check(service.NextCheckUtc > DateTimeOffset.UtcNow.AddMinutes(59), "Provider Retry-After extends the 30-minute interval");
         using var restored = new ContractService(new EveSsoService(), new HttpClient(new FakeEsi()), folder);
+        Check(restored.NextCheckUtc == service.NextCheckUtc && restored.State.EntityNames[999] == "Example Miner", "Cooldown and resolved names survive restart");
         Check(restored.State.Rows.Count == 3 && restored.State.SeenByCorporation[42].Count == 3, "Snapshot and deduplication state persist");
         System.IO.File.Delete(System.IO.Path.Combine(folder, "contracts.json"));
         System.IO.Directory.Delete(folder);
     }
     private sealed class FakeEsi : HttpMessageHandler
     {
-        public bool AddNew, Deny, OpenedInGame;
-        public int ContractPages, ItemCalls;
+        public bool AddNew, Deny, OpenedInGame, Throttle;
+        public int ContractPages, ItemCalls, NameCalls;
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
             string path = request.RequestUri!.AbsolutePath;
             if (path.Contains("/contracts/") && Deny) return Task.FromResult(new HttpResponseMessage(HttpStatusCode.Forbidden));
+            if (path.EndsWith("/contracts/") && Throttle)
+            {
+                var limited = new HttpResponseMessage((HttpStatusCode)429);
+                limited.Headers.RetryAfter = new System.Net.Http.Headers.RetryConditionHeaderValue(TimeSpan.FromHours(1));
+                return Task.FromResult(limited);
+            }
             string json;
             int pages = 1;
             if (path.Contains("/openwindow/contract/"))
             { OpenedInGame = request.Method == HttpMethod.Post && request.Headers.Authorization?.Parameter == "test-only-token"; return Task.FromResult(new HttpResponseMessage(HttpStatusCode.NoContent)); }
+            if (path == "/latest/universe/names/") { NameCalls++; return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("[{\"id\":999,\"name\":\"Example Miner\"}]") }); }
             if (path.EndsWith("/items/")) { ItemCalls++; json = "[{\"type_id\":500,\"quantity\":10,\"is_included\":true},{\"type_id\":500,\"quantity\":2,\"is_included\":false}]"; }
             else if (path.EndsWith("/contracts/"))
             {

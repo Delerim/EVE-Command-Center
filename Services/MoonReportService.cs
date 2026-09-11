@@ -1868,7 +1868,8 @@ public sealed class MoonReportService : IDisposable
         return parts.Count == 0 ? "NO R4 ORE PROFILE" : string.Join("  |  ", parts);
     }
 
-    private static MoonOreRowView[] BuildOreRows(
+    public double EstimateMiningRateM3PerSecond { get; set; } = 50;
+    private MoonOreRowView[] BuildOreRows(
         MoonProfile profile,
         MoonPullRecord? pull)
     {
@@ -1889,9 +1890,20 @@ public sealed class MoonReportService : IDisposable
             double mined = MinedAmount(family);
             if (percentage <= 0 && mined <= 0)
                 return;
+            int baseId = name switch { "Zeolites" => 45490, "Sylvite" => 45491, "Bitumens" => 45492, _ => 45493 };
+            var observed = pull?.MinedM3ByOre.Keys.FirstOrDefault(n => n.Contains(family, StringComparison.OrdinalIgnoreCase) && n.Contains("Glistening", StringComparison.OrdinalIgnoreCase));
+            int typeId = observed == null ? baseId : _state.TypeNames.FirstOrDefault(t => t.Value.Equals(observed, StringComparison.OrdinalIgnoreCase)).Key;
+            if (typeId <= 0) typeId = baseId;
+            double volume = _state.TypeVolumes.TryGetValue(typeId, out var unitVolume) && unitVolume > 0 ? unitVolume : 10;
+            double? price = _state.TypePrices.TryGetValue(typeId, out var unitPrice) && unitPrice > 0 ? unitPrice / volume : null;
             rows.Add(new MoonOreRowView
             {
-                Name = name,
+                Name = observed ?? name,
+                TypeId = typeId,
+                InitialM3 = pull == null || !profile.ProfileConfigured ? 0 : Math.Max(0, (pull.ChunkArrivalUtc - pull.ExtractionStartUtc).TotalHours) * PullM3PerHour * percentage / 100,
+                RemainingM3 = profile.ProfileConfigured ? RemainingAmount(family) : 0,
+                IskPerM3 = price,
+                MiningRate = EstimateMiningRateM3PerSecond,
                 Color = color,
                 Mined = FormatM3(mined),
                 Remaining = profile.ProfileConfigured
@@ -1904,7 +1916,9 @@ public sealed class MoonReportService : IDisposable
         Add("Sylvite", "sylvit", profile.SylvitePercent, "#80CBC4");
         Add("Bitumens", "bitumen", profile.BitumensPercent, "#90CAF9");
         Add("Coesite", "coesite", profile.CoesitePercent, "#FFCC80");
-        return rows.ToArray();
+        double? best = rows.Where(r => r.RemainingM3 > 0).Select(r => r.IskPerM3).Max();
+        foreach (var row in rows) row.IsBestValue = best.HasValue && row.RemainingM3 > 0 && row.IskPerM3 == best;
+        return rows.OrderByDescending(r => r.IskPerM3 ?? -1).ToArray();
     }
 
     private static double RemainingStatic(

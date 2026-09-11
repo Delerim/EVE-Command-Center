@@ -79,7 +79,7 @@ public sealed class BackgroundOperations : IDisposable
             }
             if (now >= _nextContracts)
             {
-                _nextContracts = now.AddMinutes(1);
+                _nextContracts = now.AddMinutes(30);
                 var pilot = pilots.FirstOrDefault(p => p.CharacterId == Contracts.State.CharacterId);
                 if (pilot != null && Access.CanReadContracts && pilot.CharacterId == Access.State.ContractCharacterId)
                     refreshes.Add(RefreshContractsAsync(pilot, now));
@@ -101,8 +101,8 @@ public sealed class BackgroundOperations : IDisposable
     }
     private async Task RefreshContractsAsync(EvePilotProfile pilot, DateTimeOffset now)
     {
-        try { await Contracts.RefreshAsync(pilot, _lifetime.Token); _nextContracts = Contracts.NextCheckUtc > now.AddMinutes(1) ? Contracts.NextCheckUtc : now.AddMinutes(1); }
-        catch (Exception ex) when (ex is not OperationCanceledException) { System.Diagnostics.Debug.WriteLine(ex.Message); _nextContracts = Contracts.NextCheckUtc > now.AddMinutes(10) ? Contracts.NextCheckUtc : now.AddMinutes(10); }
+        try { await Contracts.RefreshAsync(pilot, _lifetime.Token); _nextContracts = Contracts.NextCheckUtc > now.AddMinutes(30) ? Contracts.NextCheckUtc : now.AddMinutes(30); }
+        catch (Exception ex) when (ex is not OperationCanceledException) { System.Diagnostics.Debug.WriteLine(ex.Message); _nextContracts = Contracts.NextCheckUtc > now.AddMinutes(30) ? Contracts.NextCheckUtc : now.AddMinutes(30); }
     }
 
     private void MoonRefreshed()

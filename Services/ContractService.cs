@@ -1,4 +1,4 @@
-using System.Net;
+﻿using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
@@ -32,7 +32,7 @@ public sealed class ContractService : IDisposable
     public event Action? Changed;
     public event Action<IReadOnlyList<ContractRow>>? NewContracts;
     public event Action<IReadOnlyList<ContractRow>>? AcceptedContracts;
-    public DateTimeOffset NextCheckUtc { get; private set; }
+    public DateTimeOffset NextCheckUtc { get => State.NextRefreshUtc; private set => State.NextRefreshUtc = value; }
     public string? LastError { get; private set; }
     public bool IsRefreshing { get; private set; }
 
@@ -59,10 +59,11 @@ public sealed class ContractService : IDisposable
         File.Move(temp, _file, true);
     }
 
-    public async Task RefreshAsync(EvePilotProfile pilot, CancellationToken token)
+    public async Task RefreshAsync(EvePilotProfile pilot, CancellationToken token, bool respectCooldown = true)
     {
         if (!CanRead(pilot)) throw new InvalidOperationException("Reconnect this character to grant corporation contract access.");
         await _gate.WaitAsync(token);
+        if (respectCooldown && DateTimeOffset.UtcNow < NextCheckUtc) { _gate.Release(); Changed?.Invoke(); return; }
         IsRefreshing = true;
         Changed?.Invoke();
         try
@@ -71,14 +72,15 @@ public sealed class ContractService : IDisposable
             var character = await GetAsync($"/characters/{pilot.CharacterId}/", null, token);
             long corp = character.GetProperty("corporation_id").GetInt64();
             var corporation = await GetAsync($"/corporations/{corp}/", null, token);
-            NextCheckUtc = default;
+            NextCheckUtc = DateTimeOffset.UtcNow.AddMinutes(30);
             var contracts = await PagesAsync<CorporationContract>($"/corporations/{corp}/contracts/", access, token);
+            await ResolveEntitiesAsync(contracts.SelectMany(c => new[] { c.IssuerId, c.AcceptorId }), token);
             var rows = new List<ContractRow>();
             foreach (var contract in contracts.Where(c => c.Status == "outstanding" && c.AssigneeId == corp && c.Expires > DateTimeOffset.UtcNow).OrderBy(c => c.Expires))
             {
                 token.ThrowIfCancellationRequested();
                 var row = new ContractRow { Contract = contract, CorporationId = corp, ReaderCharacterId = pilot.CharacterId, JaniceUrl = ExtractJaniceUrl(contract.Title) };
-                row.Issuer = await ResolveNameAsync($"/characters/{contract.IssuerId}/", contract.IssuerId, null, token);
+                row.Issuer = EntityName(contract.IssuerId);
                 string locationPath = contract.LocationId >= 1_000_000_000_000 ? $"/universe/structures/{contract.LocationId}/" : $"/universe/stations/{contract.LocationId}/";
                 row.Location = await ResolveNameAsync(locationPath, contract.LocationId, access, token);
                 JsonElement? appraisal = null;
@@ -97,16 +99,11 @@ public sealed class ContractService : IDisposable
                 var row = rows.FirstOrDefault(r => r.Contract.Id == contract.Id) ?? new ContractRow
                 {
                     Contract = contract, CorporationId = corp, ReaderCharacterId = pilot.CharacterId,
-                    Issuer = await ResolveNameAsync($"/characters/{contract.IssuerId}/", contract.IssuerId, null, token),
+                    Issuer = EntityName(contract.IssuerId),
                     JaniceUrl = ExtractJaniceUrl(contract.Title),
                     Location = State.History.FirstOrDefault(r => r.CorporationId == corp && r.Contract.Id == contract.Id)?.Location ?? contract.LocationId.ToString()
                 };
-                if (contract.AcceptorId > 0)
-                {
-                    row.Acceptor = await ResolveNameAsync($"/characters/{contract.AcceptorId}/", contract.AcceptorId, null, token);
-                    if (row.Acceptor.StartsWith("Unresolved"))
-                        row.Acceptor = await ResolveNameAsync($"/corporations/{contract.AcceptorId}/", contract.AcceptorId, null, token);
-                }
+                if (contract.AcceptorId > 0) row.Acceptor = EntityName(contract.AcceptorId);
                 history.Add(row);
             }
             var accepted = RecordHistory(State, corp, history);
@@ -121,7 +118,7 @@ public sealed class ContractService : IDisposable
             if (State.NotificationsEnabled && fresh.Count > 0) NewContracts?.Invoke(fresh);
             if (State.NotificationsEnabled && accepted.Count > 0) AcceptedContracts?.Invoke(accepted);
         }
-        catch (Exception ex) { LastError = ex.Message; throw; }
+        catch (Exception ex) { LastError = ex.Message; NextCheckUtc = NextCheckUtc > DateTimeOffset.UtcNow.AddMinutes(30) ? NextCheckUtc : DateTimeOffset.UtcNow.AddMinutes(30); Save(); throw; }
         finally { IsRefreshing = false; _gate.Release(); Changed?.Invoke(); }
     }
 
@@ -133,6 +130,21 @@ public sealed class ContractService : IDisposable
         ids.UnionWith(rows.Select(r => r.Contract.Id));
         seen[corp] = ids;
         return fresh;
+    }
+
+    private string EntityName(long id) => State.EntityNames.TryGetValue(id, out var name) ? name : $"Unresolved ({id})";
+    private async Task ResolveEntitiesAsync(IEnumerable<long> ids, CancellationToken token)
+    {
+        foreach (var chunk in ids.Where(id => id > 0 && !State.EntityNames.ContainsKey(id)).Distinct().Chunk(1000))
+        {
+            using var request = Request("/universe/names/", null, HttpMethod.Post);
+            request.Content = new StringContent(JsonSerializer.Serialize(chunk), Encoding.UTF8, "application/json");
+            using var response = await _http.SendAsync(request, token);
+            await EnsureAsync(response, token);
+            using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync(token));
+            foreach (var entity in document.RootElement.EnumerateArray())
+                State.EntityNames[entity.GetProperty("id").GetInt64()] = entity.GetProperty("name").GetString() ?? "Unknown";
+        }
     }
 
     public static List<ContractRow> RecordHistory(ContractState state, long corp, IReadOnlyList<ContractRow> incoming)
@@ -211,7 +223,7 @@ public sealed class ContractService : IDisposable
         using var form = new MultipartFormDataContent();
         form.Add(new StringContent(JsonSerializer.Serialize(new { id = 1, method = "Appraisal.get", @params = new { code } }), Encoding.UTF8), "~request~");
         using var response = await _http.PostAsync("https://janice.e-351.com/api/rpc/v1?m=Appraisal.get", form, token);
-        if ((int)response.StatusCode == 429) throw new ThrottledException();
+        await EnsureAsync(response, token);
         response.EnsureSuccessStatusCode();
         using var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync(token));
         if (!doc.RootElement.TryGetProperty("result", out var result) || result.ValueKind != JsonValueKind.Object) throw new InvalidOperationException("Appraisal not found");
@@ -250,11 +262,17 @@ public sealed class ContractService : IDisposable
         if (access != null) request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", access);
         return request;
     }
-    private static Task EnsureAsync(HttpResponseMessage response, CancellationToken token)
+    private Task EnsureAsync(HttpResponseMessage response, CancellationToken token)
     {
         if (response.IsSuccessStatusCode) return Task.CompletedTask;
         if (response.StatusCode == HttpStatusCode.Forbidden) throw new InvalidOperationException("ESI denied access. Check this character's corporation roles and reconnect to grant the required scopes.");
-        if ((int)response.StatusCode == 420 || (int)response.StatusCode == 429) throw new ThrottledException();
+        if ((int)response.StatusCode == 420 || (int)response.StatusCode == 429)
+        {
+            var retry = response.Headers.RetryAfter?.Date ?? DateTimeOffset.UtcNow.Add(response.Headers.RetryAfter?.Delta ?? TimeSpan.FromMinutes(30));
+            NextCheckUtc = retry > NextCheckUtc ? retry : NextCheckUtc;
+            Save();
+            throw new ThrottledException();
+        }
         throw new HttpRequestException($"ESI returned {(int)response.StatusCode}. Try again later.");
     }
     private async Task<JsonElement> GetAsync(string path, string? access, CancellationToken token)

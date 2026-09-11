@@ -147,4 +147,56 @@
    <Setter Property="Foreground" Value="#8FA9A3"/><Setter Property="Background" Value="Transparent"/><Setter Property="BorderBrush" Value="Transparent"/><Setter Property="Padding" Value="12,7"/><Setter Property="Margin" Value="2,0"/><Setter Property="MinHeight" Value="35"/><Setter Property="FontWeight" Value="Normal"/><Setter Property="Cursor" Value="Hand"/><Setter Property="FocusVisualStyle" Value="{x:Null}"/>
    <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="TabItem"><Border x:Name="TabPill" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1" CornerRadius="9" Padding="{TemplateBinding Padding}" SnapsToDevicePixels="True"><ContentPresenter ContentSource="Header" HorizontalAlignment="Center" VerticalAlignment="Center" TextElement.Foreground="{TemplateBinding Foreground}"/></Border><ControlTemplate.Triggers><Trigger Property="IsMouseOver" Value="True"><Setter TargetName="TabPill" Property="Background" Value="#122724"/><Setter TargetName="TabPill" Property="BorderBrush" Value="#294E47"/><Setter Property="Foreground" Value="#DCEAE6"/></Trigger><Trigger Property="IsSelected" Value="True"><Setter TargetName="TabPill" Property="Background" Value="#1C5A4F"/><Setter TargetName="TabPill" Property="BorderBrush" Value="#4BB99F"/><Setter Property="Foreground" Value="#FFFFFF"/><Setter Property="FontWeight" Value="SemiBold"/></Trigger></ControlTemplate.Triggers></ControlTemplate></Setter.Value></Setter>
   </Style>
+
+  <!-- Keep the WPF calendar's navigation, selection and keyboard behavior with Command Center visuals. -->
+  <Style x:Key="CalendarNavigation" TargetType="Button">
+    <Setter Property="Foreground" Value="#55D7D2"/><Setter Property="Background" Value="Transparent"/><Setter Property="Padding" Value="8"/><Setter Property="Cursor" Value="Hand"/>
+    <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button"><Border x:Name="Shell" Background="{TemplateBinding Background}" CornerRadius="6" Padding="{TemplateBinding Padding}"><ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/></Border><ControlTemplate.Triggers><Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Shell" Property="Background" Value="#1C514B"/></Trigger><Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Shell" Property="Background" Value="#1C514B"/></Trigger><Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.35"/></Trigger></ControlTemplate.Triggers></ControlTemplate></Setter.Value></Setter>
+  </Style>
+  <Style x:Key="CommandCalendarDay" TargetType="CalendarDayButton">
+    <Setter Property="Foreground" Value="#DDF6F4"/><Setter Property="MinWidth" Value="36"/><Setter Property="MinHeight" Value="32"/><Setter Property="Cursor" Value="Hand"/>
+    <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="CalendarDayButton"><Border x:Name="Day" Background="Transparent" BorderBrush="Transparent" BorderThickness="1" CornerRadius="6" Margin="2"><ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/></Border><ControlTemplate.Triggers>
+      <Trigger Property="IsInactive" Value="True"><Setter Property="Foreground" Value="#638588"/></Trigger>
+      <Trigger Property="IsToday" Value="True"><Setter TargetName="Day" Property="BorderBrush" Value="#55D7D2"/></Trigger>
+      <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Day" Property="Background" Value="#12383D"/></Trigger>
+      <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Day" Property="BorderBrush" Value="#FFD166"/></Trigger>
+      <Trigger Property="IsSelected" Value="True"><Setter TargetName="Day" Property="Background" Value="#39796C"/><Setter Property="Foreground" Value="#FFFFFF"/><Setter Property="FontWeight" Value="Bold"/></Trigger>
+      <Trigger Property="IsBlackedOut" Value="True"><Setter Property="Opacity" Value="0.3"/></Trigger>
+      <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.3"/></Trigger>
+    </ControlTemplate.Triggers></ControlTemplate></Setter.Value></Setter>
+  </Style>
+  <Style x:Key="CommandCalendarMonth" TargetType="CalendarButton">
+    <Setter Property="Foreground" Value="#DDF6F4"/><Setter Property="MinHeight" Value="64"/><Setter Property="Cursor" Value="Hand"/>
+    <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="CalendarButton"><Border x:Name="Month" Background="Transparent" CornerRadius="6" Margin="3"><ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/></Border><ControlTemplate.Triggers><Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Month" Property="Background" Value="#12383D"/></Trigger><Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Month" Property="Background" Value="#1C514B"/></Trigger><Trigger Property="HasSelectedDays" Value="True"><Setter TargetName="Month" Property="Background" Value="#39796C"/></Trigger><Trigger Property="IsInactive" Value="True"><Setter Property="Foreground" Value="#638588"/></Trigger></ControlTemplate.Triggers></ControlTemplate></Setter.Value></Setter>
+  </Style>
+  <Style x:Key="CommandCalendarItem" TargetType="CalendarItem">
+    <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="CalendarItem">
+      <Border Background="#0C2529" BorderBrush="#39796C" BorderThickness="1" CornerRadius="9" Padding="12">
+        <Grid x:Name="PART_Root"><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+          <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="40"/><ColumnDefinition/><ColumnDefinition Width="40"/></Grid.ColumnDefinitions>
+            <Button x:Name="PART_PreviousButton" Style="{StaticResource CalendarNavigation}" Content="&#x2039;" FontSize="22" ToolTip="Previous"/>
+            <Button x:Name="PART_HeaderButton" Grid.Column="1" Style="{StaticResource CalendarNavigation}" FontWeight="SemiBold" ToolTip="Choose month or year"/>
+            <Button x:Name="PART_NextButton" Grid.Column="2" Style="{StaticResource CalendarNavigation}" Content="&#x203A;" FontSize="22" ToolTip="Next"/>
+          </Grid>
+          <Grid x:Name="PART_MonthView" Grid.Row="1" Margin="0,8,0,0"><Grid.RowDefinitions><RowDefinition Height="32"/><RowDefinition Height="32"/><RowDefinition Height="32"/><RowDefinition Height="32"/><RowDefinition Height="32"/><RowDefinition Height="32"/><RowDefinition Height="32"/></Grid.RowDefinitions><Grid.ColumnDefinitions><ColumnDefinition Width="36"/><ColumnDefinition Width="36"/><ColumnDefinition Width="36"/><ColumnDefinition Width="36"/><ColumnDefinition Width="36"/><ColumnDefinition Width="36"/><ColumnDefinition Width="36"/></Grid.ColumnDefinitions></Grid>
+          <Grid x:Name="PART_YearView" Grid.Row="1" Margin="0,8,0,0" Visibility="Hidden"><Grid.RowDefinitions><RowDefinition/><RowDefinition/><RowDefinition/></Grid.RowDefinitions><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/><ColumnDefinition/><ColumnDefinition/></Grid.ColumnDefinitions></Grid>
+        </Grid>
+      </Border>
+      <ControlTemplate.Resources><DataTemplate x:Key="{x:Static CalendarItem.DayTitleTemplateResourceKey}"><TextBlock Text="{Binding}" Foreground="#8FB2B5" FontSize="11" HorizontalAlignment="Center" VerticalAlignment="Center"/></DataTemplate></ControlTemplate.Resources>
+    </ControlTemplate></Setter.Value></Setter>
+  </Style>
+  <Style x:Key="CommandCalendar" TargetType="Calendar">
+    <Setter Property="FirstDayOfWeek" Value="Monday"/><Setter Property="Foreground" Value="#EAF7F7"/><Setter Property="CalendarDayButtonStyle" Value="{StaticResource CommandCalendarDay}"/><Setter Property="CalendarButtonStyle" Value="{StaticResource CommandCalendarMonth}"/><Setter Property="CalendarItemStyle" Value="{StaticResource CommandCalendarItem}"/>
+    <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Calendar"><CalendarItem x:Name="PART_CalendarItem" Style="{TemplateBinding CalendarItemStyle}" Background="#0C2529"/></ControlTemplate></Setter.Value></Setter>
+  </Style>
+  <Style x:Key="CommandDatePicker" TargetType="DatePicker">
+    <Setter Property="CalendarStyle" Value="{StaticResource CommandCalendar}"/><Setter Property="Foreground" Value="#EAF7F7"/><Setter Property="Language" Value="en-GB"/><Setter Property="Height" Value="34"/>
+    <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="DatePicker"><Grid x:Name="PART_Root">
+      <Border x:Name="DateShell" Background="#0C2529" BorderBrush="#39796C" BorderThickness="1" CornerRadius="7"><Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="36"/></Grid.ColumnDefinitions>
+        <DatePickerTextBox x:Name="PART_TextBox" Background="Transparent" Foreground="#EAF7F7" BorderThickness="0" Padding="0" VerticalContentAlignment="Center"><DatePickerTextBox.Template><ControlTemplate TargetType="DatePickerTextBox"><ScrollViewer x:Name="PART_ContentHost" Margin="10,0" VerticalAlignment="Center"/></ControlTemplate></DatePickerTextBox.Template></DatePickerTextBox>
+        <Button x:Name="PART_Button" Grid.Column="1" Style="{StaticResource CalendarNavigation}" ToolTip="Choose a date" AutomationProperties.Name="Choose a date" Padding="8"><Viewbox Width="17" Height="17"><Canvas Width="20" Height="20"><Rectangle Canvas.Top="3" Width="19" Height="16" RadiusX="2" RadiusY="2" Stroke="#55D7D2" StrokeThickness="1.5"/><Path Data="M 0,8 L 19,8 M 5,0 L 5,5 M 14,0 L 14,5 M 5,11 L 7,11 M 11,11 L 13,11 M 5,15 L 7,15 M 11,15 L 13,15" Stroke="#55D7D2" StrokeThickness="1.5"/></Canvas></Viewbox></Button>
+      </Grid></Border>
+      <Popup x:Name="PART_Popup" Placement="Bottom" AllowsTransparency="True" StaysOpen="False" Margin="0,5,0,0"/>
+    </Grid><ControlTemplate.Triggers><Trigger Property="IsKeyboardFocusWithin" Value="True"><Setter TargetName="DateShell" Property="BorderBrush" Value="#55D7D2"/></Trigger><Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.4"/></Trigger></ControlTemplate.Triggers></ControlTemplate></Setter.Value></Setter>
+  </Style>
 </ResourceDictionary>

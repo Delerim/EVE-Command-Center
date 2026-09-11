@@ -178,6 +178,20 @@ public sealed class MoonCardView
 
 public sealed class MoonOreRowView
 {
+    public int TypeId { get; init; }
+    public string Icon => $"https://images.evetech.net/types/{TypeId}/icon?size=32";
+    public double InitialM3 { get; init; }
+    public double RemainingM3 { get; init; }
+    public double RemainingPercent => InitialM3 > 0 ? Math.Clamp(RemainingM3 / InitialM3 * 100, 0, 100) : 0;
+    public string PercentText => InitialM3 > 0 ? $"{RemainingPercent:0.#}% left" : "No volume estimate";
+    public double? IskPerM3 { get; init; }
+    public double MiningRate { get; init; } = 50;
+    public double? RemainingValue => IskPerM3 * RemainingM3;
+    public double? IskPerHour => IskPerM3 * MiningRate * 3600;
+    public string ValueText => RemainingValue is { } value ? $"{value / 1000000:0.00}M ISK left" : "Price unavailable";
+    public string HourText => IskPerHour is { } value ? $"{value / 1000000:0.00}M ISK/h" : "ISK/h unavailable";
+    public bool IsBestValue { get; set; }
+    public string ValueColor => IsBestValue ? "#FFD166" : "#74D6C9";
     public string Name { get; init; } = "";
     public string Color { get; init; } = "#DDF2F1";
     public string Mined { get; init; } = "0 m3";
@@ -213,6 +227,7 @@ public sealed class MoonLedgerPullView
 
 public sealed class MoonLedgerRowView
 {
+    public string Portrait => $"https://images.evetech.net/characters/{CharacterId}/portrait?size=32";
     public long CharacterId { get; init; }
     public string CorporationName { get; init; } = "";
     public string CharacterName { get; init; } = "";

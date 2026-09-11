@@ -247,7 +247,7 @@ public partial class SettingsWindow : Window
         {
             if (child is Button btn)
                 btn.Background = (btn.Tag as string) == name
-                    ? new SolidColorBrush(Color.FromArgb(80, 255, 255, 255))
+                    ? new SolidColorBrush(Color.FromRgb(28, 81, 75))
                     : Brushes.Transparent;
         }
         if (name == "Alerts") BuildAlertRows();

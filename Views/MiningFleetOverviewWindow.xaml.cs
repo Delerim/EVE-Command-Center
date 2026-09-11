@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
@@ -1386,6 +1386,8 @@ public partial class MiningFleetOverviewWindow : Window
         MinWidth = Math.Max(620, OverviewHeader.DesiredSize.Width + 24);
         if (Width < MinWidth) Width = MinWidth;
     }
+
+    private void OpenPreviewSettings_Click(object sender, RoutedEventArgs e) => (System.Windows.Application.Current as App)?.ShowGeneralSettings();
 
     private void OpenClientSettings_Click(object sender, RoutedEventArgs e) => new ClientSetupWindow().ShowDialog();
 
