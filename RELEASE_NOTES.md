@@ -1,13 +1,6 @@
-# EVE Command Center v3.5.4
+# EVE Command Center v3.5.5
 
-- Fixed release publishing reusing the old v3.2.0 patch notes. Update prompts now receive the notes written for this release.
-- Added a mandatory release check: patch notes must name the current project version, contain a change list, and match the release tag. Stale notes stop the build before publishing.
-
-## Recently shipped in v3.5.3
-
-- Preview switching no longer attaches its input queue to an EVE client. Unresponsive clients are skipped during cycling; client positioning and minimisation use asynchronous requests.
-- Moved snapshot captures off the UI thread, limited outstanding captures, fixed bitmap ownership and failure cleanup, and prevented delayed minimise actions accumulating during rapid switches.
-- Added PI Extractors Compact Mode and fixed mouse-wheel scrolling over planet tables.
-- Preview debug logs rotate at approximately 6 MB per category. Enable Window Hooks and Desktop Window Manager in Preview Settings > Debug to investigate a recurring hang.
-
-The underlying EVE client hang has not been reproduced or confirmed fixed; these changes address ways it could also stall Command Center.
+- Command Center panels now remember their position, size and maximised state independently. Includes PI, Pilots, Mining, Moons, Contracts, Industry, Omega, Settings, skill plans, fit viewers and notifications.
+- Layouts survive closing the panel, restarting the app and installing an update. Minimising preserves the normal window size and does not make the panel reopen minimised.
+- Saved panels adapt to monitor scaling and return to an available screen if a monitor is disconnected. Preview thumbnails, crop overlays and the miner overview keep their existing layout controls.
+- Window layout saves are debounced while dragging or resizing and stored locally in window-layouts.json.

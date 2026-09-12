@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
@@ -99,6 +99,7 @@ public partial class App : Application
         }
 
         base.OnStartup(e);
+        WindowLayoutService.Install();
         // Clear perf log on each launch
         try { System.IO.File.WriteAllText(_perfLogPath, ""); } catch { }
 
@@ -1311,6 +1312,7 @@ public partial class App : Application
 
         // Single disposal path — ExitApplication calls Shutdown() which triggers this
         _releaseMonitor?.Dispose();
+        WindowLayoutService.Current.Dispose();
         BackgroundOperations.Stop();
         _alertHub?.Dispose();
         _broadcastHud?.Dispose();

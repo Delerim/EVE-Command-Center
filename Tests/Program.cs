@@ -63,6 +63,7 @@ internal static partial class Program
         values.TypePrices[45490] = 1500; MoonReportService.RevalueLedger(values);
         Check(values.LedgerHistory["base"].EstimatedIsk == 150000, "Saved ledger entries update when current compressed quotes change");
         CheckPreviewStability();
+        CheckWindowLayouts();
         var piFixture = CheckPlanetary();
         var industryFixture = CheckIndustry();
         CheckSkillPlanning();
