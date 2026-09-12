@@ -38,6 +38,7 @@ public partial class PlanetaryWindow : Window
         _analysis = PlanetaryAnalysis.Build(_service.State, DateTimeOffset.UtcNow);
         Colonies.ItemsSource = PlanetaryGroups.Build(_analysis, _expanded); Production.ItemsSource = _analysis.Production;
         FactorySummary.ItemsSource = _analysis.FactoryTiers;
+        Extractors.ItemsSource = PlanetaryExtractors.Build(_analysis, _expanded, DateTimeOffset.UtcNow);
         StockGrid.ItemsSource = _analysis.Stock; Refills.ItemsSource = PlanetaryGroups.Build(_analysis, _expanded, true);
         var refillGroups = PlanetaryGroups.Build(_analysis, _expanded, true);
         var t1 = _analysis.Refills.Where(r => PlanetaryAnalysis.Tier(r.TypeId) == 1).ToArray();
@@ -51,6 +52,11 @@ public partial class PlanetaryWindow : Window
         Links.Text = string.Join(Environment.NewLine + Environment.NewLine, _pilots.Select(p => p.CharacterName + ": " + _service.State.PilotStatus.GetValueOrDefault(p.CharacterId, "Waiting")));
         StatusText.Text = _service.Status + (_service.Busy ? " | ESI: " + EsiDiagnostics.Status : "");
 
+    }
+    private void ExtractorExpansion_Changed(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Expander expander || !ReferenceEquals(e.OriginalSource, expander) || expander.DataContext is not PiGroupView group) return;
+        if (expander.IsExpanded) _expanded.Remove("closed:" + group.Key); else _expanded.Add("closed:" + group.Key);
     }
     private void Expansion_Changed(object sender, RoutedEventArgs e)
     {

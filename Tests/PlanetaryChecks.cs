@@ -33,6 +33,13 @@ internal static partial class Program
         var extractor = new { pin_id=3L, type_id=2848, install_time=now.AddHours(-2), expiry_time=now.AddHours(-1), last_cycle_start=now.AddHours(-1), extractor_details=new { cycle_time=900, qty_per_cycle=100, product_type_id=2267 }, contents=System.Array.Empty<object>() };
         state.Colonies.Add(new() { CharacterId=3, Character="Extractor Pilot", PlanetId=40000003, Planet="Test III", LastUpdate=now, Fetched=now, Layout=JsonSerializer.SerializeToElement(new { pins=new[]{extractor}, routes=System.Array.Empty<object>() }) });
         analysis = PlanetaryAnalysis.Build(state, now);
+        var extractorGroups = EveCommandCenter.Views.PlanetaryExtractors.Build(analysis, new HashSet<string>(), now);
+        Check(extractorGroups.Count == 1 && extractorGroups[0].Planets.Count == 1, "Extractor view excludes factory-only planets and groups by pilot");
+        var expiredView = extractorGroups[0].Planets[0].Pins.Single();
+        Check(expiredView.Status == "RESTART DUE" && expiredView.Next == "--" && expiredView.Remaining == "Now", "Expired extractor view stops its cycle countdown");
+        var runningView = EveCommandCenter.Views.PlanetaryExtractors.Build(analysis, new HashSet<string>(), now.AddMinutes(-90))[0].Planets[0].Pins.Single();
+        Check(runningView.Status == "UNDER 1 HOUR" && runningView.Quantity == "0d 0h 15m 0s" && runningView.Remaining == "0d 0h 30m 0s", "Extractor view derives cycle length and program time from the snapshot");
+        Check(!EveCommandCenter.Views.PlanetaryExtractors.Build(analysis, new HashSet<string>{ "closed:extractors:pilot:3" }, now)[0].Expanded, "Extractor view retains collapsed pilot groups");
         Check(analysis.Pins.Any(p => p.Status == "RESTART / CHECK"), "Expired PI programs are flagged for restart");
         Check(analysis.Production.Single().Quantity.StartsWith("400") && analysis.Production.Single().Rate.StartsWith("0"), "Nominal extraction projection stops at program expiry");
         Check(analysis.Pins.Any(p => p.Status == "CHECK ROUTES"), "Missing factory output routes are flagged");

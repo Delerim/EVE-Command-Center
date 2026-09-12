@@ -64,6 +64,7 @@ public sealed class PiQuote
 }
 public sealed class PiRow
 {
+    public string ResetAt { get; set; } = "";
     public double? SecondsUntilAction { get; set; }
     public bool IsFactory { get; set; }
     public string Name { get; set; } = "";

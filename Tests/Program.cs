@@ -247,6 +247,9 @@ internal static partial class Program
             ((ItemsControl)piWindow.FindName("FactorySummary")).ItemsSource = view.FactoryTiers;
             ((ItemsControl)piWindow.FindName("Refills")).ItemsSource = PlanetaryGroups.Build(view, new HashSet<string>(), true);
             Render(piWindow, System.IO.Path.ChangeExtension(args[0], ".pi.png"));
+            ((ItemsControl)piWindow.FindName("Extractors")).ItemsSource = PlanetaryExtractors.Build(view, new HashSet<string>(), DateTimeOffset.UtcNow);
+            ((TabControl)piWindow.FindName("Tabs")).SelectedIndex = 1;
+            Render(piWindow, System.IO.Path.ChangeExtension(args[0], ".extractors.png"));
         }
         var toast = new OperatingToast("Mazitah - Example Moon", "Glistening ore confirmed in the mining ledger. Open the moon overview to inspect the field.", () => {}, "GLISTENING MOON DETECTED");
         if (args.Length > 0) Render(toast, System.IO.Path.ChangeExtension(args[0], ".toast.png"));
