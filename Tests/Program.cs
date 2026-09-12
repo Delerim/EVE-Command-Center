@@ -63,6 +63,7 @@ internal static partial class Program
         values.TypePrices[45490] = 1500; MoonReportService.RevalueLedger(values);
         Check(values.LedgerHistory["base"].EstimatedIsk == 150000, "Saved ledger entries update when current compressed quotes change");
         CheckPreviewStability();
+        CheckAuthorizationScopes();
         CheckWindowLayouts();
         var piFixture = CheckPlanetary();
         var industryFixture = CheckIndustry();
@@ -394,14 +395,14 @@ internal static partial class Program
         var folder = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "ecc-access-" + Guid.NewGuid().ToString("N"));
         try
         {
-            var access = new CorporationAccessService(new(), http, folder, (_, _) => Task.FromResult("test"));
             var pilots = new[] { new EvePilotProfile { CharacterId = 123, Scopes = new[] { MoonReportService.MiningScope, MoonReportService.StructureScope } } };
+            var access = new CorporationAccessService(new(), http, folder, (_, _) => Task.FromResult("test"), () => Task.FromResult<IReadOnlyList<EvePilotProfile>>(pilots));
             access.State.MoonCharacterId = 123;
             await access.ValidateAsync(pilots);
             handler.Deny = "structures"; handler.DeniedStatus = (HttpStatusCode)429;
             await access.ValidateAsync(pilots);
             Check(access.CanReadMoons && access.MoonStatus.Contains("delayed"), "Rate limiting preserves recently verified Moon access");
-            var restarted = new CorporationAccessService(new(), http, folder, (_, _) => Task.FromResult("test"));
+            var restarted = new CorporationAccessService(new(), http, folder, (_, _) => Task.FromResult("test"), () => Task.FromResult<IReadOnlyList<EvePilotProfile>>(pilots));
             await restarted.ValidateAsync(pilots);
             Check(restarted.CanReadMoons, "Recent verification survives restart during an ESI outage");
             handler.DeniedStatus = HttpStatusCode.Forbidden;
@@ -413,6 +414,13 @@ internal static partial class Program
             handler.Deny = "";
             await access.ValidateAsync(pilots);
             Check(access.CanReadMoons, "Successful revalidation restores a hidden Moon tab");
+            pilots[0].Scopes = pilots[0].Scopes.Append(ContractService.ReadScope).ToArray();
+            access.State.ContractCharacterId = 123;
+            await access.ValidateAsync(new[] { new EvePilotProfile { CharacterId = 123, Scopes = Array.Empty<string>() } });
+            Check(access.CanReadContracts, "Stale setup scopes cannot hide freshly reauthorised Contracts");
+            pilots[0].Scopes = Array.Empty<string>();
+            await access.ValidateAsync(new[] { new EvePilotProfile { CharacterId = 123, Scopes = new[] { ContractService.ReadScope } } });
+            Check(!access.CanReadContracts, "Stale UI grants cannot override currently missing permissions");
             access.State.MoonCharacterId = 456;
             await access.ValidateAsync(pilots);
             Check(!access.CanReadMoons, "Switching readers never inherits another character's access");

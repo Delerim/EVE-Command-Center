@@ -1,6 +1,8 @@
-# EVE Command Center v3.5.5
+# EVE Command Center v3.5.6
 
-- Command Center panels now remember their position, size and maximised state independently. Includes PI, Pilots, Mining, Moons, Contracts, Industry, Omega, Settings, skill plans, fit viewers and notifications.
-- Layouts survive closing the panel, restarting the app and installing an update. Minimising preserves the normal window size and does not make the panel reopen minimised.
-- Saved panels adapt to monitor scaling and return to an available screen if a monitor is disconnected. Preview thumbnails, crop overlays and the miner overview keep their existing layout controls.
-- Window layout saves are debounced while dragging or resizing and stored locally in window-layouts.json.
+- Fixed corporation views disappearing after reconnect: access checks now reload saved permissions instead of using stale scopes held by an open panel.
+- Reconnecting a selected Contracts, Moons, PI, Industry or Omega character now requests its existing permissions alongside the new feature scopes.
+- Added a guard against overwriting an existing character connection with fewer permissions or with a different character than selected.
+- Pilot profile files are replaced atomically so concurrent permission checks cannot read a partially written file.
+
+If Contracts was hidden by the stale check, open Settings and use Verify Access after updating. If EVE has actually removed a permission, authorize that reader again; the app does not bypass EVE permission checks.

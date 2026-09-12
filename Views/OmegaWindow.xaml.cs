@@ -46,6 +46,6 @@ public partial class OmegaWindow:Window
     private void Clear_Click(object sender,RoutedEventArgs e){if(Pilots.SelectedItem is OmegaPilot p){p.Expiry=null;p.ReportedStatus="Unknown";_service.Save();Update();}}
     private async void Link_Click(object sender,RoutedEventArgs e)
     {
-        try{var pilots=await _sso.LoadPilotsAsync();var p=pilots.FirstOrDefault(x=>x.CharacterId==(Pilots.SelectedItem as OmegaPilot)?.Id);if(p==null)return;await _sso.AddCharacterAsync(_life.Token,p.Scopes.Append(OmegaService.Scope));_service.Due();await _service.RefreshAsync(_life.Token);}catch(Exception ex){StatusText.Text=ex.Message;}
+        try{var pilots=await _sso.LoadPilotsAsync();var p=pilots.FirstOrDefault(x=>x.CharacterId==(Pilots.SelectedItem as OmegaPilot)?.Id);if(p==null)return;await _sso.AddCharacterAsync(_life.Token,p.Scopes.Append(OmegaService.Scope),p.CharacterId);_service.Due();await _service.RefreshAsync(_life.Token);}catch(Exception ex){StatusText.Text=ex.Message;}
     }
 }

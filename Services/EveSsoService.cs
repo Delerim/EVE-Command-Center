@@ -131,9 +131,11 @@ public sealed class EveSsoService
     }
 
     public async Task<EvePilotProfile> AddCharacterAsync(
-        CancellationToken cancellationToken = default, IEnumerable<string>? additionalScopes = null)
+        CancellationToken cancellationToken = default, IEnumerable<string>? additionalScopes = null, long? characterId = null)
     {
-        var requestedScopes = InitialScopes.Concat(additionalScopes ?? Array.Empty<string>()).Distinct().ToArray();
+        var existingPilots = await LoadPilotsAsync();
+        var selected = existingPilots.FirstOrDefault(p => p.CharacterId == characterId);
+        var requestedScopes = EveAuthorizationScopes.Request(selected, additionalScopes);
         string verifier = Base64Url(RandomNumberGenerator.GetBytes(48));
         string challenge = Base64Url(
             SHA256.HashData(Encoding.ASCII.GetBytes(verifier)));
@@ -243,6 +245,14 @@ public sealed class EveSsoService
                 throw new InvalidOperationException(
                     "EVE SSO did not return a refresh token.");
 
+            var grantedScopes = identity.Scopes.Length > 0 ? identity.Scopes : requestedScopes;
+            var existing = (await LoadPilotsAsync()).FirstOrDefault(p => p.CharacterId == identity.CharacterID);
+            try { EveAuthorizationScopes.ValidateReplacement(existing, grantedScopes, identity.CharacterID, characterId); }
+            catch (InvalidOperationException ex)
+            {
+                await WriteBrowserResponseAsync(stream, false, "Connection not replaced", ex.Message);
+                throw;
+            }
             EveCredentialStore.Write(identity.CharacterID, token.RefreshToken);
 
             _accessTokens[identity.CharacterID] = new TokenCache
@@ -256,8 +266,7 @@ public sealed class EveSsoService
             {
                 CharacterId = identity.CharacterID,
                 CharacterName = identity.CharacterName,
-                Scopes = identity.Scopes.Length > 0
-                    ? identity.Scopes : requestedScopes,
+                Scopes = grantedScopes,
                 AddedUtc = DateTime.UtcNow
             };
 
@@ -3819,7 +3828,14 @@ public sealed class EveSsoService
                 p => p.CharacterName,
                 StringComparer.OrdinalIgnoreCase),
             _json);
-        await File.WriteAllTextAsync(_pilotFile, json);
+        // Readers must see either the old complete profile list or the new one.
+        string temporary = _pilotFile + "." + Guid.NewGuid().ToString("N") + ".tmp";
+        try
+        {
+            await File.WriteAllTextAsync(temporary, json);
+            File.Move(temporary, _pilotFile, true);
+        }
+        finally { if (File.Exists(temporary)) File.Delete(temporary); }
     }
 
     private static async Task WriteBrowserResponseAsync(

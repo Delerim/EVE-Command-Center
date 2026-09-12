@@ -1,4 +1,4 @@
-﻿using System.IO;
+using System.IO;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text.Json;
@@ -23,6 +23,7 @@ public sealed class CorporationAccessService
     private readonly HttpClient _http;
     private readonly Func<EvePilotProfile, CancellationToken, Task<string>> _token;
     private readonly string _file;
+    private readonly Func<Task<IReadOnlyList<EvePilotProfile>>> _profiles;
     private readonly SemaphoreSlim _gate = new(1, 1);
     public LinkState State { get; }
     public bool CanReadMoons { get; private set; }
@@ -31,9 +32,10 @@ public sealed class CorporationAccessService
     public string ContractStatus { get; private set; } = "Not verified - link a corporation contract reader.";
     public event Action? Changed;
 
-    public CorporationAccessService(EveSsoService sso, HttpClient? http = null, string? directory = null, Func<EvePilotProfile, CancellationToken, Task<string>>? token = null)
+    public CorporationAccessService(EveSsoService sso, HttpClient? http = null, string? directory = null, Func<EvePilotProfile, CancellationToken, Task<string>>? token = null, Func<Task<IReadOnlyList<EvePilotProfile>>>? profiles = null)
     {
         _sso = sso;
+        _profiles = profiles ?? sso.LoadPilotsAsync;
         _token = token ?? ((pilot, ct) => _sso.GetAccessTokenForAsync(pilot, ct));
         _http = http ?? EsiHttp.CreateClient();
         _file = Path.Combine(directory ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "EVE Command Center"), "corporation-access.json");
@@ -51,10 +53,14 @@ public sealed class CorporationAccessService
         await _gate.WaitAsync(cancellationToken);
         try
         {
+            // UI windows can outlive an SSO reconnect. Read after acquiring the
+            // gate so queued validations cannot revoke access using old scopes.
+            pilots = await _profiles();
             long moonId = State.MoonCharacterId, contractId = State.ContractCharacterId;
             var moon = await ProbeAsync(pilots.FirstOrDefault(p => p.CharacterId == moonId), true, cancellationToken);
             Apply(moonId, true, moon);
             Changed?.Invoke();
+            pilots = await _profiles(); // Moon checks may have awaited a reconnect or provider cooldown.
             var contracts = await ProbeAsync(pilots.FirstOrDefault(p => p.CharacterId == contractId), false, cancellationToken);
             Apply(contractId, false, contracts);
             Save();

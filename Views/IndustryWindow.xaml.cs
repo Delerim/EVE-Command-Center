@@ -83,7 +83,7 @@ public partial class IndustryWindow : Window
     }
     private async void Link_Click(object sender,RoutedEventArgs e)
     {
-        try {var linked=await _sso.LoadPilotsAsync();var p=linked.FirstOrDefault(p=>p.CharacterId==Selected?.Id);await _sso.AddCharacterAsync(_life.Token,(p?.Scopes??Array.Empty<string>()).Concat(IndustryService.Scopes));_service.Due();await _service.RefreshAsync(_life.Token);}
+        try {var linked=await _sso.LoadPilotsAsync();var p=linked.FirstOrDefault(p=>p.CharacterId==Selected?.Id);await _sso.AddCharacterAsync(_life.Token,(p?.Scopes??Array.Empty<string>()).Concat(IndustryService.Scopes),p?.CharacterId);_service.Due();await _service.RefreshAsync(_life.Token);}
         catch(Exception ex){StatusText.Text=ex.Message;}
     }
     private async void Refresh_Click(object sender,RoutedEventArgs e)=>await _service.RefreshAsync(_life.Token);

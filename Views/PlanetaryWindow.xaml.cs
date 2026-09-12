@@ -97,7 +97,7 @@ public partial class PlanetaryWindow : Window
         try
         {
             StatusText.Text = "Authorize " + pilot.CharacterName + " on the official EVE page. Select the same character.";
-            await _sso.AddCharacterAsync(_life.Token, pilot.Scopes.Append(PlanetaryService.Scope));
+            await _sso.AddCharacterAsync(_life.Token, pilot.Scopes.Append(PlanetaryService.Scope), pilot.CharacterId);
             await LoadPilots();
             if (!_service.Busy) { _service.State.NextRefresh = default; await _service.RefreshAsync(_life.Token); }
         }

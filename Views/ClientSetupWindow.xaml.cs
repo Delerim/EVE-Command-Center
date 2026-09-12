@@ -1,4 +1,4 @@
-﻿using System.Windows;
+using System.Windows;
 using EveCommandCenter.Models;
 using EveCommandCenter.Services;
 
@@ -42,7 +42,8 @@ public partial class ClientSetupWindow : Window
             StatusText.Text = "Choose the correct character on the official EVE authorization page.";
             var role = (sender as System.Windows.Controls.Button)?.Tag?.ToString();
             var scopes = role == "contract" ? ContractService.Scopes : role == "moon" ? new[] { MoonReportService.MiningScope, MoonReportService.StructureScope, MoonReportService.FuelAssetsScope } : Array.Empty<string>();
-            var pilot = await _operations.Sso.AddCharacterAsync(_lifetime.Token, scopes);
+            var selected = role == "contract" ? ContractPilot.SelectedItem as EvePilotProfile : role == "moon" ? MoonPilot.SelectedItem as EvePilotProfile : null;
+            var pilot = await _operations.Sso.AddCharacterAsync(_lifetime.Token, scopes, selected?.CharacterId);
             if (role == "moon") _operations.Access.State.MoonCharacterId = pilot.CharacterId;
             if (role == "contract") _operations.Access.State.ContractCharacterId = pilot.CharacterId;
             await ReloadAsync();
