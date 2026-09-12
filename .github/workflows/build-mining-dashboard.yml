@@ -16,6 +16,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Validate patch notes
+        shell: pwsh
+        run: |
+          $tag = if ($env:GITHUB_REF_TYPE -eq 'tag') { $env:GITHUB_REF_NAME } else { '' }
+          ./scripts/Validate-ReleaseNotes.ps1 -Tag $tag
+
       - name: Setup .NET 8
         uses: actions/setup-dotnet@v4
         with:

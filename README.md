@@ -38,7 +38,9 @@ Output: `artifacts/publish/EVE Command Center.exe`.
 
 ## Releases
 
-Push a version tag matching the project version, such as `v2.4.0`, to publish a GitHub Release with a portable ZIP, updater executable, and SHA-256 checksums. Pushes to `main` also produce a GitHub Actions build artifact. On startup, the app checks this repository and shows release notes for newer versions. Choose Update & Restart or Skip & Launch. Disable startup updates in Settings > About if needed.
+For every patch, update `Version` in `EveCommandCenter.csproj` and rewrite `RELEASE_NOTES.md` with the matching first line (`# EVE Command Center vX.Y.Z`) and that patch's changes. The release workflow uses this file verbatim for GitHub and the in-app update dialog. Run `./scripts/Validate-ReleaseNotes.ps1` before tagging; CI rejects mismatched or empty notes.
+
+Push a version tag matching the project version, such as `v3.5.4`, to publish a GitHub Release with a portable ZIP, updater executable, and SHA-256 checksums. Pushes to `main` also produce a GitHub Actions build artifact. On startup, the app checks this repository and shows release notes for newer versions. Choose Update & Restart or Skip & Launch. Disable startup updates in Settings > About if needed.
 
 ## Credits
 
