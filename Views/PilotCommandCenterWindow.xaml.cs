@@ -31,10 +31,21 @@ public partial class PilotCommandCenterWindow : Window
     private List<QueueRowViewModel> _queueRows = new();
     private EveTrainingProfile _trainingProfile = new();
     private EvePilotDashboard? _planningSnapshot;
+    private readonly Dictionary<long, SkillPlannerWindow> _planners = new();
     private void SkillPlanner_Click(object sender, RoutedEventArgs e)
     {
-        if (_planningSnapshot == null || PilotList.SelectedItem is not PilotCardViewModel card || card.CharacterId != _planningSnapshot.Summary.CharacterId) { SetStatus("Select a pilot and wait for their skills to load."); return; }
-        new SkillPlannerWindow(_planningSnapshot) { Owner = this }.Show();
+        if (PilotList.SelectedItem is not PilotCardViewModel card) { WpfMessageBox.Show(this,"Select a pilot first.","Skill Planner"); return; }
+        try
+        {
+            if (_planners.TryGetValue(card.CharacterId,out var open)) { if(open.WindowState==WindowState.Minimized)open.WindowState=WindowState.Normal;open.Activate();return; }
+            bool ready=_planningSnapshot?.Summary.CharacterId==card.CharacterId;
+            var data=ready?_planningSnapshot!:new EvePilotDashboard {Summary=new(){CharacterId=card.CharacterId,CharacterName=card.CharacterName}};
+            var planner=new SkillPlannerWindow(data,ready){Owner=this};
+            _planners[card.CharacterId]=planner;
+            planner.Closed+=(_,_)=>_planners.Remove(card.CharacterId);
+            planner.Show();planner.Activate();
+        }
+        catch(Exception ex){EsiDiagnostics.Write("Skill planner open: "+ex);WpfMessageBox.Show(this,"Could not open Skill Planner: "+ex.Message,"Skill Planner");}
     }
     private long _inventoryLoadedForCharacterId;
     private EveInventorySnapshot? _currentInventory;
@@ -222,6 +233,7 @@ public partial class PilotCommandCenterWindow : Window
             if (!data.CoreOnly) ApplyWalletData(data);
 
             _planningSnapshot = data;
+            if (_planners.TryGetValue(card.CharacterId,out var planner)) planner.ApplySnapshot(data);
             _trainingProfile = data.TrainingProfile;
 
             AttributeItems.ItemsSource =

@@ -12,19 +12,21 @@ namespace EveCommandCenter.Views;
 
 public partial class SkillPlannerWindow : Window
 {
-    private readonly EvePilotDashboard _data;
+    private EvePilotDashboard _data;
+    private bool _ready;
     private Dictionary<int, int> _targets = new();
     private List<SkillPlanStep> _steps = new();
     private sealed class SavedPlan { public Dictionary<int, int> Targets { get; set; } = new(); public bool AttributeOrder { get; set; } }
     private Dictionary<string, SavedPlan> _saved = new();
     private readonly string _file;
     private bool _ordered;
-    public SkillPlannerWindow(EvePilotDashboard data)
+    public SkillPlannerWindow(EvePilotDashboard data, bool ready = true)
     {
         _data = data;
+        _ready = ready;
         InitializeComponent();
         Heading.Text = $"SKILL PLANNER | {data.Summary.CharacterName}";
-        AttributesText.Text = string.Join("   |   ", data.TrainingProfile.Attributes.Select(x => $"{x.Name}: {x.Total}")) + $"   |   Bonus remaps: {data.TrainingProfile.BonusRemaps}";
+        AttributesText.Text = !_ready ? "Waiting for pilot skills and attributes..." : string.Join("   |   ", data.TrainingProfile.Attributes.Select(x => $"{x.Name}: {x.Total}")) + $"   |   Bonus remaps: {data.TrainingProfile.BonusRemaps}";
         _file = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "EVE Command Center", "PilotData", $"skill-plans-{data.Summary.CharacterId}.json");
         try { if (File.Exists(_file)) _saved = JsonSerializer.Deserialize<Dictionary<string, SavedPlan>>(File.ReadAllText(_file)) ?? new(); }
         catch (Exception ex) { Status.Text = "Could not read saved plans: " + ex.Message; }
@@ -33,6 +35,16 @@ public partial class SkillPlannerWindow : Window
         Profiles.ItemsSource = new[] { "Max Exhumer Miner" }.Concat(SkillPlanning.Profiles.Keys).ToList();
         Profiles.SelectedIndex = 0;
         Refresh();
+        if (!_ready) Status.Text="Waiting for pilot skills. You can choose targets now; progress and estimates appear when the pilot refresh completes. Use Refresh in the Pilots window to retry.";
+    }
+    public void ApplySnapshot(EvePilotDashboard data)
+    {
+        if(data.Summary.CharacterId!=_data.Summary.CharacterId)return;
+        _data=data;_ready=true;
+        AttributesText.Text=string.Join("   |   ",data.TrainingProfile.Attributes.Select(x=>$"{x.Name}: {x.Total}"));
+        if(data.TrainingProfile.Attributes.Count==0)AttributesText.Text="Skills loaded; attributes still pending. Training times are unavailable until they arrive.";
+        Profile_Changed(this,new SelectionChangedEventArgs(System.Windows.Controls.Primitives.Selector.SelectionChangedEvent,Array.Empty<object>(),Array.Empty<object>()));
+        Refresh();Status.Text="Pilot skills loaded. Your plan targets have been retained.";
     }
     private void Profile_Changed(object sender, SelectionChangedEventArgs e)
     {
@@ -40,13 +52,14 @@ public partial class SkillPlannerWindow : Window
         var trained = _data.TrainedSkills.ToDictionary(x => x.SkillId);
         ProfileGrid.ItemsSource = SkillPlanning.Profile(profile).Select(x => {
             trained.TryGetValue(x.Key, out var s);
-            return new { Name = SkillPlanning.Catalog[x.Key].Name, Trained = SkillPlanning.Roman(s?.TrainedSkillLevel ?? 0), Status = s?.TrainedSkillLevel >= x.Value ? (s.ActiveSkillLevel < x.Value ? "Trained / inactive" : "Complete") : "Missing", Color = s?.TrainedSkillLevel >= x.Value ? "#58D3B4" : "#E8BC62" };
+            return new { Name = SkillPlanning.Catalog[x.Key].Name, Trained = _ready ? SkillPlanning.Roman(s?.TrainedSkillLevel ?? 0) : "?", Status = !_ready ? "Awaiting data" : s?.TrainedSkillLevel >= x.Value ? (s.ActiveSkillLevel < x.Value ? "Trained / inactive" : "Complete") : "Missing", Color = !_ready ? "#91A4AD" : s?.TrainedSkillLevel >= x.Value ? "#58D3B4" : "#E8BC62" };
         }).OrderBy(x => x.Status == "Complete").ThenBy(x => x.Name).ToList();
     }
     private void Refresh()
     {
         try
         {
+            if (!_ready) { _steps.Clear();Steps.ItemsSource=null;Summary.Text=$"{_targets.Count} targets | Waiting for pilot skills; missing levels and times are not yet known.";Guidance.Text="Choose a profile, add custom targets, or load a saved plan while the pilot refreshes.";return; }
             _steps = SkillPlanning.Build(_targets, _data, _ordered);
             Steps.ItemsSource = _steps;
             Summary.Text = $"{_targets.Count} targets | {_steps.Count} missing levels | {_steps.Sum(x => x.RemainingSp):N0} SP | " + (_steps.Any(x => x.Rate <= 0) ? "Training time unavailable" : $"{_steps.Sum(x => x.Minutes) / 1440:0.0} days estimated");
@@ -56,10 +69,10 @@ public partial class SkillPlannerWindow : Window
     }
     private void Profile_Click(object sender, RoutedEventArgs e) { if (Profiles.SelectedItem is string p) { foreach (var x in SkillPlanning.Profile(p)) _targets[x.Key] = Math.Max(_targets.GetValueOrDefault(x.Key), x.Value); Refresh(); } }
     private void Add_Click(object sender, RoutedEventArgs e) { if (Skill.SelectedItem is PlanningSkill s) { _targets[s.Id] = Math.Max(_targets.GetValueOrDefault(s.Id), Level.SelectedIndex + 1); Refresh(); } else Status.Text = "Choose a skill from the list."; }
-    private void Optimize_Click(object sender, RoutedEventArgs e) { _ordered = true; Refresh(); Status.Text = "Plan reordered by current training speed, with prerequisites first. Total training time is unchanged."; }
+    private void Optimize_Click(object sender, RoutedEventArgs e) { _ordered = true; Refresh(); Status.Text = _ready ? "Plan reordered by current training speed, with prerequisites first. Total training time is unchanged." : "Attribute priority will apply when pilot data arrives."; }
     private void Clear_Click(object sender, RoutedEventArgs e) { _targets.Clear(); Refresh(); }
     private void Remove_Click(object sender, RoutedEventArgs e) { if (Steps.SelectedItem is SkillPlanStep s) { if (!_targets.Remove(s.Id)) Status.Text = "This skill is a prerequisite. Remove the target that requires it first."; Refresh(); } }
-    private void Queue_Click(object sender, RoutedEventArgs e) { _targets = _data.SkillQueue.OrderBy(x => x.Position).GroupBy(x => x.SkillId).ToDictionary(x => x.Key, x => x.Max(y => y.FinishedLevel)); _ordered = false; Refresh(); Status.Text = "Live queue targets copied into a local plan. No changes were sent to EVE."; }
+    private void Queue_Click(object sender, RoutedEventArgs e) { if(!_ready){Status.Text="Waiting for the live queue to load.";return;} _targets = _data.SkillQueue.OrderBy(x => x.Position).GroupBy(x => x.SkillId).ToDictionary(x => x.Key, x => x.Max(y => y.FinishedLevel)); _ordered = false; Refresh(); Status.Text = "Live queue targets copied into a local plan. No changes were sent to EVE."; }
     private void Copy_Click(object sender, RoutedEventArgs e) { try { if (_steps.Count == 0) { Status.Text = "The plan has no missing levels to copy."; return; } System.Windows.Clipboard.SetText(string.Join(Environment.NewLine, _steps.Select(x => $"{x.Name} {x.Target}"))); Status.Text = "Copied. In EVE, import the skill list into a skill plan and review it before applying to your queue."; } catch (Exception ex) { Status.Text = "Clipboard unavailable: " + ex.Message; } }
     private void Save_Click(object sender, RoutedEventArgs e)
     {

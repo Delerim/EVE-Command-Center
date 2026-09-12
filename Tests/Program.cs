@@ -119,6 +119,13 @@ internal static partial class Program
 
         // Load XAML and render sample data without starting the app or live ESI polling.
         var app = new System.Windows.Application();
+        var waitingPlanner=new SkillPlannerWindow(new EvePilotDashboard {Summary=new(){CharacterId=-998,CharacterName="Waiting pilot"}},false);
+        typeof(SkillPlannerWindow).GetMethod("Profile_Click",System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.Instance)!.Invoke(waitingPlanner,new object[]{waitingPlanner,new RoutedEventArgs()});
+        Check(((TextBlock)waitingPlanner.FindName("Summary")).Text.Contains("Waiting")&&((DataGrid)waitingPlanner.FindName("Steps")).Items.Count==0,"Planner opens before ESI data without inventing missing levels");
+        waitingPlanner.ApplySnapshot(new EvePilotDashboard {Summary=new(){CharacterId=-997}});
+        Check(((DataGrid)waitingPlanner.FindName("Steps")).Items.Count==0,"Waiting planner rejects another pilot's snapshot");
+        waitingPlanner.ApplySnapshot(new EvePilotDashboard {Summary=new(){CharacterId=-998}});
+        Check(((DataGrid)waitingPlanner.FindName("Steps")).Items.Count>30,"Waiting planner keeps chosen profile and populates automatically when skills arrive");
         var skillWindow = new SkillPlannerWindow(new EvePilotDashboard { Summary = new() { CharacterId = -999, CharacterName = "Planner test pilot" }, TrainingProfile = new() { Attributes = new[] { 164,165,166,167,168 }.Select((id,i) => new EveTrainingAttribute { DogmaAttributeId = id, Name = SkillPlanning.Attribute(id), Total=20+i }).ToList() } });
         Check(skillWindow.FindName("Steps") != null && ((DataGrid)skillWindow.FindName("ProfileGrid")).Items.Count >= 30, "Skill planner loads profile comparison and training plan controls");
         typeof(SkillPlannerWindow).GetMethod("Profile_Click", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!.Invoke(skillWindow,new object[] { skillWindow,new RoutedEventArgs() });
