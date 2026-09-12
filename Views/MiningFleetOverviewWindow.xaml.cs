@@ -75,7 +75,7 @@ public partial class MiningFleetOverviewWindow : Window
         }
 
         Width = Math.Max(MinWidth, prefs.FleetOverviewWidth);
-        Height = Math.Max(MinHeight, prefs.FleetOverviewHeight);
+        Height = Math.Max(MinHeight, prefs.FleetOverviewHeight) + (_tracker.RockTracking.Enabled && !prefs.AllowFleetOverviewResize ? 85 : 0);
 
         try
         {
