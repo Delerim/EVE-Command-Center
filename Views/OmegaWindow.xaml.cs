@@ -10,7 +10,7 @@ public partial class OmegaWindow:Window
     private readonly EveSsoService _sso=BackgroundOperations.Current.Sso;
     private readonly CancellationTokenSource _life=new();
     private readonly DispatcherTimer _timer=new(){Interval=TimeSpan.FromMinutes(1)};
-    public OmegaWindow(){InitializeComponent();_service.Changed+=Update;_timer.Tick+=(_,_)=>Update();Loaded+=async(_,_)=>{Update();_timer.Start();await _service.RefreshAsync(_life.Token);};Closed+=(_,_)=>{_timer.Stop();_service.Changed-=Update;_life.Cancel();};}
+    public OmegaWindow(){InitializeComponent();Alerts.IsChecked=_service.Budget.Alerts;ReloadOffers();_service.Changed+=Update;_timer.Tick+=(_,_)=>Update();Loaded+=async(_,_)=>{Update();_timer.Start();await _service.RefreshAsync(_life.Token);};Closed+=(_,_)=>{_timer.Stop();_service.Changed-=Update;_life.Cancel();};Update();}
     private void Update()
     {
         if(!Dispatcher.CheckAccess()){Dispatcher.BeginInvoke(Update);return;}
@@ -21,7 +21,11 @@ public partial class OmegaWindow:Window
             Pilots.SelectedItem=_service.Pilots.FirstOrDefault(p=>p.Id==id);if(Pilots.SelectedItem==null&&Pilots.Items.Count>0)Pilots.SelectedIndex=0;
         }
         else Pilots.Items.Refresh();
-        Summary.Text=$"{_service.Pilots.Count} pilots | {_service.Pilots.Count(p=>p.Expiry.HasValue)} dates recorded | {_service.Pilots.Count(p=>p.Expiry<DateTimeOffset.UtcNow.AddDays(7))} recorded dates due within 7 days";
+        var accounts=OmegaPlanning.Accounts(_service.Pilots);var now=DateTimeOffset.UtcNow;
+        TrackedTile.Text=accounts.Count.ToString();DueTile.Text=accounts.Count(p=>p.Expiry>now&&p.Expiry<now.AddDays(30)).ToString();ExpiredTile.Text=accounts.Count(p=>p.Expiry<=now).ToString();
+        PlexTile.Text=_service.Budget.PlexSell is >0?(_service.Budget.PlexSell.Value/1000000).ToString("N2")+"M ISK":"Unavailable";
+        Summary.Text=$"{_service.Pilots.Count} pilots | {accounts.Count(p=>!p.Expiry.HasValue)} accounts without dates | Green: 30+ days / amber: under 30 / orange: under 7 / red: expired / grey: unknown";
+        RefreshBudget();
     }
     private void Selected(object sender,SelectionChangedEventArgs e)
     {
@@ -37,7 +41,7 @@ public partial class OmegaWindow:Window
         if(!TimeSpan.TryParseExact(Time.Text,@"hh\:mm",System.Globalization.CultureInfo.InvariantCulture,out var time)){StatusText.Text="Use a local time in HH:mm format.";return;}
         p.Account=Account.Text.Trim();p.Expiry=new DateTimeOffset(DateTime.SpecifyKind(date.Date+time,DateTimeKind.Local));p.ReportedStatus="Omega";
         if(p.Account.Length>0)foreach(var other in _service.Pilots.Where(x=>x.Account.Equals(p.Account,StringComparison.OrdinalIgnoreCase))){other.Expiry=p.Expiry;other.ReportedStatus=p.ReportedStatus;}
-        _service.Save();Update();StatusText.Text="Manual subscription date saved. Verify it in the launcher after renewals.";
+        _service.Save();_service.CheckAlerts();Update();StatusText.Text="Manual subscription date saved. Verify it in the launcher after renewals.";
     }
     private void Clear_Click(object sender,RoutedEventArgs e){if(Pilots.SelectedItem is OmegaPilot p){p.Expiry=null;p.ReportedStatus="Unknown";_service.Save();Update();}}
     private async void Link_Click(object sender,RoutedEventArgs e)

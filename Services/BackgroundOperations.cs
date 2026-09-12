@@ -1,4 +1,4 @@
-﻿using System.IO;
+using System.IO;
 using System.Text.Json;
 using System.Windows;
 using System.Windows.Threading;
@@ -47,6 +47,7 @@ public sealed class BackgroundOperations : IDisposable
         Planetary = new PlanetaryService(Sso);
         Industry = new IndustryService(Sso);
         Omega = new OmegaService(Sso);
+        Omega.Alert += (title,message) => OperatingToast.Notify(title,message,OpenOmega,"OMEGA RENEWAL");
         Industry.Alert += (title,message) => OperatingToast.Notify(title,message,OpenIndustry,"INDUSTRY READY");
         Pilots = new BackgroundPilotRefresh(Sso);
         if (!Access.State.SetupCompleted)
@@ -82,6 +83,8 @@ public sealed class BackgroundOperations : IDisposable
                 if(alerts.Count>0 && Planetary.State.DesktopAlerts) OperatingToast.Notify($"{alerts.Count} PI colonies need a visit",string.Join("\n",alerts.Take(4)),OpenPlanetary,"PLANETARY INDUSTRY");
                 Planetary.Save();
             }
+            Omega.CheckAlerts();
+            _ = Omega.RefreshMarketAsync(_lifetime.Token);
             _ = Omega.RefreshAsync(_lifetime.Token);
             _ = Industry.RefreshAsync(_lifetime.Token);
             _ = Planetary.RefreshAsync(_lifetime.Token);

@@ -64,6 +64,7 @@ internal static partial class Program
         var piFixture = CheckPlanetary();
         var industryFixture = CheckIndustry();
         CheckSkillPlanning();
+        CheckOmegaBudget();
         CheckMiningRates();
         CheckBuybackPeriods();
         CheckMoonAlerts();
@@ -127,7 +128,7 @@ internal static partial class Program
         Check(omegaWindow.FindName("Pilots") != null && omegaWindow.FindName("Expiry") != null,"Omega dashboard exposes tracked dates and clone information");
         ((DataGrid)omegaWindow.FindName("Pilots")).ItemsSource=new[]{new OmegaPilot {Id=42,Name="Example Pilot",Expiry=DateTimeOffset.UtcNow.AddDays(14),Account="Account A"}};
         ((DataGrid)omegaWindow.FindName("Pilots")).SelectedIndex=0;
-        if(args.Length>0)Render(omegaWindow,System.IO.Path.ChangeExtension(args[0],".omega.png"));
+        if(args.Length>0){Render(omegaWindow,System.IO.Path.ChangeExtension(args[0],".omega.png"));((TabControl)omegaWindow.FindName("OmegaTabs")).SelectedIndex=1;Render(omegaWindow,System.IO.Path.ChangeExtension(args[0],".omega-budget.png"));}
         var industryWindow = new IndustryWindow(); BackgroundOperations.Stop();
         Check(industryWindow.FindName("Recipes") != null && industryWindow.FindName("Materials") != null, "Industry dashboard XAML exposes blueprint and material planning");
         ((ListBox)industryWindow.FindName("Pilots")).ItemsSource = new[] { industryFixture };
