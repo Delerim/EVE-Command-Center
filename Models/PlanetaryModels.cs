@@ -1,4 +1,4 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace EveCommandCenter.Models;
@@ -64,6 +64,7 @@ public sealed class PiQuote
 }
 public sealed class PiRow
 {
+    public double? SecondsUntilAction { get; set; }
     public bool IsFactory { get; set; }
     public string Name { get; set; } = "";
     public string Detail { get; set; } = "";
@@ -109,14 +110,15 @@ public sealed class PiProductTotal
     public int Tier { get; set; }
     public int Factories { get; set; }
     public double Capacity { get; set; }
+    public DateTimeOffset SnapshotOldest { get; set; }
     public double Stored { get; set; }
     public double Reserved { get; set; }
     public double Collect => Math.Max(0, Stored - Reserved);
     public string Icon => $"https://images.evetech.net/types/{TypeId}/icon?size=32";
     public string RateText => $"{Capacity:N0}/h capacity";
-    public string StoredText => $"{Stored:N0} stored";
-    public string CollectText => $"{Collect:N0} collect";
-    public string ReservedText => $"{Reserved:N0} routed onward";
+    public string StoredText => $"{Stored:N0} in snapshot";
+    public string CollectText => $"{Collect:N0} recorded to collect";
+    public string ReservedText => $"{Reserved:N0} routed onward | oldest {SnapshotOldest.ToLocalTime():dd MMM HH:mm}";
 }
 public sealed class PiTierSummary
 {

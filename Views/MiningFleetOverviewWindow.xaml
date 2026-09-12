@@ -1,4 +1,4 @@
-﻿<Window x:Class="EveCommandCenter.Views.MiningFleetOverviewWindow"
+<Window x:Class="EveCommandCenter.Views.MiningFleetOverviewWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Mining Overview"
@@ -114,6 +114,8 @@
                             VerticalAlignment="Center"
                             Margin="12,0,2,0">
                     <Button Content="OMEGA" Height="21" FontSize="10" Margin="4,0,0,0" Click="OpenOmega_Click"/>
+                    <Button Content="NOTICES" Height="21" Padding="7,1" FontSize="10" Margin="4,0" Click="Notifications_Click"/>
+                    <Button x:Name="RockToggle" Content="ROCKS OFF" Height="21" Padding="7,1" FontSize="10" Margin="4,0" Click="RockToggle_Click" ToolTip="Toggle estimated per-laser rock tracking"/>
                     <Button Content="MINING"
                             MinWidth="58"
                             Height="21"
@@ -238,6 +240,7 @@
 
                                 <Grid>
                                     <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
                                         <RowDefinition Height="Auto"/>
                                         <RowDefinition Height="Auto"/>
                                         <RowDefinition Height="Auto"/>
@@ -489,6 +492,13 @@
                                             </Button>
                                         </StackPanel>
                                     </Grid>
+                                    <StackPanel Grid.Row="5" Margin="0,6,0,0" Visibility="{Binding RockVisibility}">
+                                        <Button Content="SET ROCKS (EST.)" Tag="{Binding Character}" Click="SetRocks_Click" FontSize="9" Padding="3,1" HorizontalAlignment="Left"/>
+                                        <TextBlock Text="{Binding Rock1Text}" Foreground="#74D6C9" FontSize="10" Margin="0,3,0,1" ToolTip="{Binding Rock1Note}"/>
+                                        <ProgressBar Height="3" Value="{Binding Rock1Percent}" Maximum="100" Foreground="#74D6C9" Background="#243B3B"/>
+                                        <TextBlock Text="{Binding Rock2Text}" Foreground="#9EBFFF" FontSize="10" Margin="0,3,0,1" ToolTip="{Binding Rock2Note}"/>
+                                        <ProgressBar Height="3" Value="{Binding Rock2Percent}" Maximum="100" Foreground="#9EBFFF" Background="#243B3B"/>
+                                    </StackPanel>
                                 </Grid>
                             </Border>
                         </DataTemplate>

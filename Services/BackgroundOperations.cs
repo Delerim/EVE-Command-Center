@@ -79,8 +79,9 @@ public sealed class BackgroundOperations : IDisposable
         {
             if (!Planetary.Busy)
             {
+                try { NotificationCenterService.Current.SyncPi(Planetary.State,DateTimeOffset.UtcNow); } catch(Exception ex){EsiDiagnostics.Write("PI notification sync: "+ex.GetType().Name);}
                 var alerts=PlanetaryAlerts.Observe(Planetary.State,DateTimeOffset.UtcNow);
-                if(alerts.Count>0 && Planetary.State.DesktopAlerts) OperatingToast.Notify($"{alerts.Count} PI colonies need a visit",string.Join("\n",alerts.Take(4)),OpenPlanetary,"PLANETARY INDUSTRY");
+                if(Planetary.State.DesktopAlerts) foreach(var group in alerts.GroupBy(a=>a.Split('|')[0].Trim())) OperatingToast.Notify(group.Key+" | PI",string.Join("\n",group.Take(5)),OpenPlanetary,"PLANETARY INDUSTRY");
                 Planetary.Save();
             }
             Omega.CheckAlerts();
@@ -201,6 +202,13 @@ public sealed class BackgroundOperations : IDisposable
         if (Moons.DesktopNotificationsEnabled)
             OperatingToast.Notify(pilot + " | " + ore, "Glistening ore detected in a live mining log. The corporation ledger will identify the moon when available.",
                 () => { if (Access.CanReadMoons) OpenMoons(); }, "GLISTENING ORE DETECTED");
+    }
+    private NotificationCenterWindow? _notifications;
+    public void OpenNotifications()
+    {
+        try { NotificationCenterService.Current.SyncPi(Planetary.State,DateTimeOffset.UtcNow); } catch(Exception ex){EsiDiagnostics.Write("PI notification sync: "+ex.GetType().Name);}
+        if(_notifications==null){_notifications=new NotificationCenterWindow();_notifications.Closed+=(_,_)=>_notifications=null;}
+        _notifications.Show();if(_notifications.WindowState==WindowState.Minimized)_notifications.WindowState=WindowState.Normal;_notifications.Activate();
     }
     public void OpenOmega()
     {

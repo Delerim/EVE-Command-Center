@@ -1,4 +1,4 @@
-﻿using System.Windows;
+using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Threading;
 using EveCommandCenter.Models;
@@ -7,6 +7,7 @@ using EveCommandCenter.Services;
 namespace EveCommandCenter.Views;
 public partial class PlanetaryWindow : Window
 {
+    private void Notifications_Click(object sender,RoutedEventArgs e)=>BackgroundOperations.Current.OpenNotifications();
     private readonly PlanetaryService _service = BackgroundOperations.Current.Planetary;
     private readonly EveSsoService _sso = BackgroundOperations.Current.Sso;
     private readonly CancellationTokenSource _life = new();

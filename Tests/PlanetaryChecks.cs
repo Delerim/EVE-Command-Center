@@ -1,4 +1,4 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 using EveCommandCenter.Models;
 using EveCommandCenter.Services;
 
@@ -82,13 +82,15 @@ internal static partial class Program
         var stockNode = json["pins"]![0]!;
         stockNode["contents"] = new System.Text.Json.Nodes.JsonArray(
             new System.Text.Json.Nodes.JsonObject { ["type_id"] = robotics.Inputs.Keys.First(), ["amount"] = 100 },
-            new System.Text.Json.Nodes.JsonObject { ["type_id"] = robotics.Outputs.Keys.Single(), ["amount"] = 30 });
+            new System.Text.Json.Nodes.JsonObject { ["type_id"] = robotics.Outputs.Keys.Single(), ["amount"] = 30 },
+            new System.Text.Json.Nodes.JsonObject { ["type_id"] = 2398, ["amount"] = 500 });
         chain.Layout = JsonSerializer.SerializeToElement(json);
         var outputSummary = PlanetaryAnalysis.Build(chainState, now);
         var products = outputSummary.FactoryTiers.SelectMany(t => t.Products).ToArray();
         Check(products.Single(p => p.TypeId == robotics.Inputs.Keys.First()).Reserved == 100 && products.Single(p => p.TypeId == robotics.Inputs.Keys.First()).Collect == 0, "T2 inventory routed to T3 remains reserved rather than collectable");
         Check(products.Single(p => p.TypeId == robotics.Outputs.Keys.Single()).Collect == 30, "Final T3 stock is counted once as available for collection");
-        Check(outputSummary.FactoryTiers.Select(t => t.Tier).SequenceEqual(new[] {2,3}) && products.Single(p => p.TypeId == robotics.Outputs.Keys.Single()).Capacity == 3, "Factory output is grouped by tier with recipe-based hourly capacity");
+        Check(outputSummary.FactoryTiers.Select(t => t.Tier).SequenceEqual(new[] {1,2,3}) && products.Single(p => p.TypeId == robotics.Outputs.Keys.Single()).Capacity == 3, "Factory output is grouped by tier with recipe-based hourly capacity");
+        Check(products.Single(p=>p.TypeId==2398).Stored==500,"Stored T1 feedstock is counted even on planets that only manufacture higher tiers");
         return state;
     }
     private static void CheckMiningRates()

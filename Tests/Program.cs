@@ -1,3 +1,4 @@
+using System.IO;
 using System.Text.Json;
 using System.Net;
 using System.Net.Http;
@@ -65,6 +66,8 @@ internal static partial class Program
         var industryFixture = CheckIndustry();
         CheckSkillPlanning();
         CheckOmegaBudget();
+        CheckRockTracking();
+        CheckNotificationCenter();
         CheckMiningRates();
         CheckBuybackPeriods();
         CheckMoonAlerts();
@@ -118,7 +121,26 @@ internal static partial class Program
         CheckRefreshAsync().GetAwaiter().GetResult();
 
         // Load XAML and render sample data without starting the app or live ESI polling.
-        var app = new System.Windows.Application();
+        var app = new System.Windows.Application { ShutdownMode=ShutdownMode.OnExplicitShutdown };
+        if(args.Length>0)
+        {
+            var overviewTracker=new StatTrackerService();
+            var overview=new MiningFleetOverviewWindow(overviewTracker,new MiningIdleWatchdogService(overviewTracker),new MiningDashboardPreferences{FleetOverviewWidth=1800,FleetOverviewHeight=300});BackgroundOperations.Stop();
+            var cardType=typeof(MiningFleetOverviewWindow).GetNestedType("FleetCard",System.Reflection.BindingFlags.NonPublic)!;
+            object Card(string name){var c=Activator.CreateInstance(cardType,true)!;void Set(string p,object v)=>cardType.GetProperty(p)!.SetValue(c,v);Set("Character",name);Set("ShipText","Ship: Skiff");Set("Ore","Zeolites");Set("BaseText","44.8 m3/s");Set("ActualText","44.8 m3/s");Set("RockVisibility",Visibility.Visible);Set("Rock1Text","L1 18,420 m3 est.");Set("Rock2Text","L2 9,650 m3 est.");Set("Rock1Percent",74d);Set("Rock2Percent",39d);return c;}
+            var sampleCards=new StackPanel{Orientation=Orientation.Horizontal};
+            foreach(var name in new[]{"Pilot A","Pilot B"}){var view=(FrameworkElement)((ItemsControl)overview.FindName("MinerItems")).ItemTemplate.LoadContent();view.DataContext=Card(name);sampleCards.Children.Add(view);}
+            Render(new Window{Content=sampleCards,Resources=overview.Resources,Background=new SolidColorBrush(Color.FromRgb(7,24,27)),Width=420,Height=320},System.IO.Path.ChangeExtension(args[0],".rock-overview.png"));
+        }
+        var rockDir=Path.Combine(Path.GetTempPath(),"ecc-rock-ui-"+Guid.NewGuid());
+        var rockService=new RockTrackingService(rockDir);rockService.Enable(true);
+        var rockWindow=new RockTrackingWindow(rockService,"Example pilot","Zeolites");
+        Check(rockWindow.FindName("Volume1")!=null&&rockWindow.FindName("Volume2")!=null,"Rock setup exposes independent per-laser volume controls");
+        if(args.Length>0)Render(rockWindow,System.IO.Path.ChangeExtension(args[0],".rocks.png"));
+        rockWindow.Close();Directory.Delete(rockDir,true);
+        var noticesWindow=new NotificationCenterWindow();
+        Check(noticesWindow.FindName("Rows")!=null,"Notification centre XAML loads");
+        if(args.Length>0){((ItemsControl)noticesWindow.FindName("Rows")).ItemsSource=new[]{new CenterNotification{Source="PI",Title="Pilot A | 2 colonies",Detail="Planet I: UNDER 4 HOURS (estimated restart/refill)\nPlanet II: UNDER 4 HOURS (estimated restart/refill)",Active=true,Updated=DateTimeOffset.UtcNow}};Render(noticesWindow,System.IO.Path.ChangeExtension(args[0],".notifications.png"));}
         var waitingPlanner=new SkillPlannerWindow(new EvePilotDashboard {Summary=new(){CharacterId=-998,CharacterName="Waiting pilot"}},false);
         typeof(SkillPlannerWindow).GetMethod("Profile_Click",System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.Instance)!.Invoke(waitingPlanner,new object[]{waitingPlanner,new RoutedEventArgs()});
         Check(((TextBlock)waitingPlanner.FindName("Summary")).Text.Contains("Waiting")&&((DataGrid)waitingPlanner.FindName("Steps")).Items.Count==0,"Planner opens before ESI data without inventing missing levels");

@@ -29,11 +29,12 @@ public partial class OperatingToast : Window
         _timer.Tick += (_, _) => Close();
         MouseEnter += (_, _) => _timer.Stop();
         MouseLeave += (_, _) => _timer.Start();
-        Closed += (_, _) => { _timer.Stop(); Active.Remove(this); Reflow(); if (Pending.TryDequeue(out var next)) Notify(next.Structure, next.Message, next.Open, next.Title); };
+        Closed += (_, _) => { _timer.Stop(); Active.Remove(this); Reflow(); if (Pending.TryDequeue(out var next)) Notify(next.Structure, next.Message, next.Open, next.Title, false); };
     }
 
-    public static void Notify(string structure, string message, Action open, string title = "MOON ALERT")
+    public static void Notify(string structure, string message, Action open, string title = "MOON ALERT", bool record = true)
     {
+        if(record) { try { EveCommandCenter.Services.NotificationCenterService.Current.Record(structure,message,title); } catch { } }
         if (Active.Count >= 3) { Pending.Enqueue((structure, message, open, title)); return; }
         var toast = new OperatingToast(structure, message, open, title);
         Active.Add(toast);

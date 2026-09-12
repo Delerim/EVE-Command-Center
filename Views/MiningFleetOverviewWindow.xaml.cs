@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
@@ -60,6 +60,7 @@ public partial class MiningFleetOverviewWindow : Window
         UpdateAccess();
 
         _tracker = tracker;
+        RockToggle.Content = tracker.RockTracking.Enabled ? "ROCKS ON" : "ROCKS OFF";
         _watchdog = watchdog;
         _prefs = prefs;
 
@@ -414,6 +415,21 @@ public partial class MiningFleetOverviewWindow : Window
         catch { /* Cosmetic lookup cannot prevent fitting data from loading. */ }
     }
 
+    private void Notifications_Click(object sender,RoutedEventArgs e)=>BackgroundOperations.Current.OpenNotifications();
+    private void RockToggle_Click(object sender, RoutedEventArgs e)
+    {
+        bool enabled=!_tracker.RockTracking.Enabled;
+        _tracker.RockTracking.Enable(enabled);
+        RockToggle.Content=enabled?"ROCKS ON":"ROCKS OFF";
+        Height=Math.Max(MinHeight,Height+(enabled?85:-85));
+        RefreshCards();
+    }
+    private void SetRocks_Click(object sender,RoutedEventArgs e)
+    {
+        if(sender is System.Windows.Controls.Button button && button.DataContext is FleetCard card)
+            new RockTrackingWindow(_tracker.RockTracking,card.Character,card.Ore=="-"?"":card.Ore){Owner=this}.Show();
+    }
+
     private void RefreshCards()
     {
         var cards = new List<FleetCard>();
@@ -739,8 +755,13 @@ public partial class MiningFleetOverviewWindow : Window
                 character,
                 out string? portraitUrl);
 
+            var rocks = _tracker.RockTracking.Get(character);
             cards.Add(new FleetCard
             {
+                RockVisibility = _tracker.RockTracking.Enabled ? Visibility.Visible : Visibility.Collapsed,
+                Rock1Text = "L1 " + rocks[0].Text, Rock2Text = "L2 " + rocks[1].Text,
+                Rock1Percent = rocks[0].Percent, Rock2Percent = rocks[1].Percent,
+                Rock1Note = rocks[0].Note, Rock2Note = rocks[1].Note,
                 Character = character,
                 PortraitUrl = portraitUrl ?? "",
                 ShipText =
@@ -1438,6 +1459,13 @@ public partial class MiningFleetOverviewWindow : Window
 
     private sealed class FleetCard
     {
+        public Visibility RockVisibility { get; init; }
+        public string Rock1Text { get; init; } = "";
+        public string Rock2Text { get; init; } = "";
+        public string Rock1Note { get; init; } = "";
+        public string Rock2Note { get; init; } = "";
+        public double Rock1Percent { get; init; }
+        public double Rock2Percent { get; init; }
         public double CardWidth { get; set; } = 170;
         public string Character { get; init; } = "";
         public string PortraitUrl { get; init; } = "";

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -21,6 +21,7 @@ public sealed class StatTrackerService
 {
     private readonly ConcurrentDictionary<string, CharacterStats> _stats = new();
     private readonly TimeSpan _windowDuration = TimeSpan.FromSeconds(30); // AHK: WINDOW_SECS := 30
+    public RockTrackingService RockTracking { get; } = new();
     private static readonly TimeSpan MiningRateWindow = TimeSpan.FromMinutes(2);
     private const int MaxEventsPerWindow = 500;
     private const int MaxMiningCyclesPerCharacter = 2000;
@@ -205,6 +206,12 @@ public sealed class StatTrackerService
                 break;
         }
 
+        // Optional observer: never let rock estimates interrupt mining accounting.
+        if (RockTracking.Enabled && mineType == "ore")
+        {
+            try { RockTracking.Record(character,oreType,_miningMarket.TryGetQuote(oreType,out var rockQuote)&&rockQuote.UnitVolumeM3>0?amount*rockQuote.UnitVolumeM3:null,isCritical,now); }
+            catch (Exception ex) { EsiDiagnostics.Write("Rock estimate skipped: "+ex.GetType().Name); }
+        }
         OreMined?.Invoke(character, oreType, now);
         TrimMiningCycles(stats);
         CheckAndPrune(character, stats);

@@ -1,4 +1,4 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 using EveCommandCenter.Models;
 
 namespace EveCommandCenter.Services;
@@ -192,13 +192,8 @@ public static class PlanetaryAnalysis
                     total.Factories += producers.Length;
                     // Capacity is deliberately not actual throughput: input availability and cycle timing can limit it.
                     total.Capacity += producers.Sum(f => f.Value.Outputs[product] * 3600 / f.Value.Cycle);
-                    foreach (var store in stores.Where(k => Type((int)Num(byId[k.Key], "type_id")).Capacity > 0))
-                    {
-                        double amount = store.Value.GetValueOrDefault(product);
-                        total.Stored += amount;
-                        bool downstream = routes.Any(r => (long)Num(r, "source_pin_id") == store.Key && (int)Num(r, "content_type_id") == product && factories.TryGetValue((long)Num(r, "destination_pin_id"), out var consumer) && consumer.Inputs.ContainsKey(product));
-                        if (downstream) total.Reserved += amount;
-                    }
+                    total.SnapshotOldest = total.SnapshotOldest == default || colony.LastUpdate < total.SnapshotOldest ? colony.LastUpdate : total.SnapshotOldest;
+
                 }
                 string products = string.Join(" | ", outputs.Select(product => $"{Type(product).Name}: {stores.Values.Sum(c => c.GetValueOrDefault(product)):N0}"));
                 result.Factories.Add(new() { Colony = colony, Name = colony.Planet, Icon = colony.Portrait, Detail = colony.Character,
@@ -207,10 +202,19 @@ public static class PlanetaryAnalysis
                     Color = factoryRows.Any(r => r.Color == "#FFD166") ? "#FFD166" : collection > 0 ? "#80BFFF" : "#74D6C9",
                     Rate = products, Remaining = Time(nextAction), Next = "Stored output snapshot; intermediate products may still be in use" });
             }
+            // Count every commodity in storage, including feedstock on planets that do not produce it.
+            foreach (var store in stores.Where(k => Type((int)Num(byId[k.Key], "type_id")).Capacity > 0))
+                foreach (var item in store.Value.Where(x=>Tier(x.Key)>0))
+                {
+                    if(!factoryProducts.TryGetValue(item.Key,out var total))factoryProducts[item.Key]=total=new(){TypeId=item.Key,Name=Type(item.Key).Name,Tier=Tier(item.Key)};
+                    total.Stored+=item.Value;
+                    total.SnapshotOldest=total.SnapshotOldest==default||colony.LastUpdate<total.SnapshotOldest?colony.LastUpdate:total.SnapshotOldest;
+                    if(routes.Any(r=>(long)Num(r,"source_pin_id")==store.Key&&(int)Num(r,"content_type_id")==item.Key&&factories.TryGetValue((long)Num(r,"destination_pin_id"),out var consumer)&&consumer.Inputs.ContainsKey(item.Key)))total.Reserved+=item.Value;
+                }
             result.Colonies.Add(new() { Colony = colony, Name = colony.Planet, Icon = colony.Portrait, Detail = colony.Character + " | " + colony.PlanetType,
                 Status = colony.Error.Length > 0 ? "STALE / REFRESH FAILED" : attention > 0 ? $"{attention} NEED ATTENTION" : collection > 0 ? $"{collection} COLLECT / REFILL (EST.)" : "MONITORING",
                 Color = attention > 0 || colony.Error.Length > 0 ? "#FFD166" : collection > 0 ? "#80BFFF" : "#74D6C9",
-                Quantity = $"{extractors} extractors | {factories.Count} factories", Remaining = Time(nextAction),
+                Quantity = $"{extractors} extractors | {factories.Count} factories", Remaining = Time(nextAction), SecondsUntilAction=double.IsFinite(nextAction)?nextAction:null,
                 Next = "ESI colony update " + colony.LastUpdate.ToLocalTime().ToString("dd MMM HH:mm"), Rate = "Fetched " + colony.Fetched.ToLocalTime().ToString("dd MMM HH:mm") });
         }
         foreach (var item in production.Where(p => p.Key > 0)) result.Production.Add(new() { Name = Type(item.Key).Name, Icon = Type(item.Key).Icon, Rate = $"{item.Value.rate:N0} nominal units/h", Quantity = $"{item.Value.extracted:N0} projected units", Detail = "Current extractor programs only; nominal cycle yield, not a mined ledger" });

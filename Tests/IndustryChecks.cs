@@ -22,7 +22,7 @@ internal static partial class Program
         Check(IndustryCatalog.Jobs(pilot,DateTimeOffset.UtcNow).Single().Status.Contains("READY"),"Elapsed active industry jobs become ready-to-deliver estimates");
         var pi=new PiState();var now=DateTimeOffset.UtcNow;
         pi.Colonies.Add(new(){CharacterId=1,PlanetId=2,Character="Pilot",Planet="Planet",LastUpdate=now,Layout=JsonSerializer.SerializeToElement(new {pins=new[]{new {pin_id=1,type_id=2848,install_time=now,expiry_time=now.AddMinutes(1),extractor_details=new {cycle_time=60,qty_per_cycle=100,product_type_id=2267}}},routes=Array.Empty<object>()})});
-        Check(PlanetaryAlerts.Observe(pi,now).Count==0,"PI alert baseline is quiet on initial load");
+        Check(PlanetaryAlerts.Observe(pi,now).Count==1,"PI nearing expiry warns on first observation");
         Check(PlanetaryAlerts.Observe(pi,now.AddMinutes(2)).Count==1 && PlanetaryAlerts.Observe(pi,now.AddMinutes(3)).Count==0,"Extractor restart produces one PI alert per transition");
         var saved=JsonSerializer.Deserialize<PiState>(JsonSerializer.Serialize(pi))!;
         Check(PlanetaryAlerts.Observe(saved,now.AddMinutes(4)).Count==0,"PI alert deduplication survives restart");
