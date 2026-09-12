@@ -267,6 +267,7 @@ public sealed class EveWalletJournalView
 
 public sealed class EvePilotDashboard
 {
+    public bool CoreOnly { get; init; }
     public EvePilotSummary Summary { get; init; } = new();
     public EveTrainingProfile TrainingProfile { get; init; } = new();
     public IReadOnlyList<EveSkillEntry> TrainedSkills { get; init; } = Array.Empty<EveSkillEntry>();

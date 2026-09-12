@@ -181,7 +181,7 @@ public partial class PilotCommandCenterWindow : Window
 
             await LoadSelectedPilotAsync(card);
 
-            if (ShipAssetsTab.IsSelected)
+            if (ShipAssetsTab.IsSelected && ReferenceEquals(PilotList.SelectedItem, card))
                 await LoadInventoryAsync(
                     card,
                     force: true);
@@ -196,28 +196,11 @@ public partial class PilotCommandCenterWindow : Window
                 card, forceCardRefresh: true);
     }
 
-    private async Task LoadSelectedPilotAsync(
-        PilotCardViewModel card,
-        bool forceCardRefresh = false)
+    private async Task ApplyDashboardAsync(EvePilotDashboard data, PilotCardViewModel card, CancellationToken token)
     {
-        _loadCts?.Cancel();
-        _loadCts?.Dispose();
-        _loadCts = CancellationTokenSource.CreateLinkedTokenSource(_windowLife.Token);
-        _loadCts.CancelAfter(TimeSpan.FromMinutes(2));
-
-        try
-        {
-            SetStatus($"Refreshing {card.CharacterName}...");
-
-            EvePilotDashboard data =
-                await _sso.GetDashboardAsync(
-                    card.Profile, _loadCts.Token);
-
-            if (forceCardRefresh ||
-                card.WalletText == "Loading...")
-                card.Apply(data.Summary);
-
-            WalletText.Text =
+        token.ThrowIfCancellationRequested();
+        if ((PilotList.SelectedItem as PilotCardViewModel)?.CharacterId != card.CharacterId) return;
+            if (!data.CoreOnly) WalletText.Text =
                 EveSsoService.FormatIsk(
                     data.Summary.WalletBalance);
             WalletTabBalanceText.Text = WalletText.Text;
@@ -236,7 +219,7 @@ public partial class PilotCommandCenterWindow : Window
             QueueEndsText.Text =
                 data.Summary.QueueEndsIn;
 
-            ApplyWalletData(data);
+            if (!data.CoreOnly) ApplyWalletData(data);
 
             _planningSnapshot = data;
             _trainingProfile = data.TrainingProfile;
@@ -250,34 +233,61 @@ public partial class PilotCommandCenterWindow : Window
 
             ShowAllImplantsToggle.IsChecked = false;
             RefreshImplantItems();
-            card.Apply(data.Summary);
+            if (!data.CoreOnly) card.Apply(data.Summary);
 
             IReadOnlyList<EveSkillCatalogEntry> catalog =
                 await LoadSkillBrowserAsync(
                     data.TrainedSkills,
-                    _loadCts.Token);
+                    token);
 
             BuildQueueRows(
                 data.SkillQueue,
                 catalog,
                 data.TrainingProfile);
 
-            SetStatus(
-                $"{card.CharacterName} • updated " +
-                DateTime.Now.ToString("HH:mm:ss"));
-        }
-        catch (OperationCanceledException)
+    }
+
+    private async Task LoadSelectedPilotAsync(PilotCardViewModel card, bool forceCardRefresh = false)
+    {
+        _loadCts?.Cancel();
+        _loadCts?.Dispose();
+        _loadCts = CancellationTokenSource.CreateLinkedTokenSource(_windowLife.Token);
+        var source = _loadCts;
+        var token = source.Token;
+        source.CancelAfter(TimeSpan.FromMinutes(5));
+        bool IsCurrent() => ReferenceEquals(source,_loadCts) && !_windowLife.IsCancellationRequested && (PilotList.SelectedItem as PilotCardViewModel)?.CharacterId == card.CharacterId;
+        string file = System.IO.Path.Combine(System.IO.Path.GetDirectoryName(_summaryFile)!, $"dashboard-{card.CharacterId}.json");
+        async Task Show(EvePilotDashboard data)
         {
-            if (!_windowLife.IsCancellationRequested) SetStatus("ESI sync paused or timed out. Cached values are retained; retry Refresh after the provider cooldown.");
+            token.ThrowIfCancellationRequested();
+            if (!IsCurrent()) return;
+            bool partial=data.CoreOnly;
+            data=PilotDashboardProgress.Merge(data,_planningSnapshot);
+            await ApplyDashboardAsync(data,card,token);
+            try { System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(file)!); System.IO.File.WriteAllText(file,System.Text.Json.JsonSerializer.Serialize(data)); }
+            catch (Exception ex) { EsiDiagnostics.Write("Pilot snapshot save: "+ex.GetType().Name); }
+            SetStatus(partial ? "Skills and queue loaded; syncing wallet, attributes and implants..." : "Pilot updated "+DateTime.Now.ToString("HH:mm:ss"));
         }
-        catch (Exception ex)
+        try
         {
-            SetStatus("Refresh failed");
-            WpfMessageBox.Show(
-                ex.Message,
-                "EVE Command Center - Pilot Data",
-                MessageBoxButton.OK,
-                MessageBoxImage.Warning);
+            if (_planningSnapshot?.Summary.CharacterId != card.CharacterId) { ClearDetails(); _planningSnapshot=null; }
+            if (System.IO.File.Exists(file))
+            {
+                try { var cached=System.Text.Json.JsonSerializer.Deserialize<EvePilotDashboard>(System.IO.File.ReadAllText(file)); if(cached?.Summary.CharacterId==card.CharacterId) await ApplyDashboardAsync(cached,card,token); }
+                catch (Exception ex) when (ex is not OperationCanceledException) { EsiDiagnostics.Write("Pilot snapshot read: "+ex.GetType().Name); }
+            }
+            SetStatus("Loading "+card.CharacterName+"; saved details stay visible while ESI refreshes.");
+            var data=await _sso.GetDashboardAsync(card.Profile,token,Show);
+            await Show(data);
+        }
+        catch(OperationCanceledException)
+        {
+            if(IsCurrent())SetStatus(_planningSnapshot!=null?"ESI refresh deferred. Loaded skills and saved details remain available.":"Waiting for ESI skills and queue; use Refresh after the provider cooldown.");
+        }
+        catch(Exception ex)
+        {
+            if(IsCurrent())SetStatus("Some pilot data could not refresh. Loaded details retained: "+ex.Message);
+            EsiDiagnostics.Write($"Pilot {card.CharacterId} dashboard: {ex.GetType().Name}");
         }
     }
 

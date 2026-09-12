@@ -4,6 +4,13 @@ internal static partial class Program
 {
     private static void CheckSkillPlanning()
     {
+        var catalog=new EveSkillCatalogService().GetCatalogAsync(cancellationToken:new CancellationToken(true)).GetAwaiter().GetResult();
+        Check(catalog.Count>500&&catalog.All(x=>x.GroupName.Length>0),"Skill browser uses grouped bundled catalogue without waiting for ESI");
+        var prior=new EvePilotDashboard {Summary=new(){CharacterId=1,WalletBalance=123,TotalSp=10},TrainingProfile=new(){BonusRemaps=2}};
+        var core=new EvePilotDashboard {CoreOnly=true,Summary=new(){CharacterId=1,TotalSp=20}};
+        var merged=PilotDashboardProgress.Merge(core,prior);
+        Check(merged.Summary.TotalSp==20&&merged.Summary.WalletBalance==123&&merged.TrainingProfile.BonusRemaps==2,"Partial skill refresh preserves previously loaded wallet and attributes");
+        Check(ReferenceEquals(PilotDashboardProgress.Merge(core,new(){Summary=new(){CharacterId=2}}),core),"Partial pilot snapshots cannot inherit another character's data");
         var profile = SkillPlanning.Profile("Max Exhumer Miner");
         Check(profile.Count >= 30, "Max Exhumer profile includes mining, tank, hull and agility targets");
         var data = new EvePilotDashboard { TrainingProfile = new() { Attributes = new[] { 164,165,166,167,168 }.Select((id,i) => new EveTrainingAttribute { DogmaAttributeId=id, Total=20+i }).ToList() } };

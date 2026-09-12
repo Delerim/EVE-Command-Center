@@ -11,6 +11,8 @@ public sealed class PlanningSkill
 {
     public int Id { get; set; }
     public string Name { get; set; } = "";
+    public int GroupId { get; set; }
+    public string GroupName { get; set; } = "";
     public int Rank { get; set; }
     public int Primary { get; set; }
     public int Secondary { get; set; }

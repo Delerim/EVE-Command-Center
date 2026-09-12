@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -68,6 +68,8 @@ public sealed class EveSkillCatalogService
         IProgress<string>? progress = null,
         CancellationToken cancellationToken = default)
     {
+        if (_memoryCache == null && SkillPlanning.Catalog.Count > 100)
+            _memoryCache = SkillPlanning.Catalog.Values.Select(x => new EveSkillCatalogEntry { SkillId=x.Id,Name=x.Name,GroupId=x.GroupId,GroupName=x.GroupName,Rank=x.Rank,MaxSp=SkillPlanning.Sp(x.Rank,5),PrimaryAttributeId=x.Primary,SecondaryAttributeId=x.Secondary }).OrderBy(x=>x.GroupName).ThenBy(x=>x.Name).ToArray();
         if (_memoryCache != null)
             return _memoryCache;
 

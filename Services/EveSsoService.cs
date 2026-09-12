@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -913,7 +913,8 @@ public sealed class EveSsoService
 
     public async Task<EvePilotDashboard> GetDashboardAsync(
         EvePilotProfile pilot,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        Func<EvePilotDashboard, Task>? coreReady = null)
     {
         string token =
             await GetAccessTokenAsync(pilot, cancellationToken);
@@ -927,6 +928,84 @@ public sealed class EveSsoService
             GetEsiAsync<List<EveSkillQueueEntry>>(
                 $"/characters/{pilot.CharacterId}/skillqueue/",
                 token, cancellationToken);
+
+        await Task.WhenAll(skillsTask, queueTask);
+
+        List<EveSkillQueueEntry> queue =
+            (await queueTask).OrderBy(q => q.QueuePosition).ToList();
+
+        var queueViews = new List<EveSkillQueueView>();
+        foreach (EveSkillQueueEntry entry in queue.Take(50))
+        {
+            string name =
+                SkillPlanning.Catalog.TryGetValue(entry.SkillId, out var known) ? known.Name : $"Skill {entry.SkillId}";
+            queueViews.Add(new EveSkillQueueView
+            {
+                Position = entry.QueuePosition + 1,
+                SkillId = entry.SkillId,
+                FinishedLevel = entry.FinishedLevel,
+                Skill = name,
+                Level = Roman(entry.FinishedLevel),
+                Starts = entry.StartDate?.ToLocalTime()
+                    .ToString("dd MMM HH:mm") ?? "-",
+                Finishes = entry.FinishDate?.ToLocalTime()
+                    .ToString("dd MMM HH:mm") ?? "-",
+                Remaining = entry.FinishDate.HasValue
+                    ? FormatDuration(
+                        entry.FinishDate.Value - DateTimeOffset.UtcNow)
+                    : "-",
+                StartDate = entry.StartDate,
+                FinishDate = entry.FinishDate,
+                TrainingStartSp = entry.TrainingStartSp,
+                LevelStartSp = entry.LevelStartSp,
+                LevelEndSp = entry.LevelEndSp
+            });
+        }
+
+        EveSkillsResponse skills = await skillsTask;
+        decimal wallet = 0;
+        PilotContext context = new();
+
+        EveSkillQueueEntry? current = queue.FirstOrDefault(q =>
+            q.FinishDate.HasValue &&
+            q.FinishDate.Value > DateTimeOffset.UtcNow);
+
+        string currentSkill = "Queue empty";
+        string currentRemaining = "";
+        double currentProgress = 0;
+
+        if (current != null)
+        {
+            string name =
+                SkillPlanning.Catalog.TryGetValue(current.SkillId, out var knownCurrent) ? knownCurrent.Name : $"Skill {current.SkillId}";
+            currentSkill = $"{name} {Roman(current.FinishedLevel)}";
+            currentRemaining = FormatDuration(
+                current.FinishDate!.Value - DateTimeOffset.UtcNow);
+            currentProgress = ProgressPercent(current);
+        }
+
+        DateTimeOffset? queueEnd = queue
+            .Where(q => q.FinishDate.HasValue)
+            .Select(q => q.FinishDate)
+            .LastOrDefault();
+
+        var summary = new EvePilotSummary
+        {
+            CharacterId = pilot.CharacterId,
+            CharacterName = pilot.CharacterName,
+            WalletBalance = wallet,
+            TotalSp = skills.TotalSp,
+            CurrentSkill = currentSkill,
+            CurrentSkillRemaining = currentRemaining,
+            QueueEndsIn = queueEnd.HasValue
+                ? FormatDuration(queueEnd.Value - DateTimeOffset.UtcNow)
+                : "Empty",
+            CurrentProgressPercent = currentProgress,
+            CurrentSystem = context.SystemName,
+            CurrentShip = context.ShipName
+        };
+
+        if (coreReady != null) await coreReady(new EvePilotDashboard { CoreOnly=true, Summary=summary, TrainedSkills=skills.Skills.ToArray(), SkillQueue=queueViews });
 
         Task<decimal> walletTask =
             GetEsiAsync<decimal>(
@@ -964,79 +1043,9 @@ public sealed class EveSsoService
             contextTask,
             trainingProfileTask);
 
-        List<EveSkillQueueEntry> queue =
-            (await queueTask).OrderBy(q => q.QueuePosition).ToList();
-
-        var queueViews = new List<EveSkillQueueView>();
-        foreach (EveSkillQueueEntry entry in queue.Take(50))
-        {
-            string name =
-                await GetTypeNameAsync(entry.SkillId, cancellationToken);
-            queueViews.Add(new EveSkillQueueView
-            {
-                Position = entry.QueuePosition + 1,
-                SkillId = entry.SkillId,
-                FinishedLevel = entry.FinishedLevel,
-                Skill = name,
-                Level = Roman(entry.FinishedLevel),
-                Starts = entry.StartDate?.ToLocalTime()
-                    .ToString("dd MMM HH:mm") ?? "-",
-                Finishes = entry.FinishDate?.ToLocalTime()
-                    .ToString("dd MMM HH:mm") ?? "-",
-                Remaining = entry.FinishDate.HasValue
-                    ? FormatDuration(
-                        entry.FinishDate.Value - DateTimeOffset.UtcNow)
-                    : "-",
-                StartDate = entry.StartDate,
-                FinishDate = entry.FinishDate,
-                TrainingStartSp = entry.TrainingStartSp,
-                LevelStartSp = entry.LevelStartSp,
-                LevelEndSp = entry.LevelEndSp
-            });
-        }
-
-        EveSkillsResponse skills = await skillsTask;
-        decimal wallet = await walletTask;
-        PilotContext context = await contextTask;
-
-        EveSkillQueueEntry? current = queue.FirstOrDefault(q =>
-            q.FinishDate.HasValue &&
-            q.FinishDate.Value > DateTimeOffset.UtcNow);
-
-        string currentSkill = "Queue empty";
-        string currentRemaining = "";
-        double currentProgress = 0;
-
-        if (current != null)
-        {
-            string name =
-                await GetTypeNameAsync(current.SkillId, cancellationToken);
-            currentSkill = $"{name} {Roman(current.FinishedLevel)}";
-            currentRemaining = FormatDuration(
-                current.FinishDate!.Value - DateTimeOffset.UtcNow);
-            currentProgress = ProgressPercent(current);
-        }
-
-        DateTimeOffset? queueEnd = queue
-            .Where(q => q.FinishDate.HasValue)
-            .Select(q => q.FinishDate)
-            .LastOrDefault();
-
-        var summary = new EvePilotSummary
-        {
-            CharacterId = pilot.CharacterId,
-            CharacterName = pilot.CharacterName,
-            WalletBalance = wallet,
-            TotalSp = skills.TotalSp,
-            CurrentSkill = currentSkill,
-            CurrentSkillRemaining = currentRemaining,
-            QueueEndsIn = queueEnd.HasValue
-                ? FormatDuration(queueEnd.Value - DateTimeOffset.UtcNow)
-                : "Empty",
-            CurrentProgressPercent = currentProgress,
-            CurrentSystem = context.SystemName,
-            CurrentShip = context.ShipName
-        };
+        wallet = await walletTask;
+        context = await contextTask;
+        summary = new EvePilotSummary { CharacterId=summary.CharacterId, CharacterName=summary.CharacterName, WalletBalance=wallet, TotalSp=summary.TotalSp, CurrentSkill=summary.CurrentSkill, CurrentSkillRemaining=summary.CurrentSkillRemaining, QueueEndsIn=summary.QueueEndsIn, CurrentProgressPercent=summary.CurrentProgressPercent, CurrentSystem=context.SystemName, CurrentShip=context.ShipName };
 
         List<EveWalletJournalEntry> journalEntries =
             await journalTask;
