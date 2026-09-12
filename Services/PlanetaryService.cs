@@ -1,4 +1,4 @@
-﻿using System.IO;
+using System.IO;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
@@ -60,7 +60,7 @@ public sealed class PlanetaryService
             foreach (var pilot in pilots)
             {
                 ct.ThrowIfCancellationRequested();
-                if (!pilot.Scopes.Contains(Scope)) { State.PilotStatus[pilot.CharacterId] = "Link PI permission to read colonies"; continue; }
+                if (!pilot.Scopes.Contains(Scope)) { State.PilotStatus[pilot.CharacterId] = "Upgrade this toon once in Settings for all feature permissions"; continue; }
                 try
                 {
                     Update("Loading colonies: " + pilot.CharacterName);

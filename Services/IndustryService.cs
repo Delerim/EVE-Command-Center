@@ -15,7 +15,7 @@ public sealed class IndustryService
     public IndustryState State {get;private set;}
     public event Action? Changed;
     public event Action<string,string>? Alert;
-    public string Status {get;private set;}="Industry snapshots; link industry permission to begin.";
+    public string Status {get;private set;}="Industry snapshots; upgrade this toon once in Settings for all features.";
     public IndustryService(EveSsoService sso, string? directory=null) { _sso=sso; _file=Path.Combine(directory??Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"EVE Command Center"),"industry.json"); try {State=JsonSerializer.Deserialize<IndustryState>(File.ReadAllText(_file))??new();}catch {State=new();} }
     public void Save() {Directory.CreateDirectory(Path.GetDirectoryName(_file)!);File.WriteAllText(_file+".tmp",JsonSerializer.Serialize(State));File.Move(_file+".tmp",_file,true);}
     public void Due() => _due=default;
@@ -46,7 +46,7 @@ public sealed class IndustryService
             {
                 var data=State.Pilots.FirstOrDefault(x=>x.Id==p.CharacterId);
                 if(data==null){data=new(){Id=p.CharacterId,Name=p.CharacterName};State.Pilots.Add(data);}
-                if(!Scopes.All(p.Scopes.Contains)){data.Error="Link industry permissions";continue;}
+                if(!Scopes.All(p.Scopes.Contains)){data.Error="Upgrade this toon in Settings for all features";continue;}
                 Status="Refreshing industry: "+p.CharacterName;Changed?.Invoke();
                 using var timeout=CancellationTokenSource.CreateLinkedTokenSource(ct);timeout.CancelAfter(TimeSpan.FromMinutes(3));
                 try

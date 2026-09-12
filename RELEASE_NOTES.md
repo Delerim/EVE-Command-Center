@@ -1,8 +1,8 @@
-# EVE Command Center v3.5.6
+# EVE Command Center v3.5.7
 
-- Fixed corporation views disappearing after reconnect: access checks now reload saved permissions instead of using stale scopes held by an open panel.
-- Reconnecting a selected Contracts, Moons, PI, Industry or Omega character now requests its existing permissions alongside the new feature scopes.
-- Added a guard against overwriting an existing character connection with fewer permissions or with a different character than selected.
-- Pilot profile files are replaced atomically so concurrent permission checks cannot read a partially written file.
+- Link a toon once for every current feature. All character-link and reconnect flows now request the complete permission set for Pilots, PI, Industry, Omega, Moons and Contracts.
+- Added a central upgrade/reconnect selector in Settings. It shows which existing toons still need a one-time permission upgrade and which already have the full set saved.
+- Moon and contract setup now select an existing reader without opening a separate feature authorization. EVE corporation roles still determine access.
+- Successful linking schedules the other features to refresh through the existing paced background queue.
 
-If Contracts was hidden by the stale check, open Settings and use Verify Access after updating. If EVE has actually removed a permission, authorize that reader again; the app does not bypass EVE permission checks.
+Existing limited connections need one reconnect per toon to approve the additional permissions. EVE consent cannot be added silently; after that, the same connection is shared across the current features.

@@ -10,6 +10,10 @@ public partial class ClientSetupWindow : Window
     private readonly CancellationTokenSource _lifetime = new();
     private IReadOnlyList<EvePilotProfile> _pilots = Array.Empty<EvePilotProfile>();
     private bool _busy;
+    private sealed record LinkChoice(EvePilotProfile Profile)
+    {
+        public string Label => Profile.CharacterName + (EveAuthorizationScopes.Complete(Profile) ? " | All feature permissions saved" : " | One-time upgrade needed");
+    }
     public ClientSetupWindow(bool firstRun = false)
     {
         InitializeComponent();
@@ -26,7 +30,13 @@ public partial class ClientSetupWindow : Window
     }
     private async Task ReloadAsync()
     {
+        long? selectedUpgrade = (UpgradePilot.SelectedItem as LinkChoice)?.Profile.CharacterId;
         _pilots = await _operations.Sso.LoadPilotsAsync();
+        var choices = _pilots.Select(p => new LinkChoice(p)).ToList();
+        UpgradePilot.ItemsSource = choices;
+        UpgradePilot.SelectedItem = choices.FirstOrDefault(p => p.Profile.CharacterId == selectedUpgrade)
+            ?? choices.FirstOrDefault(p => !EveAuthorizationScopes.Complete(p.Profile)) ?? choices.FirstOrDefault();
+        UpgradeButton.IsEnabled = choices.Count > 0;
         PilotText.Text = _pilots.Count == 0 ? "No characters linked yet." : string.Join(" | ", _pilots.Select(p => p.CharacterName));
         MoonPilot.ItemsSource = ContractPilot.ItemsSource = _pilots;
         MoonPilot.SelectedItem = _pilots.FirstOrDefault(p => p.CharacterId == _operations.Access.State.MoonCharacterId);
@@ -41,11 +51,9 @@ public partial class ClientSetupWindow : Window
         {
             StatusText.Text = "Choose the correct character on the official EVE authorization page.";
             var role = (sender as System.Windows.Controls.Button)?.Tag?.ToString();
-            var scopes = role == "contract" ? ContractService.Scopes : role == "moon" ? new[] { MoonReportService.MiningScope, MoonReportService.StructureScope, MoonReportService.FuelAssetsScope } : Array.Empty<string>();
-            var selected = role == "contract" ? ContractPilot.SelectedItem as EvePilotProfile : role == "moon" ? MoonPilot.SelectedItem as EvePilotProfile : null;
-            var pilot = await _operations.Sso.AddCharacterAsync(_lifetime.Token, scopes, selected?.CharacterId);
-            if (role == "moon") _operations.Access.State.MoonCharacterId = pilot.CharacterId;
-            if (role == "contract") _operations.Access.State.ContractCharacterId = pilot.CharacterId;
+            var selected = role == "upgrade" ? (UpgradePilot.SelectedItem as LinkChoice)?.Profile : null;
+            if (role == "upgrade" && selected == null) { StatusText.Text = "Select a linked toon to upgrade."; return; }
+            await _operations.Sso.AddCharacterAsync(_lifetime.Token, characterId: selected?.CharacterId);
             await ReloadAsync();
             await ValidateAsync();
         }

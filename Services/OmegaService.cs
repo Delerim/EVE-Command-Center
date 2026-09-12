@@ -51,7 +51,7 @@ public sealed class OmegaService
             foreach(var p in linked)
             {
                 var row=Pilots.FirstOrDefault(r=>r.Id==p.CharacterId);if(row==null){row=new(){Id=p.CharacterId,Name=p.CharacterName};Pilots.Add(row);}
-                if(!p.Scopes.Contains(Scope)){row.Error="Link clone permission";continue;}
+                if(!p.Scopes.Contains(Scope)){row.Error="Upgrade this toon in Settings for all features";continue;}
                 using var timeout=CancellationTokenSource.CreateLinkedTokenSource(ct);timeout.CancelAfter(TimeSpan.FromMinutes(2));
                 try
                 {

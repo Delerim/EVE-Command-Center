@@ -18,6 +18,7 @@ namespace EveCommandCenter.Services;
 
 public sealed class EveSsoService
 {
+    public static event Action<long>? CharacterLinked;
     public const string ClientId = "641eab190a4a4ddcb708981b967eb8b2";
     public const string RedirectUri = "http://localhost:17361/callback/";
     public const int CallbackPort = 17361;
@@ -271,6 +272,8 @@ public sealed class EveSsoService
             };
 
             await UpsertPilotAsync(profile);
+            try { CharacterLinked?.Invoke(profile.CharacterId); }
+            catch (Exception ex) { Debug.WriteLine("[SSO] Refresh scheduling: " + ex.Message); }
 
             await WriteBrowserResponseAsync(
                 stream, true, "Character connected",

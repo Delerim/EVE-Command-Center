@@ -67,10 +67,21 @@ public sealed class BackgroundOperations : IDisposable
         Contracts.NewContracts += NewContracts;
         Contracts.AcceptedContracts += AcceptedContracts;
         _timer.Tick += async (_, _) => { CheckMoonEvents(); await PollAsync(); };
+        EveSsoService.CharacterLinked += CharacterLinked;
         _timer.Start();
         System.Windows.Application.Current.Dispatcher.BeginInvoke(new Action(async () => await PollAsync()));
     }
 
+    private void CharacterLinked(long characterId)
+    {
+        System.Windows.Application.Current?.Dispatcher.BeginInvoke(new Action(() =>
+        {
+            if (_lifetime.IsCancellationRequested) return;
+            _nextAccess = _nextMoon = _nextContracts = default;
+            Industry.Due(); Omega.Due(); Planetary.State.NextRefresh = default;
+            // The existing paced poll picks these up; no parallel SSO refresh burst.
+        }));
+    }
     private async Task PollAsync()
     {
         if (_busy || _lifetime.IsCancellationRequested) return;
@@ -265,6 +276,7 @@ public sealed class BackgroundOperations : IDisposable
     public void Dispose()
     {
         _timer.Stop();
+        EveSsoService.CharacterLinked -= CharacterLinked;
         _lifetime.Cancel();
         Moons.Refreshed -= MoonRefreshed;
         Contracts.NewContracts -= NewContracts;

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -63,7 +63,7 @@ public partial class MoonReportWindow : Window
                 SetStatus("No ESI characters are connected. Use RECONNECT / ADD.", true);
             else if (PilotCombo.SelectedItem is EvePilotProfile selected &&
                      !MoonReportService.HasRequiredScopes(selected))
-                SetStatus("This toon needs reconnecting once to approve the moon report scopes.", true);
+                SetStatus("This toon needs one upgrade reconnect in Settings for all feature permissions.", true);
             // Polling belongs to BackgroundOperations, including while this window is closed.
         }
         catch (Exception ex) { SetStatus(ex.Message, true); }
@@ -96,7 +96,7 @@ public partial class MoonReportWindow : Window
         await _service.SelectPilotAsync(pilot.CharacterId);
         if (!MoonReportService.HasRequiredScopes(pilot))
         {
-            SetStatus($"{pilot.CharacterName} needs RECONNECT / ADD once to approve the moon scopes.", true);
+            SetStatus($"{pilot.CharacterName} needs one upgrade reconnect in Settings for all feature permissions.", true);
             return;
         }
         await RefreshSelectedPilotAsync();

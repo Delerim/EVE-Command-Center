@@ -63,7 +63,7 @@ public partial class IndustryWindow : Window
         if(generation!=_scan||_life.IsCancellationRequested)return;
         Recipes.ItemsSource=plans.Take(1000).ToArray();
         ScanStatus.Text=$"{plans.Count:N0} matches; showing up to 1,000. Hangar/container materials across this pilot's locations; hauling may be required. Each recipe is checked independently. Facility/material bonuses excluded.";
-        if(plans.Count>0)Recipes.SelectedIndex=0;else {Materials.ItemsSource=null;PlanTitle.Text="No matching recipes";PlanDetail.Text="Link industry permissions, refresh blueprints, or enable All recipes.";}
+        if(plans.Count>0)Recipes.SelectedIndex=0;else {Materials.ItemsSource=null;PlanTitle.Text="No matching recipes";PlanDetail.Text="Upgrade this toon in Settings for all features, refresh blueprints, or enable All recipes.";}
         });
     }
     private void Recipe_Selected(object sender,SelectionChangedEventArgs e)=>ShowPlan();
