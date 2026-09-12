@@ -19,6 +19,8 @@ public partial class PlanetaryWindow : Window
     {
         InitializeComponent();
         PiAlerts.IsChecked = _service.State.DesktopAlerts;
+        CompactExtractors.IsChecked = _service.State.CompactExtractors;
+        ApplyExtractorMode();
         _service.Changed += Update;
         _timer.Tick += (_, _) => Update();
         Loaded += async (_, _) => { await LoadPilots(); Update(); _timer.Start(); await _service.RefreshAsync(_life.Token); };
@@ -38,7 +40,9 @@ public partial class PlanetaryWindow : Window
         _analysis = PlanetaryAnalysis.Build(_service.State, DateTimeOffset.UtcNow);
         Colonies.ItemsSource = PlanetaryGroups.Build(_analysis, _expanded); Production.ItemsSource = _analysis.Production;
         FactorySummary.ItemsSource = _analysis.FactoryTiers;
-        Extractors.ItemsSource = PlanetaryExtractors.Build(_analysis, _expanded, DateTimeOffset.UtcNow);
+        var extractorGroups = PlanetaryExtractors.Build(_analysis, _expanded, DateTimeOffset.UtcNow);
+        Extractors.ItemsSource = extractorGroups;
+        CompactExtractorGrid.ItemsSource = extractorGroups.SelectMany(g => g.Planets).SelectMany(p => p.Pins).ToList();
         StockGrid.ItemsSource = _analysis.Stock; Refills.ItemsSource = PlanetaryGroups.Build(_analysis, _expanded, true);
         var refillGroups = PlanetaryGroups.Build(_analysis, _expanded, true);
         var t1 = _analysis.Refills.Where(r => PlanetaryAnalysis.Tier(r.TypeId) == 1).ToArray();
@@ -52,6 +56,28 @@ public partial class PlanetaryWindow : Window
         Links.Text = string.Join(Environment.NewLine + Environment.NewLine, _pilots.Select(p => p.CharacterName + ": " + _service.State.PilotStatus.GetValueOrDefault(p.CharacterId, "Waiting")));
         StatusText.Text = _service.Status + (_service.Busy ? " | ESI: " + EsiDiagnostics.Status : "");
 
+    }
+    private void CompactExtractors_Click(object sender, RoutedEventArgs e)
+    {
+        _service.State.CompactExtractors = CompactExtractors.IsChecked == true;
+        _service.Save();
+        ApplyExtractorMode();
+    }
+    private void ApplyExtractorMode()
+    {
+        bool compact = CompactExtractors.IsChecked == true;
+        CompactExtractorGrid.Visibility = compact ? Visibility.Visible : Visibility.Collapsed;
+        ExtractorScroll.Visibility = compact ? Visibility.Collapsed : Visibility.Visible;
+    }
+    private void ExtractorScroll_PreviewMouseWheel(object sender, System.Windows.Input.MouseWheelEventArgs e)
+    {
+        // Each planet contains a DataGrid with its own ScrollViewer. Route the
+        // wheel to the enclosing page before those grids consume it at an edge.
+        if (sender is ScrollViewer scroll)
+        {
+            scroll.ScrollToVerticalOffset(scroll.VerticalOffset - e.Delta);
+            e.Handled = true;
+        }
     }
     private void ExtractorExpansion_Changed(object sender, RoutedEventArgs e)
     {

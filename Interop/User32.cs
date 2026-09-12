@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
@@ -680,7 +680,7 @@ public static class User32
     /// <summary>
     /// Native Window Activation: Focuses the EVE Client locally.
     ///
-    /// Four-tier dispatch, ordered by overhead:
+    /// Three-tier dispatch, ordered by overhead:
     ///
     ///   1. Direct SetForegroundWindow. Works when the calling context already
     ///      has foreground-activation rights (WM_HOTKEY dispatch, recent click
@@ -695,20 +695,12 @@ public static class User32
     ///      WM_HOTKEY that fires from our own RegisterHotKey on it is a no-op
     ///      because PendingActivateHwnd isn't set in this tier.
     ///
-    ///   3. AttachThreadInput. Synchronously attaches our calling thread to
-    ///      the current foreground thread's input queue, sharing state and
-    ///      granting activation rights. Reliable but slow when the foreground
-    ///      thread is busy (e.g. EVE rendering DirectX) — the syscall waits
-    ///      on the foreground thread's response.
-    ///
-    ///   4. vk0xE8 RegisterHotKey bridge. Sets PendingActivateHwnd, SendInputs
-    ///      vk0xE8; the WM_HOTKEY handler retries SetForegroundWindow from a
-    ///      dispatch context with rights. Asynchronous — the activation lands
-    ///      a few ms later. Last resort if all the synchronous tiers failed.
+    ///   3. Async RegisterHotKey bridge. Never attach input queues to an EVE
+    ///      thread: a stalled client must not make focus changes synchronous.
     /// </summary>
     public static void ActivateWindow(IntPtr hwnd)
     {
-        // A new activation supersedes any queued one. Tier 4 parks a target in
+        // A new activation supersedes any queued one. The hotkey bridge parks a target in
         // PendingActivateHwnd and relies on the vk0xE8 WM_HOTKEY to consume it; if
         // that dispatch never arrives, the target is stranded — and the NEXT
         // activation's Tier-2 phantom vk0xE8 keystroke (which assumes nothing is
@@ -716,6 +708,7 @@ public static class User32
         // just clicked. Clearing here makes that impossible (#95).
         PendingActivateHwnd = IntPtr.Zero;
 
+        if (!IsWindow(hwnd) || IsHungAppWindow(hwnd)) return;
         if (GetForegroundWindow() == hwnd) return;
 
         EveCommandCenter.Services.DiagnosticsService.LogWindowHook($"[ActivateWindow] Foreground shift requested for HWND {hwnd}");
@@ -732,7 +725,7 @@ public static class User32
 
         // Tier 1 — direct.
         SetForegroundWindow(hwnd);
-        SetWindowPos(hwnd, HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
+        SetWindowPos(hwnd, HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_ASYNCWINDOWPOS);
         if (GetForegroundWindow() == hwnd) return;
 
         // Tier 2 — phantom keystroke. Single synthetic key-down/up of an
@@ -744,40 +737,21 @@ public static class User32
         keybd_event((byte)VK_ACTIVATION, 0, 0, 0);
         keybd_event((byte)VK_ACTIVATION, 0, KEYEVENTF_KEYUP, 0);
         SetForegroundWindow(hwnd);
-        SetWindowPos(hwnd, HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
+        SetWindowPos(hwnd, HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_ASYNCWINDOWPOS);
         if (GetForegroundWindow() == hwnd) return;
 
-        // Tier 3 — AttachThreadInput borrow.
-        var fgHwnd = GetForegroundWindow();
-        uint fgThread = (fgHwnd != IntPtr.Zero) ? GetWindowThreadProcessId(fgHwnd, out _) : 0;
-        uint ourThread = GetCurrentThreadId();
-
-        bool attached = false;
-        try
-        {
-            if (fgThread != 0 && fgThread != ourThread)
-                attached = AttachThreadInput(ourThread, fgThread, true);
-
-            BringWindowToTop(hwnd);
-            SetForegroundWindow(hwnd);
-            SetWindowPos(hwnd, HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
-        }
-        finally
-        {
-            if (attached)
-                AttachThreadInput(ourThread, fgThread, false);
-        }
-
-        if (GetForegroundWindow() == hwnd) return;
-
-        // Tier 4 — async vk0xE8 RegisterHotKey bridge.
-        EveCommandCenter.Services.DiagnosticsService.LogWindowHook($"[ActivateWindow] All synchronous tiers failed, kicking async vk0xE8 fallback for HWND {hwnd}");
+        // Keep input queues independent of busy or hung game threads.
+        EveCommandCenter.Services.DiagnosticsService.LogWindowHook($"[ActivateWindow] Queuing hotkey fallback HWND={hwnd}");
         PendingActivateHwnd = hwnd;
         InjectVirtualKey(VK_ACTIVATION);
     }
     
     [DllImport("kernel32.dll")]
     public static extern uint GetCurrentThreadId();
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool IsHungAppWindow(IntPtr hwnd);
 
     [DllImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]

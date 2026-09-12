@@ -44,6 +44,15 @@ public static class DiagnosticsService
             string line = $"[{DateTime.Now:HH:mm:ss.fff}] {message}\n";
             lock (_writeLock)
             {
+                Directory.CreateDirectory(LogDir);
+                // Bound each diagnostic category to current + two 2 MB archives.
+                if (File.Exists(path) && new FileInfo(path).Length >= 2 * 1024 * 1024)
+                {
+                    if (File.Exists(path + ".2")) File.Delete(path + ".2");
+                    if (File.Exists(path + ".1")) File.Move(path + ".1", path + ".2");
+                    File.Move(path, path + ".1");
+                    _headered.Remove(category);
+                }
                 // One header per category per run. Logs are appended across sessions and
                 // across app updates, so without this a file can silently mix builds.
                 if (_headered.Add(category))

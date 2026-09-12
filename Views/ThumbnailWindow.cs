@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Diagnostics;
 using System.Drawing;
 using System.Drawing.Drawing2D;
@@ -72,8 +72,9 @@ public class ThumbnailWindow : Form
     private bool _isDwmHidden;
 
     // Frozen-frame snapshot shown when the source EVE window is minimized.
-    // Bitmap is owned by FrozenFrameService — we only hold a reference.
+    // Bitmap is an owned copy; the cached source is retained only for identity.
     private Bitmap? _frozenFrame;
+    private EveCommandCenter.Services.FrozenFrame? _frozenSource;
 
     private int _borderThickness;
 
@@ -1222,17 +1223,23 @@ public class ThumbnailWindow : Form
 
     /// <summary>Show a cached snapshot of the EVE window in the thumbnail area
     /// instead of the live DWM preview — used when the source is minimized.
-    /// The bitmap is owned by the caller (FrozenFrameService); we just paint it.</summary>
-    public void SetFrozenFrame(Bitmap? frame)
+    /// The view owns its copy, independent of cache replacement.</summary>
+    public void SetFrozenFrame(EveCommandCenter.Services.FrozenFrame? frame)
     {
-        if (ReferenceEquals(_frozenFrame, frame)) return;
-        _frozenFrame = frame;
+        if (ReferenceEquals(_frozenSource, frame)) return;
+        var copy = frame?.Copy();
+        if (frame != null && copy == null) return; // superseded; retain last good image
+        _frozenFrame?.Dispose();
+        _frozenFrame = copy;
+        _frozenSource = frame;
         if (IsHandleCreated) Invalidate();
     }
 
     public void ClearFrozenFrame()
     {
+        _frozenSource = null;
         if (_frozenFrame == null) return;
+        _frozenFrame.Dispose();
         _frozenFrame = null;
         if (IsHandleCreated) Invalidate();
     }
@@ -1279,7 +1286,7 @@ public class ThumbnailWindow : Form
                 g.InterpolationMode = InterpolationMode.HighQualityBicubic;
                 g.DrawImage(_frozenFrame, dest);
             }
-            catch { /* bitmap may have been disposed mid-paint by service — ignore */ }
+            catch { /* ignore a GDI painting failure — ignore */ }
         }
 
         // Under-fire pulse takes priority over the normal border.
@@ -1359,6 +1366,7 @@ public class ThumbnailWindow : Form
     {
         if (_cleanedUp) return;
         _cleanedUp = true;
+        ClearFrozenFrame();
         StopDrag();
 
         _hoverTimer?.Stop();

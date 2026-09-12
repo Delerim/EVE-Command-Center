@@ -62,6 +62,7 @@ internal static partial class Program
         Check(values.LedgerHistory["base"].VolumeM3 == 1000 && values.LedgerHistory["missing"].EstimatedIsk == 0, "Repricing preserves raw mined volume and removes obsolete unpriced values");
         values.TypePrices[45490] = 1500; MoonReportService.RevalueLedger(values);
         Check(values.LedgerHistory["base"].EstimatedIsk == 150000, "Saved ledger entries update when current compressed quotes change");
+        CheckPreviewStability();
         var piFixture = CheckPlanetary();
         var industryFixture = CheckIndustry();
         CheckSkillPlanning();
@@ -249,7 +250,19 @@ internal static partial class Program
             Render(piWindow, System.IO.Path.ChangeExtension(args[0], ".pi.png"));
             ((ItemsControl)piWindow.FindName("Extractors")).ItemsSource = PlanetaryExtractors.Build(view, new HashSet<string>(), DateTimeOffset.UtcNow);
             ((TabControl)piWindow.FindName("Tabs")).SelectedIndex = 1;
+            var extractorTestGroups = PlanetaryExtractors.Build(view, new HashSet<string>(), DateTimeOffset.UtcNow);
+            foreach (var group in extractorTestGroups) group.Planets = Enumerable.Range(0, 15).SelectMany(_ => group.Planets.ToArray()).ToList();
+            ((ItemsControl)piWindow.FindName("Extractors")).ItemsSource = extractorTestGroups;
             Render(piWindow, System.IO.Path.ChangeExtension(args[0], ".extractors.png"));
+            var extractorScroll = (ScrollViewer)piWindow.FindName("ExtractorScroll");
+            extractorScroll.RaiseEvent(new System.Windows.Input.MouseWheelEventArgs(System.Windows.Input.Mouse.PrimaryDevice, Environment.TickCount, -120) { RoutedEvent = System.Windows.Input.Mouse.PreviewMouseWheelEvent });
+            piWindow.UpdateLayout();
+            Check(extractorScroll.VerticalOffset > 0, "Extractor page scrolls with the wheel over its nested tables");
+            ((DataGrid)piWindow.FindName("CompactExtractorGrid")).ItemsSource = extractorTestGroups.SelectMany(g => g.Planets).SelectMany(p => p.Pins).ToList();
+            ((CheckBox)piWindow.FindName("CompactExtractors")).IsChecked = true;
+            typeof(PlanetaryWindow).GetMethod("ApplyExtractorMode", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!.Invoke(piWindow, null);
+            Render(piWindow, System.IO.Path.ChangeExtension(args[0], ".extractors-compact.png"));
+            Check(((DataGrid)piWindow.FindName("CompactExtractorGrid")).Visibility == Visibility.Visible && extractorScroll.Visibility == Visibility.Collapsed, "Extractor compact mode shows a single flat scrolling table");
         }
         var toast = new OperatingToast("Mazitah - Example Moon", "Glistening ore confirmed in the mining ledger. Open the moon overview to inspect the field.", () => {}, "GLISTENING MOON DETECTED");
         if (args.Length > 0) Render(toast, System.IO.Path.ChangeExtension(args[0], ".toast.png"));

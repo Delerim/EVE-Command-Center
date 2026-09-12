@@ -160,11 +160,12 @@ public sealed class HotkeyService : IDisposable
 
             try
             {
+                if (!User32.IsWindow(target) || User32.IsHungAppWindow(target)) return;
                 if (User32.IsIconic(target))
                     User32.ShowWindowAsync(target, User32.SW_RESTORE);
                 User32.SetForegroundWindow(target);
                 User32.SetWindowPos(target, User32.HWND_TOP, 0, 0, 0, 0,
-                    User32.SWP_NOMOVE | User32.SWP_NOSIZE);
+                    User32.SWP_NOMOVE | User32.SWP_NOSIZE | User32.SWP_NOACTIVATE | User32.SWP_ASYNCWINDOWPOS);
             }
             catch (Exception ex)
             {

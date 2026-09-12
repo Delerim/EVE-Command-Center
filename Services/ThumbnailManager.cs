@@ -58,6 +58,7 @@ public sealed class ThumbnailManager : IDisposable
     private FrozenFrameService? _frozenFrames;
     private WinEventHookService? _winEvents;
     private DispatcherTimer? _focusTimer;
+    private DispatcherTimer? _minimizeTimer;
     /// <summary>Debounces RaiseThumbnailsAboveOverlays so a client switch never pays for
     /// it inline — see the comment where it is created (#100).</summary>
     private DispatcherTimer? _raiseOverlaysDebounce;
@@ -1257,7 +1258,7 @@ public sealed class ThumbnailManager : IDisposable
 
     private void OnMinimizeRequested(ThumbnailWindow thumb)
     {
-        Interop.User32.ShowWindowAsync(thumb.EveHwnd, Interop.User32.SW_FORCEMINIMIZE);
+        Interop.User32.ShowWindowAsync(thumb.EveHwnd, Interop.User32.SW_MINIMIZE);
     }
 
 
@@ -1355,6 +1356,11 @@ public sealed class ThumbnailManager : IDisposable
             }
 
             if (hwnd == IntPtr.Zero) return;
+            if (!Interop.User32.IsWindow(hwnd) || Interop.User32.IsHungAppWindow(hwnd))
+            {
+                DiagnosticsService.LogWindowHook($"[Activation] Skipped unresponsive/closed HWND={hwnd}");
+                return;
+            }
             if (Interop.User32.GetForegroundWindow() == hwnd) return;
 
             // Resolve the character name regardless of which call path we came in
@@ -1428,17 +1434,17 @@ public sealed class ThumbnailManager : IDisposable
 
             if (_settings.Settings.MinimizeInactiveClients)
             {
-                // Fire minimize cycle asynchronously so we don't block the hotkey rapid-fire thread
-                Application.Current?.Dispatcher.BeginInvoke(() =>
+                // Rapid switches supersede the previous pending minimize pass.
+                _minimizeTimer?.Stop();
+                _minimizeTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(Math.Max(1, _settings.Settings.MinimizeDelay)) };
+                var minimizeTimer = _minimizeTimer;
+                minimizeTimer.Tick += (_, _) =>
                 {
-                    var timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(_settings.Settings.MinimizeDelay) };
-                    timer.Tick += (_, _) =>
-                    {
-                        timer.Stop();
+                    minimizeTimer.Stop();
+                    if (ReferenceEquals(_minimizeTimer, minimizeTimer) && _settings.Settings.MinimizeInactiveClients && Interop.User32.GetForegroundWindow() == hwnd)
                         MinimizeInactiveClients(hwnd);
-                    };
-                    timer.Start();
-                });
+                };
+                minimizeTimer.Start();
             }
         }
         catch (Exception ex)
@@ -1463,7 +1469,8 @@ public sealed class ThumbnailManager : IDisposable
             // Don't minimize if it's the active window
             if (eveHwnd == Interop.User32.GetForegroundWindow()) continue;
 
-            Interop.User32.ShowWindowAsync(eveHwnd, Interop.User32.SW_FORCEMINIMIZE);
+            if (!Interop.User32.IsIconic(eveHwnd) && !Interop.User32.IsHungAppWindow(eveHwnd))
+                Interop.User32.ShowWindowAsync(eveHwnd, Interop.User32.SW_MINIMIZE);
         }
     }
 
@@ -2966,7 +2973,8 @@ public sealed class ThumbnailManager : IDisposable
             }
             else
             {
-                Interop.User32.MoveWindow(hwnd, (int)pos.X, (int)pos.Y, (int)pos.Width, (int)pos.Height, true);
+                Interop.User32.SetWindowPos(hwnd, IntPtr.Zero, (int)pos.X, (int)pos.Y, (int)pos.Width, (int)pos.Height,
+                    Interop.User32.SWP_NOZORDER | Interop.User32.SWP_NOACTIVATE | Interop.User32.SWP_ASYNCWINDOWPOS);
             }
         }
         catch { }
@@ -3287,7 +3295,7 @@ public sealed class ThumbnailManager : IDisposable
         // Filter to only online characters using HashSet for O(M+N) instead of O(M×N).
         // Also drop anyone the user has shift-click-excluded this session (issue #16).
         var onlineSet = new HashSet<string>(
-            _thumbnails.Values.Select(t => t.CharacterName),
+            _thumbnails.Values.Where(t => Interop.User32.IsWindow(t.EveHwnd) && !Interop.User32.IsHungAppWindow(t.EveHwnd)).Select(t => t.CharacterName),
             StringComparer.OrdinalIgnoreCase);
         var onlineMembers = members
             .Where(m => onlineSet.Contains(m) && !_excludedFromCycle.ContainsKey(m))
@@ -3397,6 +3405,7 @@ public sealed class ThumbnailManager : IDisposable
             .OrderBy(kv => kv.Key.ToInt64())
             .Where(kv =>
             {
+                if (!Interop.User32.IsWindow(kv.Key) || Interop.User32.IsHungAppWindow(kv.Key)) return false;
                 var name = kv.Value.CharacterName;
                 if (_excludedFromCycle.ContainsKey(name ?? "")) return false;
                 bool isLogin = string.IsNullOrEmpty(name);
@@ -4071,6 +4080,7 @@ public sealed class ThumbnailManager : IDisposable
         catch { }
 
         _focusTimer?.Stop();
+        _minimizeTimer?.Stop();
         _sessionTimer?.Stop();
         _flashTimer?.Stop();
         _statTimer?.Stop();
