@@ -1412,6 +1412,8 @@ public partial class MiningFleetOverviewWindow : Window
     private void OpenClientSettings_Click(object sender, RoutedEventArgs e) => new ClientSetupWindow().ShowDialog();
 
     private void OpenMoonReport_Click(object sender, RoutedEventArgs e) => BackgroundOperations.Current.OpenMoons();
+    private void OpenOmega_Click(object sender, RoutedEventArgs e) => BackgroundOperations.Current.OpenOmega();
+    private void OpenIndustry_Click(object sender, RoutedEventArgs e) => BackgroundOperations.Current.OpenIndustry();
     private void OpenPlanetary_Click(object sender, RoutedEventArgs e) => BackgroundOperations.Current.OpenPlanetary();
     private void OpenContracts_Click(object sender, RoutedEventArgs e) => BackgroundOperations.Current.OpenContracts();
 

@@ -17,11 +17,13 @@ public partial class PlanetaryWindow : Window
     public PlanetaryWindow()
     {
         InitializeComponent();
+        PiAlerts.IsChecked = _service.State.DesktopAlerts;
         _service.Changed += Update;
         _timer.Tick += (_, _) => Update();
         Loaded += async (_, _) => { await LoadPilots(); Update(); _timer.Start(); await _service.RefreshAsync(_life.Token); };
         Closed += (_, _) => { _timer.Stop(); _service.Changed -= Update; _life.Cancel(); };
     }
+    private void PiAlerts_Click(object sender,RoutedEventArgs e) { _service.State.DesktopAlerts=PiAlerts.IsChecked==true; _service.Save(); }
     private async Task LoadPilots()
     {
         _pilots = await _sso.LoadPilotsAsync();

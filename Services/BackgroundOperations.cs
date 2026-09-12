@@ -18,6 +18,10 @@ public sealed class BackgroundOperations : IDisposable
     public ContractService Contracts { get; }
     public CorporationAccessService Access { get; }
     public PlanetaryService Planetary { get; }
+    public IndustryService Industry { get; }
+    public OmegaService Omega { get; }
+    private OmegaWindow? _omegaWindow;
+    private IndustryWindow? _industryWindow;
     public BackgroundPilotRefresh Pilots { get; }
     private PlanetaryWindow? _planetaryWindow;
     private DateTimeOffset _nextAccess;
@@ -41,6 +45,9 @@ public sealed class BackgroundOperations : IDisposable
         Contracts = new ContractService(Sso);
         Access = new CorporationAccessService(Sso);
         Planetary = new PlanetaryService(Sso);
+        Industry = new IndustryService(Sso);
+        Omega = new OmegaService(Sso);
+        Industry.Alert += (title,message) => OperatingToast.Notify(title,message,OpenIndustry,"INDUSTRY READY");
         Pilots = new BackgroundPilotRefresh(Sso);
         if (!Access.State.SetupCompleted)
         {
@@ -69,6 +76,14 @@ public sealed class BackgroundOperations : IDisposable
         _busy = true;
         try
         {
+            if (!Planetary.Busy)
+            {
+                var alerts=PlanetaryAlerts.Observe(Planetary.State,DateTimeOffset.UtcNow);
+                if(alerts.Count>0 && Planetary.State.DesktopAlerts) OperatingToast.Notify($"{alerts.Count} PI colonies need a visit",string.Join("\n",alerts.Take(4)),OpenPlanetary,"PLANETARY INDUSTRY");
+                Planetary.Save();
+            }
+            _ = Omega.RefreshAsync(_lifetime.Token);
+            _ = Industry.RefreshAsync(_lifetime.Token);
             _ = Planetary.RefreshAsync(_lifetime.Token);
             _ = Pilots.RefreshAsync(_lifetime.Token);
             var pilots = await Sso.LoadPilotsAsync();
@@ -183,6 +198,16 @@ public sealed class BackgroundOperations : IDisposable
         if (Moons.DesktopNotificationsEnabled)
             OperatingToast.Notify(pilot + " | " + ore, "Glistening ore detected in a live mining log. The corporation ledger will identify the moon when available.",
                 () => { if (Access.CanReadMoons) OpenMoons(); }, "GLISTENING ORE DETECTED");
+    }
+    public void OpenOmega()
+    {
+        if(_omegaWindow==null){_omegaWindow=new OmegaWindow();_omegaWindow.Closed+=(_,_)=>_omegaWindow=null;}
+        _omegaWindow.Show();if(_omegaWindow.WindowState==WindowState.Minimized)_omegaWindow.WindowState=WindowState.Normal;_omegaWindow.Activate();
+    }
+    public void OpenIndustry()
+    {
+        if (_industryWindow == null) { _industryWindow = new IndustryWindow(); _industryWindow.Closed += (_,_) => _industryWindow=null; }
+        _industryWindow.Show(); if(_industryWindow.WindowState==WindowState.Minimized)_industryWindow.WindowState=WindowState.Normal; _industryWindow.Activate();
     }
     public void OpenPlanetary()
     {

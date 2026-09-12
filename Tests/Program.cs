@@ -62,6 +62,7 @@ internal static partial class Program
         values.TypePrices[45490] = 1500; MoonReportService.RevalueLedger(values);
         Check(values.LedgerHistory["base"].EstimatedIsk == 150000, "Saved ledger entries update when current compressed quotes change");
         var piFixture = CheckPlanetary();
+        var industryFixture = CheckIndustry();
         CheckMiningRates();
         CheckBuybackPeriods();
         CheckMoonAlerts();
@@ -116,6 +117,21 @@ internal static partial class Program
 
         // Load XAML and render sample data without starting the app or live ESI polling.
         var app = new System.Windows.Application();
+        var omegaWindow = new OmegaWindow(); BackgroundOperations.Stop();
+        Check(omegaWindow.FindName("Pilots") != null && omegaWindow.FindName("Expiry") != null,"Omega dashboard exposes tracked dates and clone information");
+        ((DataGrid)omegaWindow.FindName("Pilots")).ItemsSource=new[]{new OmegaPilot {Id=42,Name="Example Pilot",Expiry=DateTimeOffset.UtcNow.AddDays(14),Account="Account A"}};
+        ((DataGrid)omegaWindow.FindName("Pilots")).SelectedIndex=0;
+        if(args.Length>0)Render(omegaWindow,System.IO.Path.ChangeExtension(args[0],".omega.png"));
+        var industryWindow = new IndustryWindow(); BackgroundOperations.Stop();
+        Check(industryWindow.FindName("Recipes") != null && industryWindow.FindName("Materials") != null, "Industry dashboard XAML exposes blueprint and material planning");
+        ((ListBox)industryWindow.FindName("Pilots")).ItemsSource = new[] { industryFixture };
+        ((ListBox)industryWindow.FindName("Pilots")).SelectedIndex=0;
+        if(args.Length>0)
+        {
+            Render(industryWindow,System.IO.Path.ChangeExtension(args[0],".industry.png"));
+            ((TabControl)industryWindow.FindName("IndustryTabs")).SelectedIndex=1;
+            Render(industryWindow,System.IO.Path.ChangeExtension(args[0],".planner.png"));
+        }
         var operations = BackgroundOperations.Current;
         BackgroundOperations.Stop();
         // Window field initialization gets the same cancelled instance only via the constructor below;
@@ -466,6 +482,7 @@ internal static partial class Program
         bitmap.Render(backdrop); bitmap.Render(root);
         var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(bitmap));
         using var stream = System.IO.File.Create(path); encoder.Save(stream);
+        window.Content = root;
     }
     private static void TextElementForeground(FrameworkElement element) => System.Windows.Documents.TextElement.SetForeground(element, new SolidColorBrush(Color.FromRgb(234, 247, 247)));
 }

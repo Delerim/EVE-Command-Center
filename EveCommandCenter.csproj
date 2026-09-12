@@ -15,7 +15,7 @@
     <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
     <AssemblyName>EVE Command Center</AssemblyName>
     <RootNamespace>EveCommandCenter</RootNamespace>
-    <Version>3.1.4</Version>
+    <Version>3.2.0</Version>
     <Title>EVE Command Center</Title>
     <Product>EVE Command Center</Product>
     <Description>EVE Online command center for multi-client preview, mining and pilot intelligence</Description>
@@ -46,6 +46,7 @@
     <EmbeddedResource Include="Icon-Suspend.ico" />
     <EmbeddedResource Include="Resources\alert_patterns.json" />
     <EmbeddedResource Include="Resources\pi-catalog.json" />
+    <EmbeddedResource Include="Resources\industry-catalog.json" />
   </ItemGroup>
 
 </Project>

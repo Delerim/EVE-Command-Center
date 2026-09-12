@@ -44,6 +44,8 @@ public sealed class PiContainer
 }
 public sealed class PiState
 {
+    public bool DesktopAlerts { get; set; } = true;
+    public Dictionary<string,string> AlertStates { get; set; } = new();
     public Dictionary<int, PiQuote> Prices { get; set; } = new();
     public long StockCharacterId { get; set; }
     public long ContainerId { get; set; }
