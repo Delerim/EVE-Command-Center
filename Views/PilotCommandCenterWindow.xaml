@@ -734,10 +734,10 @@
                                           Margin="0,0,8,0"
                                           SelectionChanged="SkillCategoryFilter_SelectionChanged"/>
 
-                                <Button Grid.Column="2"
-                                        Content="Expand All"
+                                <StackPanel Grid.Column="2" Orientation="Horizontal"><Button Content="Expand All" Margin="0,0,8,0" Click="ExpandAllSkills_Click"/><Button
+                                        Content="SKILL PLANNER"
                                         Margin="0,0,8,0"
-                                        Click="ExpandAllSkills_Click"/>
+                                        Click="SkillPlanner_Click"/></StackPanel>
 
                                 <Button Grid.Column="3"
                                         Content="Collapse All"

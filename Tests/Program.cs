@@ -1,4 +1,4 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 using System.Net;
 using System.Net.Http;
 using System.Windows;
@@ -63,6 +63,7 @@ internal static partial class Program
         Check(values.LedgerHistory["base"].EstimatedIsk == 150000, "Saved ledger entries update when current compressed quotes change");
         var piFixture = CheckPlanetary();
         var industryFixture = CheckIndustry();
+        CheckSkillPlanning();
         CheckMiningRates();
         CheckBuybackPeriods();
         CheckMoonAlerts();
@@ -117,6 +118,11 @@ internal static partial class Program
 
         // Load XAML and render sample data without starting the app or live ESI polling.
         var app = new System.Windows.Application();
+        var skillWindow = new SkillPlannerWindow(new EvePilotDashboard { Summary = new() { CharacterId = -999, CharacterName = "Planner test pilot" }, TrainingProfile = new() { Attributes = new[] { 164,165,166,167,168 }.Select((id,i) => new EveTrainingAttribute { DogmaAttributeId = id, Name = SkillPlanning.Attribute(id), Total=20+i }).ToList() } });
+        Check(skillWindow.FindName("Steps") != null && ((DataGrid)skillWindow.FindName("ProfileGrid")).Items.Count >= 30, "Skill planner loads profile comparison and training plan controls");
+        typeof(SkillPlannerWindow).GetMethod("Profile_Click", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!.Invoke(skillWindow,new object[] { skillWindow,new RoutedEventArgs() });
+        Check(((DataGrid)skillWindow.FindName("Steps")).Items.Count > 30, "Profile action populates missing levels and prerequisites");
+        if(args.Length>0) Render(skillWindow,System.IO.Path.ChangeExtension(args[0],".skills.png"));
         var omegaWindow = new OmegaWindow(); BackgroundOperations.Stop();
         Check(omegaWindow.FindName("Pilots") != null && omegaWindow.FindName("Expiry") != null,"Omega dashboard exposes tracked dates and clone information");
         ((DataGrid)omegaWindow.FindName("Pilots")).ItemsSource=new[]{new OmegaPilot {Id=42,Name="Example Pilot",Expiry=DateTimeOffset.UtcNow.AddDays(14),Account="Account A"}};

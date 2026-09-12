@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
@@ -30,6 +30,12 @@ public partial class PilotCommandCenterWindow : Window
     private List<SkillRowViewModel> _allSkillRows = new();
     private List<QueueRowViewModel> _queueRows = new();
     private EveTrainingProfile _trainingProfile = new();
+    private EvePilotDashboard? _planningSnapshot;
+    private void SkillPlanner_Click(object sender, RoutedEventArgs e)
+    {
+        if (_planningSnapshot == null || PilotList.SelectedItem is not PilotCardViewModel card || card.CharacterId != _planningSnapshot.Summary.CharacterId) { SetStatus("Select a pilot and wait for their skills to load."); return; }
+        new SkillPlannerWindow(_planningSnapshot) { Owner = this }.Show();
+    }
     private long _inventoryLoadedForCharacterId;
     private EveInventorySnapshot? _currentInventory;
 
@@ -232,6 +238,7 @@ public partial class PilotCommandCenterWindow : Window
 
             ApplyWalletData(data);
 
+            _planningSnapshot = data;
             _trainingProfile = data.TrainingProfile;
 
             AttributeItems.ItemsSource =
