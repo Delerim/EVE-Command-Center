@@ -11,7 +11,7 @@ public partial class OmegaWindow
         public string Key {get;set;}=""; public string Name {get;set;}=""; public int Plex {get;set;}
         public string Saved {get;set;}="";public string Gap {get;set;}="";public string Daily {get;set;}="";
     }
-    private static string Isk(decimal? value)=>value.HasValue?value.Value.ToString("N0")+" ISK":"Unavailable";
+    private static string Isk(decimal? value)=>value.HasValue?(value.Value>=1000000000?(value.Value/1000000000).ToString("N2")+"B":value.Value>=1000000?(value.Value/1000000).ToString("N2")+"M":value.Value.ToString("N0"))+" ISK":"Unavailable";
     private void ReloadOffers()
     {
         var selected=Offer.SelectedItem as OmegaOffer;
@@ -23,7 +23,7 @@ public partial class OmegaWindow
     {
         if(Budgets==null)return;
         var state=_service.Budget;var now=DateTimeOffset.UtcNow;
-        QuoteText.Text=(state.PriceTime==default?"No live PLEX quote yet.":$"Jita 4-4 lowest PLEX sell: {state.PlexSell:N0} ISK | {state.PriceTime.ToLocalTime():dd MMM HH:mm}"+(state.PriceTime<now.AddHours(-1)?" | STALE cached estimate":""))+"\n"+_service.MarketStatus;
+        QuoteText.Text=(state.PriceTime==default?"No live PLEX quote yet.":$"Global PLEX lowest sell: {state.PlexSell:N0} ISK | {state.PriceTime.ToLocalTime():dd MMM HH:mm}"+(state.PriceTime<now.AddHours(-1)?" | STALE cached estimate":""))+"\n"+_service.MarketStatus;
         News.ItemsSource=state.News;
         NewsStatus.Text="Announcements may describe expired or account-limited promotions. Open the official post and verify in NES/EVE Store before using a price. "+(state.NewsTime==default?"News not fetched yet.":$"Checked {state.NewsTime.ToLocalTime():dd MMM HH:mm}.");
         Deals.ItemsSource=state.Offers.OrderBy(x=>x.Ends<=now).ThenBy(x=>x.PerMonth).Select(x=>new {x.Name,Monthly=x.PerMonth.ToString("N1"),Cost=Isk(state.PlexSell is >0?x.Plex*(decimal)state.PlexSell.Value:null),x.Validity,x.Source,Offer=x}).ToList();
@@ -45,7 +45,7 @@ public partial class OmegaWindow
     private void Budget_Selected(object sender,SelectionChangedEventArgs e)
     {
         if(Budgets.SelectedItem is not BudgetRow row)return;
-        var saved=_service.Budget.Savings.GetValueOrDefault(row.Key)??new();SavedPlex.Text=saved.Plex.ToString();SavedIsk.Text=saved.Isk.ToString("0",CultureInfo.CurrentCulture);
+        SavingsTitle.Text=row.Name;var saved=_service.Budget.Savings.GetValueOrDefault(row.Key)??new();SavedPlex.Text=saved.Plex.ToString();SavedIsk.Text=saved.Isk.ToString("0",CultureInfo.CurrentCulture);
     }
     private void Savings_Click(object sender,RoutedEventArgs e)
     {

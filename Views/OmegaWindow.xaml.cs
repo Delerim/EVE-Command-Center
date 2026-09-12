@@ -24,12 +24,12 @@ public partial class OmegaWindow:Window
         var accounts=OmegaPlanning.Accounts(_service.Pilots);var now=DateTimeOffset.UtcNow;
         TrackedTile.Text=accounts.Count.ToString();DueTile.Text=accounts.Count(p=>p.Expiry>now&&p.Expiry<now.AddDays(30)).ToString();ExpiredTile.Text=accounts.Count(p=>p.Expiry<=now).ToString();
         PlexTile.Text=_service.Budget.PlexSell is >0?(_service.Budget.PlexSell.Value/1000000).ToString("N2")+"M ISK":"Unavailable";
-        Summary.Text=$"{_service.Pilots.Count} pilots | {accounts.Count(p=>!p.Expiry.HasValue)} accounts without dates | Green: 30+ days / amber: under 30 / orange: under 7 / red: expired / grey: unknown";
+        Summary.Text=$"{_service.Pilots.Count} pilots | {accounts.Count(p=>!p.Expiry.HasValue)} accounts without dates | Select a pilot to manage dates and clone details";
         RefreshBudget();
     }
     private void Selected(object sender,SelectionChangedEventArgs e)
     {
-        if(Pilots.SelectedItem is not OmegaPilot p)return;Account.Text=p.Account;Expiry.SelectedDate=p.Expiry?.LocalDateTime.Date;Time.Text=p.Expiry?.ToLocalTime().ToString("HH:mm")??"00:00";
+        if(Pilots.SelectedItem is not OmegaPilot p)return;SelectedTitle.Text=p.Name;SelectedStatus.Text=p.OmegaStatus+" | "+p.JumpCount+" jump clones";Account.Text=p.Account;Expiry.SelectedDate=p.Expiry?.LocalDateTime.Date;Time.Text=p.Expiry?.ToLocalTime().ToString("HH:mm")??"00:00";
         var lines=new List<string>{p.Name+" | Home: "+p.Home,p.Error.Length>0?p.Error:"Clone snapshot "+p.Updated.ToLocalTime().ToString("dd MMM HH:mm")};
         if(p.Clones.ValueKind==System.Text.Json.JsonValueKind.Object&&p.Clones.TryGetProperty("jump_clones",out var clones))
             foreach(var c in clones.EnumerateArray())lines.Add(IndustryCatalog.Text(c,"name")+" | "+IndustryCatalog.Text(c,"location_type")+" "+IndustryCatalog.Num(c,"location_id")+" | Implants: "+(c.TryGetProperty("implants",out var implants)?string.Join(", ",implants.EnumerateArray().Select(i=>IndustryCatalog.Name(i.GetInt32()))):"None"));

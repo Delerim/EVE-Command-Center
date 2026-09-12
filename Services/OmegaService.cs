@@ -30,7 +30,7 @@ public sealed class OmegaService
         try
         {
             if(Budget.PriceTime<DateTimeOffset.UtcNow.AddMinutes(-30))
-                try{var q=await MiningMarketService.FetchStationPricesAsync(MiningMarketService.TheForgeRegionId,MiningMarketService.Jita44StationId,44992,timeout.Token);if(q.BestSell is >0){Budget.PlexSell=q.BestSell;Budget.PriceTime=DateTimeOffset.UtcNow;}else errors.Add("No Jita sell quote; retaining previous price");}catch(Exception ex){errors.Add("PLEX refresh deferred: "+ex.GetType().Name);}
+                try{var q=await MiningMarketService.FetchStationPricesAsync(MiningMarketService.GlobalPlexMarketRegionId,0,MiningMarketService.PlexTypeId,timeout.Token);if(q.BestSell is >0){Budget.PlexSell=q.BestSell;Budget.PriceTime=DateTimeOffset.UtcNow;}else errors.Add("No global PLEX sell quote; retaining previous price");}catch(Exception ex){errors.Add("PLEX refresh deferred: "+ex.GetType().Name);}
             if(Budget.NewsTime<DateTimeOffset.UtcNow.AddHours(-6))
                 try{using var news=new HttpClient{Timeout=TimeSpan.FromSeconds(20)};var xml=await news.GetStringAsync("https://www.eveonline.com/rss",timeout.Token);Budget.News=OmegaPlanning.ParseNews(xml);Budget.NewsTime=DateTimeOffset.UtcNow;}catch(Exception ex){errors.Add("Offer news refresh deferred: "+ex.GetType().Name);}
             MarketStatus=errors.Count>0?string.Join(" | ",errors):"PLEX checks every 30 minutes; official news every 6 hours. Store availability must be verified.";
