@@ -854,10 +854,10 @@ public partial class MiningDashboardWindow : Window
             : $"{from:dd MMM yyyy} -> {to:dd MMM yyyy}";
     }
 
-    private async System.Threading.Tasks.Task RefreshHistoryAsync()
+    private System.Threading.Tasks.Task RefreshHistoryAsync()
     {
         if (!HistoryTab.IsSelected)
-            return;
+            return System.Threading.Tasks.Task.CompletedTask;
 
         SetHistoryRange(_historyPreset);
 
@@ -871,8 +871,8 @@ public partial class MiningDashboardWindow : Window
 
         if (ores.Count > 0)
         {
-            await System.Threading.Tasks.Task.WhenAll(
-                ores.Select(o => _tracker.EnsureMiningQuoteAsync(o)));
+            foreach (var ore in ores)
+                _ = RefreshQuoteSafelyAsync(ore);
         }
 
         double totalM3 = 0;
@@ -946,6 +946,14 @@ public partial class MiningDashboardWindow : Window
         HistoryBuildText.Text = status.IsRunning
             ? $"{status.Message} | {status.ProgressPercent:F0}%"
             : status.Message;
+        return System.Threading.Tasks.Task.CompletedTask;
+    }
+
+    private async System.Threading.Tasks.Task RefreshQuoteSafelyAsync(string ore,
+        Func<string, System.Threading.Tasks.Task<MiningMarketQuote?>>? request = null)
+    {
+        try { await (request == null ? _tracker.EnsureMiningQuoteAsync(ore) : request(ore)); }
+        catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[Mining prices] {ore}: {ex.Message}"); }
     }
 
     private void HookProfitControls()
@@ -1026,14 +1034,19 @@ public partial class MiningDashboardWindow : Window
             : $"{from:dd MMM yyyy} -> {to:dd MMM yyyy}";
     }
 
-    private async System.Threading.Tasks.Task RefreshProfitAsync()
+    private System.Threading.Tasks.Task RefreshProfitAsync()
     {
         if (!ProfitTab.IsSelected)
-            return;
+            return System.Threading.Tasks.Task.CompletedTask;
 
         SetProfitRange(_profitPreset);
 
-        var aggregates = _tracker.GetMiningHistoryRange(_profitFrom, _profitTo);
+        return RefreshProfitRowsAsync(_tracker.GetMiningHistoryRange(_profitFrom, _profitTo));
+    }
+
+    internal System.Threading.Tasks.Task RefreshProfitRowsAsync(IReadOnlyList<MiningAggregateRow> aggregates,
+        Func<string, System.Threading.Tasks.Task<MiningMarketQuote?>>? requestQuote = null)
+    {
 
         var ores = aggregates
             .Select(r => r.Ore)
@@ -1043,13 +1056,14 @@ public partial class MiningDashboardWindow : Window
 
         if (ores.Count > 0)
         {
-            await System.Threading.Tasks.Task.WhenAll(
-                ores.Select(o => _tracker.EnsureMiningQuoteAsync(o)));
+            // Prices must never hold local mining totals behind the ESI queue.
+            foreach (var ore in ores)
+                _ = RefreshQuoteSafelyAsync(ore, requestQuote);
 
             foreach (var ore in ores.Where(
                          o => OreMatchesFilter(o, _prefs.MarketOreFilter)))
             {
-                _ = _tracker.EnsureMiningMarketHistoryAsync(ore);
+                if (requestQuote == null) _ = _tracker.EnsureMiningMarketHistoryAsync(ore);
             }
         }
 
@@ -1276,6 +1290,17 @@ public partial class MiningDashboardWindow : Window
         ProfitBuildText.Text = status.IsRunning
             ? $"{status.Message} | {status.ProgressPercent:F0}%"
             : status.Message;
+        int missingPrices = ores.Count(o => !_tracker.TryGetMiningQuote(o, out var q) || !q.IsAvailable);
+        if (aggregates.Count == 0)
+            ProfitBuildText.Text = "No mining recorded for this range. " + ProfitBuildText.Text;
+        else if (missingPrices > 0)
+        {
+            string priceStatus = $"Prices pending/unavailable for {missingPrices}/{ores.Count} ores; totals update automatically.";
+            ProfitBuildText.Text = priceStatus + " " + ProfitBuildText.Text;
+            ProfitMarketText.Text = missingPrices == ores.Count ? "Prices pending" : Isk(totalProfit) + " (partial)";
+            ProfitBuybackText.Text = missingPrices == ores.Count ? "Prices pending" : Isk(totalBuyback) + " (partial)";
+        }
+        return System.Threading.Tasks.Task.CompletedTask;
     }
 
     private void Minimize_Click(object sender, RoutedEventArgs e) =>

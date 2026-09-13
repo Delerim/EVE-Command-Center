@@ -125,6 +125,15 @@ internal static partial class Program
 
         // Load XAML and render sample data without starting the app or live ESI polling.
         var app = new System.Windows.Application { ShutdownMode=ShutdownMode.OnExplicitShutdown };
+        var profitWindow = new MiningDashboardWindow(new StatTrackerService(), new AppSettings());
+        var waitingPrice = new TaskCompletionSource<MiningMarketQuote?>();
+        var profitRefresh = profitWindow.RefreshProfitRowsAsync(new[] { new MiningAggregateRow { DayKey="2026-09-13", Character="Sample pilot", Ore="Zeolites", Units=1080, NormalUnits=1080, Cycles=2 } }, _ => waitingPrice.Task);
+        Check(profitRefresh.IsCompletedSuccessfully && ((System.Collections.IEnumerable)((DataGrid)profitWindow.FindName("ProfitOreGrid")).ItemsSource).Cast<object>().Count()==1, "Profit renders mining rows without waiting for ESI prices");
+        Check(((TextBlock)profitWindow.FindName("ProfitTotalMinedText")).Text == 1080d.ToString("N0") && ((TextBlock)profitWindow.FindName("ProfitMarketText")).Text == "Prices pending", "Profit preserves quantities and labels unavailable valuations");
+        waitingPrice.SetException(new TimeoutException("Simulated ESI cooldown"));
+        profitWindow.RefreshProfitRowsAsync(Array.Empty<MiningAggregateRow>(), _ => Task.FromResult<MiningMarketQuote?>(null));
+        Check(((TextBlock)profitWindow.FindName("ProfitBuildText")).Text.StartsWith("No mining recorded"), "Profit distinguishes an empty date range from missing prices");
+        profitWindow.Close();
         if(args.Length>0)
         {
             var overviewTracker=new StatTrackerService();
