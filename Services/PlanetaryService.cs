@@ -44,7 +44,12 @@ public sealed class PlanetaryService
     }
     public async Task RefreshAsync(CancellationToken ct)
     {
-        if (Busy || DateTimeOffset.UtcNow < State.NextRefresh) return;
+        if (Busy) return;
+        if (DateTimeOffset.UtcNow < State.NextRefresh)
+        {
+            Update("Next PI check " + State.NextRefresh.ToLocalTime().ToString("HH:mm") + ". Snapshot dates describe EVE data, not the last API check.");
+            return;
+        }
         Busy = true;
         State.NextRefresh = DateTimeOffset.UtcNow.AddMinutes(10);
         try

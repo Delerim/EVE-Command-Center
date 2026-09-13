@@ -164,7 +164,7 @@ public static class PlanetaryAnalysis
             foreach (var pin in pins.Where(p => Type((int)Num(p, "type_id")).Group == 1030))
             {
                 long id = (long)Num(pin, "pin_id"); double capacity = Type((int)Num(pin, "type_id")).Capacity;
-                var inputs = demands.Where(d => d.Key.pin == id && Type(d.Key.type).Volume > 0).ToArray();
+                var inputs = demands.Where(d => d.Key.pin == id && Tier(d.Key.type) == 1 && Type(d.Key.type).Volume > 0).ToArray();
                 if (inputs.Length == 0 || capacity <= 0) continue;
                 var relevant = inputs.Select(i => i.Key.type).ToHashSet();
                 double otherVolume = stores[id].Where(c => !relevant.Contains(c.Key)).Sum(c => c.Value * Type(c.Key).Volume);
@@ -203,19 +203,19 @@ public static class PlanetaryAnalysis
                     Rate = products, Remaining = Time(nextAction), Next = "Stored output snapshot; intermediate products may still be in use" });
             }
             // Count every commodity in storage, including feedstock on planets that do not produce it.
-            foreach (var store in stores.Where(k => Type((int)Num(byId[k.Key], "type_id")).Capacity > 0))
+            foreach (var store in stores.Where(k => Type((int)Num(byId[k.Key], "type_id")).Capacity > 0 || factories.ContainsKey(k.Key)))
                 foreach (var item in store.Value.Where(x=>Tier(x.Key)>0))
                 {
                     if(!factoryProducts.TryGetValue(item.Key,out var total))factoryProducts[item.Key]=total=new(){TypeId=item.Key,Name=Type(item.Key).Name,Tier=Tier(item.Key)};
                     total.Stored+=item.Value;
                     total.SnapshotOldest=total.SnapshotOldest==default||colony.LastUpdate<total.SnapshotOldest?colony.LastUpdate:total.SnapshotOldest;
-                    if(routes.Any(r=>(long)Num(r,"source_pin_id")==store.Key&&(int)Num(r,"content_type_id")==item.Key&&factories.TryGetValue((long)Num(r,"destination_pin_id"),out var consumer)&&consumer.Inputs.ContainsKey(item.Key)))total.Reserved+=item.Value;
+                    if(factories.ContainsKey(store.Key) || routes.Any(r=>(long)Num(r,"source_pin_id")==store.Key&&(int)Num(r,"content_type_id")==item.Key&&factories.TryGetValue((long)Num(r,"destination_pin_id"),out var consumer)&&consumer.Inputs.ContainsKey(item.Key)))total.Reserved+=item.Value;
                 }
             result.Colonies.Add(new() { Colony = colony, Name = colony.Planet, Icon = colony.Portrait, Detail = colony.Character + " | " + colony.PlanetType,
                 Status = colony.Error.Length > 0 ? "STALE / REFRESH FAILED" : attention > 0 ? $"{attention} NEED ATTENTION" : collection > 0 ? $"{collection} COLLECT / REFILL (EST.)" : "MONITORING",
                 Color = attention > 0 || colony.Error.Length > 0 ? "#FFD166" : collection > 0 ? "#80BFFF" : "#74D6C9",
                 Quantity = $"{extractors} extractors | {factories.Count} factories", Remaining = Time(nextAction), SecondsUntilAction=double.IsFinite(nextAction)?nextAction:null,
-                Next = "ESI colony update " + colony.LastUpdate.ToLocalTime().ToString("dd MMM HH:mm"), Rate = "Fetched " + colony.Fetched.ToLocalTime().ToString("dd MMM HH:mm") });
+                Next = "Snapshot updated " + colony.LastUpdate.ToLocalTime().ToString("dd MMM HH:mm") + " | Last checked " + colony.Fetched.ToLocalTime().ToString("dd MMM HH:mm") + (now - colony.LastUpdate > TimeSpan.FromHours(6) ? " | Older snapshot: open colony in EVE to update amounts" : ""), Rate = "Fetched " + colony.Fetched.ToLocalTime().ToString("dd MMM HH:mm") });
         }
         foreach (var item in production.Where(p => p.Key > 0)) result.Production.Add(new() { Name = Type(item.Key).Name, Icon = Type(item.Key).Icon, Rate = $"{item.Value.rate:N0} nominal units/h", Quantity = $"{item.Value.extracted:N0} projected units", Detail = "Current extractor programs only; nominal cycle yield, not a mined ledger" });
         result.FactoryTiers = factoryProducts.Values.GroupBy(p => p.Tier).OrderBy(g => g.Key)

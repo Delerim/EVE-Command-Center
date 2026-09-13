@@ -120,7 +120,7 @@ public sealed class PiProductTotal
     public string RateText => $"{Capacity:N0}/h capacity";
     public string StoredText => $"{Stored:N0} in snapshot";
     public string CollectText => $"{Collect:N0} recorded to collect";
-    public string ReservedText => $"{Reserved:N0} routed onward | oldest {SnapshotOldest.ToLocalTime():dd MMM HH:mm}";
+    public string ReservedText => $"{Reserved:N0} reserved / in processors | snapshot {SnapshotOldest.ToLocalTime():dd MMM HH:mm}";
 }
 public sealed class PiTierSummary
 {
