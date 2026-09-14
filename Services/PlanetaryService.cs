@@ -107,7 +107,7 @@ public sealed class PlanetaryService
                 try
                 {
                     var quote = await MiningMarketService.FetchStationPricesAsync(MiningMarketService.TheForgeRegionId, MiningMarketService.Jita44StationId, type, ct);
-                    State.Prices[type] = new() { Buy = quote.BestBuy, Checked = DateTimeOffset.UtcNow };
+                    State.Prices[type] = new() { Buy = quote.BestBuy, Sell = quote.BestSell, Checked = DateTimeOffset.UtcNow };
                 }
                 catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
                 catch (Exception ex) { EsiDiagnostics.Write("PI price deferred: " + ex.GetType().Name); break; }

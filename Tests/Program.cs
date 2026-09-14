@@ -264,6 +264,11 @@ internal static partial class Program
             ((ItemsControl)piWindow.FindName("FactorySummary")).ItemsSource = view.FactoryTiers;
             ((ItemsControl)piWindow.FindName("Refills")).ItemsSource = PlanetaryGroups.Build(view, new HashSet<string>(), true);
             Render(piWindow, System.IO.Path.ChangeExtension(args[0], ".pi.png"));
+            var taxView=(PiEconomicsView)piWindow.FindName("PiEconomics");taxView.Refresh(piFixture);
+            ((TabControl)piWindow.FindName("Tabs")).SelectedIndex=4;
+            Render(piWindow,System.IO.Path.ChangeExtension(args[0],".pi-tax.png"));
+            Check(((DataGrid)taxView.FindName("Planets")).Items.Count==piFixture.Colonies.Count,"PI tax table includes every pilot and planet without inventing POCO rates");
+            ((TabControl)piWindow.FindName("Tabs")).SelectedIndex=0;
             var rememberedPi=new PiState();piWindow.CaptureOverviewLayout(rememberedPi);
             rememberedPi.OverviewColonyShare=0.45;rememberedPi.OverviewExtractionShare=0.4;
             var restoredPi=JsonSerializer.Deserialize<PiState>(JsonSerializer.Serialize(rememberedPi))!;
@@ -288,6 +293,8 @@ internal static partial class Program
 
             ((ItemsControl)piWindow.FindName("Extractors")).ItemsSource = PlanetaryExtractors.Build(view, new HashSet<string>(), DateTimeOffset.UtcNow);
             ((TabControl)piWindow.FindName("Tabs")).SelectedIndex = 1;
+            ((CheckBox)piWindow.FindName("CompactExtractors")).IsChecked=false;
+            typeof(PlanetaryWindow).GetMethod("ApplyExtractorMode",System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.Instance)!.Invoke(piWindow,null);
             var extractorTestGroups = PlanetaryExtractors.Build(view, new HashSet<string>(), DateTimeOffset.UtcNow);
             foreach (var group in extractorTestGroups) group.Planets = Enumerable.Range(0, 15).SelectMany(_ => group.Planets.ToArray()).ToList();
             ((ItemsControl)piWindow.FindName("Extractors")).ItemsSource = extractorTestGroups;

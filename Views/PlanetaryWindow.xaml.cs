@@ -80,6 +80,7 @@ public partial class PlanetaryWindow : Window
         _analysis = PlanetaryAnalysis.Build(_service.State, DateTimeOffset.UtcNow);
         Colonies.ItemsSource = PlanetaryGroups.Build(_analysis, _expanded); Production.ItemsSource = _analysis.Production;
         FactorySummary.ItemsSource = _analysis.FactoryTiers;
+        PiEconomics.Refresh(_service.State);
         var extractorGroups = PlanetaryExtractors.Build(_analysis, _expanded, DateTimeOffset.UtcNow);
         Extractors.ItemsSource = extractorGroups;
         CompactExtractorGrid.ItemsSource = extractorGroups.SelectMany(g => g.Planets).SelectMany(p => p.Pins).ToList();

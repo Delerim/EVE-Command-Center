@@ -44,6 +44,7 @@ public sealed class PiContainer
 }
 public sealed class PiState
 {
+    public Dictionary<string,PiTaxSettings> Taxes { get; set; } = new();
     public double? RefillBudgetHeight { get; set; }
     public double? OverviewColonyShare { get; set; }
     public double? OverviewExtractionShare { get; set; }
@@ -63,6 +64,7 @@ public sealed class PiState
 }
 public sealed class PiQuote
 {
+    public double? Sell { get; set; }
     public double? Buy { get; set; }
     public DateTimeOffset Checked { get; set; }
 }

@@ -1,7 +1,6 @@
-# EVE Command Center v3.5.16
+# EVE Command Center v3.5.17
 
-- Added selected-recipe Required Skills and Profitability tabs to the Industry planner, with trained/required levels and highlighted missing skills.
-- Compare direct material purchases with buy orders, full replacement costs and missing-material shopping costs. Choose immediate output sales or sell listings.
-- Net estimates include allocated BPC costs, job-start/installation costs, sales tax and broker commissions. Rates default from Accounting and Broker Relations (neutral NPC standings) and can be overridden. Costs are saved per pilot, recipe and run count.
-- Unknown costs/prices leave profit pending. BPC/research outputs are not assigned ordinary market sale values; quotes do not simulate order depth or relisting.
-- Active extraction colonies no longer get basic-processor input/refill alerts. A mismatched raw-material feed is described in processor details; extractor expiry and missing route/recipe alerts remain.
+- Added a PI Tax & Profit tab with manual effective POCO rates saved independently for each pilot and planet. Include the NPC component after Customs Code Expertise when applicable.
+- Batch estimates expand configured factory recipes to T1 inputs and include Jita input replacement cost, import/export duties, sale tax, broker fees and optional other batch costs. Immediate sale and sell-listing scenarios are supported.
+- Customs duties use fixed commodity taxable values, with import duty half the export basis. Unknown rates or prices never become zero costs.
+- This is a T1-fed batch planner, not a historical profit ledger. Extra upstream customs charges, hauling and setup allocation can be entered manually. POCO owner rates are not automatically imported; the ESI corporation endpoint is restricted to owning-corporation Directors.
