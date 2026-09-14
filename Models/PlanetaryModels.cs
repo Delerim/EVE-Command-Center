@@ -45,6 +45,8 @@ public sealed class PiContainer
 public sealed class PiState
 {
     public double? RefillBudgetHeight { get; set; }
+    public double? OverviewColonyShare { get; set; }
+    public double? OverviewExtractionShare { get; set; }
     public bool CompactExtractors { get; set; }
     public bool DesktopAlerts { get; set; } = true;
     public Dictionary<string,string> AlertStates { get; set; } = new();

@@ -262,6 +262,14 @@ internal static partial class Program
             ((ItemsControl)piWindow.FindName("FactorySummary")).ItemsSource = view.FactoryTiers;
             ((ItemsControl)piWindow.FindName("Refills")).ItemsSource = PlanetaryGroups.Build(view, new HashSet<string>(), true);
             Render(piWindow, System.IO.Path.ChangeExtension(args[0], ".pi.png"));
+            var rememberedPi=new PiState();piWindow.CaptureOverviewLayout(rememberedPi);
+            rememberedPi.OverviewColonyShare=0.45;rememberedPi.OverviewExtractionShare=0.4;
+            var restoredPi=JsonSerializer.Deserialize<PiState>(JsonSerializer.Serialize(rememberedPi))!;
+            piWindow.RestoreOverviewLayout(restoredPi);
+            Check(((RowDefinition)piWindow.FindName("OverviewColoniesRow")).Height.Value==0.45&&((ColumnDefinition)piWindow.FindName("OverviewExtractionColumn")).Width.Value==0.4,"PI overview remembers both divider proportions through saved state");
+            piWindow.RestoreOverviewLayout(new PiState{OverviewColonyShare=-1,OverviewExtractionShare=2});
+            Check(Math.Abs(((RowDefinition)piWindow.FindName("OverviewColoniesRow")).Height.Value-2d/3)<0.001,"Invalid PI divider settings fall back to the usable default layout");
+
             ((DataGrid)piWindow.FindName("StockBudget")).ItemsSource = view.StockBudget.Concat(Enumerable.Range(0,6).Select(i=>new PiStockBudget{Name="Material "+i,Available=100000,Required=20000})).ToArray();
             var refillView=PlanetaryGroups.Build(view,new HashSet<string>(),true);foreach(var g in refillView)g.Expanded=true;
             ((ItemsControl)piWindow.FindName("Refills")).ItemsSource=refillView;

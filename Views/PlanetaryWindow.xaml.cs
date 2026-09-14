@@ -18,6 +18,7 @@ public partial class PlanetaryWindow : Window
     public PlanetaryWindow()
     {
         InitializeComponent();
+        RestoreOverviewLayout(_service.State);
         PiAlerts.IsChecked = _service.State.DesktopAlerts;
         CompactExtractors.IsChecked = _service.State.CompactExtractors;
         ApplyExtractorMode();
@@ -25,6 +26,28 @@ public partial class PlanetaryWindow : Window
         _timer.Tick += (_, _) => Update();
         Loaded += async (_, _) => { await LoadPilots(); Update(); _timer.Start(); await _service.RefreshAsync(_life.Token); };
         Closed += (_, _) => { _timer.Stop(); _service.Changed -= Update; _life.Cancel(); };
+    }
+    internal void RestoreOverviewLayout(PiState state)
+    {
+        static double Share(double? value,double fallback)=>value is {} n && double.IsFinite(n) && n>0 && n<1?n:fallback;
+        double vertical=Share(state.OverviewColonyShare,2d/3),horizontal=Share(state.OverviewExtractionShare,1d/3);
+        OverviewColoniesRow.Height=new GridLength(vertical,GridUnitType.Star);
+        OverviewSummaryRow.Height=new GridLength(1-vertical,GridUnitType.Star);
+        OverviewExtractionColumn.Width=new GridLength(horizontal,GridUnitType.Star);
+        OverviewFactoryColumn.Width=new GridLength(1-horizontal,GridUnitType.Star);
+    }
+    internal void CaptureOverviewLayout(PiState state)
+    {
+        double height=OverviewColoniesRow.ActualHeight+OverviewSummaryRow.ActualHeight;
+        double width=OverviewExtractionColumn.ActualWidth+OverviewFactoryColumn.ActualWidth;
+        if(height>0)state.OverviewColonyShare=OverviewColoniesRow.ActualHeight/height;
+        if(width>0)state.OverviewExtractionShare=OverviewExtractionColumn.ActualWidth/width;
+    }
+    private void OverviewSplitter_DragCompleted(object sender,System.Windows.Controls.Primitives.DragCompletedEventArgs e)
+    {
+        CaptureOverviewLayout(_service.State);
+        RestoreOverviewLayout(_service.State);
+        _service.Save();
     }
     private void FitBudget()
     {
