@@ -1,4 +1,4 @@
-# EVE Command Center v3.5.14
+# EVE Command Center v3.5.15
 
-- Adjusted combined per-toon PI T1 collection warnings for a 45,000 m3 hold: amber at 40,500 m3 (90%) and red at 45,000 m3. Dashboard labels and notifications use the same thresholds.
-- Includes v3.5.13's saved PI overview divider positions.
+- Fixed extraction planets incorrectly showing collect/refill when their basic factories run out of matching input. Dedicated factory worlds retain collect/refill status; missing extractor supply remains an attention warning.
+- Includes the 45,000 m3 per-pilot collection limit and saved PI overview divider positions.

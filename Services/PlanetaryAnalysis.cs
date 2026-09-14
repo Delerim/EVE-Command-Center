@@ -46,6 +46,7 @@ public static class PlanetaryAnalysis
         {
             if (colony.Layout.ValueKind != JsonValueKind.Object) continue;
             var pins = Array(colony.Layout, "pins"); var routes = Array(colony.Layout, "routes");
+            bool factoryWorld = !pins.Any(p => p.TryGetProperty("extractor_details", out _));
             var byId = pins.ToDictionary(p => (long)Num(p, "pin_id"));
             var stores = byId.ToDictionary(p => p.Key, p => Contents(p.Value));
             var demands = new Dictionary<(long pin, int type), double>();
@@ -139,7 +140,7 @@ public static class PlanetaryAnalysis
                     double projected = double.IsFinite(hours) ? Math.Max(0, hours - ageHours) : 0;
                     bool ran = Date(pin, "last_cycle_start").HasValue || recipe.Outputs.Keys.Any(product => stores.Values.Any(c => c.GetValueOrDefault(product) > 0));
                     bool finishing = routed && Date(pin, "last_cycle_start") is {} started && started <= now && started.AddSeconds(recipe.Cycle) > now;
-                    bool collect = routed && !extractingFeed && !finishing && projected <= 0 && ran;
+                    bool collect = factoryWorld && routed && !extractingFeed && !finishing && projected <= 0 && ran;
                     row.Name = recipe.Name; row.Status = !routed ? "CHECK ROUTES" : extractingFeed ? "WAITING FOR UPSTREAM PRODUCTION" : projected > 0 ? "SUPPLIED (EST.)" : finishing ? "FINISHING CURRENT CYCLE" : collect ? "COLLECT / REFILL (EST.)" : "NOT STARTED / CHECK INPUTS";
                     row.Color = collect ? "#80BFFF" : routed && (extractingFeed || finishing || projected > 0) ? "#74D6C9" : "#FFD166";
                     row.Quantity = string.Join(" + ", recipe.Inputs.Select(i => $"{i.Value:N0} {Type(i.Key).Name}"));

@@ -58,6 +58,13 @@ internal static partial class Program
         var healthy = PlanetaryAnalysis.Build(feeding, now);
         Check(healthy.Pins.Any(p => p.Status == "WAITING FOR UPSTREAM PRODUCTION" && p.Color == "#74D6C9") && healthy.Colonies.Single().Status == "MONITORING", "Routed active extraction keeps intermittently supplied basic factories healthy");
         Check(PlanetaryAnalysis.Build(feeding, now.AddDays(3)).Pins.Any(p => p.Status == "NOT STARTED / CHECK INPUTS"), "Expired extraction no longer hides empty factory inputs");
+        // A running extractor with the wrong product must not masquerade as a completed factory world.
+        var mismatched = JsonSerializer.SerializeToElement(new { pins=feedPins, routes=feedRoutes }).GetRawText()
+            .Replace("\"product_type_id\":" + raw, "\"product_type_id\":2306")
+            .Replace("\"schematic_id\":" + basic.Id, "\"last_cycle_start\":\"" + now.AddHours(-2).ToString("O") + "\",\"schematic_id\":" + basic.Id);
+        feeding.Colonies[0].Layout = JsonDocument.Parse(mismatched).RootElement.Clone();
+        var stalledExtraction = PlanetaryAnalysis.Build(feeding, now);
+        Check(!stalledExtraction.Pins.Any(p => p.Status.StartsWith("COLLECT")) && stalledExtraction.Colonies.Single().Color == "#FFD166", "Wrong extractor supply remains attention, never factory collection, even after earlier production");
         var robotics = PlanetaryAnalysis.Recipes.Values.First(r => r.Name == "Robotics");
         var upstreamRecipes = robotics.Inputs.Keys.Select(product => PlanetaryAnalysis.Recipes.Values.First(r => r.Outputs.ContainsKey(product))).ToArray();
         var chainPins = new List<object> { new { pin_id=10L, type_id=2256, contents=upstreamRecipes.SelectMany(r => r.Inputs.Keys).Distinct().Select(t => new { type_id=t, amount=10000 }).ToArray() }, new { pin_id=20L, type_id=2470, schematic_id=robotics.Id, contents=System.Array.Empty<object>() } };
