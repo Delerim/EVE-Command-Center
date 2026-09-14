@@ -262,13 +262,19 @@ internal static partial class Program
             ((ItemsControl)piWindow.FindName("FactorySummary")).ItemsSource = view.FactoryTiers;
             ((ItemsControl)piWindow.FindName("Refills")).ItemsSource = PlanetaryGroups.Build(view, new HashSet<string>(), true);
             Render(piWindow, System.IO.Path.ChangeExtension(args[0], ".pi.png"));
-            ((DataGrid)piWindow.FindName("StockBudget")).ItemsSource = view.StockBudget;
+            ((DataGrid)piWindow.FindName("StockBudget")).ItemsSource = view.StockBudget.Concat(Enumerable.Range(0,6).Select(i=>new PiStockBudget{Name="Material "+i,Available=100000,Required=20000})).ToArray();
             var refillView=PlanetaryGroups.Build(view,new HashSet<string>(),true);foreach(var g in refillView)g.Expanded=true;
             ((ItemsControl)piWindow.FindName("Refills")).ItemsSource=refillView;
             ((TextBlock)piWindow.FindName("RefillSummary")).Text="Estimated contents | Collect finished output, then refill T1";
             ((TextBlock)piWindow.FindName("RefillStockStatus")).Text="Selected stockpile | Stock is allocated once across all refills";
             ((TabControl)piWindow.FindName("Tabs")).SelectedIndex=3;
             Render(piWindow,System.IO.Path.ChangeExtension(args[0],".refills.png"));
+            Check(((DataGrid)piWindow.FindName("StockBudget")).ActualHeight>=32+((DataGrid)piWindow.FindName("StockBudget")).Items.Count*30+4,"PI stock budget grows beyond the former fixed cap to fit materials");
+            var expandedBudget=(CheckBox)piWindow.FindName("ExpandBudget");expandedBudget.IsChecked=false;
+            typeof(PlanetaryWindow).GetMethod("FitBudget",System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.Instance)!.Invoke(piWindow,null);
+            Check(((FrameworkElement)piWindow.FindName("BudgetContent")).Visibility==Visibility.Collapsed,"PI stock budget can collapse without hiding planet refills");
+            expandedBudget.IsChecked=true;typeof(PlanetaryWindow).GetMethod("FitBudget",System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.Instance)!.Invoke(piWindow,null);
+
 
             ((ItemsControl)piWindow.FindName("Extractors")).ItemsSource = PlanetaryExtractors.Build(view, new HashSet<string>(), DateTimeOffset.UtcNow);
             ((TabControl)piWindow.FindName("Tabs")).SelectedIndex = 1;

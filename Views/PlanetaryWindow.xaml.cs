@@ -26,6 +26,23 @@ public partial class PlanetaryWindow : Window
         Loaded += async (_, _) => { await LoadPilots(); Update(); _timer.Start(); await _service.RefreshAsync(_life.Token); };
         Closed += (_, _) => { _timer.Stop(); _service.Changed -= Update; _life.Cancel(); };
     }
+    private void FitBudget()
+    {
+        if(BudgetRow==null || RefillLayout.ActualHeight<=0)return;
+        BudgetContent.Visibility=ExpandBudget.IsChecked==true?Visibility.Visible:Visibility.Collapsed;
+        double wanted=ExpandBudget.IsChecked==true?(_service.State.RefillBudgetHeight??(116+StockBudget.Items.Count*30)):52;
+        BudgetRow.Height=new GridLength(Math.Clamp(wanted,52,Math.Max(52,RefillLayout.ActualHeight-150)));
+    }
+    private void RefillLayout_SizeChanged(object sender,SizeChangedEventArgs e)=>FitBudget();
+    private void ExpandBudget_Click(object sender,RoutedEventArgs e)=>FitBudget();
+    private void FitBudget_Click(object sender,RoutedEventArgs e)
+    {
+        _service.State.RefillBudgetHeight=null;ExpandBudget.IsChecked=true;FitBudget();_service.Save();
+    }
+    private void BudgetSplitter_DragCompleted(object sender,System.Windows.Controls.Primitives.DragCompletedEventArgs e)
+    {
+        if(ExpandBudget.IsChecked==true){_service.State.RefillBudgetHeight=BudgetRow.ActualHeight;_service.Save();}
+    }
     private void PiAlerts_Click(object sender,RoutedEventArgs e) { _service.State.DesktopAlerts=PiAlerts.IsChecked==true; _service.Save(); }
     private async Task LoadPilots()
     {
@@ -44,6 +61,7 @@ public partial class PlanetaryWindow : Window
         Extractors.ItemsSource = extractorGroups;
         CompactExtractorGrid.ItemsSource = extractorGroups.SelectMany(g => g.Planets).SelectMany(p => p.Pins).ToList();
         StockBudget.ItemsSource = _analysis.StockBudget;
+        FitBudget();
         RefillStockStatus.Text = _service.State.ContainerId==0 ? "Choose a stockpile toon and container on the Stockpile tab." : $"Selected container stock checked {_service.State.StockFetched.ToLocalTime():dd MMM HH:mm}. {_service.State.StockError}";
         StockGrid.ItemsSource = _analysis.Stock; Refills.ItemsSource = PlanetaryGroups.Build(_analysis, _expanded, true);
         var refillGroups = PlanetaryGroups.Build(_analysis, _expanded, true);
