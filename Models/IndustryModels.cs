@@ -39,6 +39,7 @@ public sealed class IndustryState
 {
     public List<IndustryPilot> Pilots { get; set; } = new();
     public Dictionary<int,IndustryQuote> Quotes { get; set; } = new();
+    public Dictionary<string,IndustryCostSettings> CostSettings { get; set; } = new();
     public HashSet<string> Notified { get; set; } = new();
     public bool Alerts { get; set; } = true;
 }

@@ -13,6 +13,8 @@ public partial class IndustryWindow : Window
     private IndustryPilot? Selected=>Pilots.SelectedItem as IndustryPilot;
     private int _scan;
     private bool _quoting;
+    private string? _costKey;
+    private string CostKey(IndustryPilot p,IndustryRecipe r,int runs)=>$"{p.Id}:{r.Blueprint}:{r.Activity}:{runs}";
     private string ActivityFilter => (ActivityTabs?.SelectedItem as TabItem)?.Tag?.ToString() ?? "all";
     private async void Activity_Selected(object sender,SelectionChangedEventArgs e)
     {
@@ -71,7 +73,7 @@ public partial class IndustryWindow : Window
         if(generation!=_scan||_life.IsCancellationRequested)return;
         Recipes.ItemsSource=plans.Take(1000).ToArray();
         ScanStatus.Text=$"{plans.Count:N0} matches; showing up to 1,000. Hangar/container materials across this pilot's locations; hauling may be required. Each recipe is checked independently. Facility/material bonuses excluded.";
-        if(plans.Count>0)Recipes.SelectedItem=Recipes.Items.Cast<IndustryPlan>().FirstOrDefault(r=>r.Recipe==previousRecipe)??Recipes.Items[0];else {Materials.ItemsSource=null;PlanTitle.Text="No matching recipes";PlanState.Text="";PlanActivity.Text="";PlanDetail.Text="Upgrade this toon in Settings for all features, refresh blueprints, or enable All recipes.";}
+        if(plans.Count>0)Recipes.SelectedItem=Recipes.Items.Cast<IndustryPlan>().FirstOrDefault(r=>r.Recipe==previousRecipe)??Recipes.Items[0];else {Materials.ItemsSource=null;RequiredSkills.ItemsSource=null;ProfitRows.ItemsSource=null;_costKey=null;PlanTitle.Text="No matching recipes";PlanState.Text="";PlanActivity.Text="";PlanDetail.Text="Upgrade this toon in Settings for all features, refresh blueprints, or enable All recipes.";}
         });
     }
     private void Recipe_Selected(object sender,SelectionChangedEventArgs e)=>ShowPlan();
@@ -84,6 +86,25 @@ public partial class IndustryWindow : Window
         PlanState.Text=plan.Status;PlanState.Foreground=(System.Windows.Media.Brush)new System.Windows.Media.BrushConverter().ConvertFromString(plan.Color)!;
         PlanActivity.Text=plan.Activity;PlanActivity.Foreground=(System.Windows.Media.Brush)new System.Windows.Media.BrushConverter().ConvertFromString(plan.ActivityColor)!;
         PlanDetail.Text=plan.Blueprint+" | "+plan.Status+"\n"+plan.Products+"\n"+plan.Duration+"\n"+plan.Skills+"\n"+plan.Economics;
+        RequiredSkills.ItemsSource=plan.Recipe.Skills.Select(s=>new {Name=IndustryCatalog.Name(s.Key),Trained=p.Skills.GetValueOrDefault(s.Key),Needed=s.Value,
+            Status=p.Skills.GetValueOrDefault(s.Key)>=s.Value?"READY":"MISSING",Color=p.Skills.GetValueOrDefault(s.Key)>=s.Value?"#74D6C9":"#D6ACFF"}).OrderBy(s=>s.Status=="MISSING"?0:1).ThenBy(s=>s.Name).ToList();
+        string key=CostKey(p,row.Recipe,runs);
+        var costs=_service.State.CostSettings.GetValueOrDefault(key)??new IndustryCostSettings{TaxPercent=IndustryProfitability.Tax(p),BrokerPercent=IndustryProfitability.Broker(p),CopyCost=plan.Blueprint.StartsWith("BPO")?0:null};
+        if(_costKey!=key) {
+            _costKey=key;CopyCost.Text=costs.CopyCost?.ToString()??"";JobCost.Text=costs.JobCost?.ToString()??"";
+            SaleTax.Text=costs.TaxPercent.ToString("0.###");BrokerFee.Text=costs.BrokerPercent.ToString("0.###");InstantSale.IsChecked=costs.InstantSale;
+        }
+        ProfitRows.ItemsSource=IndustryProfitability.Calculate(plan,runs,_service.State.Quotes,costs);
+        ProfitHint.Text=$"{runs:N0} runs | Defaults: Accounting {p.Skills.GetValueOrDefault(16622)}, Broker Relations {p.Skills.GetValueOrDefault(3446)}; neutral NPC standings. Override rates for your selling character/station. Save applies the fields above.";
+    }
+    private void Calculate_Click(object sender,RoutedEventArgs e)
+    {
+        if(Selected is not {} p||Recipes.SelectedItem is not IndustryPlan row)return;
+        bool Amount(string value,out double? amount) {amount=null;if(string.IsNullOrWhiteSpace(value))return true;if(!double.TryParse(value,out var n)||!double.IsFinite(n)||n<0)return false;amount=n;return true;}
+        if(!Amount(CopyCost.Text,out var copy)||!Amount(JobCost.Text,out var job)||!Amount(SaleTax.Text,out var tax)||!Amount(BrokerFee.Text,out var broker)||tax==null||broker==null||tax+broker>=100) {ProfitHint.Text="Enter non-negative costs and fee percentages totalling less than 100%. Blank job costs stay pending.";return;}
+        int runs=int.TryParse(Runs.Text,out var n)?Math.Clamp(n,1,10000):1;
+        _service.State.CostSettings[CostKey(p,row.Recipe,runs)]=new(){CopyCost=copy,JobCost=job,TaxPercent=tax.Value,BrokerPercent=broker.Value,InstantSale=InstantSale.IsChecked==true};
+        _service.Save();ShowPlan();
     }
     private async void Quote_Click(object sender,RoutedEventArgs e)
     {

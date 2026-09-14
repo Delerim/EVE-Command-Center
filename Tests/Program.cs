@@ -182,6 +182,8 @@ internal static partial class Program
             Render(industryWindow,System.IO.Path.ChangeExtension(args[0],".industry.png"));
             ((TabControl)industryWindow.FindName("IndustryTabs")).SelectedIndex=1;
             Render(industryWindow,System.IO.Path.ChangeExtension(args[0],".planner.png"));
+            ((TabControl)industryWindow.FindName("PlanTabs")).SelectedIndex=3;
+            Render(industryWindow,System.IO.Path.ChangeExtension(args[0],".profitability.png"));
         }
         var operations = BackgroundOperations.Current;
         BackgroundOperations.Stop();

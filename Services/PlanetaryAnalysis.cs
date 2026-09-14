@@ -123,6 +123,7 @@ public static class PlanetaryAnalysis
                     bool routed = recipe.Inputs.Keys.All(product => routes.Any(r => (long)Num(r, "destination_pin_id") == id && (int)Num(r, "content_type_id") == product))
                         && recipe.Outputs.Keys.All(product => routes.Any(r => (long)Num(r, "source_pin_id") == id && (int)Num(r, "content_type_id") == product));
                     bool extractingFeed = routed && recipe.Inputs.Keys.All(HasActiveFeed);
+                    bool extractionWaiting = routed && !extractingFeed && recipe.Outputs.Keys.All(t=>Tier(t)==1) && pins.Any(p=>p.TryGetProperty("extractor_details",out var x) && Num(x,"cycle_time")>0 && Date(p,"expiry_time")>now);
                     double hours = double.PositiveInfinity;
                     foreach (var input in recipe.Inputs)
                     {
@@ -141,15 +142,15 @@ public static class PlanetaryAnalysis
                     bool ran = Date(pin, "last_cycle_start").HasValue || recipe.Outputs.Keys.Any(product => stores.Values.Any(c => c.GetValueOrDefault(product) > 0));
                     bool finishing = routed && Date(pin, "last_cycle_start") is {} started && started <= now && started.AddSeconds(recipe.Cycle) > now;
                     bool collect = factoryWorld && routed && !extractingFeed && !finishing && projected <= 0 && ran;
-                    row.Name = recipe.Name; row.Status = !routed ? "CHECK ROUTES" : extractingFeed ? "WAITING FOR UPSTREAM PRODUCTION" : projected > 0 ? "SUPPLIED (EST.)" : finishing ? "FINISHING CURRENT CYCLE" : collect ? "COLLECT / REFILL (EST.)" : "NOT STARTED / CHECK INPUTS";
-                    row.Color = collect ? "#80BFFF" : routed && (extractingFeed || finishing || projected > 0) ? "#74D6C9" : "#FFD166";
+                    row.Name = recipe.Name; row.Status = !routed ? "CHECK ROUTES" : extractingFeed ? "WAITING FOR UPSTREAM PRODUCTION" : projected > 0 ? "SUPPLIED (EST.)" : finishing ? "FINISHING CURRENT CYCLE" : collect ? "COLLECT / REFILL (EST.)" : extractionWaiting ? "WAITING FOR MATCHING EXTRACTOR OUTPUT" : "NOT STARTED / CHECK INPUTS";
+                    row.Color = collect ? "#80BFFF" : routed && (extractingFeed || extractionWaiting || finishing || projected > 0) ? "#74D6C9" : "#FFD166";
                     row.Quantity = string.Join(" + ", recipe.Inputs.Select(i => $"{i.Value:N0} {Type(i.Key).Name}"));
                     row.Rate = string.Join(" + ", recipe.Outputs.Select(i => $"{i.Value * 3600 / recipe.Cycle:N0} {Type(i.Key).Name}/h capacity"));
-                    row.Remaining = finishing ? "Finishing current cycle before collection" : collect ? "Input run complete; collect products and reload" : extractingFeed ? "Routed upstream supply; intermittent processing is normal" : Time(projected * 3600) + " input runway (est.)";
+                    row.Remaining = finishing ? "Finishing current cycle before collection" : collect ? "Input run complete; collect products and reload" : extractionWaiting ? "Extractor active; required material is not supplied by its current routed output" : extractingFeed ? "Routed upstream supply; intermittent processing is normal" : Time(projected * 3600) + " input runway (est.)";
                     var last = Date(pin, "last_cycle_start");
-                    row.Next = (projected > 0 || finishing) && last.HasValue ? Time(recipe.Cycle - Math.Max(0, (now - last.Value).TotalSeconds) % recipe.Cycle) + " to cycle (est.)" : extractingFeed ? "Waiting for upstream cycle" : "Check in game";
-                    if (!routed || (!extractingFeed && projected <= 0 && !collect && !finishing)) attention++;
-                    if (!extractingFeed) nextAction = Math.Min(nextAction, projected * 3600);
+                    row.Next = (projected > 0 || finishing) && last.HasValue ? Time(recipe.Cycle - Math.Max(0, (now - last.Value).TotalSeconds) % recipe.Cycle) + " to cycle (est.)" : extractionWaiting ? "Waiting for matching raw material" : extractingFeed ? "Waiting for upstream cycle" : "Check in game";
+                    if (!routed || (!extractingFeed && !extractionWaiting && projected <= 0 && !collect && !finishing)) attention++;
+                    if (!extractingFeed && !extractionWaiting) nextAction = Math.Min(nextAction, projected * 3600);
                 }
                 else
                 {
