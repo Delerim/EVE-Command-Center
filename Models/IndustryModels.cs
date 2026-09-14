@@ -24,7 +24,10 @@ public sealed class IndustryPilot
     public DateTimeOffset Updated { get; set; }
     public string Error { get; set; } = "Not linked";
     public string Portrait => $"https://images.evetech.net/characters/{Id}/portrait?size=64";
-    public string Summary => $"{Jobs.Count(j => Services.IndustryCatalog.Text(j,"status") == "active")} active | {Blueprints.Count} blueprints";
+    public string Summary
+    {
+        get { var jobs=Services.IndustryCatalog.Jobs(this,DateTimeOffset.UtcNow);return $"{jobs.Count(j=>j.Status=="active")} active | {jobs.Count(j=>j.Status.Contains("READY",StringComparison.OrdinalIgnoreCase))} ready | {Blueprints.Count} blueprints"; }
+    }
 }
 public sealed class IndustryQuote
 {
@@ -59,7 +62,9 @@ public sealed class IndustryPlan
     public string Activity => Recipe.ActivityText;
     public string Blueprint { get; set; } = "Not owned";
     public string Status { get; set; } = "";
-    public string Color => Status == "READY" ? "#74D6C9" : "#FFD166";
+    public string Color => Services.IndustryActivities.StatusColor(Status);
+    public string ActivityColor => Services.IndustryActivities.Color(Recipe.Activity);
+    public string BlueprintColor => Blueprint.StartsWith("BPO") ? "#FFD166" : "#80BFFF";
     public List<IndustryMaterial> Materials { get; set; } = new();
     public string Skills { get; set; } = "";
     public string Duration { get; set; } = "";
@@ -68,11 +73,15 @@ public sealed class IndustryPlan
 }
 public sealed class IndustryJobView
 {
+    public string ActivityCode {get;set;}="";
+    public string ActivityColor=>Services.IndustryActivities.Color(ActivityCode);
+    public string TimeLeft {get;set;}="";
+    public double Progress {get;set;}
     public string Name { get; set; } = "";
     public string Icon { get; set; } = "";
     public string Activity { get; set; } = "";
     public string Status { get; set; } = "";
-    public string Color => Status.Contains("READY") ? "#80BFFF" : Status == "active" ? "#74D6C9" : "#FFD166";
+    public string Color => Status.Contains("READY",StringComparison.OrdinalIgnoreCase) ? "#FFD166" : Status == "active" ? "#74D6C9" : "#FFD166";
     public string Runs { get; set; } = "";
     public string End { get; set; } = "";
     public string Location { get; set; } = "";

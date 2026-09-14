@@ -7,6 +7,9 @@ internal static partial class Program
     {
         Check(IndustryCatalog.Recipes.Count>10000,"Bundled industry catalogue covers published CCP blueprint activities");
         Check(IndustryCatalog.MaterialAmount(1,10,10,true)==10 && IndustryCatalog.MaterialAmount(86,10,10,true)==774,"Industry ME rounds at job level and preserves one item per run minimum");
+        Check(new[]{1L,3,4,5,8,11}.Select(IndustryActivities.Code).Distinct().Count()==6,"Industry activity tabs distinguish manufacturing, ME, TE, copying, invention and reactions");
+        Check(IndustryActivities.Matches("research_material","research_material")&&!IndustryActivities.Matches("research_material","research_time")&&IndustryActivities.Matches("all","invention"),"Industry activity filtering keeps research types separate and supports all activities");
+        Check(IndustryActivities.StatusColor("READY")!=IndustryActivities.StatusColor("BUY MATERIALS")&&IndustryActivities.StatusColor("SKILLS REQUIRED")!=IndustryActivities.StatusColor("BLUEPRINT IN USE"),"Industry readiness states have distinct visual colours");
         var recipe=IndustryCatalog.Recipes.First(r=>r.Activity=="manufacturing"&&r.Materials.Count>0&&r.Products.Count==1);
         var pilot=new IndustryPilot {Id=42,Name="Industry Test Pilot",Error="",Updated=DateTimeOffset.UtcNow,
             Blueprints=new(){JsonSerializer.SerializeToElement(new {item_id=123L,type_id=recipe.Blueprint,quantity=-2,runs=5,material_efficiency=10,time_efficiency=20})},

@@ -555,7 +555,10 @@ public sealed class MiningIdleWatchdogService : IDisposable
             return;
 
         if (_idleAlerted.Add(character))
+        {
+            DiagnosticsService.LogAlerts($"[Watchdog] NO PULL char='{character}' last={last:O} age={(now-last).TotalSeconds:F0}s threshold={idleAfter}s");
             IdleDetected?.Invoke(character);
+        }
     }
 
     private void ResetYieldLearning(string character)

@@ -54,7 +54,8 @@ public partial class App : Application
     // Per-event sound cooldowns — keyed `{character}_{alertType}` so simultaneous
     // alerts on different characters each get their own sound (the cooldown
     // semantics still hold per-character).
-    private readonly Dictionary<string, DateTime> _soundCooldowns = new();
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, DateTime> _soundCooldowns = new();
+    private readonly AlertSoundQueue _fallbackSoundQueue = new();
 
     // Sound player for cycle-wrap chime (single instance is fine here — wraps
     // can't overlap meaningfully).
@@ -333,6 +334,8 @@ public partial class App : Application
                 }
                 EveCommandCenter.Services.DiagnosticsService.LogAlerts(
                     $"[App] '{charName}' found in active windows, dispatching to flash/badge/toast/sound");
+                if(alertType.StartsWith("mine_", StringComparison.OrdinalIgnoreCase))
+                    Dispatcher.BeginInvoke(new Action(() => NotificationCenterService.Current.Record(charName + " | Mining", alertType.Replace('_', ' '), "MINING")));
                 _thumbnailManager.SetAlertFlash(charName, severity, alertType);
                 _thumbnailManager.IncrementAlertBadge(charName, severity, alertType);
                 bool trayEnabled = _settings.Settings.SeverityTrayNotify.TryGetValue(severity, out var tn) && tn;
@@ -632,7 +635,11 @@ public partial class App : Application
                     "mine_module_stopped" => System.Media.SystemSounds.Exclamation,
                     _ => System.Media.SystemSounds.Exclamation
                 };
-                fallback.Play();
+                Dispatcher.Invoke(() => _fallbackSoundQueue.Enqueue(cooldownKey, () =>
+                {
+                    fallback.Play();
+                    _soundCooldowns[cooldownKey] = DateTime.Now;
+                }));
                 EveCommandCenter.Services.DiagnosticsService.LogAlerts(
                     $"[Sound] FALLBACK system sound for {alertType} on '{character}'");
             }
@@ -1305,6 +1312,7 @@ public partial class App : Application
 
     protected override void OnExit(ExitEventArgs e)
     {
+        _fallbackSoundQueue.Dispose();
         // Cover every shutdown path: tray Exit (sets this in ExitApplication),
         // UpdateService.ApplyUpdate calling Shutdown() directly, OS logoff
         // routing WM_ENDSESSION through Shutdown(), and second-instance

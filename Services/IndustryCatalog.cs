@@ -17,7 +17,11 @@ public static class IndustryCatalog
         int type=(int)Num(j,"product_type_id"); if(type==0)type=(int)Num(j,"blueprint_type_id");
         var end=DateTimeOffset.TryParse(Text(j,"end_date"),out var d)?d:default;
         string status=Text(j,"status"); if(status=="active" && end!=default && end<=now)status="READY TO DELIVER (EST.)";
-        return new IndustryJobView {Name=Name(type),Icon=$"https://images.evetech.net/types/{type}/icon?size=32",Activity=Activity(Num(j,"activity_id")),Status=status,Runs=Num(j,"runs").ToString(),End=end==default?"Unknown":end.ToLocalTime().ToString("dd MMM HH:mm"),Location="Facility " + Num(j,"facility_id")};
+        var start=DateTimeOffset.TryParse(Text(j,"start_date"),out var started)?started:default;
+        double remaining=end==default?double.NaN:Math.Max(0,(end-now).TotalSeconds);
+        return new IndustryJobView {ActivityCode=IndustryActivities.Code(Num(j,"activity_id")),
+            TimeLeft=status.Contains("READY")||status=="ready"?"Ready to deliver":status!="active"?status:double.IsNaN(remaining)?"Unknown":$"{(int)TimeSpan.FromSeconds(remaining).TotalDays}d {TimeSpan.FromSeconds(remaining).Hours}h {TimeSpan.FromSeconds(remaining).Minutes}m",
+            Progress=start!=default&&end>start?Math.Clamp((now-start).TotalSeconds/(end-start).TotalSeconds*100,0,100):0,Name=Name(type),Icon=$"https://images.evetech.net/types/{type}/icon?size=32",Activity=Activity(Num(j,"activity_id")),Status=status,Runs=Num(j,"runs").ToString(),End=end==default?"Unknown":end.ToLocalTime().ToString("dd MMM HH:mm"),Location="Facility " + Num(j,"facility_id")};
     }).ToList();
     public static double MaterialAmount(double quantity,int runs,int me,bool manufacturing) => manufacturing ? Math.Max(runs,Math.Ceiling(Math.Round(quantity*runs*(1-me/100.0),2,MidpointRounding.AwayFromZero))) : Math.Ceiling(quantity*runs);
     public static IndustryPlan Plan(IndustryPilot pilot,IndustryRecipe recipe,int runs,Dictionary<int,IndustryQuote> quotes)

@@ -4,6 +4,13 @@ internal static partial class Program
 {
     private static void CheckMiningWatchdog()
     {
+        using var sounds=new AlertSoundQueue();
+        var heard=new List<string>();
+        sounds.Enqueue("one",()=>heard.Add("one"));sounds.Enqueue("two",()=>heard.Add("two"));sounds.Enqueue("three",()=>heard.Add("three"));
+        Check(heard.SequenceEqual(new[]{"one"}),"Simultaneous fallback alarms are spaced instead of replacing one another");
+        sounds.Advance();sounds.Advance();Check(heard.SequenceEqual(new[]{"one","two","three"}),"Every toon's queued fallback alarm is played in order");
+        sounds.Enqueue("bad",()=>throw new Exception("Audio failure"));sounds.Enqueue("four",()=>heard.Add("four"));sounds.Advance();sounds.Advance();
+        Check(heard.Last()=="four","Failed fallback playback does not block subsequent toons");
         var start = new DateTime(2026, 9, 13, 12, 0, 0, DateTimeKind.Utc);
         var now = start.AddSeconds(89);
         var names = Enumerable.Range(1, 5).Select(i => "Miner " + i).ToArray();

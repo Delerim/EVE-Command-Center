@@ -174,6 +174,7 @@ internal static partial class Program
         if(args.Length>0){Render(omegaWindow,System.IO.Path.ChangeExtension(args[0],".omega.png"));((TabControl)omegaWindow.FindName("OmegaTabs")).SelectedIndex=1;Render(omegaWindow,System.IO.Path.ChangeExtension(args[0],".omega-budget.png"));((TabControl)omegaWindow.FindName("OmegaTabs")).SelectedIndex=2;Render(omegaWindow,System.IO.Path.ChangeExtension(args[0],".omega-offers.png"));}
         var industryWindow = new IndustryWindow(); BackgroundOperations.Stop();
         Check(industryWindow.FindName("Recipes") != null && industryWindow.FindName("Materials") != null, "Industry dashboard XAML exposes blueprint and material planning");
+        Check(((TabControl)industryWindow.FindName("ActivityTabs")).Items.Count==7,"Industry exposes all six activity tabs and an all-activities view");
         ((ListBox)industryWindow.FindName("Pilots")).ItemsSource = new[] { industryFixture };
         ((ListBox)industryWindow.FindName("Pilots")).SelectedIndex=0;
         if(args.Length>0)

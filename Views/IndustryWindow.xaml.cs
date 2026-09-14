@@ -13,6 +13,12 @@ public partial class IndustryWindow : Window
     private IndustryPilot? Selected=>Pilots.SelectedItem as IndustryPilot;
     private int _scan;
     private bool _quoting;
+    private string ActivityFilter => (ActivityTabs?.SelectedItem as TabItem)?.Tag?.ToString() ?? "all";
+    private async void Activity_Selected(object sender,SelectionChangedEventArgs e)
+    {
+        if(!IsInitialized || e.Source!=ActivityTabs)return;
+        UpdateDetails();await Scan();
+    }
     public IndustryWindow()
     {
         InitializeComponent();Alerts.IsChecked=_service.State.Alerts;
@@ -36,7 +42,8 @@ public partial class IndustryWindow : Window
     {
         StatusText.Text=_service.Status+(_service.Busy?" | "+EsiDiagnostics.Status:"");
         if(Selected is not {} p)return;
-        var jobs=IndustryCatalog.Jobs(p,DateTimeOffset.UtcNow);Jobs.ItemsSource=jobs;
+        var jobs=IndustryCatalog.Jobs(p,DateTimeOffset.UtcNow);Jobs.ItemsSource=jobs.Where(j=>IndustryActivities.Matches(ActivityFilter,j.ActivityCode)).ToList();
+        ActivityContext.Text=(ActivityTabs.SelectedItem as TabItem)?.Header+" | "+Jobs.Items.Count+" jobs | Selected pilot: "+p.Name;
         Dashboard.Text=$"{p.Name} | {jobs.Count(j=>j.Status=="active")} active jobs | {jobs.Count(j=>j.Status.Contains("READY")||j.Status=="ready")} ready to deliver | {p.Blueprints.Count} blueprints";
         ManufacturingStat.Text=jobs.Count(j=>j.Status=="active"&&j.Activity=="Manufacturing").ToString();
         ResearchStat.Text=jobs.Count(j=>j.Status=="active"&&j.Activity is "TE research" or "ME research" or "Copying").ToString();
@@ -52,9 +59,10 @@ public partial class IndustryWindow : Window
     {
         if(Selected is not {} p)return;int generation=++_scan;
         int runs=int.TryParse(Runs.Text,out var n)?Math.Clamp(n,1,10000):1;string filter=Search.Text.Trim();bool all=AllRecipes.IsChecked==true,ready=ReadyOnly.IsChecked==true;
+        var previousRecipe=(Recipes.SelectedItem as IndustryPlan)?.Recipe;
         ScanStatus.Text="Scanning bundled CCP recipes against this pilot's stock...";
         var owned=p.Blueprints.Select(b=>(int)IndustryCatalog.Num(b,"type_id")).ToHashSet();
-        var recipes=IndustryCatalog.Recipes.Where(r=>(all||owned.Contains(r.Blueprint))&&(filter.Length==0||r.Name.Contains(filter,StringComparison.OrdinalIgnoreCase)||r.Products.Keys.Any(t=>IndustryCatalog.Name(t).Contains(filter,StringComparison.OrdinalIgnoreCase)))).ToArray();
+        var recipes=IndustryCatalog.Recipes.Where(r=>IndustryActivities.Matches(ActivityFilter,r.Activity)&&(all||owned.Contains(r.Blueprint))&&(filter.Length==0||r.Name.Contains(filter,StringComparison.OrdinalIgnoreCase)||r.Products.Keys.Any(t=>IndustryCatalog.Name(t).Contains(filter,StringComparison.OrdinalIgnoreCase)))).ToArray();
         // Planner scan has no network requests. Each recipe is an independent alternative, not an allocated shopping basket.
         var quotes=new Dictionary<int,IndustryQuote>(_service.State.Quotes);
         var plans=await Task.Run(()=>recipes.Select(r=>IndustryCatalog.Plan(p,r,runs,quotes)).Where(r=>!ready||r.Status=="READY").OrderBy(r=>r.Status=="READY"?0:1).ThenBy(r=>r.Name).ToList());
@@ -63,7 +71,7 @@ public partial class IndustryWindow : Window
         if(generation!=_scan||_life.IsCancellationRequested)return;
         Recipes.ItemsSource=plans.Take(1000).ToArray();
         ScanStatus.Text=$"{plans.Count:N0} matches; showing up to 1,000. Hangar/container materials across this pilot's locations; hauling may be required. Each recipe is checked independently. Facility/material bonuses excluded.";
-        if(plans.Count>0)Recipes.SelectedIndex=0;else {Materials.ItemsSource=null;PlanTitle.Text="No matching recipes";PlanDetail.Text="Upgrade this toon in Settings for all features, refresh blueprints, or enable All recipes.";}
+        if(plans.Count>0)Recipes.SelectedItem=Recipes.Items.Cast<IndustryPlan>().FirstOrDefault(r=>r.Recipe==previousRecipe)??Recipes.Items[0];else {Materials.ItemsSource=null;PlanTitle.Text="No matching recipes";PlanState.Text="";PlanActivity.Text="";PlanDetail.Text="Upgrade this toon in Settings for all features, refresh blueprints, or enable All recipes.";}
         });
     }
     private void Recipe_Selected(object sender,SelectionChangedEventArgs e)=>ShowPlan();
@@ -72,7 +80,9 @@ public partial class IndustryWindow : Window
         if(Selected is not {} p||Recipes.SelectedItem is not IndustryPlan row)return;
         int runs=int.TryParse(Runs.Text,out var n)?Math.Clamp(n,1,10000):1;
         var plan=IndustryCatalog.Plan(p,row.Recipe,runs,_service.State.Quotes);
-        PlanTitle.Text=plan.Name+" | "+plan.Activity;Materials.ItemsSource=plan.Materials;
+        PlanTitle.Text=plan.Name;Materials.ItemsSource=plan.Materials;
+        PlanState.Text=plan.Status;PlanState.Foreground=(System.Windows.Media.Brush)new System.Windows.Media.BrushConverter().ConvertFromString(plan.Color)!;
+        PlanActivity.Text=plan.Activity;PlanActivity.Foreground=(System.Windows.Media.Brush)new System.Windows.Media.BrushConverter().ConvertFromString(plan.ActivityColor)!;
         PlanDetail.Text=plan.Blueprint+" | "+plan.Status+"\n"+plan.Products+"\n"+plan.Duration+"\n"+plan.Skills+"\n"+plan.Economics;
     }
     private async void Quote_Click(object sender,RoutedEventArgs e)
