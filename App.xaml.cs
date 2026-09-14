@@ -1010,6 +1010,9 @@ public partial class App : Application
         if (_settings == null || _thumbnailManager == null) return;
         if (_thumbnailManager.IsCharacterAlertMuted(charName)) return;
 
+        try { NotificationCenterService.Current.Record(charName + " | Mining", message, "MINING"); }
+        catch (Exception ex) { Debug.WriteLine("[Mining watchdog] Notification history: " + ex.Message); }
+
         const string alertType = "mine_module_stopped";
         const string severity = "warning";
 

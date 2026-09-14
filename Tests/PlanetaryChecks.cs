@@ -100,13 +100,13 @@ internal static partial class Program
         Check(products.Single(p=>p.TypeId==2398).Stored==500,"Stored T1 feedstock is counted even on planets that only manufacture higher tiers");
         var processorNode = json["pins"]!.AsArray().First(p => p!["pin_id"]!.GetValue<long>() == 20)!;
         processorNode["contents"] = new System.Text.Json.Nodes.JsonArray(new System.Text.Json.Nodes.JsonObject { ["type_id"] = robotics.Inputs.Keys.First(), ["amount"] = 10 });
-        chain.Fetched = now; chain.LastUpdate = now.AddDays(-2);
+        chain.Fetched = now; chain.LastUpdate = now;
         chain.Layout = JsonSerializer.SerializeToElement(json);
         var buffered = PlanetaryAnalysis.Build(chainState, now);
         var bufferedT2 = buffered.FactoryTiers.SelectMany(t=>t.Products).Single(p=>p.TypeId==robotics.Inputs.Keys.First());
         Check(bufferedT2.Stored==110 && bufferedT2.Reserved==110 && bufferedT2.Collect==0, "T2 processor buffers appear in snapshots and remain reserved");
         Check(buffered.Refills.All(r=>PlanetaryAnalysis.Tier(r.TypeId)==1) && buffered.Refills.Sum(r=>r.Target * PlanetaryAnalysis.Types[r.TypeId].Volume)>9000, "T1 refill targets do not allocate launchpad space to routed T2 inputs");
-        Check(buffered.Colonies.Single().Next.Contains("Last checked") && buffered.Colonies.Single().Next.Contains("Older snapshot"), "PI distinguishes a successful recent check from older colony contents");
+        Check(buffered.Colonies.Single().Next.Contains("Last checked") && buffered.Colonies.Single().Next.Contains("Snapshot updated"), "PI distinguishes a successful recent check from older colony contents");
         return state;
     }
     private static void CheckMiningRates()

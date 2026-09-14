@@ -1,4 +1,4 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 using EveCommandCenter.Models;
 using EveCommandCenter.Services;
 
@@ -53,9 +53,10 @@ public static class PlanetaryGroups
             int attention = planets.Count(p => p.Row.Color == "#FFD166");
             int collection = planets.Count(p => p.Pins.Any(r => r.Status.StartsWith("COLLECT")));
             string key = (refills ? "refill-pilot:" : "pilot:") + first.CharacterId;
+            var haul=analysis.Hauls.FirstOrDefault(h=>h.CharacterId==first.CharacterId);
             return new PiGroupView { Key = key, Expanded = expanded.Contains(key), Name = first.Character, Icon = first.Portrait, Planets = planets,
-                Color = attention > 0 ? "#FFD166" : collection > 0 ? "#80BFFF" : "#74D6C9",
-                Summary = $"{planets.Count} colonies | {planets.Count(p => p.FactoryWorld)} factory worlds | " + (refills ? $"{planets.Sum(p => p.Refills.Sum(r => r.Need)):N0} T1 units to haul | {planets.Sum(p => p.Refills.Sum(r => r.Missing)):N0} shortfall" : attention > 0 ? $"{attention} colonies need attention" : collection > 0 ? $"{collection} planets collect / refill" : "Monitoring") };
+                Color = !refills && haul?.Stage>0 ? haul.Color : attention > 0 ? "#FFD166" : collection > 0 ? "#80BFFF" : "#74D6C9",
+                Summary = $"{planets.Count} colonies | {planets.Count(p => p.FactoryWorld)} factory worlds | " + (refills ? $"{planets.Sum(p => p.Refills.Sum(r => r.Need)):N0} T1 units to haul | {planets.Sum(p => p.Refills.Sum(r => r.Missing)):N0} shortfall" : attention > 0 ? $"{attention} colonies need attention" : collection > 0 ? $"{collection} planets collect / refill" : "Monitoring") + (!refills && haul!=null ? " | " + haul.Summary : "") };
         }).Where(g => g.Planets.Count > 0).ToList();
     }
 }

@@ -28,8 +28,10 @@ public sealed class NotificationCenterService
     }
     public void SyncPi(PiState state,DateTimeOffset now)
     {
-        var active=PlanetaryAnalysis.Build(state,now).Colonies.Where(r=>r.Color=="#FFD166"||r.Status.Contains("COLLECT")||PlanetaryAlerts.Warning(r).Length>0)
+        var analysis=PlanetaryAnalysis.Build(state,now);
+        var active=analysis.Colonies.Where(r=>r.Color=="#FFD166"||r.Status.Contains("COLLECT")||PlanetaryAlerts.Warning(r).Length>0)
             .GroupBy(r=>r.Colony!.CharacterId).Select(g=>new CenterNotification{Id="PI:"+g.Key,Source="PI",Title=g.First().Colony!.Character+" | "+g.Count()+" colonies",Detail=string.Join("\n",g.Select(r=>r.Name+": "+(PlanetaryAlerts.Warning(r).Length>0?PlanetaryAlerts.Warning(r)+" (estimated restart/refill)":r.Status)+" | "+r.Next)),Color="#FFD166",Active=true,Updated=now}).ToList();
+        active.AddRange(analysis.Hauls.Where(h=>h.Stage>0).Select(h=>new CenterNotification{Id="PI:haul:"+h.CharacterId,Source="PI",Title=h.Character+" | T1 collection",Detail=h.Summary+" across extracting planets. Estimate from saved colony contents and nominal production; verify before hauling.",Color=h.Color,Active=true,Updated=now}));
         bool changed=false;var ids=active.Select(x=>x.Id).ToHashSet();
         foreach(var row in Items.Where(x=>x.Source=="PI"&&x.Active&&!ids.Contains(x.Id))){row.Active=false;row.Read=true;row.Updated=now;changed=true;}
         foreach(var row in active)
@@ -42,7 +44,7 @@ public sealed class NotificationCenterService
     }
     public void Record(string title,string detail,string category)
     {
-        Items.Add(new(){Id=Guid.NewGuid().ToString(),Source=category.Contains("PLANETARY")?"PI":category.Contains("OMEGA")?"OMEGA":category.Contains("INDUSTRY")?"INDUSTRY":category.Contains("CONTRACT")?"CONTRACTS":"MOONS",Title=title,Detail=detail,Updated=DateTimeOffset.UtcNow});Save();
+        Items.Add(new(){Id=Guid.NewGuid().ToString(),Source=category.Contains("MINING")?"MINING":category.Contains("PLANETARY")?"PI":category.Contains("OMEGA")?"OMEGA":category.Contains("INDUSTRY")?"INDUSTRY":category.Contains("CONTRACT")?"CONTRACTS":"MOONS",Title=title,Detail=detail,Updated=DateTimeOffset.UtcNow});Save();
     }
     public void MarkRead(){foreach(var item in Items)item.Read=true;Save();}
     private void Save()

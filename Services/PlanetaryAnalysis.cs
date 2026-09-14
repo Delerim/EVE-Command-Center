@@ -161,13 +161,25 @@ public static class PlanetaryAnalysis
                 }
                 result.Pins.Add(row);
             }
+            var snapshotStores = stores;
+            var projection = PlanetaryProjection.Build(colony, now);
+            stores = projection.Stores;
+            foreach(var row in result.Pins.Where(r=>ReferenceEquals(r.Colony,colony)&&r.Status=="STORAGE SNAPSHOT"))
+            {
+                var pin = pins.First(p=>row.Detail.EndsWith("pin " + (long)Num(p,"pin_id")));
+                var content=stores[(long)Num(pin,"pin_id")];
+                row.Quantity=string.Join(" | ",content.Where(x=>x.Value>0).Select(x=>$"{Type(x.Key).Name}: {x.Value:N0}"));
+                row.Status="STORAGE (EST.)";
+                double used=content.Sum(x=>x.Value*Type(x.Key).Volume),cap=Type((int)Num(pin,"type_id")).Capacity;
+                row.Remaining=$"{used:N1} / {cap:N0} m3 estimated";row.Rate=cap>0?$"{used/cap:P0} full (est.)":"";
+            }
             foreach (var pin in pins.Where(p => Type((int)Num(p, "type_id")).Group == 1030))
             {
                 long id = (long)Num(pin, "pin_id"); double capacity = Type((int)Num(pin, "type_id")).Capacity;
                 var inputs = demands.Where(d => d.Key.pin == id && Tier(d.Key.type) == 1 && Type(d.Key.type).Volume > 0).ToArray();
                 if (inputs.Length == 0 || capacity <= 0) continue;
                 var relevant = inputs.Select(i => i.Key.type).ToHashSet();
-                double otherVolume = stores[id].Where(c => !relevant.Contains(c.Key)).Sum(c => c.Value * Type(c.Key).Volume);
+                double otherVolume = stores[id].Where(c => !relevant.Contains(c.Key) && !(Tier(c.Key)>=2 && !routes.Any(r=>(long)Num(r,"source_pin_id")==id && (int)Num(r,"content_type_id")==c.Key && factories.ContainsKey((long)Num(r,"destination_pin_id"))))).Sum(c => c.Value * Type(c.Key).Volume);
                 double volumePerHour = inputs.Sum(i => i.Value * Type(i.Key.type).Volume);
                 double low = 0, high = Math.Max(0, capacity - otherVolume) / volumePerHour;
                 for (int step = 0; step < 50; step++)
@@ -178,7 +190,7 @@ public static class PlanetaryAnalysis
                 }
                 double fullHours = low;
                 foreach (var input in inputs)
-                    result.Refills.Add(new() { CharacterId = colony.CharacterId, PlanetId = colony.PlanetId, Colony = colony.Character + " | " + colony.Planet, Pin = id, TypeId = input.Key.type, Name = Type(input.Key.type).Name, Current = stores[id].GetValueOrDefault(input.Key.type), Target = Math.Floor(input.Value * fullHours) });
+                    result.Refills.Add(new() { CharacterId = colony.CharacterId, PlanetId = colony.PlanetId, Colony = colony.Character + " | " + colony.Planet, Pin = id, TypeId = input.Key.type, Name = Type(input.Key.type).Name, Snapshot = snapshotStores[id].GetValueOrDefault(input.Key.type), Current = stores[id].GetValueOrDefault(input.Key.type), Target = Math.Floor(input.Value * fullHours) });
             }
             var factoryRows = result.Pins.Where(r => ReferenceEquals(r.Colony, colony) && r.IsFactory).ToArray();
             int collection = factoryRows.Count(r => r.Status.StartsWith("COLLECT"));
@@ -208,14 +220,21 @@ public static class PlanetaryAnalysis
                 {
                     if(!factoryProducts.TryGetValue(item.Key,out var total))factoryProducts[item.Key]=total=new(){TypeId=item.Key,Name=Type(item.Key).Name,Tier=Tier(item.Key)};
                     total.Stored+=item.Value;
+                    total.Snapshot+=snapshotStores[store.Key].GetValueOrDefault(item.Key);
                     total.SnapshotOldest=total.SnapshotOldest==default||colony.LastUpdate<total.SnapshotOldest?colony.LastUpdate:total.SnapshotOldest;
                     if(factories.ContainsKey(store.Key) || routes.Any(r=>(long)Num(r,"source_pin_id")==store.Key&&(int)Num(r,"content_type_id")==item.Key&&factories.TryGetValue((long)Num(r,"destination_pin_id"),out var consumer)&&consumer.Inputs.ContainsKey(item.Key)))total.Reserved+=item.Value;
                 }
+            if(extractors>0)
+            {
+                var haul=result.Hauls.FirstOrDefault(h=>h.CharacterId==colony.CharacterId);
+                if(haul==null){haul=new(){CharacterId=colony.CharacterId,Character=colony.Character};result.Hauls.Add(haul);}
+                haul.Volume+=stores.Where(k=>Type((int)Num(byId[k.Key],"type_id")).Capacity>0).Sum(k=>k.Value.Where(x=>Tier(x.Key)==1 && !routes.Any(r=>(long)Num(r,"source_pin_id")==k.Key && (int)Num(r,"content_type_id")==x.Key && factories.ContainsKey((long)Num(r,"destination_pin_id")))).Sum(x=>x.Value*Type(x.Key).Volume));
+            }
             result.Colonies.Add(new() { Colony = colony, Name = colony.Planet, Icon = colony.Portrait, Detail = colony.Character + " | " + colony.PlanetType,
                 Status = colony.Error.Length > 0 ? "STALE / REFRESH FAILED" : attention > 0 ? $"{attention} NEED ATTENTION" : collection > 0 ? $"{collection} COLLECT / REFILL (EST.)" : "MONITORING",
                 Color = attention > 0 || colony.Error.Length > 0 ? "#FFD166" : collection > 0 ? "#80BFFF" : "#74D6C9",
                 Quantity = $"{extractors} extractors | {factories.Count} factories", Remaining = Time(nextAction), SecondsUntilAction=double.IsFinite(nextAction)?nextAction:null,
-                Next = "Snapshot updated " + colony.LastUpdate.ToLocalTime().ToString("dd MMM HH:mm") + " | Last checked " + colony.Fetched.ToLocalTime().ToString("dd MMM HH:mm") + (now - colony.LastUpdate > TimeSpan.FromHours(6) ? " | Older snapshot: open colony in EVE to update amounts" : ""), Rate = "Fetched " + colony.Fetched.ToLocalTime().ToString("dd MMM HH:mm") });
+                Next = (projection.Limited ? "Projection capped; verify in game | " : "Projected contents; verify before hauling | ") + "Snapshot updated " + colony.LastUpdate.ToLocalTime().ToString("dd MMM HH:mm") + " | Last checked " + colony.Fetched.ToLocalTime().ToString("dd MMM HH:mm") + (now - colony.LastUpdate > TimeSpan.FromHours(6) ? " | Older snapshot: open colony in EVE to update amounts" : ""), Rate = "Fetched " + colony.Fetched.ToLocalTime().ToString("dd MMM HH:mm") });
         }
         foreach (var item in production.Where(p => p.Key > 0)) result.Production.Add(new() { Name = Type(item.Key).Name, Icon = Type(item.Key).Icon, Rate = $"{item.Value.rate:N0} nominal units/h", Quantity = $"{item.Value.extracted:N0} projected units", Detail = "Current extractor programs only; nominal cycle yield, not a mined ledger" });
         result.FactoryTiers = factoryProducts.Values.GroupBy(p => p.Tier).OrderBy(g => g.Key)
@@ -223,9 +242,11 @@ public static class PlanetaryAnalysis
         var available = new Dictionary<int, double>(stock);
         foreach (var refill in result.Refills)
         {
-            refill.Allocated = Math.Min(refill.Need, available.GetValueOrDefault(refill.TypeId));
+            refill.StockAvailable = available.GetValueOrDefault(refill.TypeId);
+            refill.Allocated = Math.Min(refill.Need, refill.StockAvailable);
             available[refill.TypeId] = available.GetValueOrDefault(refill.TypeId) - refill.Allocated;
         }
+        result.StockBudget=result.Refills.GroupBy(r=>r.TypeId).Select(g=>new PiStockBudget{Name=Type(g.Key).Name,Icon=Type(g.Key).Icon,Available=stock.GetValueOrDefault(g.Key),Required=g.Sum(r=>r.Need)}).OrderBy(x=>x.Name).ToList();
         return result;
     }
 }

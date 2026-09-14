@@ -72,6 +72,8 @@ internal static partial class Program
         CheckRockTracking();
         CheckNotificationCenter();
         CheckMiningRates();
+        CheckMiningWatchdog();
+        CheckPlanetaryProjection();
         CheckBuybackPeriods();
         CheckMoonAlerts();
         CheckContractHistory();
@@ -259,6 +261,14 @@ internal static partial class Program
             ((ItemsControl)piWindow.FindName("FactorySummary")).ItemsSource = view.FactoryTiers;
             ((ItemsControl)piWindow.FindName("Refills")).ItemsSource = PlanetaryGroups.Build(view, new HashSet<string>(), true);
             Render(piWindow, System.IO.Path.ChangeExtension(args[0], ".pi.png"));
+            ((DataGrid)piWindow.FindName("StockBudget")).ItemsSource = view.StockBudget;
+            var refillView=PlanetaryGroups.Build(view,new HashSet<string>(),true);foreach(var g in refillView)g.Expanded=true;
+            ((ItemsControl)piWindow.FindName("Refills")).ItemsSource=refillView;
+            ((TextBlock)piWindow.FindName("RefillSummary")).Text="Estimated contents | Collect finished output, then refill T1";
+            ((TextBlock)piWindow.FindName("RefillStockStatus")).Text="Selected stockpile | Stock is allocated once across all refills";
+            ((TabControl)piWindow.FindName("Tabs")).SelectedIndex=3;
+            Render(piWindow,System.IO.Path.ChangeExtension(args[0],".refills.png"));
+
             ((ItemsControl)piWindow.FindName("Extractors")).ItemsSource = PlanetaryExtractors.Build(view, new HashSet<string>(), DateTimeOffset.UtcNow);
             ((TabControl)piWindow.FindName("Tabs")).SelectedIndex = 1;
             var extractorTestGroups = PlanetaryExtractors.Build(view, new HashSet<string>(), DateTimeOffset.UtcNow);

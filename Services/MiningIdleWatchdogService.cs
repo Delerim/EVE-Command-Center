@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text.Json;
@@ -231,6 +231,8 @@ public readonly record struct MiningIdleState(
 public sealed class MiningIdleWatchdogService : IDisposable
 {
     private readonly StatTrackerService _tracker;
+    private readonly Func<string, CharacterStatSnapshot> _snapshot;
+    private readonly Func<DateTime> _utcNow;
     private readonly DispatcherTimer _timer;
     private readonly DispatcherTimer _shipTimer;
     private readonly EveSsoService _pilotSso = new();
@@ -240,8 +242,6 @@ public sealed class MiningIdleWatchdogService : IDisposable
 
     private bool _shipRefreshBusy;
 
-    private readonly Dictionary<string, int> _lastCycleCounts =
-        new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, DateTime> _lastActivityUtc =
         new(StringComparer.OrdinalIgnoreCase);
     private readonly HashSet<string> _idleAlerted =
@@ -276,8 +276,12 @@ public sealed class MiningIdleWatchdogService : IDisposable
     public event Action<string>? IdleDetected;
     public event Action<string, double, double>? YieldDropDetected;
 
-    public MiningIdleWatchdogService(StatTrackerService tracker)
+    public MiningIdleWatchdogService(StatTrackerService tracker) : this(tracker, tracker.GetSnapshot, () => DateTime.UtcNow) { }
+
+    internal MiningIdleWatchdogService(StatTrackerService tracker, Func<string, CharacterStatSnapshot> snapshot, Func<DateTime> utcNow)
     {
+        _snapshot = snapshot;
+        _utcNow = utcNow;
         _tracker = tracker;
         Preferences = MiningDashboardPreferencesStore.Load();
 
@@ -404,11 +408,11 @@ public sealed class MiningIdleWatchdogService : IDisposable
                 ResetYieldLearning(character);
 
                 var snap =
-                    _tracker.GetSnapshot(character);
+                    _snapshot(character);
 
                 if (snap.MiningCycleCount > 0)
                     _lastActivityUtc[character] =
-                        DateTime.UtcNow;
+                        _utcNow();
             }
         }
         finally
@@ -447,9 +451,9 @@ public sealed class MiningIdleWatchdogService : IDisposable
             _dropAlerted.Remove(character);
             ResetYieldLearning(character);
 
-            var snap = _tracker.GetSnapshot(character);
+            var snap = _snapshot(character);
             if (snap.MiningCycleCount > 0)
-                _lastActivityUtc[character] = DateTime.UtcNow;
+                _lastActivityUtc[character] = _utcNow();
         }
 
         SavePreferences();
@@ -459,14 +463,14 @@ public sealed class MiningIdleWatchdogService : IDisposable
     {
         Observe(character, fireAlert: false);
 
-        var snap = _tracker.GetSnapshot(character);
+        var snap = _snapshot(character);
         if (snap.MiningCycleCount <= 0)
             return new MiningIdleState(MiningIdleKind.Waiting, null, 0, 0);
 
         if (!_lastActivityUtc.TryGetValue(character, out var last))
             return new MiningIdleState(MiningIdleKind.Waiting, null, 0, snap.MiningCycleCount);
 
-        double age = Math.Max(0, (DateTime.UtcNow - last).TotalSeconds);
+        double age = Math.Max(0, (_utcNow() - last).TotalSeconds);
         int idleAfter = Math.Clamp(Preferences.IdleSeconds, 15, 3600);
 
         if (IsCharacterAlarmSuppressed(character))
@@ -489,34 +493,41 @@ public sealed class MiningIdleWatchdogService : IDisposable
             snap.MiningCycleCount);
     }
 
-    private void Tick()
+    private void Tick() => CheckCharacters(_tracker.GetTrackedCharacters());
+
+    internal void CheckCharacters(IEnumerable<string> characters)
     {
-        foreach (var character in _tracker.GetTrackedCharacters())
-            Observe(character, fireAlert: true);
+        foreach (var character in characters)
+        {
+            try { Observe(character, fireAlert: true); }
+            catch (Exception ex)
+            {
+                // A notification/UI failure for one client must not skip the rest.
+                _idleAlerted.Remove(character);
+                System.Diagnostics.Debug.WriteLine($"[Mining watchdog] {character}: {ex.Message}");
+            }
+        }
     }
 
     private void Observe(string character, bool fireAlert)
     {
-        var snap = _tracker.GetSnapshot(character);
+        var snap = _snapshot(character);
         int count = snap.MiningCycleCount;
         if (count <= 0) return;
 
-        var now = DateTime.UtcNow;
+        var now = _utcNow();
         bool newPull = false;
 
-        if (!_lastCycleCounts.TryGetValue(character, out int previous))
+        // Use the log timestamp, not the moment a dashboard notices a changed count.
+        // This also prevents delayed/replayed older pulls from extending the timer.
+        if (snap.LastMiningPullUtc is {} pulled && pulled <= now &&
+            (!_lastActivityUtc.TryGetValue(character, out var activity) || pulled > activity))
         {
-            _lastCycleCounts[character] = count;
-            _lastActivityUtc[character] = now;
-            newPull = true;
-        }
-        else if (count != previous)
-        {
-            _lastCycleCounts[character] = count;
-            _lastActivityUtc[character] = now;
+            _lastActivityUtc[character] = pulled;
             _idleAlerted.Remove(character);
             newPull = true;
         }
+        if (!_lastActivityUtc.ContainsKey(character)) return;
 
         bool muted =
             IsCharacterAlarmSuppressed(character);

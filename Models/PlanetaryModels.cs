@@ -87,6 +87,9 @@ public sealed class PiRefill
     public long Pin { get; set; }
     public int TypeId { get; set; }
     public string Name { get; set; } = "";
+    public double Snapshot { get; set; }
+    public double StockAvailable { get; set; }
+    public double StockAfter { get; set; }
     public double Current { get; set; }
     public double Target { get; set; }
     public double Need => Math.Max(0, Target - Current);
@@ -96,6 +99,8 @@ public sealed class PiRefill
 }
 public sealed class PiAnalysis
 {
+    public List<PiHaulSummary> Hauls { get; set; } = new();
+    public List<PiStockBudget> StockBudget { get; set; } = new();
     public List<PiRow> Colonies { get; set; } = new();
     public List<PiRow> Pins { get; set; } = new();
     public List<PiTierSummary> FactoryTiers { get; set; } = new();
@@ -113,13 +118,14 @@ public sealed class PiProductTotal
     public int Factories { get; set; }
     public double Capacity { get; set; }
     public DateTimeOffset SnapshotOldest { get; set; }
+    public double Snapshot { get; set; }
     public double Stored { get; set; }
     public double Reserved { get; set; }
     public double Collect => Math.Max(0, Stored - Reserved);
     public string Icon => $"https://images.evetech.net/types/{TypeId}/icon?size=32";
     public string RateText => $"{Capacity:N0}/h capacity";
-    public string StoredText => $"{Stored:N0} in snapshot";
-    public string CollectText => $"{Collect:N0} recorded to collect";
+    public string StoredText => $"{Stored:N0} estimated now | {Snapshot:N0} snapshot";
+    public string CollectText => $"{Collect:N0} est. to collect";
     public string ReservedText => $"{Reserved:N0} reserved / in processors | snapshot {SnapshotOldest.ToLocalTime():dd MMM HH:mm}";
 }
 public sealed class PiTierSummary
@@ -128,5 +134,24 @@ public sealed class PiTierSummary
     public List<PiProductTotal> Products { get; set; } = new();
     public string Name => $"T{Tier} | " + (Tier == 1 ? "BASIC COMMODITIES" : Tier == 2 ? "REFINED COMMODITIES" : Tier == 3 ? "SPECIALIZED COMMODITIES" : "ADVANCED COMMODITIES");
     public string Color => Tier == 1 ? "#74D6C9" : Tier == 2 ? "#80BFFF" : "#D4A5FF";
-    public string Summary => $"{Products.Sum(p => p.Factories)} factories | {Products.Sum(p => p.Capacity):N0} units/h capacity | {Products.Sum(p => p.Collect):N0} units to collect";
+    public string Summary => $"{Products.Sum(p => p.Factories)} factories | {Products.Sum(p => p.Capacity):N0} units/h capacity | {Products.Sum(p => p.Collect):N0} units to collect (est.)";
+}
+
+public sealed class PiStockBudget
+{
+    public string Name {get;set;}="";
+    public string Icon {get;set;}="";
+    public double Available {get;set;}
+    public double Required {get;set;}
+    public double Remaining=>Math.Max(0,Available-Required);
+    public double Shortfall=>Math.Max(0,Required-Available);
+}
+public sealed class PiHaulSummary
+{
+    public long CharacterId {get;set;}
+    public string Character {get;set;}="";
+    public double Volume {get;set;}
+    public int Stage=>Volume>=60000?2:Volume>=54000?1:0;
+    public string Color=>Stage==2?"#FF6B6B":Stage==1?"#FFD166":"#74D6C9";
+    public string Summary=>$"T1 collection: {Volume:N0} / 60,000 m3 (est.)"+(Stage==2?" | COLLECT: haul limit reached":Stage==1?" | COLLECT SOON":"");
 }

@@ -169,6 +169,12 @@ public sealed class StatTrackerService
         // Trust the actual log message instead.
         bool isCritical = isCriticalHint;
 
+        if (amount > 0)
+        {
+            long old;
+            do { old = System.Threading.Interlocked.Read(ref stats.LastMiningPullTicks); }
+            while (now.Ticks > old && System.Threading.Interlocked.CompareExchange(ref stats.LastMiningPullTicks, now.Ticks, old) != old);
+        }
         stats.MiningCycles.Enqueue(new MiningCycleRecord(now, amount, oreType, mineType, isCritical));
         if (!string.IsNullOrWhiteSpace(oreType))
         {
@@ -924,6 +930,7 @@ public sealed class StatTrackerService
             ActualM3PerSec = mining.ActualM3PerSec,
             MiningCritCount = mining.CritCount,
             MiningCycleCount = mining.CycleCount,
+            LastMiningPullUtc = System.Threading.Interlocked.Read(ref stats.LastMiningPullTicks) is var ticks && ticks > 0 ? new DateTime(ticks, DateTimeKind.Utc) : null,
             MiningCritBonusM3 = mining.CritBonusM3,
             SessionM3 = mining.SessionM3,
             JitaIskPerHour = mining.JitaIskPerHour,
@@ -1433,6 +1440,7 @@ public sealed class StatTrackerService
             new(StringComparer.OrdinalIgnoreCase);
         public string LastOreType { get; set; } = "";
         public int MiningCritCount { get; set; } = 0;
+        public long LastMiningPullTicks;
         public int MiningCycleCount { get; set; } = 0;
 
         // Stable inferred dual-strip timing. These are display lanes, not
@@ -1538,6 +1546,7 @@ public record CharacterStatSnapshot
     public double BaseM3PerSec { get; init; }
     public double ActualM3PerSec { get; init; }
     public int MiningCritCount { get; init; }
+    public DateTime? LastMiningPullUtc { get; init; }
     public int MiningCycleCount { get; init; }
     public double MiningCritBonusM3 { get; init; }
     public double SessionM3 { get; init; }

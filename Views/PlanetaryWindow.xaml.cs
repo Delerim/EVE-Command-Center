@@ -43,10 +43,12 @@ public partial class PlanetaryWindow : Window
         var extractorGroups = PlanetaryExtractors.Build(_analysis, _expanded, DateTimeOffset.UtcNow);
         Extractors.ItemsSource = extractorGroups;
         CompactExtractorGrid.ItemsSource = extractorGroups.SelectMany(g => g.Planets).SelectMany(p => p.Pins).ToList();
+        StockBudget.ItemsSource = _analysis.StockBudget;
+        RefillStockStatus.Text = _service.State.ContainerId==0 ? "Choose a stockpile toon and container on the Stockpile tab." : $"Selected container stock checked {_service.State.StockFetched.ToLocalTime():dd MMM HH:mm}. {_service.State.StockError}";
         StockGrid.ItemsSource = _analysis.Stock; Refills.ItemsSource = PlanetaryGroups.Build(_analysis, _expanded, true);
         var refillGroups = PlanetaryGroups.Build(_analysis, _expanded, true);
         var t1 = _analysis.Refills.Where(r => PlanetaryAnalysis.Tier(r.TypeId) == 1).ToArray();
-        RefillSummary.Text = $"T1 REFILLS | {refillGroups.Count} pilots | {refillGroups.Sum(g => g.Planets.Count)} planets | {t1.Sum(r => r.Need):N0} units to haul | {t1.Sum(r => r.Missing):N0} shortfall\nBalanced launchpad targets. T2+ inputs excluded. Stock allocated once; check snapshots before hauling.";
+        RefillSummary.Text = $"T1 REFILLS | {refillGroups.Count} pilots | {refillGroups.Sum(g => g.Planets.Count)} planets | {t1.Sum(r => r.Need):N0} units to haul | {t1.Sum(r => r.Missing):N0} shortfall\nEstimated inputs left; targets assume finished output is collected first. T1 only. Stock allocated once across all refills; verify estimates before hauling.";
         Container.ItemsSource = _service.State.Containers;
         Container.SelectedItem = _service.State.Containers.FirstOrDefault(c => c.Id == _service.State.ContainerId);
         StockPilot.SelectedItem ??= _pilots.FirstOrDefault(p => p.CharacterId == _service.State.StockCharacterId);
