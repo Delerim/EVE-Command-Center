@@ -34,13 +34,14 @@ internal static partial class Program
         Check(analysis.Refills.All(r=>r.Current==0&&r.Snapshot==80&&r.Need==r.Target),"Refills use depleted projected inputs while retaining original snapshot quantities");
         Check(analysis.StockBudget.All(b=>b.Remaining==b.Available-b.Required&&b.Required>13000),"Shared stock budget shows reserves remaining after full refills");
         Check(analysis.FactoryTiers.SelectMany(t=>t.Products).Single(p=>p.TypeId==robotics.Outputs.Keys.Single()).Collect==3,"Factory output summary includes projected collectable T3");
+        Check(new PiHaulSummary{Volume=40499}.Stage==0 && new PiHaulSummary{Volume=40500}.Stage==1 && new PiHaulSummary{Volume=44999}.Stage==1 && new PiHaulSummary{Volume=45000}.Stage==2,"PI haul alerts use exact 40500 and 45000 m3 boundaries");
         var hauling=new PiState();
         JsonElement HaulLayout(double units)=>JsonSerializer.SerializeToElement(new{pins=new object[]{new{pin_id=1L,type_id=2256,contents=new[]{new{type_id=2398,amount=units}}},new{pin_id=2L,type_id=2848,extractor_details=new{cycle_time=900,qty_per_cycle=0,product_type_id=2267},expiry_time=start}},routes=Array.Empty<object>()});
-        for(int i=0;i<6;i++)hauling.Colonies.Add(new(){CharacterId=2,Character="Hauler",PlanetId=i,LastUpdate=start,Fetched=start,Layout=HaulLayout(50000)});
+        for(int i=0;i<6;i++)hauling.Colonies.Add(new(){CharacterId=2,Character="Hauler",PlanetId=i,LastUpdate=start,Fetched=start,Layout=HaulLayout(37500)});
         var haul=PlanetaryAnalysis.Build(hauling,start).Hauls.Single();
-        Check(haul.Volume==57000&&haul.Stage==1,"T1 haul warning combines extracting planets per toon at 54000 m3");
+        Check(haul.Volume==42750&&haul.Stage==1,"T1 haul warning combines extracting planets per toon at 40500 m3");
         Check(PlanetaryAlerts.Observe(hauling,start).Count(x=>x.Contains("COLLECT SOON"))==1&&PlanetaryAlerts.Observe(hauling,start).Count==0,"Collection warning fires once per toon, not once per planet");
-        hauling.Colonies[0].Layout=HaulLayout(70000);
-        Check(PlanetaryAlerts.Observe(hauling,start).Count(x=>x.Contains("haul limit reached"))==1,"Crossing 60000 m3 escalates the toon collection warning");
+        hauling.Colonies[0].Layout=HaulLayout(52500);
+        Check(PlanetaryAlerts.Observe(hauling,start).Count(x=>x.Contains("haul limit reached"))==1,"Crossing 45000 m3 escalates the toon collection warning");
     }
 }

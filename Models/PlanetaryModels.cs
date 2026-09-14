@@ -154,7 +154,7 @@ public sealed class PiHaulSummary
     public long CharacterId {get;set;}
     public string Character {get;set;}="";
     public double Volume {get;set;}
-    public int Stage=>Volume>=60000?2:Volume>=54000?1:0;
+    public int Stage=>Volume>=45000?2:Volume>=40500?1:0;
     public string Color=>Stage==2?"#FF6B6B":Stage==1?"#FFD166":"#74D6C9";
-    public string Summary=>$"T1 collection: {Volume:N0} / 60,000 m3 (est.)"+(Stage==2?" | COLLECT: haul limit reached":Stage==1?" | COLLECT SOON":"");
+    public string Summary=>$"T1 collection: {Volume:N0} / 45,000 m3 (est.)"+(Stage==2?" | COLLECT: haul limit reached":Stage==1?" | COLLECT SOON":"");
 }
