@@ -28,6 +28,7 @@ internal static partial class Program
     [STAThread]
     private static void Main(string[] args)
     {
+        if (args.FirstOrDefault() == "--native-preview") { CheckNativeOverviewPreview(args.Skip(1).FirstOrDefault()); return; }
         if (args.FirstOrDefault() == "--inspect-fit")
         {
             var sso = new EveSsoService();

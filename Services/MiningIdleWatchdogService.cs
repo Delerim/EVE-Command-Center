@@ -41,6 +41,7 @@ public sealed class MiningDashboardPreferences
     public List<string> FleetTileOrder { get; set; } = new();
 
     public bool CombinedCharacterOverview { get; set; }
+    public bool CharacterOverviewLivePreview { get; set; }
     public bool CharacterOverviewMiningMode { get; set; }
     public bool UseFleetTileWall { get; set; } = true;
     public bool AutoShowFleetOverview { get; set; } = true;

@@ -96,12 +96,7 @@ public partial class MiningFleetOverviewWindow : Window
         _timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
         _timer.Tick += (_, _) =>
         {
-            // RefreshCards replaces the ItemsSource with fresh card objects.
-            // Doing that while the mouse is over a card destroys the tooltip
-            // owner before WPF can keep the tooltip open. Pause VISUAL refresh
-            // while hovering; the parser/tracker continues recording normally.
-            if (!IsMouseOver)
-                RefreshCards();
+            RefreshCards();
         };
         _timer.Start();
 
@@ -956,23 +951,33 @@ public partial class MiningFleetOverviewWindow : Window
 
         int minerCount = ordered.Count;
 
-        double cardWidth = _prefs.CombinedCharacterOverview && !_prefs.CharacterOverviewMiningMode ? 180 : 216;
+        double cardWidth = 216;
         const double cardGap = 6;
         const double windowChrome = 44;
 
         foreach (var card in ordered) {
             card.CardWidth = cardWidth;
+            card.CardMinHeight = 174 + (_tracker.RockTracking.Enabled ? 85 : 0);
+            card.CanSwitch = _prefs.CombinedCharacterOverview;
             bool compact=_prefs.CombinedCharacterOverview&&!_prefs.CharacterOverviewMiningMode;
             card.MiningVisibility=compact?Visibility.Collapsed:Visibility.Visible;
             card.PreviewVisibility=compact?Visibility.Visible:Visibility.Collapsed;
             if(compact)card.RockVisibility=Visibility.Collapsed;
             var client=clients.FirstOrDefault(c=>string.Equals(c.CharacterName,card.Character,StringComparison.OrdinalIgnoreCase));
-            card.IsActive=compact&&client!=null&&client.Hwnd==EveCommandCenter.Interop.User32.GetForegroundWindow();
-            if(compact&&client!=null) {card.Preview=PreviewImage(client.Hwnd);card.PreviewNote=EveCommandCenter.Interop.User32.IsIconic(client.Hwnd)?"Minimized ? last snapshot":card.Preview==null?"Waiting for preview":"Preview snapshot ? click to switch";}
+            card.SourceHwnd=client?.Hwnd??IntPtr.Zero;
+            card.LivePreview=compact&&_prefs.CharacterOverviewLivePreview;
+            card.IsActive=_prefs.CombinedCharacterOverview&&client!=null&&client.Hwnd==EveCommandCenter.Interop.User32.GetForegroundWindow();
+            if(compact&&client!=null) {card.Preview=PreviewImage(client.Hwnd);card.PreviewNote=EveCommandCenter.Interop.User32.IsIconic(client.Hwnd)?"Minimized - last snapshot":card.LivePreview?"LIVE - click to switch":card.Preview==null?"Waiting for snapshot":"Snapshot - click to switch";}
         }
         foreach(var hwnd in _previewImages.Keys.Where(h=>!clients.Any(c=>c.Hwnd==h)).ToArray())_previewImages.Remove(hwnd);
 
         ApplyResizeMode();
+
+        DayText.Text = $"DAY {_tracker.GetMiningDayLabel()}";
+        UpdatedText.Text =
+            _tileReorderMode
+                ? (_prefs.CombinedCharacterOverview?"Drag tiles ? Tools ? Reorder characters to finish":"Drag tiles to reorder | click DONE when finished")
+                : $"{cards.Count} {(_prefs.CombinedCharacterOverview?"clients":"miners")} | {DateTime.Now:HH:mm:ss}";
 
         OverviewHeader.Measure(new System.Windows.Size(double.PositiveInfinity, double.PositiveInfinity));
         MinWidth = Math.Max(620, OverviewHeader.DesiredSize.Width + 24);
@@ -1005,13 +1010,13 @@ public partial class MiningFleetOverviewWindow : Window
                 Left = Math.Max(virtualLeft, virtualRight - Width);
         }
 
-        MinerItems.ItemsSource = ordered;
+        // Preserve the visual tree (tooltips, hover and native thumbnail handles) across ticks.
+        if (MinerItems.ItemsSource is List<FleetCard> existing &&
+            existing.Select(c=>c.Character).SequenceEqual(ordered.Select(c=>c.Character)))
+            for (int i=0;i<existing.Count;i++) existing[i].UpdateFrom(ordered[i]);
+        else MinerItems.ItemsSource = ordered;
 
-        DayText.Text = $"DAY {_tracker.GetMiningDayLabel()}";
-        UpdatedText.Text =
-            _tileReorderMode
-                ? (_prefs.CombinedCharacterOverview?"Drag tiles ? Tools ? Reorder characters to finish":"Drag tiles to reorder | click DONE when finished")
-                : $"{cards.Count} {(_prefs.CombinedCharacterOverview?"clients":"miners")} | {DateTime.Now:HH:mm:ss}";
+
     }
 
     private void ApplyResizeMode()
@@ -1061,10 +1066,11 @@ public partial class MiningFleetOverviewWindow : Window
     private void ApplyCombinedMode()
     {
         bool combined=_prefs.CombinedCharacterOverview;
-        RunningApp?.OverviewThumbnails?.SetOverviewCombined(combined && IsVisible && WindowState!=WindowState.Minimized,!_prefs.CharacterOverviewMiningMode);
+        RunningApp?.OverviewThumbnails?.SetOverviewCombined(combined && IsVisible && WindowState!=WindowState.Minimized,!_prefs.CharacterOverviewMiningMode&&!_prefs.CharacterOverviewLivePreview);
         FullActions.Visibility=combined?Visibility.Collapsed:Visibility.Visible;
         CompactActions.Visibility=combined?Visibility.Visible:Visibility.Collapsed;
         LiveBadge.Visibility=DayText.Visibility=PlexMarketBorder.Visibility=combined?Visibility.Collapsed:Visibility.Visible;
+        LivePreviewButton.Content=_prefs.CharacterOverviewLivePreview?"PREVIEW: LIVE":"PREVIEW: SNAPSHOT";
         ModeButton.Content=_prefs.CharacterOverviewMiningMode?"MODE: MINING":"MODE: CHARACTERS";
     }
     private void Combine_Click(object sender,RoutedEventArgs e)
@@ -1075,6 +1081,11 @@ public partial class MiningFleetOverviewWindow : Window
     private void Mode_Click(object sender,RoutedEventArgs e)
     {
         _prefs.CharacterOverviewMiningMode=!_prefs.CharacterOverviewMiningMode;
+        ApplyCombinedMode();MiningDashboardPreferencesStore.Save(_prefs);RefreshCards();
+    }
+    private void LivePreview_Click(object sender,RoutedEventArgs e)
+    {
+        _prefs.CharacterOverviewLivePreview=!_prefs.CharacterOverviewLivePreview;
         ApplyCombinedMode();MiningDashboardPreferencesStore.Save(_prefs);RefreshCards();
     }
     private void Tools_Click(object sender,RoutedEventArgs e)
@@ -1515,55 +1526,69 @@ public partial class MiningFleetOverviewWindow : Window
     }
     private void Close_Click(object sender, RoutedEventArgs e) => Close();
 
-    private sealed class FleetCard
+    private sealed class FleetCard : System.ComponentModel.INotifyPropertyChanged
     {
+        public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged;
+        private static readonly System.Reflection.PropertyInfo[] Fields=typeof(FleetCard).GetProperties();
+        public void UpdateFrom(FleetCard next) {
+            foreach(var field in Fields) {
+                var value=field.GetValue(next);
+                if(Equals(field.GetValue(this),value))continue;
+                field.SetValue(this,value);
+                PropertyChanged?.Invoke(this,new System.ComponentModel.PropertyChangedEventArgs(field.Name));
+            }
+        }
+        public IntPtr SourceHwnd {get;set;}
+        public bool LivePreview {get;set;}
+        public bool CanSwitch {get;set;}
+        public double CardMinHeight {get;set;}=174;
         public bool IsActive {get;set;}
         public Visibility MiningVisibility { get; set; } = Visibility.Visible;
         public Visibility PreviewVisibility { get; set; } = Visibility.Collapsed;
         public System.Windows.Media.ImageSource? Preview { get; set; }
         public string PreviewNote { get; set; }="";
         public Visibility RockVisibility { get; set; }
-        public string Rock1Text { get; init; } = "";
-        public string Rock2Text { get; init; } = "";
-        public string Rock1Note { get; init; } = "";
-        public string Rock2Note { get; init; } = "";
-        public double Rock1Percent { get; init; }
-        public double Rock2Percent { get; init; }
+        public string Rock1Text { get; set; } = "";
+        public string Rock2Text { get; set; } = "";
+        public string Rock1Note { get; set; } = "";
+        public string Rock2Note { get; set; } = "";
+        public double Rock1Percent { get; set; }
+        public double Rock2Percent { get; set; }
         public double CardWidth { get; set; } = 170;
-        public string Character { get; init; } = "";
-        public string PortraitUrl { get; init; } = "";
-        public string ShipText { get; init; } = "";
-        public string ShipToolTip { get; init; } = "";
-        public string Ore { get; init; } = "";
-        public string BaseText { get; init; } = "";
-        public string ActualText { get; init; } = "";
-        public string CritText { get; init; } = "";
-        public string ValueText { get; init; } = "";
-        public string BuybackText { get; init; } = "";
-        public bool AlarmMuted { get; init; }
-        public bool AlarmEnabled { get; init; } = true;
-        public string AlarmButtonText { get; init; } = "";
-        public string AlarmToolTip { get; init; } = "";
-        public string Status { get; init; } = "";
-        public string StatusText { get; init; } = "";
-        public string StatusToolTip { get; init; } = "";
-        public string LaserText { get; init; } = "";
-        public string LaserPrimaryText { get; init; } = "";
-        public string LaserPrimaryCrystal { get; init; } = "";
-        public string LaserSecondaryText { get; init; } = "";
-        public string LaserSecondaryCrystal { get; init; } = "";
-        public string LaserToolTip { get; init; } = "";
-        public string EhpText { get; init; } = "";
-        public string EhpToolTip { get; init; } = "";
-        public bool IsDroneMining { get; init; }
-        public string BoostMode { get; init; } = "OFF";
-        public string BoostButtonText { get; init; } = "";
-        public string BoostToolTip { get; init; } = "";
-        public string OreToolTip { get; init; } = "";
-        public string BaseToolTip { get; init; } = "";
-        public string RealToolTip { get; init; } = "";
-        public string ProfitToolTip { get; init; } = "";
-        public string BuybackToolTip { get; init; } = "";
-        public string CritToolTip { get; init; } = "";
+        public string Character { get; set; } = "";
+        public string PortraitUrl { get; set; } = "";
+        public string ShipText { get; set; } = "";
+        public string ShipToolTip { get; set; } = "";
+        public string Ore { get; set; } = "";
+        public string BaseText { get; set; } = "";
+        public string ActualText { get; set; } = "";
+        public string CritText { get; set; } = "";
+        public string ValueText { get; set; } = "";
+        public string BuybackText { get; set; } = "";
+        public bool AlarmMuted { get; set; }
+        public bool AlarmEnabled { get; set; } = true;
+        public string AlarmButtonText { get; set; } = "";
+        public string AlarmToolTip { get; set; } = "";
+        public string Status { get; set; } = "";
+        public string StatusText { get; set; } = "";
+        public string StatusToolTip { get; set; } = "";
+        public string LaserText { get; set; } = "";
+        public string LaserPrimaryText { get; set; } = "";
+        public string LaserPrimaryCrystal { get; set; } = "";
+        public string LaserSecondaryText { get; set; } = "";
+        public string LaserSecondaryCrystal { get; set; } = "";
+        public string LaserToolTip { get; set; } = "";
+        public string EhpText { get; set; } = "";
+        public string EhpToolTip { get; set; } = "";
+        public bool IsDroneMining { get; set; }
+        public string BoostMode { get; set; } = "OFF";
+        public string BoostButtonText { get; set; } = "";
+        public string BoostToolTip { get; set; } = "";
+        public string OreToolTip { get; set; } = "";
+        public string BaseToolTip { get; set; } = "";
+        public string RealToolTip { get; set; } = "";
+        public string ProfitToolTip { get; set; } = "";
+        public string BuybackToolTip { get; set; } = "";
+        public string CritToolTip { get; set; } = "";
     }
 }

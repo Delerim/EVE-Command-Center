@@ -18,13 +18,43 @@ internal static partial class Program
         Check(items.Items.Count==3,"Combined overview includes open clients without any mining pulls");
         Visibility State(object card,string name)=>(Visibility)card.GetType().GetProperty(name)!.GetValue(card)!;
         Check(items.Items.Cast<object>().All(c=>State(c,"MiningVisibility")==Visibility.Collapsed&&State(c,"PreviewVisibility")==Visibility.Visible),"Character mode hides mining rows and exposes compact previews");
+        double FrameHeight() {
+            var root=(FrameworkElement)window.Content;
+            root.Measure(new System.Windows.Size(1600,double.PositiveInfinity));
+            root.Arrange(new Rect(0,0,1600,root.DesiredSize.Height));root.UpdateLayout();
+            var presenter=(ContentPresenter)items.ItemContainerGenerator.ContainerFromIndex(0);
+            return System.Windows.Media.VisualTreeHelper.GetChild(presenter,0) is FrameworkElement element?element.ActualHeight:0;
+        }
+        double measuredCharacterHeight=FrameHeight();
+        var initial=items.Items[0];
+        var cardType=initial.GetType();
+        double characterWidth=(double)cardType.GetProperty("CardWidth")!.GetValue(initial)!;
+        double characterHeight=(double)cardType.GetProperty("CardMinHeight")!.GetValue(initial)!;
+        cardType.GetProperty("Status")!.SetValue(initial,"IDLE");
+        Refresh();
+        Check(ReferenceEquals(initial,items.Items[0])&&(string)cardType.GetProperty("Status")!.GetValue(initial)! != "IDLE","Refresh updates status in place without destroying hover, tooltip or live preview owners");
+        prefs.CharacterOverviewLivePreview=true;Refresh();
+        Check(items.Items.Cast<object>().All(c=>(bool)cardType.GetProperty("LivePreview")!.GetValue(c)!),"Live preview preference reaches every character card");
         prefs.CharacterOverviewMiningMode=true;Refresh();
+        Check((double)cardType.GetProperty("CardWidth")!.GetValue(items.Items[0])! == characterWidth && (double)cardType.GetProperty("CardMinHeight")!.GetValue(items.Items[0])! == characterHeight,"Character and mining modes share the same frame dimensions");
+        Check(items.Items.Cast<object>().All(c=>!(bool)cardType.GetProperty("LivePreview")!.GetValue(c)!),"Mining mode disables native preview surfaces");
+        Check(Math.Abs(FrameHeight()-measuredCharacterHeight)<1,"Actual rendered card heights stay unchanged when switching modes");
         Check(items.Items.Count==3&&items.Items.Cast<object>().All(c=>State(c,"MiningVisibility")==Visibility.Visible&&State(c,"PreviewVisibility")==Visibility.Collapsed),"Mining mode keeps idle clients clickable while showing their mining details");
         clients=clients.Take(2).ToArray();Refresh();
         Check(items.Items.Count==2,"Closed clients leave the combined overview");
         prefs.CombinedCharacterOverview=false;Refresh();
         Check(items.Items.Count==0,"Separate mode preserves the existing mining-only filter");
-        prefs.CombinedCharacterOverview=true;prefs.CharacterOverviewMiningMode=false;Refresh();
+        prefs.CombinedCharacterOverview=true;prefs.CharacterOverviewMiningMode=false;prefs.CharacterOverviewLivePreview=false;Refresh();
+        void SetVisualState(int index,string status,bool active) {
+            var current=items.Items[index];
+            var next=typeof(object).GetMethod("MemberwiseClone",System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic)!.Invoke(current,null)!;
+            cardType.GetProperty("Status")!.SetValue(next,status);cardType.GetProperty("IsActive")!.SetValue(next,active);
+            cardType.GetMethod("UpdateFrom")!.Invoke(current,new[]{next});FrameHeight();
+        }
+        SetVisualState(0,"IDLE",true);
+        var border=(Border)System.Windows.Media.VisualTreeHelper.GetChild((ContentPresenter)items.ItemContainerGenerator.ContainerFromIndex(0),0);
+        Check(border.BorderBrush.ToString()=="#FFE85C66"&&border.Effect!=null,"An active client's alarm colour remains visible alongside selection feedback");
+        SetVisualState(0,"MINING",true);SetVisualState(1,"IDLE",false);
         foreach(var name in new[]{"_timer","_pilotIntelTimer","_plexMarketTimer"})((DispatcherTimer)typeof(MiningFleetOverviewWindow).GetField(name,System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic)!.GetValue(window)!).Stop();
         return window;
     }
