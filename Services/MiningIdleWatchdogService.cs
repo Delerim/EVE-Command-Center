@@ -42,6 +42,7 @@ public sealed class MiningDashboardPreferences
 
     public bool CombinedCharacterOverview { get; set; }
     public bool CharacterOverviewLivePreview { get; set; }
+    public string CharacterOverviewCombatMode { get; set; } = "";
     public bool CharacterOverviewMiningMode { get; set; }
     public bool UseFleetTileWall { get; set; } = true;
     public bool AutoShowFleetOverview { get; set; } = true;

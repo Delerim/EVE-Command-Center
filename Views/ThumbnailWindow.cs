@@ -412,8 +412,15 @@ public class ThumbnailWindow : Form
             var helper = new WindowInteropHelper(_textOverlay);
             helper.EnsureHandle();
             User32.SetWindowLongPtr(helper.Handle, User32.GWLP_HWNDPARENT, _ownHwnd);
-            _textOverlay.Show();
+            if (Visible) _textOverlay.Show();
         }
+    }
+
+    protected override void OnVisibleChanged(EventArgs e)
+    {
+        base.OnVisibleChanged(e);
+        if (_textOverlay == null) return;
+        if (Visible) _textOverlay.Show(); else _textOverlay.Hide();
     }
 
     // ── Win32 message loop ────────────────────────────────────────
@@ -1143,6 +1150,7 @@ public class ThumbnailWindow : Form
 
     public new void BringToFront()
     {
+        if (!Visible || IsDisposed) return;
         var zOrder = _isTopmost ? User32.HWND_TOPMOST : User32.HWND_TOP;
         if (_ownHwnd != IntPtr.Zero)
         {
@@ -1358,6 +1366,12 @@ public class ThumbnailWindow : Form
     {
         base.OnFormClosing(e);
         Cleanup();
+    }
+
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing) Cleanup();
+        base.Dispose(disposing);
     }
 
     private bool _cleanedUp;

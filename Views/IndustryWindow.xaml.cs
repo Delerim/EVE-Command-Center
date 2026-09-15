@@ -12,6 +12,7 @@ public partial class IndustryWindow : Window
     private readonly DispatcherTimer _timer=new(){Interval=TimeSpan.FromSeconds(30)};
     private IndustryPilot? Selected=>Pilots.SelectedItem as IndustryPilot;
     private int _scan;
+    private CancellationTokenSource? _scanCancellation;
     private bool _quoting;
     private string? _costKey;
     private string CostKey(IndustryPilot p,IndustryRecipe r,int runs)=>$"{p.Id}:{r.Blueprint}:{r.Activity}:{runs}";
@@ -26,7 +27,7 @@ public partial class IndustryWindow : Window
         InitializeComponent();Alerts.IsChecked=_service.State.Alerts;
         _service.Changed+=Update;_timer.Tick+=(_,_)=>UpdateDetails();
         Loaded+=async(_,_)=>{Update();_timer.Start();await _service.RefreshAsync(_life.Token);};
-        Closed+=(_,_)=>{_timer.Stop();_service.Changed-=Update;_life.Cancel();};
+        Closed+=(_,_)=>{_timer.Stop();_service.Changed-=Update;_life.Cancel();_scanCancellation?.Cancel();};
     }
     private void Update()
     {
@@ -59,7 +60,13 @@ public partial class IndustryWindow : Window
     private async void Scan_Click(object sender,RoutedEventArgs e)=>await Scan();
     private async Task Scan()
     {
-        if(Selected is not {} p)return;int generation=++_scan;
+        _scanCancellation?.Cancel();
+        int generation=++_scan;
+        if(Selected is not {} selected)return;
+        using var cancellation=CancellationTokenSource.CreateLinkedTokenSource(_life.Token);
+        _scanCancellation=cancellation;
+        var p=new IndustryPilot{Id=selected.Id,Name=selected.Name,Blueprints=selected.Blueprints.ToList(),
+            Assets=selected.Assets.ToList(),Skills=new(selected.Skills),Updated=selected.Updated};
         int runs=int.TryParse(Runs.Text,out var n)?Math.Clamp(n,1,10000):1;string filter=Search.Text.Trim();bool all=AllRecipes.IsChecked==true,ready=ReadyOnly.IsChecked==true;
         var previousRecipe=(Recipes.SelectedItem as IndustryPlan)?.Recipe;
         ScanStatus.Text="Scanning bundled CCP recipes against this pilot's stock...";
@@ -67,7 +74,11 @@ public partial class IndustryWindow : Window
         var recipes=IndustryCatalog.Recipes.Where(r=>IndustryActivities.Matches(ActivityFilter,r.Activity)&&(all||owned.Contains(r.Blueprint))&&(filter.Length==0||r.Name.Contains(filter,StringComparison.OrdinalIgnoreCase)||r.Products.Keys.Any(t=>IndustryCatalog.Name(t).Contains(filter,StringComparison.OrdinalIgnoreCase)))).ToArray();
         // Planner scan has no network requests. Each recipe is an independent alternative, not an allocated shopping basket.
         var quotes=new Dictionary<int,IndustryQuote>(_service.State.Quotes);
-        var plans=await Task.Run(()=>recipes.Select(r=>IndustryCatalog.Plan(p,r,runs,quotes)).Where(r=>!ready||r.Status=="READY").OrderBy(r=>r.Status=="READY"?0:1).ThenBy(r=>r.Name).ToList());
+        List<IndustryPlan> plans;
+        try { plans=await Task.Run(()=>recipes.Select(r=>{cancellation.Token.ThrowIfCancellationRequested();return IndustryCatalog.Plan(p,r,runs,quotes);}).Where(r=>!ready||r.Status=="READY").OrderBy(r=>r.Status=="READY"?0:1).ThenBy(r=>r.Name).ToList(),cancellation.Token); }
+        catch(OperationCanceledException){return;}
+        catch(Exception ex){if(generation==_scan)ScanStatus.Text="Recipe scan failed: "+ex.GetType().Name;return;}
+        finally {if(ReferenceEquals(_scanCancellation,cancellation))_scanCancellation=null;}
         await Dispatcher.InvokeAsync(() =>
         {
         if(generation!=_scan||_life.IsCancellationRequested)return;

@@ -64,7 +64,8 @@ public sealed class WindowDiscoveryService : IDisposable
             _winEvents.WindowNameChanged += OnWindowEvent;
         }
         _cts = new CancellationTokenSource();
-        _pollTask = Task.Run(() => PollLoop(_cts.Token));
+        var token = _cts.Token;
+        _pollTask = Task.Run(() => PollLoop(token));
         Debug.WriteLine($"[Discovery:Poll] 🔧 Started window discovery (safety-net interval={PollIntervalMs}ms, hooks={(_winEvents != null ? "on" : "off")})");
     }
 

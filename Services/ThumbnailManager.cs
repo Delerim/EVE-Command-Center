@@ -721,7 +721,10 @@ public sealed class ThumbnailManager : IDisposable
         }
 
         PerfLog($"Pre-Show: {sw.ElapsedMilliseconds}ms");
-        thumbWindow.Show();
+        if (!_thumbnailsHidden && !PrimarySuppressed && !IsCharacterUserHidden(window.CharacterName))
+            thumbWindow.Show();
+        else
+            _ = thumbWindow.Handle; // Register DWM without ever displaying a hidden preview.
         PerfLog($"Show: {sw.ElapsedMilliseconds}ms");
         _thumbnails[window.Hwnd] = thumbWindow;
 
@@ -3986,7 +3989,7 @@ public sealed class ThumbnailManager : IDisposable
                 }
             };
 
-            statWin.Show();
+            if (!_thumbnailsHidden && !PrimarySuppressed && !IsCharacterUserHidden(charName)) statWin.Show();
             _statWindows[key] = statWin;
             Debug.WriteLine($"[StatWindow:Create] ✅ Stats overlay for '{charName}' @ ({sx},{sy})");
         }

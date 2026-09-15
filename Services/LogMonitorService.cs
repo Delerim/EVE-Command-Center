@@ -84,6 +84,7 @@ public sealed class LogMonitorService : IDisposable
 
     // Events — matches what App.xaml.cs and ThumbnailManager expect
     public event Action<string, string>? SystemChanged;     // (characterName, systemName)
+    public event Action<string,string>? CombatLineObserved;
     public event Action<DamageEvent>? DamageReceived;       // Player took damage
     public event Action<DamageEvent>? DamageDealt;          // Player dealt damage (for stat tracker)
     public event Action<RepairEvent>? RepairReceived;       // Player received remote repairs
@@ -955,15 +956,11 @@ public sealed class LogMonitorService : IDisposable
         StartFileWatchers();
 
         _cts = new CancellationTokenSource();
-        // High-priority thread ensures FSW wake gets CPU time immediately
-        var thread = new Thread(() => MonitorLoop(_cts.Token).Wait())
-        {
-            IsBackground = true,
-            Priority = ThreadPriority.Highest,
-            Name = "LogMonitor"
-        };
-        thread.Start();
-        _monitorTask = Task.CompletedTask; // Track that we're running
+        // Track the actual async loop. A completed placeholder let Stop return
+        // while the old reader was still running, and its CTS field could change
+        // underneath a newly starting thread. FSW still wakes this loop immediately.
+        var token = _cts.Token;
+        _monitorTask = Task.Run(() => MonitorLoop(token));
     }
 
     public void Stop()
@@ -1413,6 +1410,7 @@ public sealed class LogMonitorService : IDisposable
 
     private void ParseGameLogLine(string line, string character)
     {
+        CombatLineObserved?.Invoke(character,line);
         var trimmedLine = line.TrimStart();
 
         // Skip header lines (any language — #86)
@@ -1695,7 +1693,7 @@ public sealed class LogMonitorService : IDisposable
         if (!damageMatch.Success) return;
 
         string colorCode = damageMatch.Groups[1].Value.ToLowerInvariant();
-        int amount = int.Parse(damageMatch.Groups[2].Value);
+        if (!int.TryParse(damageMatch.Groups[2].Value, out int amount)) return;
 
         // === Outgoing damage: cyan 0xff00ffff ===
         if (colorCode == "0xff00ffff")

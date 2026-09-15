@@ -55,11 +55,18 @@ public sealed class BackgroundPilotRefresh
             foreach (var id in Intel.Keys.Where(id => !pilots.Any(p => p.CharacterId == id)).ToArray()) Intel.Remove(id);
             Directory.CreateDirectory(_directory);
             // Each file has one background writer. Keep successful summaries across refresh failures.
-            await File.WriteAllTextAsync(Path.Combine(_directory, "background-pilot-summaries.json"), JsonSerializer.Serialize(Summaries));
-            await File.WriteAllTextAsync(Path.Combine(_directory, "background-pilot-intel.json"), JsonSerializer.Serialize(Intel.Values));
+            await SaveCacheAsync("background-pilot-summaries.json", JsonSerializer.Serialize(Summaries));
+            await SaveCacheAsync("background-pilot-intel.json", JsonSerializer.Serialize(Intel.Values));
         }
         catch (OperationCanceledException) { }
         catch (Exception ex) { EsiDiagnostics.Write("Pilot refresh deferred: " + ex.GetType().Name); }
         finally { _busy = false; }
     }
+    private async Task SaveCacheAsync(string name,string json)
+    {
+        string path=Path.Combine(_directory,name);
+        await File.WriteAllTextAsync(path+".tmp",json);
+        File.Move(path+".tmp",path,true);
+    }
+
 }

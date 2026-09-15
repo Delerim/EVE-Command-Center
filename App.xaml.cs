@@ -261,6 +261,7 @@ public partial class App : Application
                 _logMonitor.SetEventCooldowns(_settings.Settings.SeverityCooldowns);
 
             // ── Damage received (incoming) → stat tracker + alert ──
+            _logMonitor.CombatLineObserved += (pilot,line) => _statTracker.Combat.Observe(pilot,line);
             _logMonitor.DamageReceived += (dmg) =>
             {
                 _statTracker.RecordDamage(dmg.CharacterName, dmg.Amount, true, dmg.IsNpc, damageType: dmg.Type);

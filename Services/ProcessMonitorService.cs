@@ -19,6 +19,8 @@ public sealed class ProcessMonitorService : IDisposable
     private readonly ConcurrentDictionary<int, ProcessStats> _stats = new();
     private readonly ConcurrentDictionary<int, (TimeSpan LastCpu, DateTime LastTime)> _prevCpu = new();
     private System.Threading.Timer? _timer;
+    private int _polling;
+    private volatile bool _disposed;
     private int _processorCount = Environment.ProcessorCount;
 
     // VRAM: pre-built PID→bytes map, refreshed once per poll cycle
@@ -29,12 +31,14 @@ public sealed class ProcessMonitorService : IDisposable
 
     public void Start()
     {
+        if (_disposed || _timer != null) return;
         _timer = new System.Threading.Timer(PollStats, null, TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(3));
         Debug.WriteLine($"[ProcMon:Start] ✅ Started — polling every 3s ({_processorCount} cores)");
     }
 
     private void PollStats(object? state)
     {
+        if (_disposed || Interlocked.CompareExchange(ref _polling, 1, 0) != 0) return;
         try
         {
             var eveProcesses = Process.GetProcessesByName("exefile");
@@ -62,7 +66,7 @@ public sealed class ProcessMonitorService : IDisposable
                         {
                             double cpuUsed = (totalCpu - prev.LastCpu).TotalSeconds;
                             cpuPercent = (cpuUsed / elapsed / _processorCount) * 100;
-                            cpuPercent = Math.Min(cpuPercent, 100); // clamp
+                            cpuPercent = Math.Clamp(cpuPercent, 0, 100); // clamp
                         }
                     }
 
@@ -91,12 +95,13 @@ public sealed class ProcessMonitorService : IDisposable
                 _prevCpu.TryRemove(pid, out _);
             }
 
-            StatsUpdated?.Invoke();
+            if (!_disposed) StatsUpdated?.Invoke();
         }
         catch (Exception ex)
         {
             Debug.WriteLine($"[ProcMon:Poll] ❌ Error: {ex.Message}");
         }
+        finally { Volatile.Write(ref _polling, 0); }
     }
 
     /// <summary>
@@ -173,6 +178,7 @@ public sealed class ProcessMonitorService : IDisposable
 
     public void Dispose()
     {
+        _disposed = true;
         _timer?.Dispose();
         _timer = null;
         Debug.WriteLine("[ProcMon:Stop] 🛑 Stopped");

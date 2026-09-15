@@ -173,8 +173,13 @@
                 </StackPanel>
 
                 <StackPanel x:Name="CompactActions" Grid.Column="4" Orientation="Horizontal" Visibility="Collapsed">
-                    <Button x:Name="ModeButton" Content="MODE: CHARACTERS" Height="23" FontSize="10" Click="Mode_Click" ToolTip="Switch between compact client previews and mining details"/>
-                    <Button x:Name="LivePreviewButton" Content="PREVIEW: SNAPSHOT" Height="23" FontSize="10" Margin="5,0,0,0" Click="LivePreview_Click" ToolTip="Toggle native live previews. Minimized clients retain snapshots."/>
+                    <Button x:Name="ModeButton" Content="MODE: CHARACTERS" Height="23" FontSize="10" Click="Mode_Click" ToolTip="Choose character, mining, PvE or PvP cards"><Button.ContextMenu><ContextMenu>
+                        <MenuItem Header="Characters - previews" Tag="CHARACTERS" Click="OverviewMode_Click"/>
+                        <MenuItem Header="Mining - yield and alarms" Tag="MINING" Click="OverviewMode_Click"/>
+                        <MenuItem Header="PvE - damage and bounties" Tag="PVE" Click="OverviewMode_Click"/>
+                        <MenuItem Header="PvP - pressure and recent tackle" Tag="PVP" Click="OverviewMode_Click"/>
+                    </ContextMenu></Button.ContextMenu></Button>
+                    <Button x:Name="LivePreviewButton" Content="PREVIEW: SNAPSHOT" Height="23" FontSize="10" Margin="5,0,0,0" Click="LivePreview_Click" ToolTip="Live/snapshot setting for Character mode. Minimized clients retain the last available snapshot."/>
                     <Button Content="TOOLS" Height="23" FontSize="10" Margin="5,0" Click="Tools_Click"><Button.ContextMenu><ContextMenu>
                         <MenuItem Header="Mining" Click="OpenMiningCommandCenter_Click"/><MenuItem Header="Pilots" Click="OpenPilotCommandCenter_Click"/><MenuItem Header="Planetary Industry" Click="OpenPlanetary_Click"/><MenuItem Header="Industry" Click="OpenIndustry_Click"/><MenuItem Header="Omega" Click="OpenOmega_Click"/><MenuItem Header="Notifications" Click="Notifications_Click"/><MenuItem Header="Moons" Click="OpenMoonReport_Click"/><MenuItem Header="Contracts" Click="OpenContracts_Click"/><Separator/><MenuItem Header="Settings" Click="OpenClientSettings_Click"/><MenuItem Header="Preview settings" Click="OpenPreviewSettings_Click"/><MenuItem Header="Cloud backup" Click="OpenCloudBackup_Click"/><MenuItem Header="Reorder characters" Click="OrderMode_Click"/><MenuItem Header="Toggle rock tracking" Click="RockToggle_Click"/>
                     </ContextMenu></Button.ContextMenu></Button>
@@ -228,6 +233,8 @@
                                             <DataTrigger Binding="{Binding CanSwitch}" Value="True"><Setter Property="Cursor" Value="Hand"/></DataTrigger>
                                             <DataTrigger Binding="{Binding IsActive}" Value="True"><Setter Property="BorderBrush" Value="#80BFFF"/><Setter Property="Background" Value="#19313D"/><Setter Property="Effect"><Setter.Value><DropShadowEffect Color="#80BFFF" BlurRadius="8" ShadowDepth="0" Opacity="0.75"/></Setter.Value></Setter></DataTrigger>
                                             <Trigger Property="IsMouseOver" Value="True"><Setter Property="Effect"><Setter.Value><DropShadowEffect Color="#8CEEE2" BlurRadius="9" ShadowDepth="0" Opacity="0.8"/></Setter.Value></Setter></Trigger>
+                                            <DataTrigger Binding="{Binding Status}" Value="PVP"><Setter Property="BorderBrush" Value="#AE91E8"/></DataTrigger>
+                                            <DataTrigger Binding="{Binding Status}" Value="PVE"><Setter Property="BorderBrush" Value="#78BCD3"/></DataTrigger>
                                             <DataTrigger Binding="{Binding Status}" Value="MINING">
                                                 <Setter Property="BorderBrush" Value="#38BE91"/>
                                             </DataTrigger>
@@ -259,7 +266,7 @@
                                         <RowDefinition Height="Auto"/>
                                         <RowDefinition Height="Auto"/>
                                         <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
 
                                     <Grid Grid.Row="0">
                                         <Grid.ColumnDefinitions>
@@ -511,6 +518,16 @@
                                         <ProgressBar Height="3" Value="{Binding Rock1Percent}" Maximum="100" Foreground="#74D6C9" Background="#243B3B"/>
                                         <TextBlock Text="{Binding Rock2Text}" Foreground="#9EBFFF" FontSize="10" Margin="0,3,0,1" ToolTip="{Binding Rock2Note}"/>
                                         <ProgressBar Height="3" Value="{Binding Rock2Percent}" Maximum="100" Foreground="#9EBFFF" Background="#243B3B"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Row="7" Height="115" Margin="0,5,0,0" Visibility="{Binding CombatVisibility}" ToolTip="{Binding CombatToolTip}">
+                                        <Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/></Grid.ColumnDefinitions>
+                                            <StackPanel><TextBlock Text="DPS OUT / 30s" Foreground="#74D6C9" FontSize="9"/><TextBlock Text="{Binding CombatOut}" Foreground="#EAF7F4" FontWeight="Bold" FontSize="16"/></StackPanel>
+                                            <StackPanel Grid.Column="1"><TextBlock Text="DPS IN / 30s" Foreground="#EBAAA2" FontSize="9"/><TextBlock Text="{Binding CombatIn}" Foreground="#FFE1DB" FontWeight="Bold" FontSize="16"/></StackPanel>
+                                        </Grid>
+                                        <TextBlock Text="{Binding CombatSummary}" Foreground="#8DCCED" FontSize="10" Margin="0,4,0,0" TextTrimming="CharacterEllipsis"/>
+                                        <TextBlock Text="{Binding CombatDetail}" Foreground="#C2CED0" FontSize="10" Margin="0,3,0,0" TextTrimming="CharacterEllipsis"/>
+                                        <TextBlock Text="{Binding CombatNotice}" Foreground="#FFD166" FontSize="10" Margin="0,3,0,0" TextTrimming="CharacterEllipsis"/>
+                                        <TextBlock Text="{Binding CombatHint}" Foreground="#78928E" FontSize="9" Margin="0,4,0,0"/>
                                     </StackPanel>
                                     <Grid Grid.Row="6" Visibility="{Binding PreviewVisibility}" Margin="0,5,0,0" Height="115" Background="#071013" ClipToBounds="True">
                                         <Image Source="{Binding Preview}" Stretch="Uniform" Margin="0,0,0,18"/>

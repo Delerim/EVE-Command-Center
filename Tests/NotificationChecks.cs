@@ -15,8 +15,8 @@ internal static partial class Program
         var dir=Path.Combine(Path.GetTempPath(),"ecc-notices-"+Guid.NewGuid());var center=new NotificationCenterService(dir);
         center.SyncPi(state,now);
         Check(center.Items.Count(x=>x.Active)==1&&center.Items[0].Detail.Contains("Planet 2"),"Notification centre includes existing warnings grouped per toon");
-        center.MarkRead();center.SyncPi(state,now);
-        Check(center.Items.All(x=>x.Read),"Reading a current issue does not resolve it or immediately mark it new again");
+        center.MarkRead();center.SyncPi(state,now.AddMinutes(1));
+        Check(center.Items.All(x=>x.Read),"PI countdown changes preserve the read state of an existing issue");
         var restored=new NotificationCenterService(dir);
         Check(restored.Items.Count==1&&restored.Items[0].Active,"Current notifications survive restart");
         state.Colonies.Clear();center.SyncPi(state,now);

@@ -434,6 +434,31 @@ public partial class MiningFleetOverviewWindow : Window
             new RockTrackingWindow(_tracker.RockTracking,card.Character,card.Ore=="-"?"":card.Ore){Owner=this}.Show();
     }
 
+    private string OverviewMode => !_prefs.CombinedCharacterOverview ? "MINING" :
+        _prefs.CharacterOverviewCombatMode is "PVE" or "PVP" ? _prefs.CharacterOverviewCombatMode :
+        _prefs.CharacterOverviewMiningMode ? "MINING" : "CHARACTERS";
+
+    private FleetCard CombatCard(string character)
+    {
+        var data=_tracker.Combat.Snapshot(character);
+        _pilotIntel.TryGetValue(character,out var intel);_portraitUrls.TryGetValue(character,out var portrait);
+        bool pvp=OverviewMode=="PVP";
+        string age=data.AgeSeconds.HasValue?$"Last damage {data.AgeSeconds.Value:N0}s ago":"No combat observed";
+        string threat=data.ThreatAgeSeconds.HasValue?$"{data.Threat} - {data.ThreatAgeSeconds:N0}s ago":"No scramble message observed";
+        return new FleetCard {
+            Character=character,PortraitUrl=portrait??"",ShipText="Ship: "+(intel?.CurrentShip.TypeName??"not synced"),
+            Status=data.RecentThreat?"IDLE":pvp&&data.InDps>0?"LATE":pvp?"PVP":"PVE",
+            StatusToolTip=$"{age}\n{threat}\nColours reflect recent logged events, not live tackle status. Display mode does not change your alert settings.",
+            CombatOut=$"{data.OutDps:N1}",CombatIn=$"{data.InDps:N1}",
+            CombatSummary=pvp?$"REPS IN {data.RepIn:N0}/s  OUT {data.RepOut:N0}/s":$"BOUNTIES {_tracker.GetBountySession(character):N0} ISK",
+            CombatDetail=pvp?$"PEAK HIT {data.PeakIn:N0} | "+(intel?.Defense.Available==true?$"EHP ~{intel.Defense.EhpText}":"EHP unknown"):
+                $"LAST WEAPON: {(data.LastWeapon.Length>0?data.LastWeapon:"not observed")}",
+            CombatNotice=data.RecentThreat?threat:age,
+            CombatHint="Ammo/scripts: unavailable",
+            CombatToolTip=$"DPS is actual logged damage over the last 30 seconds, including NPC and player events. Not fitted DPS.\nRepairs are logged remote repairs, not current tank or capacitor.\nBounties are session log totals, not net profit.\nLast weapon: {data.LastWeapon}\n{threat}\nEHP is a cached fitting estimate; refresh it in Pilots. Ammo quantities, loaded scripts and complete active debuffs are not available live here."
+        };
+    }
+
     private void RefreshCards()
     {
         var cards = new List<FleetCard>();
@@ -477,6 +502,7 @@ public partial class MiningFleetOverviewWindow : Window
         var clients=_clientSource();
         foreach (var character in (_prefs.CombinedCharacterOverview ? clients.Select(c=>c.CharacterName).Distinct(StringComparer.OrdinalIgnoreCase) : _tracker.GetMiningDashboardCharacters()))
         {
+            if (OverviewMode is "PVE" or "PVP") {cards.Add(CombatCard(character));continue;}
             var s = _tracker.GetSnapshot(character);
             if (!_prefs.CombinedCharacterOverview && s.MiningCycleCount <= 0 &&
                 string.IsNullOrWhiteSpace(s.CurrentOre))
@@ -959,10 +985,11 @@ public partial class MiningFleetOverviewWindow : Window
             card.CardWidth = cardWidth;
             card.CardMinHeight = 174 + (_tracker.RockTracking.Enabled ? 85 : 0);
             card.CanSwitch = _prefs.CombinedCharacterOverview;
-            bool compact=_prefs.CombinedCharacterOverview&&!_prefs.CharacterOverviewMiningMode;
-            card.MiningVisibility=compact?Visibility.Collapsed:Visibility.Visible;
+            bool compact=OverviewMode=="CHARACTERS";
+            card.MiningVisibility=OverviewMode=="MINING"?Visibility.Visible:Visibility.Collapsed;
+            card.CombatVisibility=OverviewMode is "PVE" or "PVP"?Visibility.Visible:Visibility.Collapsed;
             card.PreviewVisibility=compact?Visibility.Visible:Visibility.Collapsed;
-            if(compact)card.RockVisibility=Visibility.Collapsed;
+            if(OverviewMode!="MINING")card.RockVisibility=Visibility.Collapsed;
             var client=clients.FirstOrDefault(c=>string.Equals(c.CharacterName,card.Character,StringComparison.OrdinalIgnoreCase));
             card.SourceHwnd=client?.Hwnd??IntPtr.Zero;
             card.LivePreview=compact&&_prefs.CharacterOverviewLivePreview;
@@ -1066,21 +1093,24 @@ public partial class MiningFleetOverviewWindow : Window
     private void ApplyCombinedMode()
     {
         bool combined=_prefs.CombinedCharacterOverview;
-        RunningApp?.OverviewThumbnails?.SetOverviewCombined(combined && IsVisible && WindowState!=WindowState.Minimized,!_prefs.CharacterOverviewMiningMode&&!_prefs.CharacterOverviewLivePreview);
+        RunningApp?.OverviewThumbnails?.SetOverviewCombined(combined && IsVisible && WindowState!=WindowState.Minimized,OverviewMode=="CHARACTERS"&&!_prefs.CharacterOverviewLivePreview);
         FullActions.Visibility=combined?Visibility.Collapsed:Visibility.Visible;
         CompactActions.Visibility=combined?Visibility.Visible:Visibility.Collapsed;
         LiveBadge.Visibility=DayText.Visibility=PlexMarketBorder.Visibility=combined?Visibility.Collapsed:Visibility.Visible;
         LivePreviewButton.Content=_prefs.CharacterOverviewLivePreview?"PREVIEW: LIVE":"PREVIEW: SNAPSHOT";
-        ModeButton.Content=_prefs.CharacterOverviewMiningMode?"MODE: MINING":"MODE: CHARACTERS";
+        ModeButton.Content="MODE: "+OverviewMode;
     }
     private void Combine_Click(object sender,RoutedEventArgs e)
     {
         _prefs.CombinedCharacterOverview=!_prefs.CombinedCharacterOverview;
         ApplyCombinedMode();MiningDashboardPreferencesStore.Save(_prefs);RefreshCards();
     }
-    private void Mode_Click(object sender,RoutedEventArgs e)
+    private void Mode_Click(object sender,RoutedEventArgs e)=>Tools_Click(sender,e);
+    private void OverviewMode_Click(object sender,RoutedEventArgs e)
     {
-        _prefs.CharacterOverviewMiningMode=!_prefs.CharacterOverviewMiningMode;
+        if(sender is not System.Windows.Controls.MenuItem item||item.Tag is not string mode)return;
+        _prefs.CharacterOverviewMiningMode=mode=="MINING";
+        _prefs.CharacterOverviewCombatMode=mode is "PVE" or "PVP"?mode:"";
         ApplyCombinedMode();MiningDashboardPreferencesStore.Save(_prefs);RefreshCards();
     }
     private void LivePreview_Click(object sender,RoutedEventArgs e)
@@ -1539,6 +1569,14 @@ public partial class MiningFleetOverviewWindow : Window
             }
         }
         public IntPtr SourceHwnd {get;set;}
+        public Visibility CombatVisibility {get;set;}=Visibility.Collapsed;
+        public string CombatOut {get;set;}="";
+        public string CombatIn {get;set;}="";
+        public string CombatSummary {get;set;}="";
+        public string CombatDetail {get;set;}="";
+        public string CombatNotice {get;set;}="";
+        public string CombatHint {get;set;}="";
+        public string CombatToolTip {get;set;}="";
         public bool LivePreview {get;set;}
         public bool CanSwitch {get;set;}
         public double CardMinHeight {get;set;}=174;

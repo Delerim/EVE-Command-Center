@@ -1,7 +1,9 @@
-# EVE Command Center v3.5.19
+# EVE Command Center v3.5.20
 
-- Character Overview now offers a saved PREVIEW: LIVE / SNAPSHOT toggle. Live mode uses native DWM thumbnails, like the independent previews, without running capture or client waits on the UI thread.
-- Live surfaces follow the overview and release their native windows and thumbnail registrations when disabled, hidden or closed. Minimized clients show the last available snapshot; restoring them resumes live preview. Partially scrolled cards use snapshots until fully visible.
-- Character and mining modes share the same card width and minimum height, including space for optional rock tracking. Switching modes keeps the same frames and window sizing.
-- Added hover glow, click feedback and an active-client indicator. Existing mining warning and alarm colours remain visible in character mode and take priority over selection colours. Muted alarms remain muted.
-- Card updates now preserve their visual elements, allowing alarms and active-client feedback to update while hovering without destroying tooltips or repeatedly recreating live previews.
+- Added PvE and PvP cards to the Character Overview mode menu, retaining the existing card dimensions and client switching. PvE shows logged DPS, bounty totals and last observed weapon; PvP shows incoming/outgoing damage and remote repairs, peak incoming hits and recent scramble observations.
+- Combat DPS uses a rolling 30-second window. Delayed old logs cannot create fresh damage spikes. Recent tackle observations expire visually without claiming the effect ended. Ammo quantities, loaded scripts and complete active debuffs are not exposed as live data. Display modes do not change alert settings.
+- Fixed preview show/hide and focus issues: text/stat overlays become non-activating before first display; hidden previews no longer briefly show during creation or z-order maintenance. Disposing a preview releases its text overlay and DWM registration.
+- Fixed log-reader lifecycle tracking so stop/restart waits for the actual reader. Process-stat polls cannot overlap when GPU counter queries are slow; CPU readings are clamped to valid percentages.
+- Removed NPC damage from bounty-rate calculations. Combat-stat pruning no longer discards concurrent additions, and pilot stat keys are case-insensitive.
+- PI countdown updates preserve read notifications. Superseded industry scans are cancelled and use a stable material/skill snapshot. Background pilot caches now use atomic replacement.
+- See docs/code-audit-3.5.20.md for review coverage, findings and remaining validation limits.

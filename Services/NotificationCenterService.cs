@@ -8,6 +8,7 @@ public sealed class CenterNotification
     public string Source {get;set;}="";
     public string Title {get;set;}="";
     public string Detail {get;set;}="";
+    public string AlertKey {get;set;}="";
     public string Color {get;set;}="#FFD166";
     public bool Active {get;set;}
     public bool Read {get;set;}
@@ -30,15 +31,15 @@ public sealed class NotificationCenterService
     {
         var analysis=PlanetaryAnalysis.Build(state,now);
         var active=analysis.Colonies.Where(r=>r.Color=="#FFD166"||r.Status.Contains("COLLECT")||PlanetaryAlerts.Warning(r).Length>0)
-            .GroupBy(r=>r.Colony!.CharacterId).Select(g=>new CenterNotification{Id="PI:"+g.Key,Source="PI",Title=g.First().Colony!.Character+" | "+g.Count()+" colonies",Detail=string.Join("\n",g.Select(r=>r.Name+": "+(PlanetaryAlerts.Warning(r).Length>0?PlanetaryAlerts.Warning(r)+" (estimated restart/refill)":r.Status)+" | "+r.Next)),Color="#FFD166",Active=true,Updated=now}).ToList();
-        active.AddRange(analysis.Hauls.Where(h=>h.Stage>0).Select(h=>new CenterNotification{Id="PI:haul:"+h.CharacterId,Source="PI",Title=h.Character+" | T1 collection",Detail=h.Summary+" across extracting planets. Estimate from saved colony contents and nominal production; verify before hauling.",Color=h.Color,Active=true,Updated=now}));
+            .GroupBy(r=>r.Colony!.CharacterId).Select(g=>new CenterNotification{Id="PI:"+g.Key,Source="PI",AlertKey=string.Join("|",g.OrderBy(r=>r.Name).Select(r=>r.Name+":"+PlanetaryAlerts.Warning(r)+":"+r.Status)),Title=g.First().Colony!.Character+" | "+g.Count()+" colonies",Detail=string.Join("\n",g.Select(r=>r.Name+": "+(PlanetaryAlerts.Warning(r).Length>0?PlanetaryAlerts.Warning(r)+" (estimated restart/refill)":r.Status)+" | "+r.Next)),Color="#FFD166",Active=true,Updated=now}).ToList();
+        active.AddRange(analysis.Hauls.Where(h=>h.Stage>0).Select(h=>new CenterNotification{Id="PI:haul:"+h.CharacterId,Source="PI",AlertKey=h.Stage.ToString(),Title=h.Character+" | T1 collection",Detail=h.Summary+" across extracting planets. Estimate from saved colony contents and nominal production; verify before hauling.",Color=h.Color,Active=true,Updated=now}));
         bool changed=false;var ids=active.Select(x=>x.Id).ToHashSet();
         foreach(var row in Items.Where(x=>x.Source=="PI"&&x.Active&&!ids.Contains(x.Id))){row.Active=false;row.Read=true;row.Updated=now;changed=true;}
         foreach(var row in active)
         {
             var old=Items.FirstOrDefault(x=>x.Id==row.Id);
             if(old==null){Items.Add(row);changed=true;}
-            else if(!old.Active||old.Detail!=row.Detail){old.Active=true;old.Read=false;old.Detail=row.Detail;old.Color=row.Color;old.Updated=now;changed=true;}
+            else if(!old.Active||old.Detail!=row.Detail||old.AlertKey!=row.AlertKey){bool newIssue=!old.Active||old.AlertKey!=row.AlertKey;old.Active=true;if(newIssue)old.Read=false;old.AlertKey=row.AlertKey;old.Title=row.Title;old.Detail=row.Detail;old.Color=row.Color;old.Updated=now;changed=true;}
         }
         if(changed)Save();
     }

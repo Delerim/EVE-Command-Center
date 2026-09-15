@@ -63,6 +63,7 @@ internal static partial class Program
         Check(values.LedgerHistory["base"].VolumeM3 == 1000 && values.LedgerHistory["missing"].EstimatedIsk == 0, "Repricing preserves raw mined volume and removes obsolete unpriced values");
         values.TypePrices[45490] = 1500; MoonReportService.RevalueLedger(values);
         Check(values.LedgerHistory["base"].EstimatedIsk == 150000, "Saved ledger entries update when current compressed quotes change");
+        CheckCombatTelemetry();
         CheckPreviewStability();
         CheckAuthorizationScopes();
         CheckWindowLayouts();
@@ -148,6 +149,7 @@ internal static partial class Program
             Render(new Window{Content=sampleCards,Resources=overview.Resources,Background=new SolidColorBrush(Color.FromRgb(7,24,27)),Width=420,Height=320},System.IO.Path.ChangeExtension(args[0],".rock-overview.png"));
         }
         var characterOverview=CheckCharacterOverview();
+        if(args.Length>0) {Render(CheckCharacterOverview("PVE"),System.IO.Path.ChangeExtension(args[0],".pve.png"));Render(CheckCharacterOverview("PVP"),System.IO.Path.ChangeExtension(args[0],".pvp.png"));}
         if(args.Length>0)Render(characterOverview,Path.ChangeExtension(args[0],".character-overview.png"));
         var rockDir=Path.Combine(Path.GetTempPath(),"ecc-rock-ui-"+Guid.NewGuid());
         var rockService=new RockTrackingService(rockDir);rockService.Enable(true);

@@ -19,7 +19,8 @@ namespace EveCommandCenter.Services;
 /// </summary>
 public sealed class StatTrackerService
 {
-    private readonly ConcurrentDictionary<string, CharacterStats> _stats = new();
+    private readonly ConcurrentDictionary<string, CharacterStats> _stats = new(StringComparer.OrdinalIgnoreCase);
+    public CombatTelemetry Combat { get; } = new();
     private readonly TimeSpan _windowDuration = TimeSpan.FromSeconds(30); // AHK: WINDOW_SECS := 30
     public RockTrackingService RockTracking { get; } = new();
     private static readonly TimeSpan MiningRateWindow = TimeSpan.FromMinutes(2);
@@ -87,9 +88,7 @@ public sealed class StatTrackerService
             else if (hitQuality == "glance" || hitQuality == "miss")
                 stats.MissesOut++;
 
-            // Bounty tracking ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â only NPC kills count as ratting ISK
-            if (isNpc)
-                stats.BountyTicks.Add(entry);
+
         }
 
         CheckAndPrune(character, stats);
@@ -99,6 +98,7 @@ public sealed class StatTrackerService
     /// <summary>Record repair with type and direction (AHK: 6 separate fields).</summary>
     public void RecordRepair(string character, int amount, bool isIncoming, string repairType = "armor")
     {
+        if (repairType.ToLowerInvariant() is "armor" or "shield" or "hull") Combat.Repair(character,amount,isIncoming);
         var stats = GetOrCreate(character);
         var entry = new TimedValue(DateTime.UtcNow, amount);
 
@@ -145,6 +145,7 @@ public sealed class StatTrackerService
     public void RemoveCharacter(string character)
     {
         _stats.TryRemove(character, out _);
+        Combat.Remove(character);
     }
 
     /// <summary>
@@ -865,6 +866,8 @@ public sealed class StatTrackerService
     }
 
     /// <summary>Get ratting bounty rate (ISK/hr estimate from NPC kills).</summary>
+    public double GetBountySession(string character) => _stats.TryGetValue(character,out var stats)?stats.BountySession:0;
+
     public double GetBountyRate(string character)
     {
         if (!_stats.TryGetValue(character, out var stats)) return 0;
@@ -1331,19 +1334,14 @@ public sealed class StatTrackerService
     {
         if (window.Count <= MaxEventsPerWindow) return 0;
 
-        // Snapshot the bag and filter ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â any items added concurrently will survive
-        // because we only remove items older than cutoff
-        var snapshot = window.ToArray();
-        var recent = snapshot.Where(v => v.Timestamp > cutoff).ToArray();
-        int removed = snapshot.Length - recent.Length;
-        if (removed <= 0) return 0;
-
-        // Drain and refill ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â items added between these lines are post-cutoff
-        // by definition (they were just created), so losing them is acceptable
-        // only if we re-add them. Instead, we accept the brief window of loss
-        // is negligible since pruning only triggers every 50 records.
-        while (window.TryTake(out _)) { }
-        foreach (var item in recent) window.Add(item);
+        // Drain only the initial count. Concurrent additions are retained, never
+        // discarded based on a different snapshot of the bag.
+        int count=window.Count,removed=0;
+        var retained=new List<TimedValue>(count);
+        for(int i=0;i<count&&window.TryTake(out var item);i++) {
+            if(item.Timestamp>cutoff)retained.Add(item);else removed++;
+        }
+        foreach(var item in retained)window.Add(item);
         return removed;
     }
 

@@ -20,13 +20,13 @@ public partial class TextOverlayWindow : Window
     public TextOverlayWindow()
     {
         InitializeComponent();
-        Loaded += OnLoaded;
+        SourceInitialized += OnSourceReady;
     }
 
-    private void OnLoaded(object sender, RoutedEventArgs e)
+    private void OnSourceReady(object? sender, EventArgs e)
     {
-        var source = (HwndSource)PresentationSource.FromVisual(this);
-        _ownHwnd = source.Handle;
+        _ownHwnd = new WindowInteropHelper(this).Handle;
+        var source = HwndSource.FromHwnd(_ownHwnd);
 
         // Click-through + non-activating + toolwindow (matches AHK +E0x20)
         int exStyle = User32.GetWindowLong(_ownHwnd, User32.GWL_EXSTYLE);
@@ -415,7 +415,7 @@ public partial class TextOverlayWindow : Window
     /// base.Width are physical pixels, but WPF Left/Width are DIPs.</summary>
     public void SyncPositionPhysical(int left, int top, int width, int height)
     {
-        if (_ownHwnd == IntPtr.Zero) return;
+        if (_ownHwnd == IntPtr.Zero || !IsVisible) return;
         User32.SetWindowPos(_ownHwnd, IntPtr.Zero, left, top, width, height,
             User32.SWP_NOACTIVATE | User32.SWP_NOZORDER);
 

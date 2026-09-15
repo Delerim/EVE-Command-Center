@@ -48,7 +48,7 @@ public partial class StatOverlayWindow : Window
     public StatOverlayWindow()
     {
         InitializeComponent();
-        Loaded += OnLoaded;
+        SourceInitialized += OnSourceReady;
     }
 
     public void Initialize(string characterName, string statType, int x, int y)
@@ -126,10 +126,10 @@ public partial class StatOverlayWindow : Window
         });
     }
 
-    private void OnLoaded(object sender, RoutedEventArgs e)
+    private void OnSourceReady(object? sender, EventArgs e)
     {
-        var source = (HwndSource)PresentationSource.FromVisual(this);
-        _ownHwnd = source.Handle;
+        _ownHwnd = new WindowInteropHelper(this).Handle;
+        var source = HwndSource.FromHwnd(_ownHwnd);
 
         // Non-activating
         int exStyle = User32.GetWindowLong(_ownHwnd, User32.GWL_EXSTYLE);
@@ -321,7 +321,7 @@ public partial class StatOverlayWindow : Window
     /// Called once at EVE focus transitions, matching ThumbnailWindow pattern.</summary>
     public void BringToFront()
     {
-        if (_ownHwnd == IntPtr.Zero) return;
+        if (_ownHwnd == IntPtr.Zero || !IsVisible) return;
         var zOrder = Topmost ? User32.HWND_TOPMOST : User32.HWND_TOP;
         User32.SetWindowPos(_ownHwnd, zOrder,
             0, 0, 0, 0,
