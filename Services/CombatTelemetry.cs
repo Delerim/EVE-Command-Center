@@ -32,6 +32,7 @@ public sealed class CombatTelemetry
             var state=_pilots.GetOrAdd(pilot,_=>new());
             lock(state) {
                 state.Events.Enqueue(new(time,amount,incoming?1:0));Trim(state,now);
+                if(incoming && (state.LastIncomingTime==null || time>=state.LastIncomingTime)) {state.LastIncomingTime=time;state.LastIncoming=amount;}
                 if(state.LastDamage==null||time>=state.LastDamage) {
                     state.LastDamage=time;
                     if(!incoming) {var weapon=Weapon.Match(plain);if(weapon.Success)state.LastWeapon=weapon.Groups[1].Value.Trim();}
@@ -61,6 +62,8 @@ public sealed class CombatTelemetry
             double? age=state.LastDamage.HasValue?Math.Max(0,(now-state.LastDamage.Value).TotalSeconds):null;
             double? threatAge=state.ThreatTime.HasValue?Math.Max(0,(now-state.ThreatTime.Value).TotalSeconds):null;
             return new() {OutDps=Rate(0),InDps=Rate(1),RepIn=Rate(2),RepOut=Rate(3),
+                DamageIn30Seconds=events.Where(e=>e.Kind==1).Sum(e=>(double)e.Amount),
+                LastIncoming=state.LastIncoming, IncomingAgeSeconds=state.LastIncomingTime.HasValue?Math.Max(0,(now-state.LastIncomingTime.Value).TotalSeconds):null,
                 PeakIn=events.Where(e=>e.Kind==1).Select(e=>e.Amount).DefaultIfEmpty().Max(),
                 LastWeapon=state.LastWeapon,AgeSeconds=age,Threat=state.Threat,ThreatAgeSeconds=threatAge};
         }
@@ -71,12 +74,14 @@ public sealed class CombatTelemetry
     }
     private sealed class State {
         public Queue<Entry> Events {get;}=new();public DateTime? LastDamage,ThreatTime;
+        public DateTime? LastIncomingTime;public int LastIncoming;
         public string LastWeapon="",Threat="";
     }
     private readonly record struct Entry(DateTime Time,int Amount,int Kind);
 }
 public sealed record CombatSnapshot {
     public double OutDps {get;init;} public double InDps {get;init;} public double RepIn {get;init;} public double RepOut {get;init;}
+    public double DamageIn30Seconds {get;init;} public int LastIncoming {get;init;} public double? IncomingAgeSeconds {get;init;}
     public int PeakIn {get;init;} public double? AgeSeconds {get;init;} public string LastWeapon {get;init;}="";
     public string Threat {get;init;}="";public double? ThreatAgeSeconds {get;init;}
     public bool RecentThreat=>ThreatAgeSeconds is >=0 and <30;

@@ -451,11 +451,16 @@ public partial class MiningFleetOverviewWindow : Window
             StatusToolTip=$"{age}\n{threat}\nColours reflect recent logged events, not live tackle status. Display mode does not change your alert settings.",
             CombatOut=$"{data.OutDps:N1}",CombatIn=$"{data.InDps:N1}",
             CombatSummary=pvp?$"REPS IN {data.RepIn:N0}/s  OUT {data.RepOut:N0}/s":$"BOUNTIES {_tracker.GetBountySession(character):N0} ISK",
-            CombatDetail=pvp?$"PEAK HIT {data.PeakIn:N0} | "+(intel?.Defense.Available==true?$"EHP ~{intel.Defense.EhpText}":"EHP unknown"):
-                $"LAST WEAPON: {(data.LastWeapon.Length>0?data.LastWeapon:"not observed")}",
-            CombatNotice=data.RecentThreat?threat:age,
-            CombatHint="Ammo/scripts: unavailable",
-            CombatToolTip=$"DPS is actual logged damage over the last 30 seconds, including NPC and player events. Not fitted DPS.\nRepairs are logged remote repairs, not current tank or capacitor.\nBounties are session log totals, not net profit.\nLast weapon: {data.LastWeapon}\n{threat}\nEHP is a cached fitting estimate; refresh it in Pilots. Ammo quantities, loaded scripts and complete active debuffs are not available live here."
+            CombatDetail=$"TAKEN / 30s {data.DamageIn30Seconds:N0}",
+            CombatNotice=data.RecentThreat?threat:data.IncomingAgeSeconds.HasValue?
+                $"LAST HIT {data.LastIncoming:N0} | {data.IncomingAgeSeconds:N0}s ago":"No incoming hits observed",
+            CombatHint="Live shield / armour / hull: unavailable",
+            CombatToolTip=$"Logged incoming damage: {data.DamageIn30Seconds:N0} in the last 30 seconds. Peak hit: {data.PeakIn:N0}.\n"+
+                (data.IncomingAgeSeconds.HasValue?$"Last incoming hit: {data.LastIncoming:N0}, {data.IncomingAgeSeconds:N0}s ago.\n":"No incoming hits observed.\n")+
+                "DPS is actual logged damage over the last 30 seconds, including NPC and player events. Not fitted DPS.\nRepairs are logged remote repairs, not current tank or capacitor.\n"+
+                "Live shield, armour and hull health cannot be derived from these logs: local repairs and passive recharge are not fully observed.\n"+
+                (intel?.Defense.Available==true?$"Cached fitted HP estimates (not remaining health):\nShield {intel.Defense.ShieldHp:N0} | Armour {intel.Defense.ArmorHp:N0} | Hull {intel.Defense.StructureHp:N0}\nFit snapshot: {intel.SyncedUtc:u}\nEHP ~{intel.Defense.EhpText}; refresh in Pilots.\n":"Fitted HP estimates unavailable; refresh in Pilots.\n")+
+                $"Bounties are session log totals, not net profit.\nLast weapon: {data.LastWeapon}\n{threat}\nAmmo quantities, loaded scripts and complete active debuffs are not available live here."
         };
     }
 
