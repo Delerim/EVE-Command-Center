@@ -1,5 +1,4 @@
-# EVE Command Center v3.5.21
+# EVE Command Center v3.5.22
 
-- PvE and PvP cards now show incoming damage over the last 30 seconds and the latest incoming hit with its age. Outgoing fire does not reset the incoming hit timer; delayed hits do not replace newer observations.
-- Combat tooltips include peak incoming hits and cached fitted shield, armour and hull HP estimates, with the fitting snapshot time. These are capacity estimates, not remaining health. Live layer percentages are unavailable from the current data sources; no health is inferred by subtracting damage.
-- Existing compact card dimensions, switching, repair rates, bounties and tackle highlights are retained. Last observed weapon remains available in the tooltip.
+- Skills and queue rows show primary and secondary attribute priorities. Hover the priority or training rate to see how attributes affect SP/min and why a row is off-map.
+- Clarified that alignment compares with the strongest current attribute pair; it is not queue progress or a recommendation to remap for one skill.

@@ -1309,6 +1309,9 @@ public partial class PilotCommandCenterWindow : Window
                 secondary.ShortName;
             PrimaryAccent = primary.Accent;
             SecondaryAccent = secondary.Accent;
+            AttributePriority = primary.Name == "Unknown" || secondary.Name == "Unknown"
+                ? "Attribute priority unavailable" : $"Priority: {primary.Name} > {secondary.Name}";
+            AttributeGuidance = $"{AttributePriority}\nPrimary attribute contributes 1 SP/min per point; secondary contributes 0.5 SP/min.\nOff-map means below 90% of your strongest current attribute pair. The percentage is not progress or a proposed remap.\nChoose a remap for a whole training block, not just one skill; a mixed queue can favour a different allocation.";
 
             AlignmentPresentation alignment =
                 GetAlignment(
@@ -1351,6 +1354,8 @@ public partial class PilotCommandCenterWindow : Window
 
         public bool HighlightOffMap { get; set; }
 
+        public string AttributePriority { get; }
+        public string AttributeGuidance { get; }
         public string AlignmentText =>
             $"{TrainingRate:0.0} SP/min | {AlignmentPercent:0}%";
         public string AlignmentForeground =>
@@ -1396,6 +1401,9 @@ public partial class PilotCommandCenterWindow : Window
                 secondary.ShortName;
             PrimaryAccent = primary.Accent;
             SecondaryAccent = secondary.Accent;
+            AttributePriority = primary.Name == "Unknown" || secondary.Name == "Unknown"
+                ? "Attribute priority unavailable" : $"Priority: {primary.Name} > {secondary.Name}";
+            AttributeGuidance = $"{AttributePriority}\nPrimary attribute contributes 1 SP/min per point; secondary contributes 0.5 SP/min.\nOff-map means below 90% of your strongest current attribute pair. The percentage is not progress or a proposed remap.\nChoose a remap for a whole training block, not just one skill; a mixed queue can favour a different allocation.";
 
             AlignmentPresentation alignment =
                 GetAlignment(
@@ -1466,6 +1474,8 @@ public partial class PilotCommandCenterWindow : Window
 
         public bool HighlightOffMap { get; set; }
 
+        public string AttributePriority { get; }
+        public string AttributeGuidance { get; }
         public string AlignmentText =>
             $"{TrainingRate:0.0} SP/min | {AlignmentPercent:0}%";
         public string AlignmentForeground =>

@@ -999,7 +999,8 @@
                                                                             </Border>
                                                                         </StackPanel>
 
-                                                                        <TextBlock Text="{Binding AlignmentText}"
+                                                                        <TextBlock Text="{Binding AttributePriority}" ToolTip="{Binding AttributeGuidance}" Foreground="#9DB5AF" FontSize="9" HorizontalAlignment="Center" Margin="0,3,0,0"/>
+                                                        <TextBlock Text="{Binding AlignmentText}" ToolTip="{Binding AttributeGuidance}"
                                                                                    Foreground="{Binding AlignmentForeground}"
                                                                                    FontSize="8.5"
                                                                                    HorizontalAlignment="Center"
@@ -1298,7 +1299,8 @@
                                                             </Border>
                                                         </StackPanel>
 
-                                                        <TextBlock Text="{Binding AlignmentText}"
+                                                        <TextBlock Text="{Binding AttributePriority}" ToolTip="{Binding AttributeGuidance}" Foreground="#9DB5AF" FontSize="9" HorizontalAlignment="Center" Margin="0,3,0,0"/>
+                                                        <TextBlock Text="{Binding AlignmentText}" ToolTip="{Binding AttributeGuidance}"
                                                                    Foreground="{Binding AlignmentForeground}"
                                                                    FontSize="8.5"
                                                                    HorizontalAlignment="Center"
