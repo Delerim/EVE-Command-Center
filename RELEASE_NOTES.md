@@ -1,5 +1,4 @@
-# EVE Command Center v3.5.23
+# EVE Command Center v3.5.24
 
-- Fixed false implant re-link prompts when data is pending or an implant lookup fails. Permission status is stored separately from data availability; old snapshots show pending verification instead of claiming missing authorization.
-- Pilot refresh reloads the saved character profile so permissions granted through another window are used without reopening Pilots.
-- Missing attributes display pending refresh instead of 0 SP/min and 100% alignment; no off-map warning is inferred without attribute data.
+- Fixed PI refill rows always showing zero stock left. The column now shows the shared reserve after that allocation and is labelled accordingly.
+- Verified that the T1 stock budget totals top-up requirements across pilots and planets, allocates shared reserves once, and agrees with the final per-material running balance. Remaining quantities still depend on the selected stock snapshot and projected planetary contents.

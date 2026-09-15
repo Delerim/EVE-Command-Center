@@ -30,6 +30,14 @@ internal static partial class Program
         state.Colonies.Add(new() { CharacterId=2, Character="Second Pilot", PlanetId=40000002, Planet="Test II", LastUpdate=now, Fetched=now, Layout=state.Colonies[0].Layout });
         analysis = PlanetaryAnalysis.Build(state, now);
         Check(analysis.Refills.Where(r => r.TypeId == inputs[0]).Sum(r => r.Allocated) == 1000, "Shared PI stock is allocated once across all colonies");
+        Check(analysis.StockBudget.All(b=>b.Required==analysis.Refills.Where(r=>r.Name==b.Name).Sum(r=>r.Need)), "Stock budget sums top-ups across both pilots without duplicating reserves");
+        Check(analysis.Refills.All(r=>r.StockAfter>=0)&&analysis.StockBudget.All(b=>b.Shortfall>=0), "Insufficient reserves never produce negative remaining stock");
+        state.Assets[1].Quantity=100000;
+        var stocked=PlanetaryAnalysis.Build(state,now);
+        var materialRows=stocked.Refills.Where(r=>r.TypeId==inputs[0]).ToArray();
+        Check(materialRows[0].StockAfter==73685&&materialRows[1].StockAvailable==73685&&materialRows[1].StockAfter==47370, "Each planet allocation advances the shared stock balance");
+        Check(stocked.StockBudget.Single(b=>b.Name==materialRows[0].Name).Remaining==materialRows[^1].StockAfter, "Final row balance agrees with the stock budget after all refills");
+        state.Assets[1].Quantity=1000;
         var extractor = new { pin_id=3L, type_id=2848, install_time=now.AddHours(-2), expiry_time=now.AddHours(-1), last_cycle_start=now.AddHours(-1), extractor_details=new { cycle_time=900, qty_per_cycle=100, product_type_id=2267 }, contents=System.Array.Empty<object>() };
         state.Colonies.Add(new() { CharacterId=3, Character="Extractor Pilot", PlanetId=40000003, Planet="Test III", LastUpdate=now, Fetched=now, Layout=JsonSerializer.SerializeToElement(new { pins=new[]{extractor}, routes=System.Array.Empty<object>() }) });
         analysis = PlanetaryAnalysis.Build(state, now);

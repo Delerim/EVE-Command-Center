@@ -94,7 +94,7 @@ public sealed class PiRefill
     public string Name { get; set; } = "";
     public double Snapshot { get; set; }
     public double StockAvailable { get; set; }
-    public double StockAfter { get; set; }
+    public double StockAfter => Math.Max(0, StockAvailable - Allocated);
     public double Current { get; set; }
     public double Target { get; set; }
     public double Need => Math.Max(0, Target - Current);
