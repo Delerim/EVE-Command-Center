@@ -146,6 +146,8 @@ internal static partial class Program
             foreach(var name in new[]{"Pilot A","Pilot B"}){var view=(FrameworkElement)((ItemsControl)overview.FindName("MinerItems")).ItemTemplate.LoadContent();view.DataContext=Card(name);sampleCards.Children.Add(view);}
             Render(new Window{Content=sampleCards,Resources=overview.Resources,Background=new SolidColorBrush(Color.FromRgb(7,24,27)),Width=420,Height=320},System.IO.Path.ChangeExtension(args[0],".rock-overview.png"));
         }
+        var characterOverview=CheckCharacterOverview();
+        if(args.Length>0)Render(characterOverview,Path.ChangeExtension(args[0],".character-overview.png"));
         var rockDir=Path.Combine(Path.GetTempPath(),"ecc-rock-ui-"+Guid.NewGuid());
         var rockService=new RockTrackingService(rockDir);rockService.Enable(true);
         var rockWindow=new RockTrackingWindow(rockService,"Example pilot","Zeolites");
@@ -571,7 +573,8 @@ internal static partial class Program
         root.Resources.MergedDictionaries.Add(window.Resources);
         window.Content = null;
         TextElementForeground(root);
-        int width = (int)window.Width - 40, height = (int)window.Height - 50;
+        int width = (int)window.Width - (window.WindowStyle==WindowStyle.None?0:40), height = (int)window.Height - (window.WindowStyle==WindowStyle.None?0:50);
+        if(window.SizeToContent==SizeToContent.Height) {root.Measure(new Size(width,double.PositiveInfinity));height=Math.Max(height,(int)Math.Ceiling(root.DesiredSize.Height));}
         root.Measure(new Size(width, height)); root.Arrange(new Rect(0, 0, width, height)); root.UpdateLayout();
         System.Windows.Threading.Dispatcher.CurrentDispatcher.Invoke(() => {}, System.Windows.Threading.DispatcherPriority.ContextIdle);
         root.UpdateLayout();

@@ -35,5 +35,10 @@ internal static partial class Program
             Check(retained!.Width == 8 && captures.GetLastFrame((IntPtr)2) == null, "Capture service shutdown preserves independently owned display copies");
         }
         finally { release.Set(); }
+        using var compact=new FrozenFrameService(_=>new System.Drawing.Bitmap(960,540),_=>true){MaximumFrameWidth=480};
+        compact.TryCapture((IntPtr)4);
+        Check(SpinWait.SpinUntil(()=>compact.GetLastFrame((IntPtr)4)!=null,2000),"Compact overview capture completes asynchronously");
+        using var preview=compact.GetLastFrame((IntPtr)4)!.Copy();
+        Check(preview!.Width==480&&preview.Height==270,"Compact preview cache bounds bitmap size while preserving aspect ratio");
     }
 }

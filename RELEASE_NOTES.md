@@ -1,6 +1,7 @@
-# EVE Command Center v3.5.17
+# EVE Command Center v3.5.18
 
-- Added a PI Tax & Profit tab with manual effective POCO rates saved independently for each pilot and planet. Include the NPC component after Customs Code Expertise when applicable.
-- Batch estimates expand configured factory recipes to T1 inputs and include Jita input replacement cost, import/export duties, sale tax, broker fees and optional other batch costs. Immediate sale and sell-listing scenarios are supported.
-- Customs duties use fixed commodity taxable values, with import duty half the export basis. Unknown rates or prices never become zero costs.
-- This is a T1-fed batch planner, not a historical profit ledger. Extra upstream customs charges, hauling and setup allocation can be entered manually. POCO owner rates are not automatically imported; the ESI corporation endpoint is restricted to owning-corporation Directors.
+- Renamed the Miner Overview to Character Overview and added optional Combine Previews mode. Open EVE clients appear even without mining activity.
+- Switch between compact character preview cards and the existing mining details. Click cards to switch clients through the existing activation path; embedded controls and drag reordering keep their own actions.
+- Combined mode moves navigation into Tools and temporarily hides primary preview windows and their stat overlays. Separate mode, closing or hiding the overview restores the independent previews without changing their saved positions.
+- Compact previews use bounded asynchronous snapshots, with small cached frames and a three-second scheduling cadence (large fleets may refresh less often). Minimized clients retain the last available frame. No capture runs on the UI thread; existing two-worker limits remain.
+- Mode preferences persist. The original standalone preview mode remains the default.

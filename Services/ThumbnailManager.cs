@@ -73,6 +73,22 @@ public sealed class ThumbnailManager : IDisposable
     // Visibility state (matches AHK toggle hotkeys)
     private bool _thumbnailsHidden = false;
     private bool _primaryHidden = false;
+    private bool _overviewCombined;
+    private bool _overviewCapture;
+    private bool PrimarySuppressed => _primaryHidden || _overviewCombined;
+    internal FrozenFrame? OverviewFrame(IntPtr hwnd) => _frozenFrames?.GetLastFrame(hwnd);
+    internal void SetOverviewCombined(bool enabled, bool capture = true)
+    {
+        _overviewCapture=enabled&&capture;
+        if(_overviewCombined==enabled)return;
+        _overviewCombined=enabled;
+        if(_frozenFrames!=null)_frozenFrames.MaximumFrameWidth=enabled?480:0;
+        foreach(var (_,thumb) in _thumbnails) {
+            if(enabled)thumb.HideWithOverlay();
+            else if(!_thumbnailsHidden&&!_primaryHidden&&!IsCharacterUserHidden(thumb.CharacterName))thumb.ShowWithOverlay();
+        }
+        foreach(var (_,window) in _statWindows) window.Visibility=enabled||_thumbnailsHidden||_primaryHidden?System.Windows.Visibility.Collapsed:System.Windows.Visibility.Visible;
+    }
     private bool _clickThroughActive = false;
     private bool _settingsClickSuppressed = false;  // Force thumbnails click-through while Settings UI is open
     private bool _suppressTopmost = false;  // Suppress topmost while settings window is active
@@ -600,7 +616,7 @@ public sealed class ThumbnailManager : IDisposable
         {
             _settings.Settings.ThumbnailVisibility[thumb.CharacterName] = slot.Hidden ? 1 : 0;
             if (slot.Hidden) thumb.HideWithOverlay();
-            else if (!_thumbnailsHidden && !_primaryHidden) thumb.ShowWithOverlay();
+            else if (!_thumbnailsHidden && !PrimarySuppressed) thumb.ShowWithOverlay();
         }
     }
 
@@ -720,7 +736,7 @@ public sealed class ThumbnailManager : IDisposable
         {
             thumbWindow.HideWithOverlay();
         }
-        else if (_thumbnailsHidden || _primaryHidden)
+        else if (_thumbnailsHidden || PrimarySuppressed)
         {
             thumbWindow.HideWithOverlay();
         }
@@ -890,7 +906,7 @@ public sealed class ThumbnailManager : IDisposable
                     // thumbnail would otherwise stay visible at login until a manual
                     // toggle re-ran ReapplySettings (issue #63 / follow-up to #61).
                     // Applied last so the MoveTo/Resize above can't re-show it.
-                    if (IsCharacterUserHidden(window.CharacterName) || _thumbnailsHidden || _primaryHidden)
+                    if (IsCharacterUserHidden(window.CharacterName) || _thumbnailsHidden || PrimarySuppressed)
                         thumbWindow.HideWithOverlay();
                 }
             }
@@ -1008,7 +1024,7 @@ public sealed class ThumbnailManager : IDisposable
         // app held focus during the Settings session.
         Application.Current?.Dispatcher.BeginInvoke(new Action(() =>
         {
-            if (_thumbnailsHidden || _primaryHidden) return;
+            if (_thumbnailsHidden || PrimarySuppressed) return;
             foreach (var (_, thumb) in _thumbnails)
                 thumb.ShowDwmOnly();
             foreach (var (_, sw) in _statWindows)
@@ -1543,7 +1559,7 @@ public sealed class ThumbnailManager : IDisposable
             {
                 _iconicHwnds.TryRemove(eveHwnd, out _);
                 thumb.ClearFrozenFrame();
-                if (!_thumbnailsHidden && !_primaryHidden)
+                if (!_thumbnailsHidden && !PrimarySuppressed)
                     thumb.ShowDwmOnly(); // Restore live DWM preview.
             }
         }
@@ -1560,12 +1576,12 @@ public sealed class ThumbnailManager : IDisposable
         bool gpuFreeze = staticAll || suspendBg;
         _frozenFrames?.SetCaptureInterval(staticAll
             ? TimeSpan.FromSeconds(1)
-            : TimeSpan.FromSeconds(5));
+            : TimeSpan.FromSeconds(_overviewCombined?3:5));
         // Only run the periodic PrintWindow capture when a GPU-saving mode actually
         // needs continuous frames. Otherwise the large-bitmap churn (esp. many 4K
         // clients) drives a periodic GC pause that micro-stutters the mouse. Normal
         // minimize→frozen-frame is still covered by the eager MINIMIZESTART hook.
-        _frozenFrames?.SetPeriodicCaptureEnabled(gpuFreeze);
+        _frozenFrames?.SetPeriodicCaptureEnabled(gpuFreeze || _overviewCapture);
         if (gpuFreeze != _lastGpuFreezeState)
         {
             foreach (var (eveHwnd, thumb) in _thumbnails)
@@ -1580,7 +1596,7 @@ public sealed class ThumbnailManager : IDisposable
                 else
                 {
                     thumb.ClearFrozenFrame();
-                    if (!_thumbnailsHidden && !_primaryHidden)
+                    if (!_thumbnailsHidden && !PrimarySuppressed)
                         thumb.ShowDwmOnly();
                 }
             }
@@ -1627,7 +1643,7 @@ public sealed class ThumbnailManager : IDisposable
                         thumb.HideWithOverlay();
                 }
                 else if (!_thumbnailsHidden &&
-                         !_primaryHidden &&
+                         !PrimarySuppressed &&
                          !charHidden &&
                          !willHideAsActive)
                 {
@@ -1672,7 +1688,7 @@ public sealed class ThumbnailManager : IDisposable
             {
                 bool charHidden = !string.IsNullOrEmpty(thumb.CharacterName)
                     && s.ThumbnailVisibility.TryGetValue(thumb.CharacterName, out var vf) && vf != 0;
-                if (!_thumbnailsHidden && !_primaryHidden && !charHidden)
+                if (!_thumbnailsHidden && !PrimarySuppressed && !charHidden)
                     thumb.ShowWithOverlay();
             }
         }
@@ -1790,7 +1806,7 @@ public sealed class ThumbnailManager : IDisposable
         bool hideActiveNow =
             s.HideActiveThumbnail &&
             !_thumbnailsHidden &&
-            !_primaryHidden &&
+            !PrimarySuppressed &&
             !_primaryHiddenByFocus;
         if (hideActiveNow)
         {
@@ -1814,7 +1830,7 @@ public sealed class ThumbnailManager : IDisposable
             // every thumbnail it may have hidden, minus explicit per-char
             // Visibility-tab hides and the global hide-all states.
             if (!_thumbnailsHidden &&
-                !_primaryHidden &&
+                !PrimarySuppressed &&
                 !_primaryHiddenByFocus)
             {
                 foreach (var (_, thumb) in _thumbnails)
@@ -3194,7 +3210,7 @@ public sealed class ThumbnailManager : IDisposable
         {
             foreach (var (_, thumb) in _thumbnails)
             {
-                if (_thumbnailsHidden)
+                if (_thumbnailsHidden || PrimarySuppressed)
                     thumb.HideWithOverlay();
                 else
                     thumb.ShowWithOverlay();
@@ -3210,7 +3226,7 @@ public sealed class ThumbnailManager : IDisposable
             // Also toggle stat overlay windows
             foreach (var (_, sw) in _statWindows)
             {
-                sw.Visibility = _thumbnailsHidden
+                sw.Visibility = (_thumbnailsHidden || PrimarySuppressed)
                     ? System.Windows.Visibility.Collapsed
                     : System.Windows.Visibility.Visible;
             }
@@ -3234,7 +3250,7 @@ public sealed class ThumbnailManager : IDisposable
         {
             foreach (var (_, thumb) in _thumbnails)
             {
-                if (_primaryHidden)
+                if (PrimarySuppressed)
                     thumb.HideWithOverlay();
                 else
                     thumb.ShowWithOverlay();
@@ -3242,7 +3258,7 @@ public sealed class ThumbnailManager : IDisposable
             // Also toggle stat overlay windows with primary
             foreach (var (_, sw) in _statWindows)
             {
-                sw.Visibility = _primaryHidden
+                sw.Visibility = (_thumbnailsHidden || PrimarySuppressed)
                     ? System.Windows.Visibility.Collapsed
                     : System.Windows.Visibility.Visible;
             }

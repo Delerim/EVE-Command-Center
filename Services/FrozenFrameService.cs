@@ -32,6 +32,7 @@ public sealed class FrozenFrameService : IDisposable
     private WinEventHookService? _winEvents;
     private bool _disposed;
     private int _cursor;
+    public int MaximumFrameWidth { get; set; }
     private readonly Func<IntPtr, Bitmap?> _capture;
     private readonly Func<IntPtr, bool> _canCapture;
 
@@ -116,6 +117,11 @@ public sealed class FrozenFrameService : IDisposable
             lock (_gate) if (_disposed || capture.Forgotten) return;
             if (!_canCapture(hwnd)) return;
             bitmap = _capture(hwnd);
+            int width=MaximumFrameWidth;
+            if(bitmap!=null && width>0 && bitmap.Width>width) {
+                var small=new Bitmap(bitmap,width,Math.Max(1,(int)((double)bitmap.Height*width/bitmap.Width)));
+                bitmap.Dispose();bitmap=small;
+            }
             lock (_gate)
             {
                 if (_disposed || capture.Forgotten || bitmap == null || !_canCapture(hwnd)) return;

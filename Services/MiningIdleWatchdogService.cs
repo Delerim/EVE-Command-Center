@@ -40,6 +40,8 @@ public sealed class MiningDashboardPreferences
     // Characters not yet present in this list append automatically.
     public List<string> FleetTileOrder { get; set; } = new();
 
+    public bool CombinedCharacterOverview { get; set; }
+    public bool CharacterOverviewMiningMode { get; set; }
     public bool UseFleetTileWall { get; set; } = true;
     public bool AutoShowFleetOverview { get; set; } = true;
 

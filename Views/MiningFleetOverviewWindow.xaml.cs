@@ -19,6 +19,7 @@ public partial class MiningFleetOverviewWindow : Window
     private readonly CloudBackupCoordinator _cloudBackupCoordinator =
         CloudBackupCoordinator.Attach();
     private readonly StatTrackerService _tracker;
+    private readonly Func<EveWindow[]> _clientSource;
     private readonly MiningIdleWatchdogService _watchdog;
     private readonly MiningDashboardPreferences _prefs;
     private readonly DispatcherTimer _timer;
@@ -40,6 +41,8 @@ public partial class MiningFleetOverviewWindow : Window
     private bool _plexMarketRefreshBusy;
 
     private bool _tileReorderMode;
+    private App? RunningApp => System.Windows.Application.Current as App;
+    private readonly Dictionary<IntPtr,(FrozenFrame frame,System.Windows.Media.ImageSource image)> _previewImages=new();
     private System.Windows.Point _tileDragStart;
     private string? _tileDragCharacter;
 
@@ -52,8 +55,9 @@ public partial class MiningFleetOverviewWindow : Window
     public MiningFleetOverviewWindow(
         StatTrackerService tracker,
         MiningIdleWatchdogService watchdog,
-        MiningDashboardPreferences prefs)
+        MiningDashboardPreferences prefs, Func<EveWindow[]>? clientSource = null)
     {
+        _clientSource=clientSource??(()=>RunningApp?.OverviewClients??Array.Empty<EveWindow>());
         InitializeComponent();
         BackgroundOperations.Current.Access.Changed += UpdateAccess;
         Closed += (_, _) => BackgroundOperations.Current.Access.Changed -= UpdateAccess;
@@ -63,6 +67,9 @@ public partial class MiningFleetOverviewWindow : Window
         RockToggle.Content = tracker.RockTracking.Enabled ? "ROCKS ON" : "ROCKS OFF";
         _watchdog = watchdog;
         _prefs = prefs;
+        IsVisibleChanged += (_,_) => ApplyCombinedMode();
+        StateChanged += (_,_) => ApplyCombinedMode();
+        ApplyCombinedMode();
 
         Topmost = prefs.FleetOverviewTopmost;
         Opacity = Math.Clamp(prefs.FleetOverviewOpacityPercent, 55, 100) / 100.0;
@@ -132,6 +139,8 @@ public partial class MiningFleetOverviewWindow : Window
         Closed += (_, _) =>
         {
             _timer.Stop();
+            RunningApp?.OverviewThumbnails?.SetOverviewCombined(false);
+            _previewImages.Clear();
             _pilotIntelTimer.Stop();
             _backgroundPilots.Changed -= ApplyBackgroundPilotIntel;
             _plexMarketTimer.Stop();
@@ -470,10 +479,11 @@ public partial class MiningFleetOverviewWindow : Window
                     $"{pair.Key}: manual {mode} enabled | " + (pair.Value.ShieldBoost.Configured ? pair.Value.ShieldBoost.SourceText : "fallback assumed 19.7%; burst fit not resolved");
             }
         }
-        foreach (var character in _tracker.GetMiningDashboardCharacters())
+        var clients=_clientSource();
+        foreach (var character in (_prefs.CombinedCharacterOverview ? clients.Select(c=>c.CharacterName).Distinct(StringComparer.OrdinalIgnoreCase) : _tracker.GetMiningDashboardCharacters()))
         {
             var s = _tracker.GetSnapshot(character);
-            if (s.MiningCycleCount <= 0 &&
+            if (!_prefs.CombinedCharacterOverview && s.MiningCycleCount <= 0 &&
                 string.IsNullOrWhiteSpace(s.CurrentOre))
                 continue;
 
@@ -946,12 +956,21 @@ public partial class MiningFleetOverviewWindow : Window
 
         int minerCount = ordered.Count;
 
-        const double cardWidth = 216;
+        double cardWidth = _prefs.CombinedCharacterOverview && !_prefs.CharacterOverviewMiningMode ? 180 : 216;
         const double cardGap = 6;
         const double windowChrome = 44;
 
-        foreach (var card in ordered)
+        foreach (var card in ordered) {
             card.CardWidth = cardWidth;
+            bool compact=_prefs.CombinedCharacterOverview&&!_prefs.CharacterOverviewMiningMode;
+            card.MiningVisibility=compact?Visibility.Collapsed:Visibility.Visible;
+            card.PreviewVisibility=compact?Visibility.Visible:Visibility.Collapsed;
+            if(compact)card.RockVisibility=Visibility.Collapsed;
+            var client=clients.FirstOrDefault(c=>string.Equals(c.CharacterName,card.Character,StringComparison.OrdinalIgnoreCase));
+            card.IsActive=compact&&client!=null&&client.Hwnd==EveCommandCenter.Interop.User32.GetForegroundWindow();
+            if(compact&&client!=null) {card.Preview=PreviewImage(client.Hwnd);card.PreviewNote=EveCommandCenter.Interop.User32.IsIconic(client.Hwnd)?"Minimized ? last snapshot":card.Preview==null?"Waiting for preview":"Preview snapshot ? click to switch";}
+        }
+        foreach(var hwnd in _previewImages.Keys.Where(h=>!clients.Any(c=>c.Hwnd==h)).ToArray())_previewImages.Remove(hwnd);
 
         ApplyResizeMode();
 
@@ -965,6 +984,7 @@ public partial class MiningFleetOverviewWindow : Window
                 : 620;
 
             desiredWidth = Math.Max(MinWidth, desiredWidth);
+            if(_prefs.CombinedCharacterOverview)desiredWidth=Math.Min(desiredWidth,Math.Max(MinWidth,SystemParameters.WorkArea.Width));
 
             if (Math.Abs(Width - desiredWidth) > 1)
                 Width = desiredWidth;
@@ -990,8 +1010,8 @@ public partial class MiningFleetOverviewWindow : Window
         DayText.Text = $"DAY {_tracker.GetMiningDayLabel()}";
         UpdatedText.Text =
             _tileReorderMode
-                ? "Drag tiles to reorder | click DONE when finished"
-                : $"{cards.Count} miners | {DateTime.Now:HH:mm:ss}";
+                ? (_prefs.CombinedCharacterOverview?"Drag tiles ? Tools ? Reorder characters to finish":"Drag tiles to reorder | click DONE when finished")
+                : $"{cards.Count} {(_prefs.CombinedCharacterOverview?"clients":"miners")} | {DateTime.Now:HH:mm:ss}";
     }
 
     private void ApplyResizeMode()
@@ -1023,11 +1043,49 @@ public partial class MiningFleetOverviewWindow : Window
             if (MinerScroll != null)
             {
                 MinerScroll.HorizontalScrollBarVisibility =
-                    System.Windows.Controls.ScrollBarVisibility.Disabled;
+                    _prefs.CombinedCharacterOverview?System.Windows.Controls.ScrollBarVisibility.Auto:System.Windows.Controls.ScrollBarVisibility.Disabled;
             }
         }
     }
 
+    private System.Windows.Media.ImageSource? PreviewImage(IntPtr hwnd)
+    {
+        var frame=RunningApp?.OverviewThumbnails?.OverviewFrame(hwnd);
+        if(frame==null)return null;
+        if(_previewImages.TryGetValue(hwnd,out var cached)&&ReferenceEquals(cached.frame,frame))return cached.image;
+        using var bitmap=frame.Copy();if(bitmap==null)return cached.image;
+        using var stream=new System.IO.MemoryStream();bitmap.Save(stream,System.Drawing.Imaging.ImageFormat.Bmp);stream.Position=0;
+        var image=new System.Windows.Media.Imaging.BitmapImage();image.BeginInit();image.CacheOption=System.Windows.Media.Imaging.BitmapCacheOption.OnLoad;image.StreamSource=stream;image.DecodePixelWidth=360;image.EndInit();image.Freeze();
+        _previewImages[hwnd]=(frame,image);return image;
+    }
+    private void ApplyCombinedMode()
+    {
+        bool combined=_prefs.CombinedCharacterOverview;
+        RunningApp?.OverviewThumbnails?.SetOverviewCombined(combined && IsVisible && WindowState!=WindowState.Minimized,!_prefs.CharacterOverviewMiningMode);
+        FullActions.Visibility=combined?Visibility.Collapsed:Visibility.Visible;
+        CompactActions.Visibility=combined?Visibility.Visible:Visibility.Collapsed;
+        LiveBadge.Visibility=DayText.Visibility=PlexMarketBorder.Visibility=combined?Visibility.Collapsed:Visibility.Visible;
+        ModeButton.Content=_prefs.CharacterOverviewMiningMode?"MODE: MINING":"MODE: CHARACTERS";
+    }
+    private void Combine_Click(object sender,RoutedEventArgs e)
+    {
+        _prefs.CombinedCharacterOverview=!_prefs.CombinedCharacterOverview;
+        ApplyCombinedMode();MiningDashboardPreferencesStore.Save(_prefs);RefreshCards();
+    }
+    private void Mode_Click(object sender,RoutedEventArgs e)
+    {
+        _prefs.CharacterOverviewMiningMode=!_prefs.CharacterOverviewMiningMode;
+        ApplyCombinedMode();MiningDashboardPreferencesStore.Save(_prefs);RefreshCards();
+    }
+    private void Tools_Click(object sender,RoutedEventArgs e)
+    {
+        if(sender is System.Windows.Controls.Button b&&b.ContextMenu is {} menu){menu.PlacementTarget=b;menu.IsOpen=true;}
+    }
+    private void Tile_MouseLeftButtonUp(object sender,MouseButtonEventArgs e)
+    {
+        if(!_prefs.CombinedCharacterOverview||_tileReorderMode||sender is not FrameworkElement element||element.DataContext is not FleetCard card||FindVisualParent<System.Windows.Controls.Button>(e.OriginalSource as DependencyObject)!=null)return;
+        RunningApp?.OverviewThumbnails?.ActivateEveWindow(IntPtr.Zero,card.Character);e.Handled=true;
+    }
     private static string AgeText(double seconds)
     {
         if (seconds < 60) return $"{Math.Round(seconds):0}s";
@@ -1459,7 +1517,12 @@ public partial class MiningFleetOverviewWindow : Window
 
     private sealed class FleetCard
     {
-        public Visibility RockVisibility { get; init; }
+        public bool IsActive {get;set;}
+        public Visibility MiningVisibility { get; set; } = Visibility.Visible;
+        public Visibility PreviewVisibility { get; set; } = Visibility.Collapsed;
+        public System.Windows.Media.ImageSource? Preview { get; set; }
+        public string PreviewNote { get; set; }="";
+        public Visibility RockVisibility { get; set; }
         public string Rock1Text { get; init; } = "";
         public string Rock2Text { get; init; } = "";
         public string Rock1Note { get; init; } = "";

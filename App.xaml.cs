@@ -33,6 +33,8 @@ public partial class App : Application
     private WindowDiscoveryService? _discovery;
     private WinEventHookService? _winEvents;
     private ThumbnailManager? _thumbnailManager;
+    internal ThumbnailManager? OverviewThumbnails => _thumbnailManager;
+    internal EveWindow[] OverviewClients => _discovery?.Windows.Values.ToArray() ?? Array.Empty<EveWindow>();
     private HotkeyService? _hotkeyService;
     private LogMonitorService? _logMonitor;
     private StatTrackerService? _statTracker;
@@ -760,7 +762,7 @@ public partial class App : Application
 
         // Compact fleet mining bar, inspired by the standalone tracker but fed
         // from Command Center's own live parser/watchdog.
-        _miningOverviewTrayItem = new ToolStripMenuItem("Mining Overview Bar")
+        _miningOverviewTrayItem = new ToolStripMenuItem("Character Overview Bar")
         {
             CheckOnClick = true,
             Checked = false
