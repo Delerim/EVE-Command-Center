@@ -8,6 +8,9 @@ internal static partial class Program
         Check(catalog.Count>500&&catalog.All(x=>x.GroupName.Length>0),"Skill browser uses grouped bundled catalogue without waiting for ESI");
         var prior=new EvePilotDashboard {Summary=new(){CharacterId=1,WalletBalance=123,TotalSp=10},TrainingProfile=new(){BonusRemaps=2}};
         var core=new EvePilotDashboard {CoreOnly=true,Summary=new(){CharacterId=1,TotalSp=20}};
+        Check(!new EveTrainingProfile().ImplantStatus.Contains("reconnect"), "Unloaded implant data never requests authorization");
+        Check(new EveTrainingProfile { ImplantPermissionGranted=true }.ImplantStatus.Contains("access granted"), "Failed implant fetch retains granted authorization status");
+        Check(new EveTrainingProfile { ImplantPermissionGranted=false }.ImplantStatus.Contains("permission missing"), "Only confirmed missing implant permission requests reconnect");
         var merged=PilotDashboardProgress.Merge(core,prior);
         Check(merged.Summary.TotalSp==20&&merged.Summary.WalletBalance==123&&merged.TrainingProfile.BonusRemaps==2,"Partial skill refresh preserves previously loaded wallet and attributes");
         Check(ReferenceEquals(PilotDashboardProgress.Merge(core,new(){Summary=new(){CharacterId=2}}),core),"Partial pilot snapshots cannot inherit another character's data");

@@ -1293,6 +1293,7 @@ public sealed class EveSsoService
                 pilot,
                 "esi-clones.read_implants.v1");
 
+        bool implantPermissionGranted = canReadImplants;
         var implantViews = new List<EveImplantView>();
 
         int charismaBonus = 0;
@@ -1451,6 +1452,7 @@ public sealed class EveSsoService
                 .ToArray(),
             BonusRemaps = current.BonusRemaps ?? 0,
             StandardRemapText = standardRemapText,
+            ImplantPermissionGranted = implantPermissionGranted,
             ImplantDataAvailable = canReadImplants
         };
     }

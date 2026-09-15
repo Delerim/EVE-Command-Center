@@ -71,6 +71,11 @@ public sealed class EveTrainingProfile
     public int BonusRemaps { get; init; }
     public string StandardRemapText { get; init; } = "";
     public bool ImplantDataAvailable { get; init; }
+    public bool? ImplantPermissionGranted { get; init; }
+    public string ImplantStatus => ImplantDataAvailable ? "Implants loaded" : ImplantPermissionGranted == false
+        ? "Implant permission missing from the saved authorization; reconnect this character."
+        : ImplantPermissionGranted == true ? "Implant access granted; data unavailable. Retry Refresh after the ESI cooldown."
+        : "Implant data pending refresh; permission has not been checked.";
 
     public int GetTotal(int dogmaAttributeId)
     {

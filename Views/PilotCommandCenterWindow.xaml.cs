@@ -289,6 +289,9 @@ public partial class PilotCommandCenterWindow : Window
                 catch (Exception ex) when (ex is not OperationCanceledException) { EsiDiagnostics.Write("Pilot snapshot read: "+ex.GetType().Name); }
             }
             SetStatus("Loading "+card.CharacterName+"; saved details stay visible while ESI refreshes.");
+            var savedProfile = (await _sso.LoadPilotsAsync()).FirstOrDefault(p => p.CharacterId == card.CharacterId);
+            token.ThrowIfCancellationRequested();
+            if (savedProfile != null) card.Profile = savedProfile;
             var data=await _sso.GetDashboardAsync(card.Profile,token,Show);
             await Show(data);
         }
@@ -578,7 +581,7 @@ public partial class PilotCommandCenterWindow : Window
             ShowAllImplantsToggle.Visibility =
                 Visibility.Collapsed;
             ImplantAccessText.Text =
-                "IMPLANTS LOCKED | Add Character again and select this pilot to grant implant access.";
+                _trainingProfile.ImplantStatus;
             return;
         }
 
@@ -900,6 +903,8 @@ public partial class PilotCommandCenterWindow : Window
         int secondary =
             profile.GetTotal(secondaryAttributeId);
 
+        if (primary <= 0 || secondary <= 0)
+            return new AlignmentPresentation(double.NaN, double.NaN, false);
         double rate =
             primary + secondary / 2.0;
 
@@ -1357,7 +1362,7 @@ public partial class PilotCommandCenterWindow : Window
         public string AttributePriority { get; }
         public string AttributeGuidance { get; }
         public string AlignmentText =>
-            $"{TrainingRate:0.0} SP/min | {AlignmentPercent:0}%";
+            double.IsNaN(TrainingRate) ? "Attributes pending refresh" : $"{TrainingRate:0.0} SP/min | {AlignmentPercent:0}%";
         public string AlignmentForeground =>
             IsOffMap
                 ? "#E7B85A"
@@ -1477,7 +1482,7 @@ public partial class PilotCommandCenterWindow : Window
         public string AttributePriority { get; }
         public string AttributeGuidance { get; }
         public string AlignmentText =>
-            $"{TrainingRate:0.0} SP/min | {AlignmentPercent:0}%";
+            double.IsNaN(TrainingRate) ? "Attributes pending refresh" : $"{TrainingRate:0.0} SP/min | {AlignmentPercent:0}%";
         public string AlignmentForeground =>
             IsOffMap
                 ? "#E7B85A"
