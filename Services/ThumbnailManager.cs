@@ -169,6 +169,7 @@ public sealed class ThumbnailManager : IDisposable
 
     // ── Process Monitor Integration ─────────────────────────────────
     private ProcessMonitorService? _processMonitor;
+    private readonly ConcurrentDictionary<int, double> _latestFpsByPid = new();
 
     public void SetProcessMonitor(ProcessMonitorService monitor)
     {
@@ -1503,7 +1504,9 @@ public sealed class ThumbnailManager : IDisposable
         {
             string? proc = null;
             try { proc = Interop.User32.GetProcessName(hwnd); } catch { }
-            if (!Interop.User32.IsEveOrAppProcess(proc))
+            // Command Center windows are a neutral focus stop for preview layout.
+            // Only an actual EVE client counts as EVE-focused for re-raise tracking.
+            if (!Interop.User32.IsEveProcessName(proc))
             {
                 _lastEveFocused = false;
                 _lastZOrderHwnd = IntPtr.Zero;
@@ -1528,10 +1531,13 @@ public sealed class ThumbnailManager : IDisposable
         var fgHwnd = Interop.User32.GetForegroundWindow();
         var s = _settings.Settings;
 
-        // Check if EVE or our app is foreground
+        // Separate visibility context from EVE-client focus. Command Center windows
+        // keep previews alive, but must not trigger client z-order/topmost choreography.
         string? fgProc = null;
         try { fgProc = Interop.User32.GetProcessName(fgHwnd); } catch { }
-        bool eveFocused = Interop.User32.IsEveOrAppProcess(fgProc);
+        bool eveClientFocused = Interop.User32.IsEveProcessName(fgProc);
+        bool appFocused = Interop.User32.IsAppProcessName(fgProc);
+        bool previewContextFocused = eveClientFocused || appFocused;
 
         // Per-HWND iconic state — drives the live-DWM ↔ frozen-frame swap.
         // When a source EVE window becomes iconic, DWM composes nothing into
@@ -1566,7 +1572,7 @@ public sealed class ThumbnailManager : IDisposable
         // 1 s refresh is the user-visible "static thumbnail" rate, while
         // 5 s is the dormant safety cadence for the iconic-fallback path.
         bool staticAll = s.StaticThumbnails;
-        bool suspendBg = s.SuspendThumbnailsWhenBackground && !eveFocused;
+        bool suspendBg = s.SuspendThumbnailsWhenBackground && !previewContextFocused;
         bool gpuFreeze = staticAll || suspendBg;
         _frozenFrames?.SetCaptureInterval(staticAll
             ? TimeSpan.FromSeconds(1)
@@ -1615,7 +1621,7 @@ public sealed class ThumbnailManager : IDisposable
         // Visibility-tab hides are respected on restore. Stat overlays / PiPs follow
         // the focus-aware block below.
         bool anyEveExists = _thumbnails.Count > 0;
-        bool appVisibleContext = eveFocused || _settingsOpen;
+        bool appVisibleContext = previewContextFocused || _settingsOpen;
 
         if (s.HideThumbnailsOnLostFocus)
         {
@@ -1656,7 +1662,7 @@ public sealed class ThumbnailManager : IDisposable
             // overlay entirely. HideStatsOnLostFocus is the legacy opt-in for
             // users who really do want them to disappear on focus loss.
             bool statsVisibleByFocus = !s.HideStatsOnLostFocus
-                || eveFocused || _settingsOpen;
+                || previewContextFocused || _settingsOpen;
             var targetVisibility = anyEveExists && statsVisibleByFocus
                                    && !_thumbnailsHidden && !_primaryHidden
                 ? Visibility.Visible
@@ -1726,7 +1732,7 @@ public sealed class ThumbnailManager : IDisposable
         // race when an EVE client re-activates and gets stuck behind it (confirmed by
         // LittlePhish). Always-On-Top keeps them topmost permanently (over everything).
         bool desiredTopmost = s.ShowThumbnailsAlwaysOnTop
-                              || (s.KeepThumbnailsAboveClients && eveFocused);
+                              || (s.KeepThumbnailsAboveClients && eveClientFocused);
         // On a CHANGE of the desired state, re-assert UNCONDITIONALLY on every window
         // (don't trust the cached _isTopmost guard): a freshly-launched thumbnail —
         // or its separate text-overlay window — can end up OS-topmost while the cache
@@ -1736,24 +1742,29 @@ public sealed class ThumbnailManager : IDisposable
         // field so the synchronous _lastEveFocused snapshot can't defeat it. When the
         // desired state is unchanged, fall back to the per-window guard so newly
         // created thumbnails still converge without re-asserting everything each sweep.
-        bool topmostChanged = _lastAppliedTopmost != desiredTopmost;
-        _lastAppliedTopmost = desiredTopmost;
-        foreach (var (_, thumb) in _thumbnails)
-        {
-            if (topmostChanged || thumb.Topmost != desiredTopmost) thumb.SetTopmost(desiredTopmost);
-        }
-        foreach (var (_, sw) in _statWindows)
-        {
-            if (topmostChanged || sw.Topmost != desiredTopmost) sw.Topmost = desiredTopmost;
-        }
-        foreach (var (_, pip) in _secondaryThumbnails)
-        {
-            if (topmostChanged || pip.Topmost != desiredTopmost) pip.SetTopmost(desiredTopmost);
-        }
+        bool preserveTopmostForAppFocus =
+            appFocused && !eveClientFocused && !s.ShowThumbnailsAlwaysOnTop;
 
+        if (!preserveTopmostForAppFocus)
+        {
+            bool topmostChanged = _lastAppliedTopmost != desiredTopmost;
+            _lastAppliedTopmost = desiredTopmost;
+            foreach (var (_, thumb) in _thumbnails)
+            {
+                if (topmostChanged || thumb.Topmost != desiredTopmost) thumb.SetTopmost(desiredTopmost);
+            }
+            foreach (var (_, sw) in _statWindows)
+            {
+                if (topmostChanged || sw.Topmost != desiredTopmost) sw.Topmost = desiredTopmost;
+            }
+            foreach (var (_, pip) in _secondaryThumbnails)
+            {
+                if (topmostChanged || pip.Topmost != desiredTopmost) pip.SetTopmost(desiredTopmost);
+            }
+        }
         // One-time BringToFront when EVE gains focus (false→true transition).
         // Runs AFTER the SetTopmost flip above so BringToFront uses HWND_TOPMOST.
-        if (eveFocused && !_lastEveFocused && !_suppressTopmost)
+        if (eveClientFocused && !_lastEveFocused && !_suppressTopmost)
         {
             foreach (var (_, thumb) in _thumbnails)
                 thumb.BringToFront();
@@ -1765,7 +1776,7 @@ public sealed class ThumbnailManager : IDisposable
             foreach (var (_, sw) in _statWindows)
                 sw.BringToFront();
         }
-        _lastEveFocused = eveFocused;
+        _lastEveFocused = eveClientFocused;
 
         // Clear the alert badge of whichever EVE window is currently foreground.
         // Hoisted above the cycle-shield / no-change early-returns below because
@@ -1854,7 +1865,7 @@ public sealed class ThumbnailManager : IDisposable
         // re-asserts HWND_TOPMOST) so a re-activated client can't leave it behind.
         // Default OFF keeps the original change-gated single re-raise for everyone else.
         bool clientFocusChanged = fgHwnd != _lastZOrderHwnd;
-        if (eveFocused && fgIsTrackedClient && !_suppressTopmost
+        if (eveClientFocused && fgIsTrackedClient && !_suppressTopmost
             && (clientFocusChanged || s.KeepThumbnailsAboveClients))
         {
             _lastZOrderHwnd = fgHwnd;
@@ -2313,9 +2324,10 @@ public sealed class ThumbnailManager : IDisposable
     private void UpdateFpsOverlays()
     {
         bool isEnabled = _settings.Settings.ShowRtssFps;
-        
+
         if (!isEnabled)
         {
+            _latestFpsByPid.Clear();
             foreach (var (_, thumb) in _thumbnails)
             {
                 thumb.UpdateFpsStats(0, false);
@@ -2330,15 +2342,16 @@ public sealed class ThumbnailManager : IDisposable
             int pid = thumb.GetProcessId();
             if (pid > 0 && allFps.TryGetValue(pid, out double fps))
             {
+                _latestFpsByPid[pid] = fps;
                 thumb.UpdateFpsStats(fps, true);
             }
             else
             {
+                if (pid > 0) _latestFpsByPid.TryRemove(pid, out _);
                 thumb.UpdateFpsStats(0, false);
             }
         }
     }
-
     // ── System Name Updates ─────────────────────────────────────────
 
     public void UpdateCharacterSystem(string characterName, string systemName)
@@ -2598,7 +2611,14 @@ public sealed class ThumbnailManager : IDisposable
         var info = _alertBadges.AddOrUpdate(
             characterName,
             _ => new AlertBadgeInfo { Count = 1, TopSeverity = severity },
-            (_, existing) => { existing.Count++; return existing; });
+            (_, existing) =>
+            {
+                existing.Count++;
+                if (SeverityRank.GetValueOrDefault(severity, 0) >
+                    SeverityRank.GetValueOrDefault(existing.TopSeverity, 0))
+                    existing.TopSeverity = severity;
+                return existing;
+            });
 
         DiagnosticsService.LogAlerts($"[Badge] INCREMENTED — '{characterName}' count={info.Count} severity={severity}");
         ApplyBadgeToThumbnail(characterName, info.Count);
@@ -3139,6 +3159,61 @@ public sealed class ThumbnailManager : IDisposable
     public bool HasTrackedClients() => !_thumbnails.IsEmpty;
 
     /// <summary>Get the EVE window handle for a given character name.</summary>
+    /// <summary>
+    /// Lightweight snapshot used by the combined Character Overview. It mirrors
+    /// the same system/process/FPS sources and unread alert state as the separate
+    /// previews without creating another monitor or alert pipeline.
+    /// </summary>
+    public OverviewPreviewTelemetry GetOverviewTelemetry(string characterName)
+    {
+        string systemName =
+            _charSystems.TryGetValue(characterName ?? "", out var system)
+                ? system
+                : "";
+
+        IntPtr hwnd = GetHwndForCharacter(characterName ?? "");
+        int pid = 0;
+        if (hwnd != IntPtr.Zero)
+        {
+            Interop.User32.GetWindowThreadProcessId(hwnd, out uint rawPid);
+            pid = (int)rawPid;
+        }
+
+        string processText = "";
+        if (_settings.Settings.ShowProcessStats &&
+            pid > 0 &&
+            _processMonitor?.GetStats(pid) is { } stats)
+        {
+            processText =
+                $"CPU {stats.CpuPercent:F0}%  RAM {stats.RamMB}MB" +
+                (stats.VramMB > 0 ? $"  VRAM {stats.VramMB}MB" : "");
+        }
+
+        string fpsText = "";
+        if (_settings.Settings.ShowRtssFps &&
+            pid > 0 &&
+            _latestFpsByPid.TryGetValue(pid, out double fps) &&
+            fps > 0)
+        {
+            fpsText = $"{fps:F1} fps";
+        }
+
+        _alertBadges.TryGetValue(characterName ?? "", out var badge);
+        _alertFlashChars.TryGetValue(characterName ?? "", out var flash);
+
+        string severity =
+            flash?.Severity ??
+            badge?.TopSeverity ??
+            "";
+
+        return new OverviewPreviewTelemetry(
+            systemName,
+            processText,
+            fpsText,
+            badge?.Count ?? 0,
+            severity,
+            flash != null);
+    }
     public IntPtr GetHwndForCharacter(string characterName)
     {
         foreach (var (hwnd, thumb) in _thumbnails)
@@ -4158,6 +4233,13 @@ public sealed class ThumbnailManager : IDisposable
 }
 
 /// <summary>Tracks per-character alert flash state with severity-based timing.</summary>
+public readonly record struct OverviewPreviewTelemetry(
+    string SystemName,
+    string ProcessText,
+    string FpsText,
+    int AlertCount,
+    string AlertSeverity,
+    bool AlertActive);
 public class AlertFlashInfo
 {
     public DateTime StartTime { get; set; }

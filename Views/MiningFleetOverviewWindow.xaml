@@ -268,6 +268,89 @@
                                         <RowDefinition Height="Auto"/>
                                     <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
 
+                                    <Border Grid.RowSpan="8"
+                                            Margin="-5,-3,-5,-3"
+                                            CornerRadius="6"
+                                            BorderThickness="2"
+                                            Background="Transparent"
+                                            IsHitTestVisible="False"
+                                            Panel.ZIndex="20">
+                                        <Border.Style>
+                                            <Style TargetType="Border">
+                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                <Setter Property="Opacity" Value="0.55"/>
+                                                <Setter Property="BorderBrush" Value="#66BFD9"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding AlertPending}" Value="True">
+                                                        <Setter Property="Visibility" Value="Visible"/>
+                                                    </DataTrigger>
+                                                    <DataTrigger Binding="{Binding AlertSeverity}" Value="warning">
+                                                        <Setter Property="BorderBrush" Value="#E0AE4F"/>
+                                                    </DataTrigger>
+                                                    <DataTrigger Binding="{Binding AlertSeverity}" Value="critical">
+                                                        <Setter Property="BorderBrush" Value="#EF6673"/>
+                                                    </DataTrigger>
+                                                    <DataTrigger Binding="{Binding AlertSeverity}" Value="info">
+                                                        <Setter Property="BorderBrush" Value="#66BFD9"/>
+                                                    </DataTrigger>
+                                                    <DataTrigger Binding="{Binding AlertActive}" Value="True">
+                                                        <Setter Property="Visibility" Value="Visible"/>
+                                                        <DataTrigger.EnterActions>
+                                                            <BeginStoryboard Name="AlertPulseStoryboard">
+                                                                <Storyboard RepeatBehavior="Forever" AutoReverse="True">
+                                                                    <DoubleAnimation Storyboard.TargetProperty="Opacity"
+                                                                                     From="0.35" To="1"
+                                                                                     Duration="0:0:0.45"/>
+                                                                </Storyboard>
+                                                            </BeginStoryboard>
+                                                        </DataTrigger.EnterActions>
+                                                        <DataTrigger.ExitActions>
+                                                            <RemoveStoryboard BeginStoryboardName="AlertPulseStoryboard"/>
+                                                        </DataTrigger.ExitActions>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Border.Style>
+                                    </Border>
+
+                                    <Border Grid.Row="0"
+                                            HorizontalAlignment="Right"
+                                            VerticalAlignment="Top"
+                                            MinWidth="18"
+                                            Height="18"
+                                            Padding="4,0"
+                                            Margin="0,-4,-4,0"
+                                            CornerRadius="9"
+                                            BorderThickness="1"
+                                            IsHitTestVisible="False"
+                                            Panel.ZIndex="30">
+                                        <Border.Style>
+                                            <Style TargetType="Border">
+                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                <Setter Property="Background" Value="#D9233942"/>
+                                                <Setter Property="BorderBrush" Value="#66BFD9"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding AlertPending}" Value="True">
+                                                        <Setter Property="Visibility" Value="Visible"/>
+                                                    </DataTrigger>
+                                                    <DataTrigger Binding="{Binding AlertSeverity}" Value="warning">
+                                                        <Setter Property="Background" Value="#D93A2F18"/>
+                                                        <Setter Property="BorderBrush" Value="#E0AE4F"/>
+                                                    </DataTrigger>
+                                                    <DataTrigger Binding="{Binding AlertSeverity}" Value="critical">
+                                                        <Setter Property="Background" Value="#D9411820"/>
+                                                        <Setter Property="BorderBrush" Value="#EF6673"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Border.Style>
+                                        <TextBlock Text="{Binding AlertBadgeText}"
+                                                   Foreground="#FFFFFF"
+                                                   FontSize="9"
+                                                   FontWeight="Bold"
+                                                   HorizontalAlignment="Center"
+                                                   VerticalAlignment="Center"/>
+                                    </Border>
                                     <Grid Grid.Row="0">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="34"/>
@@ -305,12 +388,19 @@
                                                            TextTrimming="CharacterEllipsis"/>
                                             </DockPanel>
 
-                                            <TextBlock Text="{Binding ShipText}"
-                                                       Foreground="#8DA9A2"
-                                                       FontSize="9.5"
-                                                       Margin="0,1,0,0"
-                                                       TextTrimming="CharacterEllipsis"
-                                                       ToolTip="{Binding ShipToolTip}"/>
+                                            <DockPanel Margin="0,1,0,0">
+                                                <TextBlock Text="{Binding SystemText}"
+                                                           DockPanel.Dock="Right"
+                                                           Foreground="#65B9D6"
+                                                           FontSize="9.5"
+                                                           Margin="6,0,0,0"
+                                                           TextTrimming="CharacterEllipsis"/>
+                                                <TextBlock Text="{Binding ShipText}"
+                                                           Foreground="#8DA9A2"
+                                                           FontSize="9.5"
+                                                           TextTrimming="CharacterEllipsis"
+                                                           ToolTip="{Binding ShipToolTip}"/>
+                                            </DockPanel>
                                         </StackPanel>
                                     </Grid>
 
@@ -345,11 +435,82 @@
                                         </StackPanel>
                                     </Grid>
 
-                                    <DockPanel Visibility="{Binding MiningVisibility}" Grid.Row="2" Margin="0,3,0,0"
-                                               ToolTip="{Binding CritToolTip}">
-                                        <TextBlock Text="CRIT " Foreground="#718D87" FontSize="10.5"/>
-                                        <TextBlock Text="{Binding CritText}" Foreground="#C8D8D4" FontSize="11.5"/>
-                                    </DockPanel>
+                                    <Grid Visibility="{Binding MiningVisibility}"
+                                          Grid.Row="2"
+                                          Margin="0,3,0,0"
+                                          ToolTip="{Binding CritToolTip}">
+                                        <Border CornerRadius="3"
+                                                BorderThickness="1"
+                                                Background="Transparent"
+                                                BorderBrush="Transparent"
+                                                IsHitTestVisible="False">
+                                            <Border.Style>
+                                                <Style TargetType="Border">
+                                                    <Setter Property="Background" Value="Transparent"/>
+                                                    <Setter Property="BorderBrush" Value="Transparent"/>
+                                                    <Setter Property="Opacity" Value="1"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding CritPulse}" Value="True">
+                                                            <Setter Property="Background" Value="#443B2F0C"/>
+                                                            <Setter Property="BorderBrush" Value="#E6C34F"/>
+                                                            <DataTrigger.EnterActions>
+                                                                <BeginStoryboard Name="CritPullPulseStoryboard">
+                                                                    <Storyboard RepeatBehavior="Forever" AutoReverse="True">
+                                                                        <DoubleAnimation Storyboard.TargetProperty="Opacity"
+                                                                                         From="0.58"
+                                                                                         To="1"
+                                                                                         Duration="0:0:0.28"/>
+                                                                    </Storyboard>
+                                                                </BeginStoryboard>
+                                                            </DataTrigger.EnterActions>
+                                                            <DataTrigger.ExitActions>
+                                                                <RemoveStoryboard BeginStoryboardName="CritPullPulseStoryboard"/>
+                                                            </DataTrigger.ExitActions>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Border.Style>
+                                        </Border>
+
+                                        <DockPanel>
+                                            <TextBlock DockPanel.Dock="Right"
+                                                       Text="&#9733; CRIT"
+                                                       Foreground="#FFD75E"
+                                                       FontSize="9"
+                                                       FontWeight="Bold"
+                                                       Margin="6,0,0,0">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding CritPulse}" Value="True">
+                                                                <Setter Property="Visibility" Value="Visible"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+
+                                            <TextBlock Text="CRIT "
+                                                       Foreground="#718D87"
+                                                       FontSize="10.5"/>
+
+                                            <TextBlock Text="{Binding CritText}"
+                                                       FontSize="11.5">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Setter Property="Foreground" Value="#C8D8D4"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding CritPulse}" Value="True">
+                                                                <Setter Property="Foreground" Value="#FFD75E"/>
+                                                                <Setter Property="FontWeight" Value="Bold"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+                                        </DockPanel>
+                                    </Grid>
 
                                     <Grid Visibility="{Binding MiningVisibility}" Grid.Row="3"
                                           Margin="0,2,0,0">
@@ -530,11 +691,66 @@
                                         <TextBlock Text="{Binding CombatHint}" Foreground="#78928E" FontSize="9" Margin="0,4,0,0"/>
                                     </StackPanel>
                                     <Grid Grid.Row="6" Visibility="{Binding PreviewVisibility}" Margin="0,5,0,0" Height="115" Background="#071013" ClipToBounds="True">
-                                        <Image Source="{Binding Preview}" Stretch="Uniform" Margin="0,0,0,18"/>
-                                        <local:OverviewLivePreview x:Name="LiveSurface" SourceHwnd="{Binding SourceHwnd}" Enabled="{Binding LivePreview}" Margin="0,0,0,18"/>
+                                        <Image Source="{Binding Preview}" Stretch="Uniform" Margin="0,0,0,32"/>
+                                        <local:OverviewLivePreview x:Name="LiveSurface" SourceHwnd="{Binding SourceHwnd}" Enabled="{Binding LivePreview}" Margin="0,0,0,32"/>
 
-                                        <Border Background="#C0071013" VerticalAlignment="Bottom" Padding="3,2"><TextBlock FontSize="9" Foreground="#A9CFC6" TextTrimming="CharacterEllipsis" Margin="0,0,34,0"><TextBlock.Style><Style TargetType="TextBlock"><Setter Property="Text" Value="{Binding PreviewNote}"/><Style.Triggers><DataTrigger Binding="{Binding LivePreview}" Value="True"><Setter Property="Text" Value="{Binding StateText, ElementName=LiveSurface}"/></DataTrigger></Style.Triggers></Style></TextBlock.Style></TextBlock></Border>
-                                        <Border VerticalAlignment="Bottom" HorizontalAlignment="Right" Background="#D019313D" Padding="3,1" IsHitTestVisible="False"><Border.Style><Style TargetType="Border"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding IsActive}" Value="True"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style></Border.Style><TextBlock Text="ACTIVE" Foreground="#9FD0FF" FontSize="8"/></Border>
+                                        <Border Background="#E0071013"
+                                                VerticalAlignment="Bottom"
+                                                Height="32"
+                                                Padding="4,2"
+                                                IsHitTestVisible="False">
+                                            <Grid>
+                                                <Grid.RowDefinitions>
+                                                    <RowDefinition Height="Auto"/>
+                                                    <RowDefinition Height="Auto"/>
+                                                </Grid.RowDefinitions>
+                                                <DockPanel Grid.Row="0">
+                                                    <TextBlock Text="{Binding PreviewFpsText}"
+                                                               DockPanel.Dock="Right"
+                                                               Foreground="#E78282"
+                                                               FontSize="8.5"
+                                                               Margin="6,0,0,0"/>
+                                                    <TextBlock FontSize="8.5"
+                                                               Foreground="#A9CFC6"
+                                                               TextTrimming="CharacterEllipsis">
+                                                        <TextBlock.Style>
+                                                            <Style TargetType="TextBlock">
+                                                                <Setter Property="Text" Value="{Binding PreviewNote}"/>
+                                                                <Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding LivePreview}" Value="True">
+                                                                        <Setter Property="Text" Value="{Binding StateText, ElementName=LiveSurface}"/>
+                                                                    </DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </TextBlock.Style>
+                                                    </TextBlock>
+                                                </DockPanel>
+                                                <TextBlock Grid.Row="1"
+                                                           Text="{Binding PreviewTelemetryText}"
+                                                           Foreground="#75D1BC"
+                                                           FontSize="8.5"
+                                                           TextTrimming="CharacterEllipsis"/>
+                                            </Grid>
+                                        </Border>
+
+                                        <Border VerticalAlignment="Top"
+                                                HorizontalAlignment="Right"
+                                                Background="#D019313D"
+                                                Padding="3,1"
+                                                Margin="2"
+                                                IsHitTestVisible="False">
+                                            <Border.Style>
+                                                <Style TargetType="Border">
+                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsActive}" Value="True">
+                                                            <Setter Property="Visibility" Value="Visible"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Border.Style>
+                                            <TextBlock Text="ACTIVE" Foreground="#9FD0FF" FontSize="8"/>
+                                        </Border>
                                     </Grid>
                                 </Grid>
                             </Border>

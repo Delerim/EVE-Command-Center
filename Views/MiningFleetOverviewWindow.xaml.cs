@@ -46,6 +46,11 @@ public partial class MiningFleetOverviewWindow : Window
     private System.Windows.Point _tileDragStart;
     private string? _tileDragCharacter;
 
+    private readonly Dictionary<string, int> _lastCritCountByCharacter =
+        new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, DateTime> _critPulseUntilUtc =
+        new(StringComparer.OrdinalIgnoreCase);
+
     private const string FleetTileDragFormat =
         "EVECommandCenter.FleetTileCharacter";
 
@@ -532,6 +537,23 @@ public partial class MiningFleetOverviewWindow : Window
             var state = _watchdog.GetState(character);
             var crit = _tracker.GetTodayMiningCritSummary(character);
 
+
+            bool critPulse = false;
+            if (_lastCritCountByCharacter.TryGetValue(character, out int previousCritCount))
+            {
+                if (crit.Crits > previousCritCount)
+                    _critPulseUntilUtc[character] = DateTime.UtcNow.AddSeconds(4);
+            }
+            _lastCritCountByCharacter[character] = crit.Crits;
+
+            if (_critPulseUntilUtc.TryGetValue(character, out DateTime critPulseUntil))
+            {
+                if (critPulseUntil > DateTime.UtcNow)
+                    critPulse = true;
+                else
+                    _critPulseUntilUtc.Remove(character);
+            }
+
             ObservedMiningRate droneAverage =
                 isOrca
                     ? _tracker.GetObservedMiningAverage(
@@ -819,6 +841,8 @@ public partial class MiningFleetOverviewWindow : Window
                 ActualText =
                     $"{Math.Max(0, displayActualRate).ToString("N1", CultureInfo.CurrentCulture)} m3/s",
                 CritText = crit.Cycles > 0 ? crit.ToString() : "-",
+
+                CritPulse = critPulse,
                 ValueText = s.SessionBestValue > 0
                     ? StatTrackerService.FormatNumber(s.SessionBestValue)
                     : "-",
@@ -1023,6 +1047,17 @@ public partial class MiningFleetOverviewWindow : Window
             card.SourceHwnd=client?.Hwnd??IntPtr.Zero;
             card.LivePreview=compact&&_prefs.CharacterOverviewLivePreview;
             card.IsActive=_prefs.CombinedCharacterOverview&&client!=null&&client.Hwnd==EveCommandCenter.Interop.User32.GetForegroundWindow();
+
+            var telemetry=RunningApp?.OverviewThumbnails?.GetOverviewTelemetry(card.Character) ?? default;
+            card.SystemText=string.IsNullOrWhiteSpace(telemetry.SystemName)?"System: -":"System: "+telemetry.SystemName;
+            card.PreviewFpsText=telemetry.FpsText??"";
+            card.PreviewTelemetryText=string.Join("  ",new[]{card.SystemText,telemetry.ProcessText??""}.Where(x=>!string.IsNullOrWhiteSpace(x)));
+            card.AlertCount=telemetry.AlertCount;
+            card.AlertPending=telemetry.AlertCount>0;
+            card.AlertActive=telemetry.AlertActive;
+            card.AlertSeverity=telemetry.AlertSeverity??"";
+            card.AlertBadgeText=telemetry.AlertCount>99?"99+":telemetry.AlertCount.ToString(CultureInfo.InvariantCulture);
+
             if(compact&&client!=null) {card.Preview=PreviewImage(client.Hwnd);card.PreviewNote=EveCommandCenter.Interop.User32.IsIconic(client.Hwnd)?"Minimized - last snapshot":card.LivePreview?"LIVE - click to switch":card.Preview==null?"Waiting for snapshot":"Snapshot - click to switch";}
         }
         foreach(var hwnd in _previewImages.Keys.Where(h=>!clients.Any(c=>c.Hwnd==h)).ToArray())_previewImages.Remove(hwnd);
@@ -1626,10 +1661,20 @@ public partial class MiningFleetOverviewWindow : Window
         public string PortraitUrl { get; set; } = "";
         public string ShipText { get; set; } = "";
         public string ShipToolTip { get; set; } = "";
+        public string SystemText { get; set; } = "";
+        public string PreviewTelemetryText { get; set; } = "";
+        public string PreviewFpsText { get; set; } = "";
+        public int AlertCount { get; set; }
+        public bool AlertPending { get; set; }
+        public bool AlertActive { get; set; }
+        public string AlertSeverity { get; set; } = "";
+        public string AlertBadgeText { get; set; } = "";
         public string Ore { get; set; } = "";
         public string BaseText { get; set; } = "";
         public string ActualText { get; set; } = "";
         public string CritText { get; set; } = "";
+
+        public bool CritPulse { get; set; }
         public string ValueText { get; set; } = "";
         public string BuybackText { get; set; } = "";
         public bool AlarmMuted { get; set; }

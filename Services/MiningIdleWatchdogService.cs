@@ -9,7 +9,7 @@ namespace EveCommandCenter.Services;
 
 public sealed class MiningDashboardPreferences
 {
-    public int PreferencesVersion { get; set; } = 9;
+    public int PreferencesVersion { get; set; } = 10;
 
     public bool JitaEnabled { get; set; } = true;
     public bool AmarrEnabled { get; set; } = true;
@@ -41,7 +41,7 @@ public sealed class MiningDashboardPreferences
     public List<string> FleetTileOrder { get; set; } = new();
 
     public bool CombinedCharacterOverview { get; set; }
-    public bool CharacterOverviewLivePreview { get; set; }
+    public bool CharacterOverviewLivePreview { get; set; } = true;
     public string CharacterOverviewCombatMode { get; set; } = "";
     public bool CharacterOverviewMiningMode { get; set; }
     public bool UseFleetTileWall { get; set; } = true;
@@ -166,6 +166,14 @@ public static class MiningDashboardPreferencesStore
                 changed = true;
             }
 
+
+            if (storedVersion < 10)
+            {
+                // Character mode now mirrors the live DWM preview experience by
+                // default. The PREVIEW button still lets the user choose Snapshot.
+                prefs.CharacterOverviewLivePreview = true;
+                changed = true;
+            }
             prefs.AlarmMutedCharacters ??= new List<string>();
             prefs.OrcaShieldBoostModes ??=
                 new Dictionary<string, string>(
@@ -175,7 +183,7 @@ public static class MiningDashboardPreferencesStore
             if (string.IsNullOrWhiteSpace(prefs.MarketOreFilter))
                 prefs.MarketOreFilter = "myhs";
 
-            prefs.PreferencesVersion = 9;
+            prefs.PreferencesVersion = 10;
             prefs.DashboardOpacityPercent = Math.Clamp(prefs.DashboardOpacityPercent, 55, 100);
             prefs.FleetOverviewOpacityPercent = Math.Clamp(prefs.FleetOverviewOpacityPercent, 55, 100);
 
