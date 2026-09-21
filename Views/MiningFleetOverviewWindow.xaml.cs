@@ -954,6 +954,21 @@ public partial class MiningFleetOverviewWindow : Window
         bool hasCustomOrder =
             savedIndex.Count > 0;
 
+        // Combined character previews must keep a stable physical tile order.
+        // Preserve the current on-screen sequence across refreshes unless the user
+        // explicitly saved a custom order. Live ship/intel changes must never move a
+        // card to a different click coordinate or force native preview recreation.
+        var existingCombinedIndex =
+            _prefs.CombinedCharacterOverview &&
+            MinerItems.ItemsSource is IEnumerable<FleetCard> existingCards
+                ? existingCards
+                    .Select((card, index) => new { card.Character, Index = index })
+                    .ToDictionary(
+                        item => item.Character,
+                        item => item.Index,
+                        StringComparer.OrdinalIgnoreCase)
+                : new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+
         var ordered =
             cards
                 .OrderBy(
@@ -971,6 +986,15 @@ public partial class MiningFleetOverviewWindow : Window
                             : int.MaxValue)
                 .ThenBy(
                     card =>
+                        _prefs.CombinedCharacterOverview &&
+                        existingCombinedIndex.TryGetValue(
+                            card.Character,
+                            out int existingIndex)
+                            ? existingIndex
+                            : int.MaxValue)
+                .ThenBy(
+                    card =>
+                        !_prefs.CombinedCharacterOverview &&
                         !hasCustomOrder &&
                         card.IsDroneMining
                             ? 0

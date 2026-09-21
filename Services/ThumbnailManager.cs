@@ -1426,28 +1426,19 @@ public sealed class ThumbnailManager : IDisposable
             // client is already in the right band when it comes forward.
             ApplyClientTaskbarCover(hwnd);
 
+            // Collapse any transient hover geometry before the focus handoff so a
+            // preview cannot remain enlarged over another preview's click target.
+            foreach (var (_, t) in _thumbnails)
+                t.ResetTransientGeometry();
+            foreach (var (_, p) in _secondaryThumbnails)
+                p.ResetTransientGeometry();
+
             Interop.User32.ActivateWindow(hwnd);
-            
-            // Execute visual callback instantaneously
+
+            // Visual feedback follows the focus request; normal focus tracking owns
+            // the one required z-order reconciliation instead of scheduling another
+            // all-preview raise from the switch path.
             onActivated?.Invoke();
-
-            // Explicitly pulse WM_KEYDOWN messages directly to the EVE client for held action keys
-            // This natively restores module firing without polluting global SendInput states
-            Interop.User32.FixTargetHeldKeys(hwnd);
-
-            // Defer WPF z-order operations to prevent dispatch pumping from eating the OS input state interrupt
-            Application.Current?.Dispatcher.BeginInvoke(() =>
-            {
-                // Bring thumbnails + overlays + stat windows to front BEFORE activating EVE window.
-                // This prevents them from flashing under the EVE window temporarily.
-                foreach (var (_, t) in _thumbnails)
-                    t.BringToFront();
-                foreach (var (_, p) in _secondaryThumbnails)
-                    p.BringToFront();
-                foreach (var (_, sw) in _statWindows)
-                    sw.BringToFront();
-            }, System.Windows.Threading.DispatcherPriority.Background);
-
             if (_settings.Settings.AlwaysMaximize && !Interop.User32.IsZoomed(hwnd))
                 Interop.User32.ShowWindowAsync(hwnd, Interop.User32.SW_MAXIMIZE);
 

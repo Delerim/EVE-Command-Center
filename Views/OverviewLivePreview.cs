@@ -100,6 +100,7 @@ public sealed class OverviewLivePreview : FrameworkElement
         private readonly IntPtr _ownerHandle;
         private System.Drawing.Rectangle _lastBounds;
         private byte _alpha;
+        private bool _isTopmost;
         public bool Ready=>_thumbnail!=IntPtr.Zero;
         protected override bool ShowWithoutActivation=>true;
         protected override Forms.CreateParams CreateParams { get { var cp=base.CreateParams;
@@ -115,7 +116,15 @@ public sealed class OverviewLivePreview : FrameworkElement
         public void Place(System.Drawing.Rectangle bounds,bool topmost,double opacity)
         {
             if(_lastBounds!=bounds) {
-                Bounds=bounds;_lastBounds=bounds;
+                User32.SetWindowPos(
+                    Handle,
+                    IntPtr.Zero,
+                    bounds.X,
+                    bounds.Y,
+                    bounds.Width,
+                    bounds.Height,
+                    User32.SWP_NOACTIVATE|User32.SWP_NOZORDER);
+                _lastBounds=bounds;
                 var size=DwmApi.QuerySourceSize(_thumbnail);
                 double scale=Math.Min((double)bounds.Width/Math.Max(1,size.Width),(double)bounds.Height/Math.Max(1,size.Height));
                 int w=Math.Max(1,(int)(size.Width*scale)),h=Math.Max(1,(int)(size.Height*scale));
@@ -126,9 +135,24 @@ public sealed class OverviewLivePreview : FrameworkElement
                 };
                 DwmApi.DwmUpdateThumbnailProperties(_thumbnail,ref props);
             }
-            if(TopMost!=topmost)TopMost=topmost;
+
+            if(_isTopmost!=topmost) {
+                User32.SetWindowPos(
+                    Handle,
+                    topmost?User32.HWND_TOPMOST:User32.HWND_NOTOPMOST,
+                    0,0,0,0,
+                    User32.SWP_NOMOVE|User32.SWP_NOSIZE|User32.SWP_NOACTIVATE);
+                _isTopmost=topmost;
+            }
+
             byte alpha=(byte)Math.Clamp(opacity*255,0,255);
-            if(alpha!=_alpha) {User32.SetLayeredWindowAttributes(Handle,0,alpha,User32.LWA_ALPHA);_alpha=alpha;}
+            if(alpha!=_alpha) {
+                User32.SetLayeredWindowAttributes(Handle,0,alpha,User32.LWA_ALPHA);
+                _alpha=alpha;
+            }
+
+            // Show only after bounds, DWM destination and z-band are ready. This avoids
+            // a transient default-sized native surface appearing before placement.
             if(!Visible)Show(new OwnerHandle(_ownerHandle));
         }
         protected override void Dispose(bool disposing)

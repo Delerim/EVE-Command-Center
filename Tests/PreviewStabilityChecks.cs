@@ -1,5 +1,6 @@
 using EveCommandCenter.Services;
-
+using System.Reflection;
+using EveCommandCenter.Interop;
 internal static partial class Program
 {
     private static void CheckPreviewStability()
@@ -40,5 +41,26 @@ internal static partial class Program
         Check(SpinWait.SpinUntil(()=>compact.GetLastFrame((IntPtr)4)!=null,2000),"Compact overview capture completes asynchronously");
         using var preview=compact.GetLastFrame((IntPtr)4)!.Copy();
         Check(preview!.Width==480&&preview.Height==270,"Compact preview cache bounds bitmap size while preserving aspect ratio");
+
+        var activate=typeof(User32).GetMethod(nameof(User32.ActivateWindow),BindingFlags.Public|BindingFlags.Static)!;
+        var inject=typeof(User32).GetMethod(nameof(User32.InjectVirtualKey),BindingFlags.Public|BindingFlags.Static)!;
+        var keybd=typeof(User32).GetMethod(nameof(User32.keybd_event),BindingFlags.Public|BindingFlags.Static)!;
+        Check(!PreviewCallsMethod(activate,inject)&&!PreviewCallsMethod(activate,keybd),
+            "Native client activation contains no synthetic keyboard path");
+
+        var managerActivate=typeof(ThumbnailManager).GetMethod(nameof(ThumbnailManager.ActivateEveWindow),BindingFlags.Public|BindingFlags.Instance)!;
+        var replay=typeof(User32).GetMethod(nameof(User32.FixTargetHeldKeys),BindingFlags.Public|BindingFlags.Static)!;
+        Check(!PreviewCallsMethod(managerActivate,replay),
+            "Preview switching never replays held keyboard or mouse state into a client");
+    }
+
+    private static bool PreviewCallsMethod(MethodInfo caller,MethodInfo target)
+    {
+        byte[] il=caller.GetMethodBody()?.GetILAsByteArray()??Array.Empty<byte>();
+        int token=target.MetadataToken;
+        for(int i=0;i+4<il.Length;i++)
+            if((il[i]==0x28||il[i]==0x6F)&&BitConverter.ToInt32(il,i+1)==token)
+                return true;
+        return false;
     }
 }

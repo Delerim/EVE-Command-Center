@@ -513,6 +513,26 @@ public class ThumbnailWindow : Form
         UnHover();
     }
 
+    /// <summary>
+    /// Return the preview to its saved/base rectangle before a client switch.
+    /// Switching focus must never leave a hover-expanded window covering another
+    /// preview's click target.
+    /// </summary>
+    public void ResetTransientGeometry()
+    {
+        _hoverTimer?.Stop();
+        _isMouseOver = false;
+
+        if (_opacityHoverActive)
+        {
+            _opacityHoverActive = false;
+            ApplyVisualOpacity(_opacityBeforeHover);
+            _textOverlay?.SetWindowOpacity(_opacityBeforeHover / 255.0);
+        }
+
+        UnHover();
+    }
+
     private void UnHover()
     {
         if (!_isHovered) return;

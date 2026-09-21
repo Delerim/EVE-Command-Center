@@ -1,6 +1,7 @@
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Threading;
+using EveCommandCenter.Models;
 using EveCommandCenter.Services;
 using EveCommandCenter.Views;
 internal static partial class Program
@@ -28,6 +29,23 @@ internal static partial class Program
         double measuredCharacterHeight=FrameHeight();
         var initial=items.Items[0];
         var cardType=initial.GetType();
+
+        string[] initialCharacterOrder=items.Items.Cast<object>()
+            .Select(c=>(string)cardType.GetProperty("Character")!.GetValue(c)!)
+            .ToArray();
+        var intel=(Dictionary<string,EveMiningShipIntel>)typeof(MiningFleetOverviewWindow)
+            .GetField("_pilotIntel",System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic)!
+            .GetValue(window)!;
+        intel["Pilot C"]=new EveMiningShipIntel {
+            CharacterName="Pilot C",
+            CurrentShip=new EveCurrentShipView {ShipTypeId=28606,TypeName="Orca"}
+        };
+        Refresh();
+        Check(items.Items.Cast<object>()
+                .Select(c=>(string)cardType.GetProperty("Character")!.GetValue(c)!)
+                .SequenceEqual(initialCharacterOrder),
+            "Combined overview keeps character tile positions stable when live pilot data changes");
+
         double characterWidth=(double)cardType.GetProperty("CardWidth")!.GetValue(initial)!;
         double characterHeight=(double)cardType.GetProperty("CardMinHeight")!.GetValue(initial)!;
         cardType.GetProperty("Status")!.SetValue(initial,"IDLE");

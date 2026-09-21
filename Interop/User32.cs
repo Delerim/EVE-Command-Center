@@ -678,74 +678,34 @@ public static class User32
     public static extern void keybd_event(byte bVk, byte bScan, uint dwFlags, int dwExtraInfo);
 
     /// <summary>
-    /// Native Window Activation: Focuses the EVE Client locally.
-    ///
-    /// Three-tier dispatch, ordered by overhead:
-    ///
-    ///   1. Direct SetForegroundWindow. Works when the calling context already
-    ///      has foreground-activation rights (WM_HOTKEY dispatch, recent click
-    ///      to our window, our app being foreground). Microseconds.
-    ///
-    ///   2. Phantom keystroke + direct SetForegroundWindow. A single
-    ///      keybd_event(vk0xE8) updates Windows' "last input received" state
-    ///      so SetForegroundWindow's per-process rights check passes on the
-    ///      retry. Two cheap syscalls. Catches the mouse-hook-dispatched
-    ///      activation case without the thread-sync cost of AttachThreadInput.
-    ///      vk0xE8 is unassigned, so no app sees a meaningful keystroke; the
-    ///      WM_HOTKEY that fires from our own RegisterHotKey on it is a no-op
-    ///      because PendingActivateHwnd isn't set in this tier.
-    ///
-    ///   3. Async RegisterHotKey bridge. Never attach input queues to an EVE
-    ///      thread: a stalled client must not make focus changes synchronous.
+    /// Native client activation using the same input-neutral pattern as EVE-O Preview:
+    /// request foreground/focus directly and fall back to SwitchToThisWindow when
+    /// Windows declines SetForegroundWindow. No keyboard or mouse input is synthesized.
     /// </summary>
     public static void ActivateWindow(IntPtr hwnd)
     {
-        // A new activation supersedes any queued one. The hotkey bridge parks a target in
-        // PendingActivateHwnd and relies on the vk0xE8 WM_HOTKEY to consume it; if
-        // that dispatch never arrives, the target is stranded — and the NEXT
-        // activation's Tier-2 phantom vk0xE8 keystroke (which assumes nothing is
-        // pending) would consume it and raise the previous client instead of the one
-        // just clicked. Clearing here makes that impossible (#95).
-        PendingActivateHwnd = IntPtr.Zero;
-
         if (!IsWindow(hwnd) || IsHungAppWindow(hwnd)) return;
-        if (GetForegroundWindow() == hwnd) return;
 
-        EveCommandCenter.Services.DiagnosticsService.LogWindowHook($"[ActivateWindow] Foreground shift requested for HWND {hwnd}");
+        if (GetForegroundWindow() == hwnd)
+        {
+            SetFocus(hwnd);
+            return;
+        }
 
-        // Iconic-state restoration is handled by the caller (ThumbnailManager.
-        // ActivateEveWindow), which respects the AlwaysMaximize setting and
-        // chooses SW_MAXIMIZE vs SW_RESTORE accordingly. Calling SW_RESTORE
-        // a second time here used to race with the caller's async restore:
-        // if our IsIconic check ran before the caller's ShowWindowAsync had
-        // been processed by the target thread, we'd queue another SW_RESTORE.
-        // SW_RESTORE on an *already-restored, currently maximized* window
-        // un-maximizes it — producing a window that comes back smaller than
-        // it was before being minimized.
+        EveCommandCenter.Services.DiagnosticsService.LogWindowHook(
+            $"[ActivateWindow] Foreground shift requested for HWND {hwnd}");
 
-        // Tier 1 — direct.
-        SetForegroundWindow(hwnd);
-        SetWindowPos(hwnd, HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_ASYNCWINDOWPOS);
-        if (GetForegroundWindow() == hwnd) return;
+        bool activated = SetForegroundWindow(hwnd);
+        SetFocus(hwnd);
 
-        // Tier 2 — phantom keystroke. Single synthetic key-down/up of an
-        // unassigned virtual-key updates the OS's "last input event" tracking
-        // for our process, granting SetForegroundWindow rights on the retry.
-        // Much cheaper than AttachThreadInput: no thread-sync, no foreground-
-        // thread waiting. Critical when foreground is a busy DirectX app like
-        // EVE itself (e.g. cycling between EVE clients on consecutive presses).
-        keybd_event((byte)VK_ACTIVATION, 0, 0, 0);
-        keybd_event((byte)VK_ACTIVATION, 0, KEYEVENTF_KEYUP, 0);
-        SetForegroundWindow(hwnd);
-        SetWindowPos(hwnd, HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_ASYNCWINDOWPOS);
-        if (GetForegroundWindow() == hwnd) return;
-
-        // Keep input queues independent of busy or hung game threads.
-        EveCommandCenter.Services.DiagnosticsService.LogWindowHook($"[ActivateWindow] Queuing hotkey fallback HWND={hwnd}");
-        PendingActivateHwnd = hwnd;
-        InjectVirtualKey(VK_ACTIVATION);
+        if (!activated || GetForegroundWindow() != hwnd)
+        {
+            EveCommandCenter.Services.DiagnosticsService.LogWindowHook(
+                $"[ActivateWindow] Native foreground request deferred; using window-switch fallback for HWND {hwnd}");
+            SwitchToThisWindow(hwnd, false);
+            SetFocus(hwnd);
+        }
     }
-    
     [DllImport("kernel32.dll")]
     public static extern uint GetCurrentThreadId();
 
@@ -759,6 +719,8 @@ public static class User32
 
     [DllImport("user32.dll", SetLastError = true)]
     public static extern IntPtr SetFocus(IntPtr hWnd);
+    [DllImport("user32.dll")]
+    public static extern void SwitchToThisWindow(IntPtr hWnd, bool fUnknown);
 
 
 

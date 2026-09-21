@@ -129,7 +129,8 @@ public sealed class HotkeyService : IDisposable
         _hwndSource = new HwndSource(parameters);
         _hwndSource.AddHook(WndProc);
 
-        RegisterActivationHotkey();
+        // Client switching now uses native foreground/focus APIs only.
+        // Do not register the historical synthetic-input activation bridge.
     }
 
     /// <summary>
