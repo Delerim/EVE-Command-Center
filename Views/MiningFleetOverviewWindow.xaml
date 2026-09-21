@@ -535,6 +535,22 @@
                                                     </Style>
                                                 </TextBlock.Style>
                                             </TextBlock>
+
+                                            <TextBlock Text="{Binding CritM3Text}"
+                                                       FontSize="10.5"
+                                                       Margin="3,0,0,0">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Setter Property="Foreground" Value="#8FB2B5"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding CritPulse}" Value="True">
+                                                                <Setter Property="Foreground" Value="#FFD75E"/>
+                                                                <Setter Property="FontWeight" Value="Bold"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
                                         </DockPanel>
                                     </Grid>
 

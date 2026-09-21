@@ -17,6 +17,15 @@ internal static partial class Program
         var items=(ItemsControl)window.FindName("MinerItems");
         Refresh();
         Check(items.Items.Count==3,"Combined overview includes open clients without any mining pulls");
+
+        string updatedText =
+            ((TextBlock)window.FindName("UpdatedText")).Text;
+
+        Check(
+            updatedText.Contains("v") &&
+            updatedText.Contains("EVE ") &&
+            updatedText.Contains("LOCAL "),
+            "Overview header exposes version, EVE time and local time");
         Visibility State(object card,string name)=>(Visibility)card.GetType().GetProperty(name)!.GetValue(card)!;
         Check(items.Items.Cast<object>().All(c=>State(c,"MiningVisibility")==Visibility.Collapsed&&State(c,"PreviewVisibility")==Visibility.Visible),"Character mode hides mining rows and exposes compact previews");
         double FrameHeight() {
@@ -29,6 +38,10 @@ internal static partial class Program
         double measuredCharacterHeight=FrameHeight();
         var initial=items.Items[0];
         var cardType=initial.GetType();
+
+        Check(
+            cardType.GetProperty("CritM3Text") != null,
+            "Mining cards expose the latest critical-pull m3 value");
 
         string[] initialCharacterOrder=items.Items.Cast<object>()
             .Select(c=>(string)cardType.GetProperty("Character")!.GetValue(c)!)

@@ -59,6 +59,22 @@ public partial class MiningFleetOverviewWindow : Window
     private const double ManualOrcaShieldBoostPercent = 19.7;
     private const double PlexBuyHighlightThreshold = 4_500_000.0;
 
+    private static string OverviewVersionText
+    {
+        get
+        {
+            Version? version =
+                typeof(MiningFleetOverviewWindow)
+                    .Assembly
+                    .GetName()
+                    .Version;
+
+            return version == null
+                ? "v?"
+                : $"v{version.Major}.{version.Minor}.{version.Build}";
+        }
+    }
+
     public MiningFleetOverviewWindow(
         StatTrackerService tracker,
         MiningIdleWatchdogService watchdog,
@@ -635,6 +651,9 @@ public partial class MiningFleetOverviewWindow : Window
             var state = _watchdog.GetState(character);
             var crit = _tracker.GetTodayMiningCritSummary(character);
 
+            double latestCritM3 =
+                _tracker.GetLatestCriticalMiningVolumeM3(
+                    character);
 
             bool critPulse = false;
             if (_lastCritCountByCharacter.TryGetValue(character, out int previousCritCount))
@@ -939,6 +958,14 @@ public partial class MiningFleetOverviewWindow : Window
                 ActualText =
                     $"{Math.Max(0, displayActualRate).ToString("N1", CultureInfo.CurrentCulture)} m3/s",
                 CritText = crit.Cycles > 0 ? crit.ToString() : "-",
+                CritM3Text =
+                    latestCritM3 > 0
+                        ? " | " +
+                          latestCritM3.ToString(
+                              "N0",
+                              CultureInfo.CurrentCulture) +
+                          " m3"
+                        : "",
 
                 CritPulse = critPulse,
                 ValueText = s.SessionBestValue > 0
@@ -1172,8 +1199,24 @@ public partial class MiningFleetOverviewWindow : Window
         DayText.Text = $"DAY {_tracker.GetMiningDayLabel()}";
         UpdatedText.Text =
             _tileReorderMode
-                ? (_prefs.CombinedCharacterOverview?"Drag tiles ? Tools ? Reorder characters to finish":"Drag tiles to reorder | click DONE when finished")
-                : $"{cards.Count} {(_prefs.CombinedCharacterOverview?"clients":"miners")} | {DateTime.Now:HH:mm:ss}";
+                ? (_prefs.CombinedCharacterOverview
+                    ? "Drag tiles - Tools - Reorder characters to finish"
+                    : "Drag tiles to reorder | click DONE when finished")
+                : OverviewVersionText +
+                  " | EVE " +
+                  DateTime.UtcNow.ToString(
+                      "HH:mm:ss",
+                      CultureInfo.InvariantCulture) +
+                  " | LOCAL " +
+                  DateTime.Now.ToString(
+                      "HH:mm:ss",
+                      CultureInfo.InvariantCulture) +
+                  " | " +
+                  cards.Count +
+                  " " +
+                  (_prefs.CombinedCharacterOverview
+                      ? "clients"
+                      : "miners");
 
         OverviewHeader.Measure(new System.Windows.Size(double.PositiveInfinity, double.PositiveInfinity));
         MinWidth = Math.Max(620, OverviewHeader.DesiredSize.Width + 24);
@@ -1779,6 +1822,7 @@ public partial class MiningFleetOverviewWindow : Window
         public string BaseText { get; set; } = "";
         public string ActualText { get; set; } = "";
         public string CritText { get; set; } = "";
+        public string CritM3Text { get; set; } = "";
 
         public bool CritPulse { get; set; }
         public string ValueText { get; set; } = "";

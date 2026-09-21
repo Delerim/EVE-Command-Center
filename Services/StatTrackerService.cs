@@ -271,6 +271,35 @@ public sealed class StatTrackerService
     public MiningDailyCritSummary GetTodayMiningCritSummary(string? character = null) =>
         _dailyMiningStore.GetCritSummary(character);
 
+    /// <summary>
+    /// Returns the full m3 value of the most recent logged critical ore pull
+    /// for a character using the current ore-volume quote.
+    /// </summary>
+    public double GetLatestCriticalMiningVolumeM3(string character)
+    {
+        if (!_stats.TryGetValue(character, out var stats))
+            return 0;
+
+        var critical =
+            stats.MiningCycles
+                .Where(cycle =>
+                    cycle.MineType == "ore" &&
+                    cycle.IsCritical &&
+                    cycle.Units > 0)
+                .OrderByDescending(cycle => cycle.Timestamp)
+                .FirstOrDefault();
+
+        if (critical is null ||
+            string.IsNullOrWhiteSpace(critical.OreType) ||
+            !_miningMarket.TryGetQuote(critical.OreType, out var quote) ||
+            !quote.IsAvailable)
+            return 0;
+
+        return Math.Max(
+            0,
+            critical.Units * quote.UnitVolumeM3);
+    }
+
     public MiningActivitySummary GetTodayMiningActivity(string character) =>
         _dailyMiningStore.GetActivitySummary(character);
 
