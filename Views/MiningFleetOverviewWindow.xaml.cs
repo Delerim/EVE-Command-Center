@@ -39,6 +39,8 @@ public partial class MiningFleetOverviewWindow : Window
     private readonly string _intelCacheFile = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "EVE Command Center", "PilotData", "overview-intel-v2.json");
     private bool _pilotIntelRefreshBusy;
     private bool _plexMarketRefreshBusy;
+    private bool _systemFallbackRefreshBusy;
+    private DateTime _nextSystemFallbackRefreshUtc = DateTime.MinValue;
 
     private bool _tileReorderMode;
     private App? RunningApp => System.Windows.Application.Current as App;
@@ -320,6 +322,101 @@ public partial class MiningFleetOverviewWindow : Window
                 CultureInfo.InvariantCulture) +
             "M";
     }
+    private async Task RefreshMissingSystemsAsync(EveWindow[] clients)
+    {
+        if (_systemFallbackRefreshBusy ||
+            DateTime.UtcNow < _nextSystemFallbackRefreshUtc ||
+            clients.Length == 0)
+            return;
+
+        ThumbnailManager? manager =
+            RunningApp?.OverviewThumbnails;
+
+        if (manager == null)
+            return;
+
+        string[] missing =
+            clients
+                .Select(client => client.CharacterName)
+                .Where(name => !string.IsNullOrWhiteSpace(name))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Where(name =>
+                    string.IsNullOrWhiteSpace(
+                        manager.GetOverviewTelemetry(name).SystemName))
+                .ToArray();
+
+        if (missing.Length == 0)
+        {
+            _nextSystemFallbackRefreshUtc =
+                DateTime.UtcNow.AddSeconds(30);
+            return;
+        }
+
+        _systemFallbackRefreshBusy = true;
+        _nextSystemFallbackRefreshUtc =
+            DateTime.UtcNow.AddSeconds(30);
+
+        try
+        {
+            IReadOnlyList<EvePilotProfile> profiles =
+                await _pilotSso.LoadPilotsAsync();
+
+            var missingSet =
+                new HashSet<string>(
+                    missing,
+                    StringComparer.OrdinalIgnoreCase);
+
+            EvePilotProfile[] wanted =
+                profiles
+                    .Where(profile =>
+                        missingSet.Contains(profile.CharacterName) &&
+                        profile.Scopes.Any(scope =>
+                            string.Equals(
+                                scope,
+                                "esi-location.read_location.v1",
+                                StringComparison.OrdinalIgnoreCase)))
+                    .ToArray();
+
+            using var gate =
+                new SemaphoreSlim(2);
+
+            Task[] tasks =
+                wanted
+                    .Select(async profile =>
+                    {
+                        await gate.WaitAsync();
+
+                        try
+                        {
+                            string? system =
+                                await _pilotSso
+                                    .GetCurrentSystemNameAsync(
+                                        profile);
+
+                            if (!string.IsNullOrWhiteSpace(system))
+                                manager.UpdateCharacterSystem(
+                                    profile.CharacterName,
+                                    system);
+                        }
+                        catch (Exception ex)
+                        {
+                            System.Diagnostics.Debug.WriteLine(
+                                $"[Overview system fallback] {profile.CharacterName}: {ex.Message}");
+                        }
+                        finally
+                        {
+                            gate.Release();
+                        }
+                    })
+                    .ToArray();
+
+            await Task.WhenAll(tasks);
+        }
+        finally
+        {
+            _systemFallbackRefreshBusy = false;
+        }
+    }
     private void ApplyBackgroundPilotIntel()
     {
         if (!Dispatcher.CheckAccess()) { Dispatcher.BeginInvoke(ApplyBackgroundPilotIntel); return; }
@@ -510,6 +607,7 @@ public partial class MiningFleetOverviewWindow : Window
             }
         }
         var clients=_clientSource();
+        _ = RefreshMissingSystemsAsync(clients);
         foreach (var character in (_prefs.CombinedCharacterOverview ? clients.Select(c=>c.CharacterName).Distinct(StringComparer.OrdinalIgnoreCase) : _tracker.GetMiningDashboardCharacters()))
         {
             if (OverviewMode is "PVE" or "PVP") {cards.Add(CombatCard(character));continue;}
@@ -1049,7 +1147,14 @@ public partial class MiningFleetOverviewWindow : Window
             card.IsActive=_prefs.CombinedCharacterOverview&&client!=null&&client.Hwnd==EveCommandCenter.Interop.User32.GetForegroundWindow();
 
             var telemetry=RunningApp?.OverviewThumbnails?.GetOverviewTelemetry(card.Character) ?? default;
-            card.SystemText=string.IsNullOrWhiteSpace(telemetry.SystemName)?"System: -":"System: "+telemetry.SystemName;
+            card.SystemTransitionActive=telemetry.SystemTransitionActive;
+            card.SystemText=
+                telemetry.SystemTransitionActive &&
+                !string.IsNullOrWhiteSpace(telemetry.SystemTransitionText)
+                    ? telemetry.SystemTransitionText
+                    : string.IsNullOrWhiteSpace(telemetry.SystemName)
+                        ? "System: -"
+                        : "System: "+telemetry.SystemName;
             card.PreviewFpsText=telemetry.FpsText??"";
             card.PreviewTelemetryText=string.Join("  ",new[]{card.SystemText,telemetry.ProcessText??""}.Where(x=>!string.IsNullOrWhiteSpace(x)));
             card.AlertCount=telemetry.AlertCount;
@@ -1662,6 +1767,7 @@ public partial class MiningFleetOverviewWindow : Window
         public string ShipText { get; set; } = "";
         public string ShipToolTip { get; set; } = "";
         public string SystemText { get; set; } = "";
+        public bool SystemTransitionActive { get; set; }
         public string PreviewTelemetryText { get; set; } = "";
         public string PreviewFpsText { get; set; } = "";
         public int AlertCount { get; set; }

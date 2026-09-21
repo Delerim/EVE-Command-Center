@@ -1,6 +1,5 @@
-# EVE Command Center v3.5.27
+# EVE Command Center v3.5.28
 
-- Improved separate preview focus handling so Command Center windows no longer disturb preview stacking during client switching.
-- Character Overview now defaults to live previews and shows compact system, CPU, RAM, VRAM, and FPS telemetry.
-- Combined overview cards now mirror unread alert badges and alert emphasis, and mining cards show the current system beside the ship.
-- New mining critical pulls on any mining client briefly pulse in gold with a clear CRIT marker so the affected miner is easy to spot in a large fleet.
+- Filled missing Character Overview system labels from linked-pilot location data when the game log has not reported a system yet.
+- Combined cards now show and briefly flash system jumps as old -> new before settling on the destination system.
+- Restyled ordinary tool tabs with fully enclosed rounded borders, clearer hover states, and a cleaner selected state across Command Center.

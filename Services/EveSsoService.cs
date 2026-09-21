@@ -336,6 +336,55 @@ public sealed class EveSsoService
                 StringComparer.OrdinalIgnoreCase);
     }
 
+    /// <summary>
+    /// Lightweight current-system lookup for an already linked pilot.
+    /// Used as a fallback when the game log has not yet emitted a system line.
+    /// </summary>
+    public async Task<string?> GetCurrentSystemNameAsync(
+        EvePilotProfile pilot,
+        CancellationToken cancellationToken = default)
+    {
+        bool canReadLocation =
+            pilot.Scopes.Any(
+                scope => string.Equals(
+                    scope,
+                    "esi-location.read_location.v1",
+                    StringComparison.OrdinalIgnoreCase));
+
+        if (!canReadLocation)
+            return null;
+
+        try
+        {
+            string token =
+                await GetAccessTokenAsync(
+                    pilot,
+                    cancellationToken);
+
+            string system =
+                await GetCurrentSystemAsync(
+                    pilot.CharacterId,
+                    token,
+                    cancellationToken);
+
+            return string.Equals(
+                    system,
+                    "System unavailable",
+                    StringComparison.OrdinalIgnoreCase)
+                ? null
+                : system;
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine(
+                $"[PilotContext] Fallback system lookup failed for {pilot.CharacterName}: {ex.Message}");
+            return null;
+        }
+    }
     public async Task<EveCurrentShipView> GetCurrentShipIdentityAsync(
         EvePilotProfile pilot,
         CancellationToken cancellationToken = default)

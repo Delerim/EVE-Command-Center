@@ -137,6 +137,13 @@ public sealed class ThumbnailManager : IDisposable
     // Key = CharacterName (case-insensitive), Value = SystemName
     private readonly ConcurrentDictionary<string, string> _charSystems = new(StringComparer.OrdinalIgnoreCase);
 
+    // Short-lived route transition shown by the combined Character Overview.
+    // Separate previews already render the same old -> new transition themselves.
+    private readonly ConcurrentDictionary<
+        string,
+        (string From, string To, DateTime ExpiresUtc)> _overviewSystemTransitions =
+            new(StringComparer.OrdinalIgnoreCase);
+
     // Key = CharacterName, Value = mute-until time (DateTime.MaxValue = until cleared).
     // Per-character alert mute/snooze — runtime only, clears on app restart.
     private readonly ConcurrentDictionary<string, DateTime> _alertMutedChars = new(StringComparer.OrdinalIgnoreCase);
@@ -2356,27 +2363,59 @@ public sealed class ThumbnailManager : IDisposable
 
     public void UpdateCharacterSystem(string characterName, string systemName)
     {
-        // Capture the previous system BEFORE overwriting so we can show a
-        // "old → new" transition animation (issue #25). First sighting (no
-        // previous entry) takes the plain-update path with no animation.
-        bool hadPrevious = _charSystems.TryGetValue(characterName, out var previousSystem);
-        bool changed = !hadPrevious
-            || !string.Equals(previousSystem, systemName, StringComparison.OrdinalIgnoreCase);
+        if (string.IsNullOrWhiteSpace(characterName) ||
+            string.IsNullOrWhiteSpace(systemName))
+            return;
+
+        // Capture the previous system BEFORE overwriting so both the separate
+        // preview and the combined overview can show the same old -> new hop.
+        bool hadPrevious =
+            _charSystems.TryGetValue(
+                characterName,
+                out var previousSystem);
+
+        bool changed =
+            !hadPrevious ||
+            !string.Equals(
+                previousSystem,
+                systemName,
+                StringComparison.OrdinalIgnoreCase);
+
         _charSystems[characterName] = systemName;
 
-        if (!_settings.Settings.ShowSystemName) return;
+        if (hadPrevious &&
+            changed &&
+            !string.IsNullOrWhiteSpace(previousSystem))
+        {
+            _overviewSystemTransitions[characterName] =
+                (
+                    previousSystem!,
+                    systemName,
+                    DateTime.UtcNow.AddSeconds(4)
+                );
+        }
+
+        if (!_settings.Settings.ShowSystemName)
+            return;
 
         Application.Current?.Dispatcher.Invoke(() =>
         {
             foreach (var (_, thumb) in _thumbnails)
             {
-                if (!thumb.CharacterName.Equals(characterName, StringComparison.OrdinalIgnoreCase))
+                if (!thumb.CharacterName.Equals(
+                        characterName,
+                        StringComparison.OrdinalIgnoreCase))
                     continue;
 
-                if (hadPrevious && changed && !string.IsNullOrEmpty(previousSystem))
-                    thumb.AnimateSystemTransition(previousSystem!, systemName);
+                if (hadPrevious &&
+                    changed &&
+                    !string.IsNullOrEmpty(previousSystem))
+                    thumb.AnimateSystemTransition(
+                        previousSystem!,
+                        systemName);
                 else
-                    thumb.UpdateSystemName(systemName);
+                    thumb.UpdateSystemName(
+                        systemName);
             }
         });
     }
@@ -3206,13 +3245,36 @@ public sealed class ThumbnailManager : IDisposable
             badge?.TopSeverity ??
             "";
 
+        string transitionText = "";
+        bool transitionActive = false;
+
+        if (_overviewSystemTransitions.TryGetValue(
+                characterName ?? "",
+                out var transition))
+        {
+            if (transition.ExpiresUtc > DateTime.UtcNow)
+            {
+                transitionActive = true;
+                transitionText =
+                    $"{transition.From} -> {transition.To}";
+            }
+            else
+            {
+                _overviewSystemTransitions.TryRemove(
+                    characterName ?? "",
+                    out _);
+            }
+        }
+
         return new OverviewPreviewTelemetry(
             systemName,
             processText,
             fpsText,
             badge?.Count ?? 0,
             severity,
-            flash != null);
+            flash != null,
+            transitionText,
+            transitionActive);
     }
     public IntPtr GetHwndForCharacter(string characterName)
     {
@@ -4239,7 +4301,9 @@ public readonly record struct OverviewPreviewTelemetry(
     string FpsText,
     int AlertCount,
     string AlertSeverity,
-    bool AlertActive);
+    bool AlertActive,
+    string SystemTransitionText,
+    bool SystemTransitionActive);
 public class AlertFlashInfo
 {
     public DateTime StartTime { get; set; }

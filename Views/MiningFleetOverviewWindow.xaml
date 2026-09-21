@@ -391,10 +391,36 @@
                                             <DockPanel Margin="0,1,0,0">
                                                 <TextBlock Text="{Binding SystemText}"
                                                            DockPanel.Dock="Right"
-                                                           Foreground="#65B9D6"
                                                            FontSize="9.5"
                                                            Margin="6,0,0,0"
-                                                           TextTrimming="CharacterEllipsis"/>
+                                                           TextTrimming="CharacterEllipsis"
+                                                           ToolTip="{Binding SystemText}">
+                                                    <TextBlock.Style>
+                                                        <Style TargetType="TextBlock">
+                                                            <Setter Property="Foreground" Value="#65B9D6"/>
+                                                            <Setter Property="Opacity" Value="1"/>
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding SystemTransitionActive}" Value="True">
+                                                                    <Setter Property="Foreground" Value="#FFD75E"/>
+                                                                    <Setter Property="FontWeight" Value="Bold"/>
+                                                                    <DataTrigger.EnterActions>
+                                                                        <BeginStoryboard Name="SystemJumpStoryboard">
+                                                                            <Storyboard>
+                                                                                <DoubleAnimation Storyboard.TargetProperty="Opacity"
+                                                                                                 From="0.30"
+                                                                                                 To="1"
+                                                                                                 Duration="0:0:0.24"
+                                                                                                 AutoReverse="True"
+                                                                                                 RepeatBehavior="3x"
+                                                                                                 FillBehavior="Stop"/>
+                                                                            </Storyboard>
+                                                                        </BeginStoryboard>
+                                                                    </DataTrigger.EnterActions>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBlock.Style>
+                                                </TextBlock>
                                                 <TextBlock Text="{Binding ShipText}"
                                                            Foreground="#8DA9A2"
                                                            FontSize="9.5"
