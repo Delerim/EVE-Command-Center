@@ -1,5 +1,5 @@
-# EVE Command Center v3.5.30
+# EVE Command Center v3.5.31
 
-- Updated the GitHub release pipeline to Node 24-compatible actions.
-- Tag releases now publish directly to GitHub Releases instead of staging a second large Actions artifact, avoiding artifact-finalization failures.
-- Main-branch diagnostic build artifacts are retained for seven days to reduce Actions storage usage.
+- Added an Account Ledger to Contracts without replacing the existing contract, mining or buyback tools.
+- Linked EVE-account characters are grouped into combined mining and accepted-contract totals using the account associations already learned by Command Center.
+- Added period reporting for estimated mined buyback value, accepted contract value, account coverage and outstanding gap, with unlinked characters kept visible instead of guessed into an account.

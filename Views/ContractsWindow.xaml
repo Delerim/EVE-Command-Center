@@ -1,4 +1,4 @@
-﻿<Window x:Class="EveCommandCenter.Views.ContractsWindow"
+<Window x:Class="EveCommandCenter.Views.ContractsWindow"
  xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
  Title="EVE Command Center - Corporation Contracts" Width="1420" Height="960" MinWidth="1080" MinHeight="650"
  Background="#07181B" Foreground="#EAF7F7" FontFamily="Segoe UI" WindowStartupLocation="CenterScreen">
@@ -66,7 +66,44 @@
  <StackPanel Grid.Row="1" Margin="0,14"><TextBlock x:Name="ReportTitle" FontSize="20" Foreground="#55D7D2"/><TextBlock x:Name="ReportSummary" Foreground="#74D6C9" Margin="0,6,0,0"/></StackPanel>
  <ScrollViewer Grid.Row="2" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto"><ItemsControl x:Name="ReportBars" VerticalAlignment="Top"><ItemsControl.ItemsPanel><ItemsPanelTemplate><StackPanel Orientation="Horizontal"/></ItemsPanelTemplate></ItemsControl.ItemsPanel><ItemsControl.ItemTemplate><DataTemplate><StackPanel Width="38" ToolTip="{Binding Tooltip}" Margin="1,0"><Grid Height="200"><Border Height="{Binding Height}" Width="25" Background="#55D7D2" VerticalAlignment="Bottom" CornerRadius="4,4,0,0"/></Grid><TextBlock Text="{Binding Label}" HorizontalAlignment="Center" Foreground="#8FB2B5" Margin="0,6"/><TextBlock Text="{Binding Count}" HorizontalAlignment="Center" Foreground="#74D6C9"/></StackPanel></DataTemplate></ItemsControl.ItemTemplate></ItemsControl></ScrollViewer>
  <TextBlock Grid.Row="3" Text="Bars: total accepted contract price (ISK). Numbers: contracts per day/month. UTC acceptance dates. Includes completed incoming item exchanges with Janice links only. Available ESI history plus local archive; missing historical coverage is not proof of zero activity." Foreground="#8FB2B5" TextWrapping="Wrap" Margin="0,12,0,0"/>
-</Grid></TabItem></TabControl>
+</Grid></TabItem><TabItem Header="ACCOUNT LEDGER" Background="#12383D" Foreground="#55D7D2">
+ <Grid Margin="14">
+  <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+
+  <WrapPanel>
+   <TextBlock Text="PERIOD" Foreground="#8FB2B5" VerticalAlignment="Center" Margin="0,0,8,0"/>
+   <ComboBox x:Name="AccountPeriod" Width="105" SelectionChanged="AccountReport_Changed"><ComboBoxItem Content="Week"/><ComboBoxItem Content="Month" IsSelected="True"/><ComboBoxItem Content="Year"/></ComboBox>
+   <Button Content="PREVIOUS" Click="AccountPrevious_Click" Margin="12,0,6,0"/>
+   <DatePicker x:Name="AccountDate" Width="156" Style="{StaticResource CommandDatePicker}" SelectedDateChanged="AccountReport_Changed"/>
+   <Button Content="NEXT" Click="AccountNext_Click" Margin="6,0"/>
+   <Button Content="TODAY" Click="AccountToday_Click"/>
+  </WrapPanel>
+
+  <UniformGrid Grid.Row="1" Columns="4" Margin="0,14,0,14">
+   <Border Background="#0D2B30" BorderBrush="#245058" BorderThickness="1" CornerRadius="8" Padding="12" Margin="0,0,5,0"><StackPanel><TextBlock Text="MINED BUYBACK EST." Foreground="#8FB2B5"/><TextBlock x:Name="AccountMinedText" FontSize="20" FontWeight="Bold" Foreground="#74D6C9"/><TextBlock Text="Existing mining history at configured corp buyback" Foreground="#658C8F" FontSize="10"/></StackPanel></Border>
+   <Border Background="#0D2B30" BorderBrush="#245058" BorderThickness="1" CornerRadius="8" Padding="12" Margin="5,0"><StackPanel><TextBlock Text="ACCEPTED CONTRACTS" Foreground="#8FB2B5"/><TextBlock x:Name="AccountContractedText" FontSize="20" FontWeight="Bold" Foreground="#55D7D2"/><TextBlock x:Name="AccountContractCountText" Foreground="#658C8F" FontSize="10"/></StackPanel></Border>
+   <Border Background="#0D2B30" BorderBrush="#6F5A2C" BorderThickness="1" CornerRadius="8" Padding="12" Margin="5,0"><StackPanel><TextBlock Text="EST. GAP" Foreground="#C9B784"/><TextBlock x:Name="AccountGapText" FontSize="20" FontWeight="Bold" Foreground="#FFD166"/><TextBlock Text="Positive means mined estimate exceeds accepted contracts" Foreground="#658C8F" FontSize="10"/></StackPanel></Border>
+   <Border Background="#0D2B30" BorderBrush="#245058" BorderThickness="1" CornerRadius="8" Padding="12" Margin="5,0,0,0"><StackPanel><TextBlock Text="ACCOUNTS / GROUPS" Foreground="#8FB2B5"/><TextBlock x:Name="AccountCountText" FontSize="20" FontWeight="Bold" Foreground="#80BFFF"/><TextBlock Text="Learned EVE accounts plus unlinked characters" Foreground="#658C8F" FontSize="10"/></StackPanel></Border>
+  </UniformGrid>
+
+  <TextBlock Grid.Row="2" x:Name="AccountReportTitle" Foreground="#74D6C9" FontSize="16" Margin="0,0,0,10"/>
+
+  <DataGrid Grid.Row="3" x:Name="AccountLedgerGrid" AutoGenerateColumns="False" IsReadOnly="True" AlternationCount="2">
+   <DataGrid.Columns>
+    <DataGridTextColumn Header="ACCOUNT" Binding="{Binding Account}" Width="1.2*"/>
+    <DataGridTextColumn Header="CHARACTERS" Binding="{Binding Characters}" Width="2*"/>
+    <DataGridTextColumn Header="MINED BUYBACK EST." Binding="{Binding MinedText}" Width="1.25*"/>
+    <DataGridTextColumn Header="ACCEPTED CONTRACTS" Binding="{Binding ContractedText}" Width="1.25*"/>
+    <DataGridTemplateColumn Header="GAP" Width="1.15*"><DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding GapText}" Foreground="{Binding GapColor}"/></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
+    <DataGridTextColumn Header="COVERAGE" Binding="{Binding CoverageText}" Width="85"/>
+    <DataGridTextColumn Header="CONTRACTS" Binding="{Binding AcceptedContracts}" Width="82"/>
+    <DataGridTextColumn Header="LAST ACCEPTED" Binding="{Binding LastAcceptedText}" Width="115"/>
+   </DataGrid.Columns>
+  </DataGrid>
+
+  <TextBlock Grid.Row="4" Text="This is an additive correlation view: Mining and Contracts keep their existing calculations. Mining value uses the configured corp buyback market/rate; accepted contract value is grouped by issuer and learned EVE account. Unlinked characters remain visible instead of being guessed into an account." Foreground="#8FB2B5" TextWrapping="Wrap" Margin="0,10,0,0"/>
+ </Grid>
+</TabItem></TabControl>
   <StackPanel Grid.Row="5"><Border Background="#0C2529" BorderBrush="{Binding SelectedItem.ResultColor, ElementName=ContractsGrid}" BorderThickness="3,0,0,0" Padding="10,8" Margin="0,10,0,0"><Border.Style><Style TargetType="Border"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding SelectedIndex, ElementName=ContractTabs}" Value="0"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style></Border.Style><TextBlock Text="{Binding SelectedItem.Reason, ElementName=ContractsGrid}" Foreground="#EAF7F7" TextWrapping="Wrap"/></Border><TextBlock x:Name="StatusText" Text="Choose your corporation-data character. Monitoring continues when this window is closed." Foreground="#8FB2B5" TextWrapping="Wrap" Margin="0,12,0,0"/></StackPanel>
  </Grid>
 </Window>

@@ -77,6 +77,7 @@ internal static partial class Program
         CheckMiningWatchdog();
         CheckPlanetaryProjection();
         CheckBuybackPeriods();
+        CheckOperationsLedger();
         CheckMoonAlerts();
         CheckContractHistory();
         CheckFitStacking();

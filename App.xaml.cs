@@ -34,6 +34,8 @@ public partial class App : Application
     private WinEventHookService? _winEvents;
     private ThumbnailManager? _thumbnailManager;
     internal ThumbnailManager? OverviewThumbnails => _thumbnailManager;
+    internal SettingsService? OperationsSettings => _settings;
+    internal StatTrackerService? OperationsStats => _statTracker;
     internal EveWindow[] OverviewClients => _discovery?.Windows.Values.ToArray() ?? Array.Empty<EveWindow>();
     private HotkeyService? _hotkeyService;
     private LogMonitorService? _logMonitor;
