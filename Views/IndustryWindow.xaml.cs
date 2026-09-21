@@ -66,7 +66,7 @@ public partial class IndustryWindow : Window
         using var cancellation=CancellationTokenSource.CreateLinkedTokenSource(_life.Token);
         _scanCancellation=cancellation;
         var p=new IndustryPilot{Id=selected.Id,Name=selected.Name,Blueprints=selected.Blueprints.ToList(),
-            Assets=selected.Assets.ToList(),Skills=new(selected.Skills),Updated=selected.Updated};
+            Assets=selected.Assets.ToList(),Skills=new(selected.Skills),Updated=selected.Updated,Error=selected.Error};
         int runs=int.TryParse(Runs.Text,out var n)?Math.Clamp(n,1,10000):1;string filter=Search.Text.Trim();bool all=AllRecipes.IsChecked==true,ready=ReadyOnly.IsChecked==true;
         var previousRecipe=(Recipes.SelectedItem as IndustryPlan)?.Recipe;
         ScanStatus.Text="Scanning bundled CCP recipes against this pilot's stock...";
