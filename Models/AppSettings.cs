@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
@@ -293,6 +293,20 @@ public class AppSettings
     /// account (user) ID. Overrides the auto-derived character-name label in
     /// the Account Copy list when set.</summary>
     public Dictionary<string, string> AccountLabels { get; set; } = new();
+
+    /// <summary>
+    /// User-managed reporting groups for mining/buyback correlation.
+    /// Keys are friendly group names; members are character names. Unlike
+    /// AccountCharacterMap, these may include any corporation miner, not only
+    /// locally linked EVE accounts.
+    /// </summary>
+    public Dictionary<string, List<string>> OperationsMinerGroups { get; set; } = new();
+
+    /// <summary>
+    /// Character names explicitly marked as standalone reporting miners.
+    /// This overrides automatic EVE-account grouping for those characters.
+    /// </summary>
+    public List<string> OperationsSoloMiners { get; set; } = new();
 
     // ── Profiles ────────────────────────────────────────────────────
     public string LastUsedProfile { get; set; } = "Default";

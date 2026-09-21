@@ -2,35 +2,89 @@ namespace EveCommandCenter.Models;
 
 public sealed class OperationsLedgerRow
 {
-    public string AccountKey { get; init; } = "";
-    public string Account { get; init; } = "";
+    public string GroupKey { get; init; } = "";
+    public string Group { get; init; } = "";
+    public string GroupKind { get; init; } = "";
     public string Characters { get; init; } = "";
     public decimal MinedBuybackValue { get; init; }
-    public decimal ContractedValue { get; init; }
-    public decimal GapValue => MinedBuybackValue - ContractedValue;
-    public int AcceptedContracts { get; init; }
-    public DateTimeOffset? LastAccepted { get; init; }
+    public decimal ContractedBackValue { get; init; }
+    public int BuybackContracts { get; init; }
+    public DateTimeOffset? LastBuyback { get; init; }
 
-    public decimal CoveragePercent =>
-        MinedBuybackValue > 0
-            ? ContractedValue / MinedBuybackValue * 100m
-            : ContractedValue > 0
-                ? 100m
-                : 0m;
+    public bool HasMiningData =>
+        MinedBuybackValue > 0;
 
-    public string MinedText => MinedBuybackValue.ToString("N0") + " ISK";
-    public string ContractedText => ContractedValue.ToString("N0") + " ISK";
-    public string GapText => GapValue.ToString("+N0;-N0;0") + " ISK";
-    public string CoverageText => CoveragePercent.ToString("N1") + "%";
-    public string LastAcceptedText =>
-        LastAccepted?.ToLocalTime().ToString("dd MMM HH:mm") ?? "-";
+    public decimal DifferenceValue =>
+        MinedBuybackValue -
+        ContractedBackValue;
 
-    public string GapColor =>
-        GapValue > Math.Max(10_000_000m, MinedBuybackValue * 0.05m)
-            ? "#FFD166"
-            : GapValue < -Math.Max(10_000_000m, MinedBuybackValue * 0.05m)
-                ? "#80BFFF"
-                : "#74D6C9";
+    public decimal? CoveragePercent =>
+        HasMiningData
+            ? ContractedBackValue /
+              MinedBuybackValue *
+              100m
+            : null;
+
+    public string MinedText =>
+        FormatIsk(MinedBuybackValue);
+
+    public string ContractedBackText =>
+        FormatIsk(ContractedBackValue);
+
+    public string DifferenceText =>
+        !HasMiningData
+            ? "N/A"
+            : DifferenceValue >= 0
+                ? FormatIsk(DifferenceValue)
+                : "OVER " +
+                  FormatIsk(-DifferenceValue);
+
+    public string CoverageText =>
+        CoveragePercent.HasValue
+            ? CoveragePercent.Value.ToString("N1") + "%"
+            : "N/A";
+
+    public string LastBuybackText =>
+        LastBuyback?
+            .ToLocalTime()
+            .ToString("dd MMM HH:mm") ??
+        "-";
+
+    public string DifferenceColor =>
+        !HasMiningData
+            ? "#6F9497"
+            : DifferenceValue >
+              Math.Max(
+                  10_000_000m,
+                  MinedBuybackValue * 0.05m)
+                ? "#FFD166"
+                : DifferenceValue <
+                  -Math.Max(
+                      10_000_000m,
+                      MinedBuybackValue * 0.05m)
+                    ? "#80BFFF"
+                    : "#74D6C9";
+
+    public static string FormatIsk(decimal value)
+    {
+        decimal absolute =
+            Math.Abs(value);
+
+        string text =
+            absolute >= 1_000_000_000_000m
+                ? (absolute / 1_000_000_000_000m).ToString("0.##") + "t"
+                : absolute >= 1_000_000_000m
+                    ? (absolute / 1_000_000_000m).ToString("0.##") + "b"
+                    : absolute >= 1_000_000m
+                        ? (absolute / 1_000_000m).ToString("0.##") + "m"
+                        : absolute >= 1_000m
+                            ? (absolute / 1_000m).ToString("0.##") + "k"
+                            : absolute.ToString("N0");
+
+        return (value < 0 ? "-" : "") +
+               text +
+               " ISK";
+    }
 }
 
 public sealed class OperationsLedgerSummary
@@ -39,16 +93,36 @@ public sealed class OperationsLedgerSummary
         Array.Empty<OperationsLedgerRow>();
 
     public decimal MinedBuybackValue =>
-        Rows.Sum(row => row.MinedBuybackValue);
+        Rows.Sum(
+            row =>
+                row.MinedBuybackValue);
 
-    public decimal ContractedValue =>
-        Rows.Sum(row => row.ContractedValue);
+    public decimal ContractedBackValue =>
+        Rows.Sum(
+            row =>
+                row.ContractedBackValue);
 
-    public decimal GapValue =>
-        MinedBuybackValue - ContractedValue;
+    public decimal UncontractedValue =>
+        Rows
+            .Where(row => row.HasMiningData)
+            .Sum(row =>
+                Math.Max(
+                    0m,
+                    row.DifferenceValue));
 
-    public int AccountCount => Rows.Count;
+    public decimal OverRecordedValue =>
+        Rows
+            .Where(row => row.HasMiningData)
+            .Sum(row =>
+                Math.Max(
+                    0m,
+                    -row.DifferenceValue));
 
-    public int AcceptedContracts =>
-        Rows.Sum(row => row.AcceptedContracts);
+    public int GroupCount =>
+        Rows.Count;
+
+    public int BuybackContracts =>
+        Rows.Sum(
+            row =>
+                row.BuybackContracts);
 }

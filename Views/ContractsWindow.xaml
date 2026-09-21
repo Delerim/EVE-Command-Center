@@ -68,7 +68,14 @@
  <TextBlock Grid.Row="3" Text="Bars: total accepted contract price (ISK). Numbers: contracts per day/month. UTC acceptance dates. Includes completed incoming item exchanges with Janice links only. Available ESI history plus local archive; missing historical coverage is not proof of zero activity." Foreground="#8FB2B5" TextWrapping="Wrap" Margin="0,12,0,0"/>
 </Grid></TabItem><TabItem Header="ACCOUNT LEDGER" Background="#12383D" Foreground="#55D7D2">
  <Grid Margin="14">
-  <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+  <Grid.RowDefinitions>
+   <RowDefinition Height="Auto"/>
+   <RowDefinition Height="Auto"/>
+   <RowDefinition Height="Auto"/>
+   <RowDefinition Height="Auto"/>
+   <RowDefinition Height="*"/>
+   <RowDefinition Height="Auto"/>
+  </Grid.RowDefinitions>
 
   <WrapPanel>
    <TextBlock Text="PERIOD" Foreground="#8FB2B5" VerticalAlignment="Center" Margin="0,0,8,0"/>
@@ -80,28 +87,52 @@
   </WrapPanel>
 
   <UniformGrid Grid.Row="1" Columns="4" Margin="0,14,0,14">
-   <Border Background="#0D2B30" BorderBrush="#245058" BorderThickness="1" CornerRadius="8" Padding="12" Margin="0,0,5,0"><StackPanel><TextBlock Text="MINED BUYBACK EST." Foreground="#8FB2B5"/><TextBlock x:Name="AccountMinedText" FontSize="20" FontWeight="Bold" Foreground="#74D6C9"/><TextBlock Text="Existing mining history at configured corp buyback" Foreground="#658C8F" FontSize="10"/></StackPanel></Border>
-   <Border Background="#0D2B30" BorderBrush="#245058" BorderThickness="1" CornerRadius="8" Padding="12" Margin="5,0"><StackPanel><TextBlock Text="ACCEPTED CONTRACTS" Foreground="#8FB2B5"/><TextBlock x:Name="AccountContractedText" FontSize="20" FontWeight="Bold" Foreground="#55D7D2"/><TextBlock x:Name="AccountContractCountText" Foreground="#658C8F" FontSize="10"/></StackPanel></Border>
-   <Border Background="#0D2B30" BorderBrush="#6F5A2C" BorderThickness="1" CornerRadius="8" Padding="12" Margin="5,0"><StackPanel><TextBlock Text="EST. GAP" Foreground="#C9B784"/><TextBlock x:Name="AccountGapText" FontSize="20" FontWeight="Bold" Foreground="#FFD166"/><TextBlock Text="Positive means mined estimate exceeds accepted contracts" Foreground="#658C8F" FontSize="10"/></StackPanel></Border>
-   <Border Background="#0D2B30" BorderBrush="#245058" BorderThickness="1" CornerRadius="8" Padding="12" Margin="5,0,0,0"><StackPanel><TextBlock Text="ACCOUNTS / GROUPS" Foreground="#8FB2B5"/><TextBlock x:Name="AccountCountText" FontSize="20" FontWeight="Bold" Foreground="#80BFFF"/><TextBlock Text="Learned EVE accounts plus unlinked characters" Foreground="#658C8F" FontSize="10"/></StackPanel></Border>
+   <Border Background="#0D2B30" BorderBrush="#245058" BorderThickness="1" CornerRadius="8" Padding="12" Margin="0,0,5,0"><StackPanel><TextBlock Text="MINED BUYBACK EST." Foreground="#8FB2B5"/><TextBlock x:Name="AccountMinedText" FontSize="20" FontWeight="Bold" Foreground="#74D6C9"/><TextBlock Text="Local mining history at configured corp buyback" Foreground="#658C8F" FontSize="10"/></StackPanel></Border>
+   <Border Background="#0D2B30" BorderBrush="#245058" BorderThickness="1" CornerRadius="8" Padding="12" Margin="5,0"><StackPanel><TextBlock Text="CONTRACTED BACK" Foreground="#8FB2B5"/><TextBlock x:Name="AccountContractedText" FontSize="20" FontWeight="Bold" Foreground="#55D7D2"/><TextBlock x:Name="AccountContractCountText" Foreground="#658C8F" FontSize="10"/></StackPanel></Border>
+   <Border Background="#0D2B30" BorderBrush="#6F5A2C" BorderThickness="1" CornerRadius="8" Padding="12" Margin="5,0"><StackPanel><TextBlock Text="UNCONTRACTED EST." Foreground="#C9B784"/><TextBlock x:Name="AccountGapText" FontSize="20" FontWeight="Bold" Foreground="#FFD166"/><TextBlock x:Name="AccountGapDetailText" Foreground="#658C8F" FontSize="10"/></StackPanel></Border>
+   <Border Background="#0D2B30" BorderBrush="#245058" BorderThickness="1" CornerRadius="8" Padding="12" Margin="5,0,0,0"><StackPanel><TextBlock Text="REPORTING GROUPS" Foreground="#8FB2B5"/><TextBlock x:Name="AccountCountText" FontSize="20" FontWeight="Bold" Foreground="#80BFFF"/><TextBlock Text="Manual groups, solo miners, auto accounts and unassigned" Foreground="#658C8F" FontSize="10"/></StackPanel></Border>
   </UniformGrid>
 
   <TextBlock Grid.Row="2" x:Name="AccountReportTitle" Foreground="#74D6C9" FontSize="16" Margin="0,0,0,10"/>
 
-  <DataGrid Grid.Row="3" x:Name="AccountLedgerGrid" AutoGenerateColumns="False" IsReadOnly="True" AlternationCount="2">
+  <Border Grid.Row="3" Background="#0C2529" BorderBrush="#245058" BorderThickness="1" CornerRadius="8" Padding="10" Margin="0,0,0,10">
+   <StackPanel>
+    <DockPanel>
+     <TextBlock Text="MINER GROUPING" Foreground="#55D7D2" FontWeight="Bold"/>
+     <TextBlock x:Name="AccountGroupStatus" Foreground="#8FB2B5" HorizontalAlignment="Right" Text="Type or select any miner, including corp miners not linked to your EVE accounts."/>
+    </DockPanel>
+    <WrapPanel Margin="0,8,0,0">
+     <TextBlock Text="MINER" Foreground="#8FB2B5" VerticalAlignment="Center" Margin="0,0,6,0"/>
+     <ComboBox x:Name="AccountMinerCombo" Width="190" IsEditable="True" IsTextSearchEnabled="True" Margin="0,0,12,0" ToolTip="Choose a known buyback/mining character or type any corporation miner name."/>
+
+     <TextBlock Text="GROUP" Foreground="#8FB2B5" VerticalAlignment="Center" Margin="0,0,6,0"/>
+     <ComboBox x:Name="AccountGroupCombo" Width="170" SelectionChanged="AccountGroupSelection_Changed" Margin="0,0,8,0"/>
+
+     <TextBox x:Name="AccountGroupNameBox" Width="170" Margin="0,0,8,0" ToolTip="New group name, or edit the selected group name."/>
+
+     <Button Content="CREATE / RENAME" Click="AccountGroupSave_Click" Margin="0,0,6,0"/>
+     <Button Content="LINK TO GROUP" Click="AccountLinkMiner_Click" Margin="0,0,6,0"/>
+     <Button Content="MARK SOLO" Click="AccountSoloMiner_Click" Margin="0,0,6,0"/>
+     <Button Content="UNLINK / AUTO" Click="AccountUnlinkMiner_Click"/>
+    </WrapPanel>
+   </StackPanel>
+  </Border>
+
+  <DataGrid Grid.Row="4" x:Name="AccountLedgerGrid" AutoGenerateColumns="False" IsReadOnly="True" AlternationCount="2">
    <DataGrid.Columns>
-    <DataGridTextColumn Header="ACCOUNT" Binding="{Binding Account}" Width="1.2*"/>
-    <DataGridTextColumn Header="CHARACTERS" Binding="{Binding Characters}" Width="2*"/>
-    <DataGridTextColumn Header="MINED BUYBACK EST." Binding="{Binding MinedText}" Width="1.25*"/>
-    <DataGridTextColumn Header="ACCEPTED CONTRACTS" Binding="{Binding ContractedText}" Width="1.25*"/>
-    <DataGridTemplateColumn Header="GAP" Width="1.15*"><DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding GapText}" Foreground="{Binding GapColor}"/></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
-    <DataGridTextColumn Header="COVERAGE" Binding="{Binding CoverageText}" Width="85"/>
-    <DataGridTextColumn Header="CONTRACTS" Binding="{Binding AcceptedContracts}" Width="82"/>
-    <DataGridTextColumn Header="LAST ACCEPTED" Binding="{Binding LastAcceptedText}" Width="115"/>
+    <DataGridTextColumn Header="GROUP" Binding="{Binding Group}" Width="1.15*"/>
+    <DataGridTextColumn Header="TYPE" Binding="{Binding GroupKind}" Width="105"/>
+    <DataGridTextColumn Header="CHARACTERS" Binding="{Binding Characters}" Width="1.8*"/>
+    <DataGridTextColumn Header="MINED EST." Binding="{Binding MinedText}" Width="1.05*"/>
+    <DataGridTextColumn Header="CONTRACTED BACK" Binding="{Binding ContractedBackText}" Width="1.1*"/>
+    <DataGridTemplateColumn Header="UNCONTRACTED / OVER" Width="1.15*"><DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding DifferenceText}" Foreground="{Binding DifferenceColor}"/></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
+    <DataGridTextColumn Header="COVERAGE" Binding="{Binding CoverageText}" Width="82"/>
+    <DataGridTextColumn Header="BUYBACKS" Binding="{Binding BuybackContracts}" Width="72"/>
+    <DataGridTextColumn Header="LAST BUYBACK" Binding="{Binding LastBuybackText}" Width="105"/>
    </DataGrid.Columns>
   </DataGrid>
 
-  <TextBlock Grid.Row="4" Text="This is an additive correlation view: Mining and Contracts keep their existing calculations. Mining value uses the configured corp buyback market/rate; accepted contract value is grouped by issuer and learned EVE account. Unlinked characters remain visible instead of being guessed into an account." Foreground="#8FB2B5" TextWrapping="Wrap" Margin="0,10,0,0"/>
+  <TextBlock Grid.Row="5" Text="Contracted Back counts only the same finished Janice-linked corporation item-exchange buybacks used by BUYBACK REPORT. Manual groups can contain your alts or any corp miner by character name. MARK SOLO forces a miner to stay separate; UNLINK / AUTO removes the manual override and falls back to a learned EVE account when available." Foreground="#8FB2B5" TextWrapping="Wrap" Margin="0,10,0,0"/>
  </Grid>
 </TabItem></TabControl>
   <StackPanel Grid.Row="5"><Border Background="#0C2529" BorderBrush="{Binding SelectedItem.ResultColor, ElementName=ContractsGrid}" BorderThickness="3,0,0,0" Padding="10,8" Margin="0,10,0,0"><Border.Style><Style TargetType="Border"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding SelectedIndex, ElementName=ContractTabs}" Value="0"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style></Border.Style><TextBlock Text="{Binding SelectedItem.Reason, ElementName=ContractsGrid}" Foreground="#EAF7F7" TextWrapping="Wrap"/></Border><TextBlock x:Name="StatusText" Text="Choose your corporation-data character. Monitoring continues when this window is closed." Foreground="#8FB2B5" TextWrapping="Wrap" Margin="0,12,0,0"/></StackPanel>
