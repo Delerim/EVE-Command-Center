@@ -1,4 +1,5 @@
-# EVE Command Center v3.5.29
+# EVE Command Center v3.5.30
 
-- Fixed ordinary tool tabs appearing clipped or jagged on their right edge.
-- Global tabs now use the same fully rounded pill geometry already used by the Mining dashboard, while windows with their own custom tab styles remain unchanged.
+- Updated the GitHub release pipeline to Node 24-compatible actions.
+- Tag releases now publish directly to GitHub Releases instead of staging a second large Actions artifact, avoiding artifact-finalization failures.
+- Main-branch diagnostic build artifacts are retained for seven days to reduce Actions storage usage.

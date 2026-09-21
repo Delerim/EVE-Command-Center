@@ -12,9 +12,12 @@ permissions:
 jobs:
   build:
     runs-on: windows-latest
+    permissions:
+      contents: write
+
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Validate patch notes
         shell: pwsh
@@ -23,7 +26,7 @@ jobs:
           ./scripts/Validate-ReleaseNotes.ps1 -Tag $tag
 
       - name: Setup .NET 8
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v6
         with:
           dotnet-version: '8.0.x'
 
@@ -36,46 +39,52 @@ jobs:
       - name: Publish EVE Command Center EXE
         run: dotnet publish EveCommandCenter.csproj -c Release -r win-x64 --self-contained true /p:PublishSingleFile=true /p:IncludeNativeLibrariesForSelfExtract=true -o artifacts/publish
 
-      - name: Upload EVE Command Center artifact
-        uses: actions/upload-artifact@v4
+      - name: Upload main-branch build artifact
+        if: github.ref_type != 'tag'
+        uses: actions/upload-artifact@v6
         with:
           name: EVE-Command-Center-Windows-x64
           path: artifacts/publish/**
           if-no-files-found: error
+          retention-days: 7
+          compression-level: 0
 
       - name: Package public download
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: github.ref_type == 'tag'
         shell: pwsh
         run: |
           [xml]$project = Get-Content EveCommandCenter.csproj
-          if ("v$($project.Project.PropertyGroup.Version)" -ne $env:GITHUB_REF_NAME) { throw 'Tag must match project version' }
+          if ("v$($project.Project.PropertyGroup.Version)" -ne $env:GITHUB_REF_NAME) {
+              throw 'Tag must match project version'
+          }
+
           New-Item -ItemType Directory -Path artifacts/release -Force | Out-Null
           Copy-Item NOTICE.md artifacts/publish/NOTICE.md
           Copy-Item README.md artifacts/publish/README.md
-          Compress-Archive -Path 'artifacts/publish/EVE Command Center.exe', artifacts/publish/NOTICE.md, artifacts/publish/README.md -DestinationPath artifacts/release/EVE-Command-Center-Windows-x64.zip
+
+          Compress-Archive `
+            -Path 'artifacts/publish/EVE Command Center.exe', artifacts/publish/NOTICE.md, artifacts/publish/README.md `
+            -DestinationPath artifacts/release/EVE-Command-Center-Windows-x64.zip
+
           Copy-Item 'artifacts/publish/EVE Command Center.exe' artifacts/release/EVE.Command.Center.exe
-          Get-ChildItem artifacts/release -File | Get-FileHash -Algorithm SHA256 | ForEach-Object { "$($_.Hash.ToLower())  $([IO.Path]::GetFileName($_.Path))" } | Set-Content artifacts/release/SHA256SUMS.txt
 
-      - name: Upload release files
-        if: startsWith(github.ref, 'refs/tags/v')
-        uses: actions/upload-artifact@v4
-        with:
-          name: public-release
-          path: artifacts/release/*
+          Get-ChildItem artifacts/release -File |
+            Get-FileHash -Algorithm SHA256 |
+            ForEach-Object {
+                "$($_.Hash.ToLower())  $([IO.Path]::GetFileName($_.Path))"
+            } |
+            Set-Content artifacts/release/SHA256SUMS.txt
 
-  release:
-    if: startsWith(github.ref, 'refs/tags/v')
-    needs: build
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
-        with:
-          name: public-release
-          path: release
-      - name: Publish GitHub Release
+      - name: Publish GitHub Release directly
+        if: github.ref_type == 'tag'
+        shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" release/* --verify-tag --title "EVE Command Center $GITHUB_REF_NAME" --notes-file RELEASE_NOTES.md
+        run: |
+          gh release create "$env:GITHUB_REF_NAME" `
+            "artifacts/release/EVE-Command-Center-Windows-x64.zip" `
+            "artifacts/release/EVE.Command.Center.exe" `
+            "artifacts/release/SHA256SUMS.txt" `
+            --verify-tag `
+            --title "EVE Command Center $env:GITHUB_REF_NAME" `
+            --notes-file RELEASE_NOTES.md
