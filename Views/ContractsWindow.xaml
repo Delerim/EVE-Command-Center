@@ -95,41 +95,248 @@
 
   <TextBlock Grid.Row="2" x:Name="AccountReportTitle" Foreground="#74D6C9" FontSize="16" Margin="0,0,0,10"/>
 
-  <Border Grid.Row="3" Background="#0C2529" BorderBrush="#245058" BorderThickness="1" CornerRadius="8" Padding="10" Margin="0,0,0,10">
-   <StackPanel>
-    <DockPanel>
-     <TextBlock Text="MINER GROUPING" Foreground="#55D7D2" FontWeight="Bold"/>
-     <TextBlock x:Name="AccountGroupStatus" Foreground="#8FB2B5" HorizontalAlignment="Right" Text="Type or select any miner, including corp miners not linked to your EVE accounts."/>
-    </DockPanel>
-    <WrapPanel Margin="0,8,0,0">
-     <TextBlock Text="MINER" Foreground="#8FB2B5" VerticalAlignment="Center" Margin="0,0,6,0"/>
-     <ComboBox x:Name="AccountMinerCombo" Width="190" IsEditable="True" IsTextSearchEnabled="True" Margin="0,0,12,0" ToolTip="Choose a known buyback/mining character or type any corporation miner name."/>
+  <Border Grid.Row="3"
+          Background="#0C2529"
+          BorderBrush="#245058"
+          BorderThickness="1"
+          CornerRadius="10"
+          Padding="12"
+          Margin="0,0,0,10">
+    <Grid>
+      <Grid.RowDefinitions>
+        <RowDefinition Height="Auto"/>
+        <RowDefinition Height="Auto"/>
+        <RowDefinition Height="Auto"/>
+      </Grid.RowDefinitions>
 
-     <TextBlock Text="GROUP" Foreground="#8FB2B5" VerticalAlignment="Center" Margin="0,0,6,0"/>
-     <ComboBox x:Name="AccountGroupCombo" Width="170" SelectionChanged="AccountGroupSelection_Changed" Margin="0,0,8,0"/>
+      <DockPanel>
+        <StackPanel>
+          <TextBlock Text="MINER GROUPING"
+                     Foreground="#55D7D2"
+                     FontWeight="Bold"
+                     FontSize="13"/>
+          <TextBlock Text="Group your own alts or any corp miner. Manual choices override auto-detected EVE accounts."
+                     Foreground="#6F9497"
+                     FontSize="10.5"
+                     Margin="0,2,0,0"/>
+        </StackPanel>
 
-     <TextBox x:Name="AccountGroupNameBox" Width="170" Margin="0,0,8,0" ToolTip="New group name, or edit the selected group name."/>
+        <TextBlock x:Name="AccountGroupStatus"
+                   Foreground="#8FB2B5"
+                   HorizontalAlignment="Right"
+                   VerticalAlignment="Center"
+                   TextAlignment="Right"
+                   Text="Choose a miner or click a ledger row."/>
+      </DockPanel>
 
-     <Button Content="CREATE / RENAME" Click="AccountGroupSave_Click" Margin="0,0,6,0"/>
-     <Button Content="LINK TO GROUP" Click="AccountLinkMiner_Click" Margin="0,0,6,0"/>
-     <Button Content="MARK SOLO" Click="AccountSoloMiner_Click" Margin="0,0,6,0"/>
-     <Button Content="UNLINK / AUTO" Click="AccountUnlinkMiner_Click"/>
-    </WrapPanel>
-   </StackPanel>
+      <Grid Grid.Row="1"
+            Margin="0,10,0,0">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="Auto"/>
+          <ColumnDefinition Width="220"/>
+          <ColumnDefinition Width="14"/>
+          <ColumnDefinition Width="Auto"/>
+          <ColumnDefinition Width="220"/>
+          <ColumnDefinition Width="12"/>
+          <ColumnDefinition Width="Auto"/>
+          <ColumnDefinition Width="220"/>
+          <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <TextBlock Grid.Column="0"
+                   Text="MINER"
+                   Foreground="#8FB2B5"
+                   VerticalAlignment="Center"
+                   Margin="0,0,8,0"/>
+
+        <ComboBox x:Name="AccountMinerCombo"
+                  Grid.Column="1"
+                  IsEditable="True"
+                  IsTextSearchEnabled="True"
+                  SelectionChanged="AccountMinerSelection_Changed"
+                  LostKeyboardFocus="AccountMinerFocusLost"
+                  ToolTip="Choose a known miner or type any corporation character name."/>
+
+        <TextBlock Grid.Column="3"
+                   Text="EXISTING GROUP"
+                   Foreground="#8FB2B5"
+                   VerticalAlignment="Center"
+                   Margin="0,0,8,0"/>
+
+        <Grid Grid.Column="4">
+          <ComboBox x:Name="AccountGroupCombo"
+                    SelectionChanged="AccountGroupSelection_Changed"/>
+
+          <TextBlock x:Name="AccountGroupEmptyText"
+                     Text="No groups yet"
+                     Foreground="#6F9497"
+                     VerticalAlignment="Center"
+                     Margin="10,0,32,0"
+                     IsHitTestVisible="False"
+                     Visibility="Collapsed"/>
+        </Grid>
+
+        <TextBlock Grid.Column="6"
+                   Text="NEW / RENAME NAME"
+                   Foreground="#8FB2B5"
+                   VerticalAlignment="Center"
+                   Margin="0,0,8,0"/>
+
+        <TextBox x:Name="AccountGroupNameBox"
+                 Grid.Column="7"
+                 TextChanged="AccountGroupName_Changed"
+                 ToolTip="Type a new group name, or select a group and type its new name."/>
+
+        <Border Grid.Column="8"
+                x:Name="AccountSelectionBorder"
+                Background="#0A1D20"
+                BorderBrush="#294A44"
+                BorderThickness="1"
+                CornerRadius="8"
+                Padding="10,5"
+                Margin="14,0,0,0">
+          <StackPanel Orientation="Horizontal">
+            <TextBlock Text="SELECTED "
+                       Foreground="#6F9497"
+                       FontSize="10.5"
+                       VerticalAlignment="Center"/>
+
+            <TextBlock x:Name="AccountSelectionText"
+                       Text="None"
+                       Foreground="#EAF7F4"
+                       FontWeight="SemiBold"
+                       Margin="4,0,8,0"
+                       VerticalAlignment="Center"/>
+
+            <Border x:Name="AccountSelectionStateBorder"
+                    Background="#13282B"
+                    BorderBrush="#315E56"
+                    BorderThickness="1"
+                    CornerRadius="5"
+                    Padding="6,2">
+              <TextBlock x:Name="AccountSelectionStateText"
+                         Text="UNASSIGNED"
+                         Foreground="#8FB2B5"
+                         FontSize="10"
+                         FontWeight="SemiBold"/>
+            </Border>
+          </StackPanel>
+        </Border>
+      </Grid>
+
+      <DockPanel Grid.Row="2"
+                 Margin="0,10,0,0">
+        <StackPanel Orientation="Horizontal"
+                    DockPanel.Dock="Left">
+          <Button x:Name="AccountCreateGroupButton"
+                  Content="CREATE NEW GROUP"
+                  Click="AccountCreateGroup_Click"
+                  Margin="0,0,6,0"/>
+
+          <Button x:Name="AccountRenameGroupButton"
+                  Content="RENAME SELECTED"
+                  Click="AccountRenameGroup_Click"
+                  Margin="0,0,6,0"/>
+
+          <Button x:Name="AccountDeleteGroupButton"
+                  Content="REMOVE GROUP"
+                  Click="AccountDeleteGroup_Click"
+                  Margin="0,0,16,0"/>
+        </StackPanel>
+
+        <StackPanel Orientation="Horizontal"
+                    HorizontalAlignment="Right">
+          <Button x:Name="AccountLinkMinerButton"
+                  Content="LINK MINER TO GROUP"
+                  Click="AccountLinkMiner_Click"
+                  Margin="0,0,6,0"
+                  Background="#164A42"
+                  BorderBrush="#58D3B4"/>
+
+          <Button x:Name="AccountSoloMinerButton"
+                  Content="MARK SOLO"
+                  Click="AccountSoloMiner_Click"
+                  Margin="0,0,6,0"/>
+
+          <Button x:Name="AccountAutoMinerButton"
+                  Content="USE AUTO / UNASSIGNED"
+                  Click="AccountUnlinkMiner_Click"/>
+        </StackPanel>
+      </DockPanel>
+    </Grid>
   </Border>
 
-  <DataGrid Grid.Row="4" x:Name="AccountLedgerGrid" AutoGenerateColumns="False" IsReadOnly="True" AlternationCount="2">
-   <DataGrid.Columns>
-    <DataGridTextColumn Header="GROUP" Binding="{Binding Group}" Width="1.15*"/>
-    <DataGridTextColumn Header="TYPE" Binding="{Binding GroupKind}" Width="105"/>
-    <DataGridTextColumn Header="CHARACTERS" Binding="{Binding Characters}" Width="1.8*"/>
-    <DataGridTextColumn Header="MINED EST." Binding="{Binding MinedText}" Width="1.05*"/>
-    <DataGridTextColumn Header="CONTRACTED BACK" Binding="{Binding ContractedBackText}" Width="1.1*"/>
-    <DataGridTemplateColumn Header="UNCONTRACTED / OVER" Width="1.15*"><DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding DifferenceText}" Foreground="{Binding DifferenceColor}"/></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
-    <DataGridTextColumn Header="COVERAGE" Binding="{Binding CoverageText}" Width="82"/>
-    <DataGridTextColumn Header="BUYBACKS" Binding="{Binding BuybackContracts}" Width="72"/>
-    <DataGridTextColumn Header="LAST BUYBACK" Binding="{Binding LastBuybackText}" Width="105"/>
-   </DataGrid.Columns>
+  <DataGrid Grid.Row="4"
+            x:Name="AccountLedgerGrid"
+            AutoGenerateColumns="False"
+            IsReadOnly="True"
+            AlternationCount="2"
+            SelectionMode="Single"
+            SelectionUnit="FullRow"
+            SelectionChanged="AccountLedgerSelection_Changed">
+    <DataGrid.RowStyle>
+      <Style TargetType="DataGridRow">
+        <Setter Property="BorderBrush"
+                Value="Transparent"/>
+        <Setter Property="BorderThickness"
+                Value="0"/>
+        <Style.Triggers>
+          <Trigger Property="IsMouseOver"
+                   Value="True">
+            <Setter Property="Background"
+                    Value="#123236"/>
+          </Trigger>
+
+          <Trigger Property="IsSelected"
+                   Value="True">
+            <Setter Property="Background"
+                    Value="#17483F"/>
+            <Setter Property="BorderBrush"
+                    Value="#58D3B4"/>
+            <Setter Property="BorderThickness"
+                    Value="3,1,1,1"/>
+            <Setter Property="Foreground"
+                    Value="#FFFFFF"/>
+          </Trigger>
+        </Style.Triggers>
+      </Style>
+    </DataGrid.RowStyle>
+
+    <DataGrid.Columns>
+      <DataGridTextColumn Header="GROUP"
+                          Binding="{Binding Group}"
+                          Width="1.15*"/>
+      <DataGridTextColumn Header="TYPE"
+                          Binding="{Binding GroupKind}"
+                          Width="105"/>
+      <DataGridTextColumn Header="CHARACTERS"
+                          Binding="{Binding Characters}"
+                          Width="1.8*"/>
+      <DataGridTextColumn Header="MINED EST."
+                          Binding="{Binding MinedText}"
+                          Width="1.05*"/>
+      <DataGridTextColumn Header="CONTRACTED BACK"
+                          Binding="{Binding ContractedBackText}"
+                          Width="1.1*"/>
+      <DataGridTemplateColumn Header="UNCONTRACTED / OVER"
+                              Width="1.15*">
+        <DataGridTemplateColumn.CellTemplate>
+          <DataTemplate>
+            <TextBlock Text="{Binding DifferenceText}"
+                       Foreground="{Binding DifferenceColor}"/>
+          </DataTemplate>
+        </DataGridTemplateColumn.CellTemplate>
+      </DataGridTemplateColumn>
+      <DataGridTextColumn Header="COVERAGE"
+                          Binding="{Binding CoverageText}"
+                          Width="82"/>
+      <DataGridTextColumn Header="BUYBACKS"
+                          Binding="{Binding BuybackContracts}"
+                          Width="72"/>
+      <DataGridTextColumn Header="LAST BUYBACK"
+                          Binding="{Binding LastBuybackText}"
+                          Width="105"/>
+    </DataGrid.Columns>
   </DataGrid>
 
   <TextBlock Grid.Row="5" Text="Contracted Back counts only the same finished Janice-linked corporation item-exchange buybacks used by BUYBACK REPORT. Manual groups can contain your alts or any corp miner by character name. MARK SOLO forces a miner to stay separate; UNLINK / AUTO removes the manual override and falls back to a learned EVE account when available." Foreground="#8FB2B5" TextWrapping="Wrap" Margin="0,10,0,0"/>

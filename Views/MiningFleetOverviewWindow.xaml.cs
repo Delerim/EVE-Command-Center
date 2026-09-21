@@ -960,10 +960,22 @@ public partial class MiningFleetOverviewWindow : Window
                 CritText = crit.Cycles > 0 ? crit.ToString() : "-",
                 CritM3Text =
                     latestCritM3 > 0
-                        ? " | " +
-                          latestCritM3.ToString(
-                              "N0",
-                              CultureInfo.CurrentCulture) +
+                        ? "  " +
+                          (
+                              latestCritM3 >= 1_000_000
+                                  ? (latestCritM3 / 1_000_000.0).ToString(
+                                        "0.##",
+                                        CultureInfo.CurrentCulture) +
+                                    "m"
+                                  : latestCritM3 >= 1_000
+                                      ? (latestCritM3 / 1_000.0).ToString(
+                                            "0.##",
+                                            CultureInfo.CurrentCulture) +
+                                        "k"
+                                      : latestCritM3.ToString(
+                                            "N0",
+                                            CultureInfo.CurrentCulture)
+                          ) +
                           " m3"
                         : "",
 
@@ -1072,7 +1084,10 @@ public partial class MiningFleetOverviewWindow : Window
                     $"Session buyback-value estimate: {s.SessionBuybackValue:N0} ISK.",
                 CritToolTip = crit.Cycles > 0
                     ? $"Critical mining today: {crit}.{Environment.NewLine}" +
-                      $"Estimated critical bonus volume: {s.MiningCritBonusM3:N1} m3."
+                      (latestCritM3 > 0
+                          ? $"Latest critical pull: {latestCritM3:N0} m3.{Environment.NewLine}"
+                          : "") +
+                      $"Estimated critical bonus volume today: {s.MiningCritBonusM3:N1} m3."
                     : "No mining pulls recorded for today's critical summary yet."
             });
         }

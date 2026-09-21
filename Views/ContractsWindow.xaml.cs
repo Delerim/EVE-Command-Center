@@ -133,7 +133,7 @@ public partial class ContractsWindow : Window
             preferredGroup ??
             AccountGroupCombo.SelectedItem as string;
 
-        var candidates =
+        string[] candidates =
             _pilots
                 .Select(pilot =>
                     pilot.CharacterName)
@@ -170,11 +170,15 @@ public partial class ContractsWindow : Window
             candidates;
 
         if (previousMiner.Length > 0)
+        {
             AccountMinerCombo.Text =
                 previousMiner;
+        }
         else if (candidates.Length > 0)
-            AccountMinerCombo.SelectedIndex =
-                0;
+        {
+            AccountMinerCombo.SelectedItem =
+                candidates[0];
+        }
 
         string[] groups =
             settings.OperationsMinerGroups.Keys
@@ -189,25 +193,236 @@ public partial class ContractsWindow : Window
         AccountGroupCombo.ItemsSource =
             groups;
 
+        AccountGroupCombo.IsEnabled =
+            groups.Length > 0;
+
+        AccountGroupEmptyText.Visibility =
+            groups.Length == 0
+                ? Visibility.Visible
+                : Visibility.Collapsed;
+
         string? groupToSelect =
             groups.FirstOrDefault(group =>
                 SameName(
                     group,
                     previousGroup));
 
-        if (groupToSelect != null)
-        {
-            AccountGroupCombo.SelectedItem =
-                groupToSelect;
+        if (groupToSelect == null &&
+            groups.Length > 0)
+            groupToSelect =
+                groups[0];
 
+        AccountGroupCombo.SelectedItem =
+            groupToSelect;
+
+        if (groupToSelect != null &&
+            string.IsNullOrWhiteSpace(
+                AccountGroupNameBox.Text))
             AccountGroupNameBox.Text =
                 groupToSelect;
-        }
-        else
+
+        UpdateMinerAssignmentCue(
+            settings,
+            AccountMinerCombo.Text.Trim());
+
+        UpdateAccountEditorButtons();
+    }
+
+    private string? ManualGroupForMiner(
+        AppSettings settings,
+        string miner)
+    {
+        return settings.OperationsMinerGroups
+            .FirstOrDefault(pair =>
+                pair.Value.Any(member =>
+                    SameName(
+                        member,
+                        miner)))
+            .Key;
+    }
+
+    private string? AutoAccountForMiner(
+        AppSettings settings,
+        string miner)
+    {
+        EvePilotProfile? pilot =
+            _pilots.FirstOrDefault(p =>
+                SameName(
+                    p.CharacterName,
+                    miner));
+
+        if (pilot == null)
+            return null;
+
+        string id =
+            pilot.CharacterId.ToString(
+                CultureInfo.InvariantCulture);
+
+        return settings.AccountCharacterMap
+            .FirstOrDefault(pair =>
+                pair.Value.Any(characterId =>
+                    string.Equals(
+                        characterId,
+                        id,
+                        StringComparison.OrdinalIgnoreCase)))
+            .Key;
+    }
+
+    private void SetSelectionCue(
+        string title,
+        string state,
+        string background,
+        string border,
+        string foreground)
+    {
+        if (AccountSelectionText == null ||
+            AccountSelectionStateText == null)
+            return;
+
+        AccountSelectionText.Text =
+            string.IsNullOrWhiteSpace(title)
+                ? "None"
+                : title;
+
+        AccountSelectionStateText.Text =
+            state;
+
+        AccountSelectionStateBorder.Background =
+            AccountBrush(background);
+
+        AccountSelectionStateBorder.BorderBrush =
+            AccountBrush(border);
+
+        AccountSelectionStateText.Foreground =
+            AccountBrush(foreground);
+    }
+
+    private static System.Windows.Media.SolidColorBrush AccountBrush(
+        string hex)
+    {
+        var color =
+            (System.Windows.Media.Color)
+            System.Windows.Media.ColorConverter.ConvertFromString(hex);
+
+        return new System.Windows.Media.SolidColorBrush(color);
+    }
+
+    private void UpdateMinerAssignmentCue(
+        AppSettings settings,
+        string miner)
+    {
+        if (string.IsNullOrWhiteSpace(miner))
         {
-            AccountGroupCombo.SelectedIndex =
-                -1;
+            SetSelectionCue(
+                "None",
+                "CHOOSE A MINER",
+                "#13282B",
+                "#315E56",
+                "#8FB2B5");
+
+            return;
         }
+
+        string? manual =
+            ManualGroupForMiner(
+                settings,
+                miner);
+
+        if (!string.IsNullOrWhiteSpace(manual))
+        {
+            SetSelectionCue(
+                miner,
+                "MANUAL: " + manual,
+                "#15382F",
+                "#58D3B4",
+                "#74D6C9");
+
+            return;
+        }
+
+        if (settings.OperationsSoloMiners.Any(name =>
+                SameName(
+                    name,
+                    miner)))
+        {
+            SetSelectionCue(
+                miner,
+                "SOLO",
+                "#3A3017",
+                "#A88938",
+                "#FFD166");
+
+            return;
+        }
+
+        string? account =
+            AutoAccountForMiner(
+                settings,
+                miner);
+
+        if (!string.IsNullOrWhiteSpace(account))
+        {
+            string label =
+                settings.AccountLabels.TryGetValue(
+                    account,
+                    out string? friendly) &&
+                !string.IsNullOrWhiteSpace(friendly)
+                    ? friendly.Trim()
+                    : "EVE ACCOUNT " + account;
+
+            SetSelectionCue(
+                miner,
+                "AUTO: " + label,
+                "#152C3A",
+                "#4783A8",
+                "#80BFFF");
+
+            return;
+        }
+
+        SetSelectionCue(
+            miner,
+            "UNASSIGNED",
+            "#251F20",
+            "#5A4A4D",
+            "#C5A9AF");
+    }
+
+    private void UpdateAccountEditorButtons()
+    {
+        if (AccountCreateGroupButton == null)
+            return;
+
+        bool hasMiner =
+            !string.IsNullOrWhiteSpace(
+                AccountMinerCombo?.Text);
+
+        bool hasGroup =
+            AccountGroupCombo?.SelectedItem is string;
+
+        bool hasName =
+            !string.IsNullOrWhiteSpace(
+                AccountGroupNameBox?.Text);
+
+        AccountCreateGroupButton.IsEnabled =
+            hasName;
+
+        AccountRenameGroupButton.IsEnabled =
+            hasGroup &&
+            hasName;
+
+        AccountDeleteGroupButton.IsEnabled =
+            hasGroup;
+
+        AccountLinkMinerButton.IsEnabled =
+            hasMiner &&
+            hasGroup;
+
+        AccountSoloMinerButton.IsEnabled =
+            hasMiner;
+
+        AccountAutoMinerButton.IsEnabled =
+            hasMiner;
     }
 
     private async Task RenderAccountLedgerAsync()
@@ -281,8 +496,7 @@ public partial class ContractsWindow : Window
         }
         catch
         {
-            // Partial market availability is fine. Missing quotes stay at zero
-            // rather than blocking the entire report.
+            // Partial market availability is fine.
         }
 
         if (_closed ||
@@ -330,8 +544,20 @@ public partial class ContractsWindow : Window
                 qualifyingBuybacks,
                 UnitPrice);
 
+        object? selectedKey =
+            (AccountLedgerGrid.SelectedItem as OperationsLedgerRow)?
+                .GroupKey;
+
         AccountLedgerGrid.ItemsSource =
             summary.Rows;
+
+        if (selectedKey is string key)
+            AccountLedgerGrid.SelectedItem =
+                summary.Rows.FirstOrDefault(row =>
+                    string.Equals(
+                        row.GroupKey,
+                        key,
+                        StringComparison.OrdinalIgnoreCase));
 
         AccountMinedText.Text =
             OperationsLedgerRow.FormatIsk(
@@ -425,6 +651,40 @@ public partial class ContractsWindow : Window
                         direction);
     }
 
+    private void AccountMinerSelection_Changed(
+        object sender,
+        SelectionChangedEventArgs e)
+    {
+        SettingsService? service =
+            AccountSettingsService;
+
+        if (service == null)
+            return;
+
+        UpdateMinerAssignmentCue(
+            service.Settings,
+            AccountMinerCombo.Text.Trim());
+
+        UpdateAccountEditorButtons();
+    }
+
+    private void AccountMinerFocusLost(
+        object sender,
+        KeyboardFocusChangedEventArgs e)
+    {
+        SettingsService? service =
+            AccountSettingsService;
+
+        if (service == null)
+            return;
+
+        UpdateMinerAssignmentCue(
+            service.Settings,
+            AccountMinerCombo.Text.Trim());
+
+        UpdateAccountEditorButtons();
+    }
+
     private void AccountGroupSelection_Changed(
         object sender,
         SelectionChangedEventArgs e)
@@ -433,9 +693,105 @@ public partial class ContractsWindow : Window
             AccountGroupNameBox != null)
             AccountGroupNameBox.Text =
                 group;
+
+        UpdateAccountEditorButtons();
     }
 
-    private void AccountGroupSave_Click(
+    private void AccountGroupName_Changed(
+        object sender,
+        TextChangedEventArgs e)
+    {
+        UpdateAccountEditorButtons();
+    }
+
+    private void AccountLedgerSelection_Changed(
+        object sender,
+        SelectionChangedEventArgs e)
+    {
+        if (AccountLedgerGrid?.SelectedItem is not
+            OperationsLedgerRow row)
+            return;
+
+        SettingsService? service =
+            AccountSettingsService;
+
+        if (service == null)
+            return;
+
+        if (row.GroupKind == "MANUAL GROUP")
+        {
+            string? matching =
+                settingsGroup(
+                    service.Settings,
+                    row.Group);
+
+            if (matching != null)
+            {
+                AccountGroupCombo.SelectedItem =
+                    matching;
+
+                AccountGroupNameBox.Text =
+                    matching;
+            }
+        }
+
+        string[] members =
+            row.Characters
+                .Split(
+                    ',',
+                    StringSplitOptions.RemoveEmptyEntries |
+                    StringSplitOptions.TrimEntries);
+
+        if (members.Length == 1)
+        {
+            AccountMinerCombo.Text =
+                members[0];
+
+            UpdateMinerAssignmentCue(
+                service.Settings,
+                members[0]);
+
+            AccountGroupStatus.Text =
+                "Selected " +
+                members[0] +
+                " from the ledger.";
+        }
+        else
+        {
+            AccountMinerCombo.Text =
+                "";
+
+            SetSelectionCue(
+                row.Group,
+                row.GroupKind +
+                " | " +
+                members.Length +
+                " MINERS",
+                "#15382F",
+                "#58D3B4",
+                "#74D6C9");
+
+            AccountGroupStatus.Text =
+                "Selected " +
+                row.Group +
+                ". Choose one member above for an individual action.";
+        }
+
+        UpdateAccountEditorButtons();
+    }
+
+    private static string? settingsGroup(
+        AppSettings settings,
+        string group)
+    {
+        return settings.OperationsMinerGroups.Keys
+            .FirstOrDefault(name =>
+                SameName(
+                    name,
+                    group));
+    }
+
+    private void AccountCreateGroup_Click(
         object sender,
         RoutedEventArgs e)
     {
@@ -445,8 +801,72 @@ public partial class ContractsWindow : Window
         if (service == null)
             return;
 
+        string name =
+            AccountGroupNameBox.Text.Trim();
+
+        if (name.Length == 0)
+        {
+            AccountGroupStatus.Text =
+                "Type a new group name first.";
+            return;
+        }
+
         AppSettings settings =
             service.Settings;
+
+        string? existing =
+            settingsGroup(
+                settings,
+                name);
+
+        if (existing != null)
+        {
+            AccountGroupCombo.SelectedItem =
+                existing;
+
+            AccountGroupStatus.Text =
+                "That group already exists and is now selected.";
+
+            return;
+        }
+
+        settings.OperationsMinerGroups[name] =
+            new List<string>();
+
+        service.Save();
+
+        RefreshAccountEditor(
+            settings,
+            preferredGroup: name);
+
+        AccountGroupNameBox.Text =
+            "";
+
+        AccountGroupStatus.Text =
+            "Created " +
+            name +
+            ". Now choose a miner and click LINK MINER TO GROUP.";
+
+        _ = RenderAccountLedgerAsync();
+    }
+
+    private void AccountRenameGroup_Click(
+        object sender,
+        RoutedEventArgs e)
+    {
+        SettingsService? service =
+            AccountSettingsService;
+
+        if (service == null)
+            return;
+
+        if (AccountGroupCombo.SelectedItem is not
+            string selected)
+        {
+            AccountGroupStatus.Text =
+                "Select an existing group first.";
+            return;
+        }
 
         string name =
             AccountGroupNameBox.Text.Trim();
@@ -454,53 +874,28 @@ public partial class ContractsWindow : Window
         if (name.Length == 0)
         {
             AccountGroupStatus.Text =
-                "Enter a group name first.";
+                "Type the new group name first.";
             return;
         }
 
-        string? selected =
-            AccountGroupCombo.SelectedItem as string;
-
-        if (selected == null)
-        {
-            if (!settings.OperationsMinerGroups.ContainsKey(name))
-                settings.OperationsMinerGroups[name] =
-                    new List<string>();
-
-            service.Save();
-            RefreshAccountEditor(
-                settings,
-                preferredGroup: name);
-
-            AccountGroupStatus.Text =
-                "Created reporting group " +
-                name +
-                ".";
-
-            _ = RenderAccountLedgerAsync();
-            return;
-        }
+        AppSettings settings =
+            service.Settings;
 
         if (SameName(
                 selected,
                 name))
         {
             AccountGroupStatus.Text =
-                "Group name is already " +
-                selected +
-                ".";
+                "The selected group already has that name.";
             return;
         }
 
-        if (settings.OperationsMinerGroups.Keys.Any(key =>
-                SameName(
-                    key,
-                    name)))
+        if (settingsGroup(
+                settings,
+                name) != null)
         {
             AccountGroupStatus.Text =
-                "A group named " +
-                name +
-                " already exists.";
+                "A group with that name already exists.";
             return;
         }
 
@@ -519,11 +914,76 @@ public partial class ContractsWindow : Window
             settings,
             preferredGroup: name);
 
+        AccountGroupNameBox.Text =
+            name;
+
         AccountGroupStatus.Text =
             "Renamed " +
             selected +
             " to " +
             name +
+            ".";
+
+        _ = RenderAccountLedgerAsync();
+    }
+
+    private void AccountDeleteGroup_Click(
+        object sender,
+        RoutedEventArgs e)
+    {
+        SettingsService? service =
+            AccountSettingsService;
+
+        if (service == null)
+            return;
+
+        if (AccountGroupCombo.SelectedItem is not
+            string selected)
+        {
+            AccountGroupStatus.Text =
+                "Select a group first.";
+            return;
+        }
+
+        AppSettings settings =
+            service.Settings;
+
+        int memberCount =
+            settings.OperationsMinerGroups.TryGetValue(
+                selected,
+                out List<string>? members)
+                ? members.Count
+                : 0;
+
+        string detail =
+            memberCount > 0
+                ? $" Its {memberCount} miner(s) will fall back to SOLO/AUTO/UNASSIGNED."
+                : "";
+
+        if (System.Windows.MessageBox.Show(
+                "Remove reporting group '" +
+                selected +
+                "'?" +
+                detail,
+                "Remove reporting group",
+                System.Windows.MessageBoxButton.YesNo,
+                System.Windows.MessageBoxImage.Question) !=
+            System.Windows.MessageBoxResult.Yes)
+            return;
+
+        settings.OperationsMinerGroups.Remove(
+            selected);
+
+        service.Save();
+
+        AccountGroupNameBox.Text =
+            "";
+
+        RefreshAccountEditor(settings);
+
+        AccountGroupStatus.Text =
+            "Removed " +
+            selected +
             ".";
 
         _ = RenderAccountLedgerAsync();
@@ -539,40 +999,26 @@ public partial class ContractsWindow : Window
         if (service == null)
             return;
 
-        AppSettings settings =
-            service.Settings;
-
         string miner =
             AccountMinerCombo.Text.Trim();
 
-        string group =
-            (AccountGroupCombo.SelectedItem as string ??
-             AccountGroupNameBox.Text)
-                .Trim();
-
-        if (miner.Length == 0 ||
-            group.Length == 0)
+        if (miner.Length == 0)
         {
             AccountGroupStatus.Text =
-                "Choose/type a miner and choose/type a group.";
+                "Choose or type a miner first.";
             return;
         }
 
-        string? existingGroup =
-            settings.OperationsMinerGroups.Keys
-                .FirstOrDefault(key =>
-                    SameName(
-                        key,
-                        group));
-
-        if (existingGroup == null)
+        if (AccountGroupCombo.SelectedItem is not
+            string group)
         {
-            existingGroup =
-                group;
-
-            settings.OperationsMinerGroups[existingGroup] =
-                new List<string>();
+            AccountGroupStatus.Text =
+                "Create or select a group first.";
+            return;
         }
+
+        AppSettings settings =
+            service.Settings;
 
         RemoveMinerFromManualGroups(
             settings,
@@ -584,7 +1030,7 @@ public partial class ContractsWindow : Window
                 miner));
 
         List<string> members =
-            settings.OperationsMinerGroups[existingGroup];
+            settings.OperationsMinerGroups[group];
 
         if (!ContainsName(
                 members,
@@ -595,15 +1041,19 @@ public partial class ContractsWindow : Window
 
         RefreshAccountEditor(
             settings,
-            preferredGroup: existingGroup);
+            preferredGroup: group);
 
         AccountMinerCombo.Text =
             miner;
 
+        UpdateMinerAssignmentCue(
+            settings,
+            miner);
+
         AccountGroupStatus.Text =
             miner +
             " linked to " +
-            existingGroup +
+            group +
             ".";
 
         _ = RenderAccountLedgerAsync();
@@ -619,9 +1069,6 @@ public partial class ContractsWindow : Window
         if (service == null)
             return;
 
-        AppSettings settings =
-            service.Settings;
-
         string miner =
             AccountMinerCombo.Text.Trim();
 
@@ -631,6 +1078,9 @@ public partial class ContractsWindow : Window
                 "Choose or type a miner first.";
             return;
         }
+
+        AppSettings settings =
+            service.Settings;
 
         RemoveMinerFromManualGroups(
             settings,
@@ -644,13 +1094,18 @@ public partial class ContractsWindow : Window
 
         service.Save();
 
-        RefreshAccountEditor(settings);
         AccountMinerCombo.Text =
             miner;
 
+        UpdateMinerAssignmentCue(
+            settings,
+            miner);
+
+        UpdateAccountEditorButtons();
+
         AccountGroupStatus.Text =
             miner +
-            " marked as a solo reporting miner.";
+            " is now explicitly SOLO.";
 
         _ = RenderAccountLedgerAsync();
     }
@@ -665,9 +1120,6 @@ public partial class ContractsWindow : Window
         if (service == null)
             return;
 
-        AppSettings settings =
-            service.Settings;
-
         string miner =
             AccountMinerCombo.Text.Trim();
 
@@ -677,6 +1129,9 @@ public partial class ContractsWindow : Window
                 "Choose or type a miner first.";
             return;
         }
+
+        AppSettings settings =
+            service.Settings;
 
         RemoveMinerFromManualGroups(
             settings,
@@ -689,13 +1144,18 @@ public partial class ContractsWindow : Window
 
         service.Save();
 
-        RefreshAccountEditor(settings);
         AccountMinerCombo.Text =
             miner;
 
+        UpdateMinerAssignmentCue(
+            settings,
+            miner);
+
+        UpdateAccountEditorButtons();
+
         AccountGroupStatus.Text =
             miner +
-            " manual override removed; automatic EVE-account grouping will be used when known.";
+            " manual override removed; AUTO account grouping is used when known, otherwise UNASSIGNED.";
 
         _ = RenderAccountLedgerAsync();
     }
