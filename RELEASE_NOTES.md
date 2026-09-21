@@ -1,5 +1,4 @@
-# EVE Command Center v3.5.28
+# EVE Command Center v3.5.29
 
-- Filled missing Character Overview system labels from linked-pilot location data when the game log has not reported a system yet.
-- Combined cards now show and briefly flash system jumps as old -> new before settling on the destination system.
-- Restyled ordinary tool tabs with fully enclosed rounded borders, clearer hover states, and a cleaner selected state across Command Center.
+- Fixed ordinary tool tabs appearing clipped or jagged on their right edge.
+- Global tabs now use the same fully rounded pill geometry already used by the Mining dashboard, while windows with their own custom tab styles remain unchanged.
