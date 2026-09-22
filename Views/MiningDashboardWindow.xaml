@@ -6,7 +6,7 @@
         Width="1500" Height="830" MinWidth="1120" MinHeight="650"
         WindowStartupLocation="CenterScreen"
         WindowStyle="None" ResizeMode="CanResize"
-        Background="#080E11" Foreground="#EAF7F4"
+        Background="#07181B" Foreground="#EAF7F4"
         FontFamily="Segoe UI Variable Text, Segoe UI"
         TextOptions.TextFormattingMode="Display"
         TextOptions.TextRenderingMode="ClearType"
@@ -21,37 +21,37 @@
     </shell:WindowChrome.WindowChrome>
 
     <Window.Resources>
-        <SolidColorBrush x:Key="Teal" Color="#39C6A4"/>
-        <SolidColorBrush x:Key="Panel" Color="#111A1E"/>
-        <SolidColorBrush x:Key="Panel2" Color="#162126"/>
-        <SolidColorBrush x:Key="Muted" Color="#78958E"/>
-        <SolidColorBrush x:Key="Line" Color="#24353A"/>
-        <SolidColorBrush x:Key="Surface" Color="#0B1316"/>
-        <SolidColorBrush x:Key="SurfaceRaised" Color="#101B1E"/>
-        <SolidColorBrush x:Key="SurfaceHover" Color="#162724"/>
-        <SolidColorBrush x:Key="BorderSoft" Color="#1D3834"/>
-        <SolidColorBrush x:Key="AccentSoft" Color="#234D45"/>
+        <SolidColorBrush x:Key="Teal" Color="#55D7D2"/>
+        <SolidColorBrush x:Key="Panel" Color="#0C2529"/>
+        <SolidColorBrush x:Key="Panel2" Color="#102D31"/>
+        <SolidColorBrush x:Key="Muted" Color="#8FB2B5"/>
+        <SolidColorBrush x:Key="Line" Color="#245058"/>
+        <SolidColorBrush x:Key="Surface" Color="#07181B"/>
+        <SolidColorBrush x:Key="SurfaceRaised" Color="#0C2529"/>
+        <SolidColorBrush x:Key="SurfaceHover" Color="#122724"/>
+        <SolidColorBrush x:Key="BorderSoft" Color="#245058"/>
+        <SolidColorBrush x:Key="AccentSoft" Color="#315E56"/>
         <SolidColorBrush x:Key="AccentStrong" Color="#58D3B4"/>
-        <SolidColorBrush x:Key="Warning" Color="#E7B85A"/>
+        <SolidColorBrush x:Key="Warning" Color="#FFD166"/>
 
         <LinearGradientBrush x:Key="ShellGradient"
                              StartPoint="0,0" EndPoint="1,1">
-            <GradientStop Color="#0D171A" Offset="0"/>
-            <GradientStop Color="#091114" Offset="0.55"/>
-            <GradientStop Color="#0B1517" Offset="1"/>
+            <GradientStop Color="#0C2529" Offset="0"/>
+            <GradientStop Color="#07181B" Offset="0.55"/>
+            <GradientStop Color="#0A2024" Offset="1"/>
         </LinearGradientBrush>
 
         <LinearGradientBrush x:Key="CardGradient"
                              StartPoint="0,0" EndPoint="1,1">
-            <GradientStop Color="#132225" Offset="0"/>
-            <GradientStop Color="#0F1A1D" Offset="1"/>
+            <GradientStop Color="#102D31" Offset="0"/>
+            <GradientStop Color="#0C2529" Offset="1"/>
         </LinearGradientBrush>
 
         <LinearGradientBrush x:Key="SummaryGradient"
                              StartPoint="0,0" EndPoint="1,1">
-            <GradientStop Color="#15272A" Offset="0"/>
-            <GradientStop Color="#101B1E" Offset="0.75"/>
-            <GradientStop Color="#0D171A" Offset="1"/>
+            <GradientStop Color="#12383D" Offset="0"/>
+            <GradientStop Color="#0C2529" Offset="0.75"/>
+            <GradientStop Color="#07181B" Offset="1"/>
         </LinearGradientBrush>
         <!-- Premium low-profile scrollbars: visible rail + usable handle. -->
         <Style x:Key="VerticalMiningThumb" TargetType="Thumb">

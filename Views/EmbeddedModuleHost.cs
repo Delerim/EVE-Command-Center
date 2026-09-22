@@ -145,10 +145,10 @@ internal sealed class EmbeddedModuleHost : IDisposable
             ResizeMode.NoResize;
 
         window.Left =
-            -100000;
+            -30000;
 
         window.Top =
-            -100000;
+            -30000;
 
         window.Opacity =
             0;
@@ -163,9 +163,51 @@ internal sealed class EmbeddedModuleHost : IDisposable
                 720,
                 _surface.ActualHeight);
 
+        // Pre-create the native HWND hidden and off-screen before WPF runs the
+        // normal Show/Loaded lifecycle. This prevents the compositor from ever
+        // presenting the temporary backing Window as a black desktop popup.
+        IntPtr hwnd =
+            new System.Windows.Interop.WindowInteropHelper(
+                window)
+                .EnsureHandle();
+
+        int exStyle =
+            EveCommandCenter.Interop.User32.GetWindowLong(
+                hwnd,
+                EveCommandCenter.Interop.User32.GWL_EXSTYLE);
+
+        EveCommandCenter.Interop.User32.SetWindowLong(
+            hwnd,
+            EveCommandCenter.Interop.User32.GWL_EXSTYLE,
+            exStyle |
+            EveCommandCenter.Interop.User32.WS_EX_TOOLWINDOW |
+            EveCommandCenter.Interop.User32.WS_EX_NOACTIVATE);
+
+        EveCommandCenter.Interop.User32.SetWindowPos(
+            hwnd,
+            EveCommandCenter.Interop.User32.HWND_NOTOPMOST,
+            -30000,
+            -30000,
+            Math.Max(
+                1100,
+                (int)Math.Ceiling(window.Width)),
+            Math.Max(
+                720,
+                (int)Math.Ceiling(window.Height)),
+            EveCommandCenter.Interop.User32.SWP_NOACTIVATE |
+            EveCommandCenter.Interop.User32.SWP_NOZORDER);
+
+        EveCommandCenter.Interop.User32.ShowWindow(
+            hwnd,
+            EveCommandCenter.Interop.User32.SW_HIDE);
+
         // Existing tools do important initialization from Window.Loaded.
-        // Let that proven lifecycle run once, then immediately detach/hide.
+        // Run that lifecycle once while the native window remains off-screen.
         window.Show();
+
+        EveCommandCenter.Interop.User32.ShowWindow(
+            hwnd,
+            EveCommandCenter.Interop.User32.SW_HIDE);
 
         if (window.Content is not
             FrameworkElement content)

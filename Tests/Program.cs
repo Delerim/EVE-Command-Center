@@ -155,6 +155,7 @@ internal static partial class Program
             landing.FindName("NavIndustry") != null &&
             landing.FindName("NavPlanetary") != null &&
             landing.FindName("NavMoons") != null &&
+            landing.FindName("CommandCenterSetupButton") != null &&
             landing.FindName("DashboardContent") != null &&
             landing.FindName("MiningTodayText") != null &&
             landing.FindName("MoonProfileIssueText") != null &&

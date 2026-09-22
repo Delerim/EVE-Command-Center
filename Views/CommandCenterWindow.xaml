@@ -57,11 +57,11 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Shell" Property="Background" Value="#123A40"/>
-                                <Setter TargetName="Shell" Property="BorderBrush" Value="#42B6A3"/>
+                                <Setter TargetName="Shell" Property="Background" Value="#1C5A4F"/>
+                                <Setter TargetName="Shell" Property="BorderBrush" Value="#58D3B4"/>
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="Shell" Property="Background" Value="#185247"/>
+                                <Setter TargetName="Shell" Property="Background" Value="#21665A"/>
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
                                 <Setter Property="Opacity" Value="0.45"/>
@@ -104,6 +104,11 @@
                 </Setter.Value>
             </Setter>
             <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#0D252A"/>
+                    <Setter Property="BorderBrush" Value="#2F6465"/>
+                </Trigger>
+
                 <EventTrigger RoutedEvent="MouseEnter">
                     <BeginStoryboard>
                         <Storyboard>
@@ -299,10 +304,20 @@
                 </StackPanel>
 
                 <StackPanel DockPanel.Dock="Bottom">
+                    <Button x:Name="CommandCenterSetupButton"
+                            Style="{StaticResource NavButton}"
+                            Click="Setup_Click"
+                            ToolTip="Pilot links, Moon holding-corporation access and Contracts operating-corporation access">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="&#xE72E;" Style="{StaticResource IconGlyph}"/>
+                            <TextBlock Text="COMMAND CENTER SETUP" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+
                     <Button x:Name="NavSettings" Style="{StaticResource NavButton}" Click="Settings_Click">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="&#xE713;" Style="{StaticResource IconGlyph}"/>
-                            <TextBlock Text="SETTINGS" VerticalAlignment="Center"/>
+                            <TextBlock Text="APP SETTINGS" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Button>
 

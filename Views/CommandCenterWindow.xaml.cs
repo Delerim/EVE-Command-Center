@@ -220,18 +220,27 @@ public partial class CommandCenterWindow : Window
                     EasingMode.EaseOut
             };
 
+        // A deliberate page entrance rather than the old nudge/jiggle.
+        target.BeginAnimation(
+            OpacityProperty,
+            null);
+
+        transform.BeginAnimation(
+            TranslateTransform.XProperty,
+            null);
+
         target.Opacity =
-            0.88;
+            0.35;
 
         transform.X =
-            14;
+            30;
 
         target.BeginAnimation(
             OpacityProperty,
             new DoubleAnimation(
-                0.88,
+                0.35,
                 1,
-                TimeSpan.FromMilliseconds(170))
+                TimeSpan.FromMilliseconds(230))
             {
                 EasingFunction =
                     ease
@@ -240,9 +249,9 @@ public partial class CommandCenterWindow : Window
         transform.BeginAnimation(
             TranslateTransform.XProperty,
             new DoubleAnimation(
-                14,
+                30,
                 0,
-                TimeSpan.FromMilliseconds(210))
+                TimeSpan.FromMilliseconds(270))
             {
                 EasingFunction =
                     ease
@@ -1098,34 +1107,9 @@ public partial class CommandCenterWindow : Window
             return null;
         }
 
-        BackgroundOperations ops =
-            BackgroundOperations.Current;
-
-        if (key == "moons" &&
-            !ops.Access.CanReadMoons)
-        {
-            var setup =
-                new ClientSetupWindow
-                {
-                    Owner = this
-                };
-
-            setup.ShowDialog();
-            return null;
-        }
-
-        if (key == "contracts" &&
-            !ops.Access.CanReadContracts)
-        {
-            var setup =
-                new ClientSetupWindow
-                {
-                    Owner = this
-                };
-
-            setup.ShowDialog();
-            return null;
-        }
+        // Access/setup is a separate Command Center action. Operational pages
+        // always open in the workspace so cached state and their own status
+        // messages remain visible even when corporation access needs attention.
 
         if (System.Windows.Application.Current is not
             App app)
@@ -1415,6 +1399,20 @@ public partial class CommandCenterWindow : Window
         RoutedEventArgs e)
     {
         OpenModule("notifications");
+    }
+
+    private void Setup_Click(
+        object sender,
+        RoutedEventArgs e)
+    {
+        var setup =
+            new ClientSetupWindow
+            {
+                Owner = this
+            };
+
+        setup.ShowDialog();
+        RefreshDashboard();
     }
 
     private void Settings_Click(

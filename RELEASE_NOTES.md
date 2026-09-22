@@ -1,5 +1,5 @@
-# EVE Command Center v3.6.3
+# EVE Command Center v3.6.4
 
-- Fixed embedded Command Center modules so their backing WPF windows load invisibly and are immediately hidden after the real tool content is mounted in the right-hand workspace, eliminating empty black popup windows.
-- Reworked Command Center navigation into a cleaner page experience: the left rail is now the primary page selector, the duplicate workspace strip is hidden, the active section is visibly highlighted, and navigation uses a single smooth slide/fade instead of the old jiggle.
-- Polished the shell with a wider sidebar, a properly padded Character Overview launcher, more breathing room around embedded pages, EVE character portraits, PI planet icons, and moon/refinery imagery on the dashboard.
+- Moon Operations and Contracts now always open inside the right-hand Command Center workspace instead of redirecting to the access/setup popup; pilot and corporation access management now has its own COMMAND CENTER SETUP button beside APP SETTINGS.
+- Hardened embedded module startup so temporary backing HWNDs are created hidden, non-activating and far off-screen before the normal WPF Loaded lifecycle runs, eliminating the black-window flash between Command Center pages.
+- Polished Command Center navigation with matching hover/selected colors, a clearer page slide/fade transition, readable PI desktop-alert text, and a Mining palette aligned with the teal/cyan visual system used by the rest of the operations console.
