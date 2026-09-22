@@ -153,6 +153,21 @@ internal sealed class EmbeddedModuleHost : IDisposable
         window.Opacity =
             0;
 
+        // Moon Operations gets an extra transparent backing surface because
+        // its large first layout can otherwise expose a one-frame black DWM
+        // surface while its Loaded work is starting.
+        if (string.Equals(
+                key,
+                "moons",
+                StringComparison.OrdinalIgnoreCase))
+        {
+            window.AllowsTransparency =
+                true;
+
+            window.Background =
+                System.Windows.Media.Brushes.Transparent;
+        }
+
         window.Width =
             Math.Max(
                 1100,

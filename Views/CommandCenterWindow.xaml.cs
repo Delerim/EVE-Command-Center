@@ -445,11 +445,94 @@ public partial class CommandCenterWindow : Window
         MiningMonthText.Text =
             FormatM3(monthM3);
 
+        DateTime utcNow =
+            DateTime.UtcNow;
+
+        DashboardMiningLine[] liveMiners =
+            stats.GetMiningDashboardCharacters()
+                .Select(character =>
+                {
+                    CharacterStatSnapshot snapshot =
+                        stats.GetSnapshot(
+                            character);
+
+                    return new
+                    {
+                        Character =
+                            character,
+                        Snapshot =
+                            snapshot
+                    };
+                })
+                .Where(row =>
+                    row.Snapshot.LastMiningPullUtc.HasValue &&
+                    utcNow -
+                    row.Snapshot.LastMiningPullUtc.Value <=
+                    TimeSpan.FromMinutes(4))
+                .OrderByDescending(row =>
+                    row.Snapshot.LastMiningPullUtc)
+                .Take(10)
+                .Select(row =>
+                {
+                    CharacterStatSnapshot snapshot =
+                        row.Snapshot;
+
+                    double seconds =
+                        Math.Max(
+                            0,
+                            (utcNow -
+                             snapshot.LastMiningPullUtc!.Value)
+                            .TotalSeconds);
+
+                    string age =
+                        seconds < 60
+                            ? $"{seconds:0}s ago"
+                            : $"{seconds / 60.0:0.0}m ago";
+
+                    return new DashboardMiningLine
+                    {
+                        Name =
+                            row.Character,
+                        Ore =
+                            string.IsNullOrWhiteSpace(
+                                snapshot.CurrentOre)
+                                ? "Ore not resolved"
+                                : snapshot.CurrentOre,
+                        Rate =
+                            snapshot.ActualM3PerSec > 0.05
+                                ? snapshot.ActualM3PerSec
+                                    .ToString(
+                                        "0.0",
+                                        CultureInfo.CurrentCulture) +
+                                  " m3/s"
+                                : "warming up",
+                        Age =
+                            age,
+                        Tone =
+                            seconds <= 90
+                                ? "#55D7D2"
+                                : "#FFD166"
+                    };
+                })
+                .ToArray();
+
+        MiningLiveItems.ItemsSource =
+            liveMiners;
+
+        MiningLiveCountText.Text =
+            $"{liveMiners.Length:N0} active";
+
+        MiningLiveEmptyText.Visibility =
+            liveMiners.Length == 0
+                ? Visibility.Visible
+                : Visibility.Collapsed;
+
         int active =
             app.OverviewClients.Length;
 
         MiningDetailText.Text =
             $"{active:N0} live EVE client(s) | " +
+            $"{liveMiners.Length:N0} currently mining | " +
             "historical m3 uses locally recorded mining and available ore-volume quotes";
     }
 
@@ -549,12 +632,18 @@ public partial class CommandCenterWindow : Window
         DateTimeOffset now =
             DateTimeOffset.UtcNow;
 
-        MoonNextItems.ItemsSource =
-            snapshot.Cards
+        DashboardLine[] upcomingMoons =
+            snapshot.CalendarCards
                 .Where(card =>
+                    card.Status == "SCHEDULED" &&
                     card.ScheduleUtc.HasValue &&
                     card.ScheduleUtc.Value >
                     now)
+                .GroupBy(card =>
+                    card.PullId,
+                    StringComparer.OrdinalIgnoreCase)
+                .Select(group =>
+                    group.First())
                 .OrderBy(card =>
                     card.ScheduleUtc)
                 .Take(6)
@@ -565,16 +654,31 @@ public partial class CommandCenterWindow : Window
                             card.MoonName,
                         Secondary =
                             card.ScheduleValue,
+                        Detail =
+                            card.HasTargetProfile &&
+                            card.InitialTotalM3 > 0
+                                ? "EST. FIELD " +
+                                  FormatM3(
+                                      card.InitialTotalM3) +
+                                  " | " +
+                                  card.OreSummary
+                                : "Composition profile needed for field estimate",
                         Icon =
                             card.MoonImageUri,
                         SecondaryIcon =
                             card.StructureImageUri,
                         Tone =
-                            card.Status == "READY"
-                                ? "#FFD166"
-                                : "#74D6C9"
+                            "#74D6C9"
                     })
                 .ToArray();
+
+        MoonNextItems.ItemsSource =
+            upcomingMoons;
+
+        MoonNextEmptyText.Visibility =
+            upcomingMoons.Length == 0
+                ? Visibility.Visible
+                : Visibility.Collapsed;
     }
 
     private void RefreshIndustry(
@@ -1441,12 +1545,33 @@ public partial class CommandCenterWindow : Window
         RefreshDashboard();
     }
 
+    private sealed class DashboardMiningLine
+    {
+        public string Name { get; init; } =
+            "";
+
+        public string Ore { get; init; } =
+            "";
+
+        public string Rate { get; init; } =
+            "";
+
+        public string Age { get; init; } =
+            "";
+
+        public string Tone { get; init; } =
+            "#55D7D2";
+    }
+
     private sealed class DashboardLine
     {
         public string Primary { get; init; } =
             "";
 
         public string Secondary { get; init; } =
+            "";
+
+        public string Detail { get; init; } =
             "";
 
         public string Icon { get; init; } =

@@ -90,6 +90,19 @@
             <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
         </Style>
 
+        <Style x:Key="DashboardActionButton"
+               TargetType="Button"
+               BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="Background" Value="#0D2C31"/>
+            <Setter Property="BorderBrush" Value="#315E56"/>
+            <Setter Property="Foreground" Value="#B9F1E8"/>
+            <Setter Property="Padding" Value="11,5"/>
+            <Setter Property="MinHeight" Value="30"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+        </Style>
+
         <Style x:Key="Card" TargetType="Border">
             <Setter Property="Background" Value="#0A1C22"/>
             <Setter Property="BorderBrush" Value="#173A43"/>
@@ -133,18 +146,18 @@
         <Style x:Key="SectionTitle" TargetType="TextBlock">
             <Setter Property="Foreground" Value="#55D7D2"/>
             <Setter Property="FontWeight" Value="Bold"/>
-            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="FontSize" Value="13"/>
         </Style>
 
         <Style x:Key="BigMetric" TargetType="TextBlock">
             <Setter Property="Foreground" Value="#F2FFFD"/>
             <Setter Property="FontWeight" Value="Bold"/>
-            <Setter Property="FontSize" Value="22"/>
+            <Setter Property="FontSize" Value="23"/>
         </Style>
 
         <Style x:Key="MutedText" TargetType="TextBlock">
             <Setter Property="Foreground" Value="#6E9496"/>
-            <Setter Property="FontSize" Value="10.5"/>
+            <Setter Property="FontSize" Value="11.5"/>
         </Style>
     </Window.Resources>
 
@@ -383,7 +396,7 @@
                     <StackPanel DockPanel.Dock="Right"
                                 HorizontalAlignment="Right">
                         <TextBlock x:Name="VersionClockText"
-                                   Text="v3.6.3 | EVE --:--:-- | LOCAL --:--:--"
+                                   Text="v3.6.5 | EVE --:--:-- | LOCAL --:--:--"
                                    Foreground="#8DB1B3"
                                    HorizontalAlignment="Right"/>
                         <TextBlock x:Name="ClientStatusText"
@@ -452,6 +465,7 @@
                 </Border>
 
                 <ScrollViewer x:Name="DashboardScroll"
+                              FontSize="13"
                               Grid.Row="1"
                           VerticalScrollBarVisibility="Auto"
                           HorizontalScrollBarVisibility="Disabled">
@@ -601,8 +615,7 @@
                                     </StackPanel>
                                     <Button DockPanel.Dock="Right"
                                             Content="OPEN MINING"
-                                            Padding="8,4"
-                                            FontSize="10"
+                                            Style="{StaticResource DashboardActionButton}"
                                             Click="Mining_Click"/>
                                 </DockPanel>
 
@@ -630,6 +643,79 @@
                                            Style="{StaticResource MutedText}"
                                            Text="Mining history will appear as soon as logs are available."
                                            Margin="0,12,0,0"/>
+
+                                <Border Background="#08191E"
+                                        BorderBrush="#173A43"
+                                        BorderThickness="1"
+                                        CornerRadius="7"
+                                        Padding="10"
+                                        Margin="0,12,0,0">
+                                    <StackPanel>
+                                        <DockPanel Margin="0,0,0,6">
+                                            <TextBlock Text="LIVE MINERS"
+                                                       Foreground="#55D7D2"
+                                                       FontWeight="Bold"
+                                                       FontSize="11.5"/>
+                                            <TextBlock x:Name="MiningLiveCountText"
+                                                       DockPanel.Dock="Right"
+                                                       Text="0 active"
+                                                       Foreground="#74D6C9"
+                                                       FontSize="10.5"
+                                                       HorizontalAlignment="Right"/>
+                                        </DockPanel>
+
+                                        <ItemsControl x:Name="MiningLiveItems">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Grid Margin="0,2">
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="12"/>
+                                                            <ColumnDefinition Width="1.1*"/>
+                                                            <ColumnDefinition Width="1.4*"/>
+                                                            <ColumnDefinition Width="0.8*"/>
+                                                            <ColumnDefinition Width="Auto"/>
+                                                        </Grid.ColumnDefinitions>
+
+                                                        <Ellipse Width="7"
+                                                                 Height="7"
+                                                                 Fill="{Binding Tone}"
+                                                                 VerticalAlignment="Center"/>
+
+                                                        <TextBlock Grid.Column="1"
+                                                                   Text="{Binding Name}"
+                                                                   Foreground="#EAF5F3"
+                                                                   FontWeight="SemiBold"
+                                                                   TextTrimming="CharacterEllipsis"
+                                                                   Margin="5,0,8,0"/>
+
+                                                        <TextBlock Grid.Column="2"
+                                                                   Text="{Binding Ore}"
+                                                                   Foreground="#9FC5C7"
+                                                                   TextTrimming="CharacterEllipsis"
+                                                                   Margin="0,0,8,0"/>
+
+                                                        <TextBlock Grid.Column="3"
+                                                                   Text="{Binding Rate}"
+                                                                   Foreground="#74D6C9"
+                                                                   HorizontalAlignment="Right"
+                                                                   Margin="0,0,10,0"/>
+
+                                                        <TextBlock Grid.Column="4"
+                                                                   Text="{Binding Age}"
+                                                                   Foreground="#6E9496"
+                                                                   HorizontalAlignment="Right"/>
+                                                    </Grid>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+
+                                        <TextBlock x:Name="MiningLiveEmptyText"
+                                                   Text="No mining pulls observed in the last four minutes."
+                                                   Foreground="#6E9496"
+                                                   FontSize="10.5"
+                                                   Margin="0,2,0,0"/>
+                                    </StackPanel>
+                                </Border>
                             </StackPanel>
                         </Border>
 
@@ -646,8 +732,7 @@
                                     </StackPanel>
                                     <Button DockPanel.Dock="Right"
                                             Content="OPEN MOONS"
-                                            Padding="8,4"
-                                            FontSize="10"
+                                            Style="{StaticResource DashboardActionButton}"
                                             Click="Moons_Click"/>
                                 </DockPanel>
 
@@ -702,13 +787,19 @@
                                                        VerticalAlignment="Center"
                                                        Opacity="0.9"/>
 
-                                                <TextBlock Grid.Column="2"
-                                                           Text="{Binding Primary}"
-                                                           Foreground="#E0F0EE"
-                                                           FontWeight="SemiBold"
-                                                           VerticalAlignment="Center"
-                                                           TextTrimming="CharacterEllipsis"
-                                                           Margin="6,0,0,0"/>
+                                                <StackPanel Grid.Column="2"
+                                                            Margin="6,0,8,0"
+                                                            VerticalAlignment="Center">
+                                                    <TextBlock Text="{Binding Primary}"
+                                                               Foreground="#E0F0EE"
+                                                               FontWeight="SemiBold"
+                                                               TextTrimming="CharacterEllipsis"/>
+                                                    <TextBlock Text="{Binding Detail}"
+                                                               Foreground="#7FA4A6"
+                                                               FontSize="10.5"
+                                                               TextTrimming="CharacterEllipsis"
+                                                               Margin="0,2,0,0"/>
+                                                </StackPanel>
 
                                                 <TextBlock Grid.Column="3"
                                                            Text="{Binding Secondary}"
@@ -719,6 +810,12 @@
                                         </DataTemplate>
                                     </ItemsControl.ItemTemplate>
                                 </ItemsControl>
+
+                                <TextBlock x:Name="MoonNextEmptyText"
+                                           Text="No future fractures are currently present in the Moon Operations calendar."
+                                           Foreground="#6E9496"
+                                           FontSize="10.5"
+                                           Margin="0,4,0,0"/>
                             </StackPanel>
                         </Border>
                     </Grid>
@@ -741,8 +838,7 @@
                                     </StackPanel>
                                     <Button DockPanel.Dock="Right"
                                             Content="OPEN INDUSTRY"
-                                            Padding="8,4"
-                                            FontSize="10"
+                                            Style="{StaticResource DashboardActionButton}"
                                             Click="Industry_Click"/>
                                 </DockPanel>
 
@@ -831,8 +927,7 @@
                                     </StackPanel>
                                     <Button DockPanel.Dock="Right"
                                             Content="OPEN PI"
-                                            Padding="8,4"
-                                            FontSize="10"
+                                            Style="{StaticResource DashboardActionButton}"
                                             Click="Planetary_Click"/>
                                 </DockPanel>
 
@@ -927,8 +1022,7 @@
                                     </StackPanel>
                                     <Button DockPanel.Dock="Right"
                                             Content="OPEN CONTRACTS"
-                                            Padding="8,4"
-                                            FontSize="10"
+                                            Style="{StaticResource DashboardActionButton}"
                                             Click="Contracts_Click"/>
                                 </DockPanel>
 
@@ -972,8 +1066,7 @@
                                     </StackPanel>
                                     <Button DockPanel.Dock="Right"
                                             Content="OPEN NOTICES"
-                                            Padding="8,4"
-                                            FontSize="10"
+                                            Style="{StaticResource DashboardActionButton}"
                                             Click="Notifications_Click"/>
                                 </DockPanel>
 
