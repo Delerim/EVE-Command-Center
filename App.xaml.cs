@@ -1125,6 +1125,117 @@ public partial class App : Application
         _commandCenterWindow.Activate();
     }
 
+    internal Window CreateCommandCenterModule(
+        string key)
+    {
+        if (_settings == null)
+            throw new InvalidOperationException(
+                "Settings service is not ready.");
+
+        return key switch
+        {
+            "mining" =>
+                _statTracker == null
+                    ? throw new InvalidOperationException(
+                        "Mining tracker is not ready.")
+                    : new MiningDashboardWindow(
+                        _statTracker,
+                        _settings.Settings,
+                        _miningIdleWatchdog,
+                        () =>
+                            _settings.SaveDelayed(),
+                        ToggleMiningFleetOverview),
+
+            "pilots" =>
+                new PilotCommandCenterWindow(),
+
+            "industry" =>
+                new IndustryWindow(),
+
+            "pi" =>
+                new PlanetaryWindow(),
+
+            "moons" =>
+                new MoonReportWindow(),
+
+            "contracts" =>
+                new ContractsWindow(),
+
+            "notifications" =>
+                new NotificationCenterWindow(),
+
+            "settings" =>
+                CreateEmbeddedSettingsWindow(),
+
+            _ =>
+                throw new ArgumentOutOfRangeException(
+                    nameof(key),
+                    key,
+                    "Unknown Command Center module.")
+        };
+    }
+
+    private SettingsWindow CreateEmbeddedSettingsWindow()
+    {
+        var window =
+            new SettingsWindow(
+                _settings!,
+                _thumbnailManager!,
+                _cropManager)
+            {
+                Title =
+                    "EVE Command Center - Settings"
+            };
+
+        window.SettingsApplied +=
+            () =>
+            {
+                if (_isShuttingDown ||
+                    _settings == null)
+                    return;
+
+                _hotkeyService?.RegisterFromSettings(
+                    _settings.Settings,
+                    _settings.CurrentProfile,
+                    _thumbnailManager!,
+                    OpenSettings);
+
+                if (_logMonitor != null)
+                {
+                    _logMonitor.PveMode =
+                        _settings.Settings.PveMode;
+
+                    _logMonitor.SetCooldown(
+                        _settings.Settings.AlertCooldown);
+
+                    if (_settings.Settings.EnabledAlertTypes != null)
+                    {
+                        _logMonitor.SetEnabledAlertTypes(
+                            _settings.Settings.EnabledAlertTypes);
+                    }
+
+                    if (_settings.Settings.SeverityCooldowns != null)
+                    {
+                        _logMonitor.SetEventCooldowns(
+                            _settings.Settings.SeverityCooldowns);
+                    }
+                }
+
+                try
+                {
+                    if (_settings.Settings.AlertHubEnabled)
+                        _alertHub?.Show();
+                    else
+                        _alertHub?.Hide();
+                }
+                catch (InvalidOperationException)
+                {
+                }
+            };
+
+        return window;
+    }
+
     internal void ShowMiningCommandCenter()
     {
         OpenMiningDashboard();

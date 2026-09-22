@@ -167,14 +167,20 @@ public partial class MoonReportWindow : Window
     private void OpenOperatingAlert(string structure, string message)
     {
         if (_closed) return;
-        if (WindowState == WindowState.Minimized) WindowState = WindowState.Normal;
-        Show();
-        Activate();
+
+        if (!EmbeddedModuleHost.TryActivateShell(this))
+        {
+            if (WindowState == WindowState.Minimized)
+                WindowState = WindowState.Normal;
+
+            Show();
+            Activate();
+        }
         _filter = "ALL";
         MoonTabs.SelectedIndex = 2;
         SearchBox.Text = structure;
         ApplyFilters();
-        System.Windows.MessageBox.Show(this, message, string.IsNullOrEmpty(structure) ? "Test moon alert" : structure,
+        System.Windows.MessageBox.Show(EmbeddedModuleHost.ResolveOwner(this), message, string.IsNullOrEmpty(structure) ? "Test moon alert" : structure,
             MessageBoxButton.OK, MessageBoxImage.Information);
     }
 
@@ -759,7 +765,7 @@ public partial class MoonReportWindow : Window
     private async void Import_Click(object sender, RoutedEventArgs e)
     {
         var dialog = new Microsoft.Win32.OpenFileDialog { Title = "Import Moon Report setup", Filter = "CSV files (*.csv)|*.csv|All files (*.*)|*.*" };
-        if (dialog.ShowDialog(this) != true) return;
+        if (dialog.ShowDialog(EmbeddedModuleHost.ResolveOwner(this)) != true) return;
         try
         {
             string[] lines = await File.ReadAllLinesAsync(dialog.FileName, _lifetime.Token);
@@ -811,7 +817,7 @@ public partial class MoonReportWindow : Window
     private void Export_Click(object sender, RoutedEventArgs e)
     {
         var dialog = new Microsoft.Win32.SaveFileDialog { Title = "Export Moon Report setup", FileName = "moon-report-setup.csv", DefaultExt = ".csv", Filter = "CSV files (*.csv)|*.csv" };
-        if (dialog.ShowDialog(this) != true) return;
+        if (dialog.ShowDialog(EmbeddedModuleHost.ResolveOwner(this)) != true) return;
         try
         {
             var lines = new List<string> { "MoonId,MoonName,StructureName,SystemName,ZeolitesPercent,SylvitePercent,BitumensPercent,CoesitePercent,FieldLifetimeHours,WastePercent" };
@@ -824,7 +830,7 @@ public partial class MoonReportWindow : Window
 
     private MoonProfile? ShowProfileEditor(MoonProfile source)
     {
-        var window = new Window { Owner = this, Title = "Ore profile | " + source.MoonName, Width = 500, Height = 555, ResizeMode = ResizeMode.NoResize, WindowStartupLocation = WindowStartupLocation.CenterOwner, Background = Brush("#07181B"), Foreground = WpfBrushes.White, FontFamily = new System.Windows.Media.FontFamily("Segoe UI") };
+        var window = new Window { Owner = EmbeddedModuleHost.ResolveOwner(this), Title = "Ore profile | " + source.MoonName, Width = 500, Height = 555, ResizeMode = ResizeMode.NoResize, WindowStartupLocation = WindowStartupLocation.CenterOwner, Background = Brush("#07181B"), Foreground = WpfBrushes.White, FontFamily = new System.Windows.Media.FontFamily("Segoe UI") };
         var root = new WpfGrid { Margin = new Thickness(18) };
         for (int i = 0; i < 11; i++) root.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = GridLength.Auto });
         root.RowDefinitions.Add(new System.Windows.Controls.RowDefinition()); root.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = GridLength.Auto });

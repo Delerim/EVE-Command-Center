@@ -143,14 +143,18 @@ internal static partial class Program
         var landing = new CommandCenterWindow(live: false);
         Check(
             landing.FindName("LaunchOverviewButton") != null &&
+            landing.FindName("CommandCenterBrandIcon") != null &&
             landing.FindName("WelcomePanel") != null &&
             landing.FindName("WelcomeTitleText") != null &&
+            landing.FindName("WorkspaceArea") != null &&
+            landing.FindName("WorkspaceTabStrip") != null &&
+            landing.FindName("ModuleSurface") != null &&
             landing.FindName("DashboardContent") != null &&
             landing.FindName("MiningTodayText") != null &&
             landing.FindName("MoonProfileIssueText") != null &&
             landing.FindName("IndustryItems") != null &&
             landing.FindName("PiItems") != null,
-            "Command Center polished landing window loads without live services");
+            "Command Center workspace host loads without live services");
         landing.Close();
         var profitWindow = new MiningDashboardWindow(new StatTrackerService(), new AppSettings());
         var waitingPrice = new TaskCompletionSource<MiningMarketQuote?>();

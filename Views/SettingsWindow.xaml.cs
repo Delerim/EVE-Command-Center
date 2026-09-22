@@ -2433,8 +2433,11 @@ public partial class SettingsWindow : Window
 
             if (wasVisible)
             {
-                this.Show();
-                this.Activate();
+                if (!EmbeddedModuleHost.TryActivateShell(this))
+                {
+                    this.Show();
+                    this.Activate();
+                }
             }
         };
         overlay.Show();

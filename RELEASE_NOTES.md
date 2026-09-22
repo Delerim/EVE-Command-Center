@@ -1,5 +1,5 @@
-# EVE Command Center v3.6.1
+# EVE Command Center v3.6.2
 
-- Character Overview and the full Command Center can now stay open together; restoring Command Center no longer minimizes the live overview, and minimizing Command Center on overview launch is an optional setting that defaults off.
-- Polished the Command Center landing experience with EVE-style navigation and section icons, a Welcome Commander operations header, stronger visual hierarchy and live fleet-link status.
-- Added lightweight fade, slide, hover and navigation feedback animations so the dashboard feels smoother without delaying or blocking tool launches.
+- Command Center left-side navigation now opens Mining, Pilots, Industry, PI, Moons, Contracts/Accounts, Notifications and Settings inside persistent workspace tabs instead of spawning visible top-level tool windows.
+- Existing mature tool UIs and state are preserved through a reusable WPF embedded-module host; non-Command-Center launch paths remain unchanged, and specialist detail dialogs such as skill planners, moon editors and contract contents still open as focused child dialogs.
+- Added the new original EVE-style Command Center icon to the executable and in-app branding, with workspace tabs retaining module state as you move around the operations console.

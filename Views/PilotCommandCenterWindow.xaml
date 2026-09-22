@@ -476,13 +476,16 @@
             BorderThickness="1" CornerRadius="14">
         <Grid Margin="16">
             <Grid.RowDefinitions>
-                <RowDefinition Height="44"/>
+                <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>
             </Grid.RowDefinitions>
 
-            <Grid Grid.Row="0" MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
+            <Grid x:Name="EmbeddedTitleBar"
+                  Grid.Row="0"
+                  MinHeight="44"
+                  MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>

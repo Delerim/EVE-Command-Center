@@ -161,16 +161,16 @@
 
                         <Border Width="42"
                                 Height="42"
-                                CornerRadius="21"
-                                Background="#102F36"
+                                CornerRadius="9"
+                                Background="#071419"
                                 BorderBrush="#55D7D2"
                                 BorderThickness="1">
-                            <TextBlock Text="&#xE7C1;"
-                                       FontFamily="Segoe MDL2 Assets"
-                                       Foreground="#64E3C8"
-                                       FontSize="21"
-                                       HorizontalAlignment="Center"
-                                       VerticalAlignment="Center"/>
+                            <Image x:Name="CommandCenterBrandIcon"
+                                   Source="/Resources/CommandCenterIcon.png"
+                                   Width="38"
+                                   Height="38"
+                                   Stretch="Uniform"
+                                   SnapsToDevicePixels="True"/>
                         </Border>
 
                         <StackPanel Grid.Column="1"
@@ -325,11 +325,11 @@
                     Padding="22,12">
                 <DockPanel>
                     <StackPanel>
-                        <TextBlock Text="COMMAND OVERVIEW"
+                        <TextBlock x:Name="PageTitleText" Text="COMMAND OVERVIEW"
                                    FontSize="22"
                                    FontWeight="Bold"
                                    Foreground="#F2F8F7"/>
-                        <TextBlock Text="Fleet, industry and corporation operations"
+                        <TextBlock x:Name="PageSubtitleText" Text="Fleet, industry and corporation operations"
                                    Foreground="#66898F"
                                    FontSize="10.5"
                                    Margin="0,2,0,0"/>
@@ -351,8 +351,62 @@
                 </DockPanel>
             </Border>
 
-            <ScrollViewer x:Name="DashboardScroll"
-                          Grid.Row="1"
+            <Grid x:Name="WorkspaceArea"
+                  Grid.Row="1">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <Border Grid.Row="0"
+                        Background="#07171D"
+                        BorderBrush="#173A43"
+                        BorderThickness="0,0,0,1"
+                        Padding="12,8">
+                    <DockPanel>
+                        <TextBlock Text="WORKSPACE"
+                                   Foreground="#55777D"
+                                   FontSize="9"
+                                   FontWeight="Bold"
+                                   VerticalAlignment="Center"
+                                   Margin="2,0,12,0"/>
+
+                        <ItemsControl x:Name="WorkspaceTabStrip">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <StackPanel Orientation="Horizontal"/>
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Button Tag="{Binding Key}"
+                                            Click="WorkspaceTab_Click"
+                                            Background="{Binding Background}"
+                                            BorderBrush="{Binding Border}"
+                                            Padding="9,5"
+                                            Margin="0,0,5,0">
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Text="{Binding Icon}"
+                                                       FontFamily="Segoe MDL2 Assets"
+                                                       Foreground="{Binding Foreground}"
+                                                       FontSize="12"
+                                                       Margin="0,0,6,0"
+                                                       VerticalAlignment="Center"/>
+                                            <TextBlock Text="{Binding Title}"
+                                                       Foreground="{Binding Foreground}"
+                                                       FontSize="10.5"
+                                                       FontWeight="SemiBold"
+                                                       VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </Button>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </DockPanel>
+                </Border>
+
+                <ScrollViewer x:Name="DashboardScroll"
+                              Grid.Row="1"
                           VerticalScrollBarVisibility="Auto"
                           HorizontalScrollBarVisibility="Disabled">
                 <StackPanel x:Name="DashboardContent"
@@ -793,7 +847,24 @@
                         </Border>
                     </Grid>
                 </StackPanel>
-            </ScrollViewer>
+                </ScrollViewer>
+
+                <Border x:Name="ModuleFrame"
+                        Grid.Row="1"
+                        Visibility="Collapsed"
+                        Background="#061116"
+                        BorderBrush="#173A43"
+                        BorderThickness="0">
+                    <Border.RenderTransform>
+                        <TranslateTransform x:Name="ModuleTransform"/>
+                    </Border.RenderTransform>
+
+                    <ContentControl x:Name="ModuleSurface"
+                                    HorizontalContentAlignment="Stretch"
+                                    VerticalContentAlignment="Stretch"
+                                    Focusable="False"/>
+                </Border>
+            </Grid>
         </Grid>
     </Grid>
 </Window>

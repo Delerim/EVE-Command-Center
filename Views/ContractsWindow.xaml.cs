@@ -1246,5 +1246,5 @@ public partial class ContractsWindow : Window
         var row = ItemsControl.ContainerFromElement(ContractsGrid, e.OriginalSource as DependencyObject) as DataGridRow;
         if (row?.Item is ContractRow contract) OpenContents(contract);
     }
-    public void OpenContents(ContractRow row) => new ContractContentsWindow(Service, _operations.Sso, row, row.ReaderCharacterId > 0 ? row.ReaderCharacterId : Service.State.CharacterId) { Owner = this }.Show();
+    public void OpenContents(ContractRow row) => new ContractContentsWindow(Service, _operations.Sso, row, row.ReaderCharacterId > 0 ? row.ReaderCharacterId : Service.State.CharacterId) { Owner = EmbeddedModuleHost.ResolveOwner(this) }.Show();
 }

@@ -705,7 +705,7 @@
             </Grid.RowDefinitions>
 
             <!-- Premium single-line command-center title bar. -->
-            <Grid Grid.Row="0" Height="42" Margin="2,-2,0,9">
+            <Grid x:Name="EmbeddedTitleBar" Grid.Row="0" Height="42" Margin="2,-2,0,9">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>

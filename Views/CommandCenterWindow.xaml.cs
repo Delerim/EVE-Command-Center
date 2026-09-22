@@ -25,11 +25,51 @@ public partial class CommandCenterWindow : Window
 
     private readonly bool _live;
     private bool _entrancePlayed;
+    private readonly EmbeddedModuleHost _moduleHost;
+    private readonly List<WorkspaceTabState> _openTabs =
+        new();
+    private string _activeWorkspace =
+        "dashboard";
 
     public CommandCenterWindow(bool live = true)
     {
         _live = live;
         InitializeComponent();
+
+        _moduleHost =
+            new EmbeddedModuleHost(
+                this,
+                ModuleSurface);
+
+        _moduleHost.ModuleClosed +=
+            key =>
+            {
+                _openTabs.RemoveAll(tab =>
+                    string.Equals(
+                        tab.Key,
+                        key,
+                        StringComparison.OrdinalIgnoreCase));
+
+                if (string.Equals(
+                        _activeWorkspace,
+                        key,
+                        StringComparison.OrdinalIgnoreCase))
+                {
+                    ShowDashboardWorkspace();
+                }
+                else
+                {
+                    RefreshWorkspaceTabs();
+                }
+            };
+
+        _openTabs.Add(
+            WorkspaceTabState.For(
+                "dashboard",
+                "DASHBOARD",
+                "\uE80F"));
+
+        RefreshWorkspaceTabs();
 
         _clockTimer.Tick += (_, _) =>
             UpdateClock();
@@ -60,6 +100,7 @@ public partial class CommandCenterWindow : Window
         {
             _clockTimer.Stop();
             _dataTimer.Stop();
+            _moduleHost.Dispose();
         };
     }
 
@@ -156,7 +197,21 @@ public partial class CommandCenterWindow : Window
 
     private void PulseNavigation()
     {
-        DashboardTransform.BeginAnimation(
+        bool moduleVisible =
+            ModuleFrame.Visibility ==
+            Visibility.Visible;
+
+        TranslateTransform transform =
+            moduleVisible
+                ? ModuleTransform
+                : DashboardTransform;
+
+        UIElement target =
+            moduleVisible
+                ? ModuleFrame
+                : DashboardContent;
+
+        transform.BeginAnimation(
             TranslateTransform.XProperty,
             new DoubleAnimation(
                 0,
@@ -173,7 +228,7 @@ public partial class CommandCenterWindow : Window
                     }
             });
 
-        DashboardContent.BeginAnimation(
+        target.BeginAnimation(
             OpacityProperty,
             new DoubleAnimation(
                 1,
@@ -928,6 +983,269 @@ public partial class CommandCenterWindow : Window
                 "",
                 StringComparison.OrdinalIgnoreCase);
 
+    internal Window? OpenModule(
+        string key)
+    {
+        key =
+            key.Trim()
+                .ToLowerInvariant();
+
+        if (key == "dashboard")
+        {
+            ShowDashboardWorkspace();
+            return null;
+        }
+
+        BackgroundOperations ops =
+            BackgroundOperations.Current;
+
+        if (key == "moons" &&
+            !ops.Access.CanReadMoons)
+        {
+            var setup =
+                new ClientSetupWindow
+                {
+                    Owner = this
+                };
+
+            setup.ShowDialog();
+            return null;
+        }
+
+        if (key == "contracts" &&
+            !ops.Access.CanReadContracts)
+        {
+            var setup =
+                new ClientSetupWindow
+                {
+                    Owner = this
+                };
+
+            setup.ShowDialog();
+            return null;
+        }
+
+        if (System.Windows.Application.Current is not
+            App app)
+            return null;
+
+        (string title, string subtitle, string icon) =
+            WorkspaceMetadata(key);
+
+        Window module =
+            _moduleHost.Show(
+                key,
+                () =>
+                    app.CreateCommandCenterModule(
+                        key));
+
+        if (!_openTabs.Any(tab =>
+                string.Equals(
+                    tab.Key,
+                    key,
+                    StringComparison.OrdinalIgnoreCase)))
+        {
+            _openTabs.Add(
+                WorkspaceTabState.For(
+                    key,
+                    title,
+                    icon));
+        }
+
+        _activeWorkspace =
+            key;
+
+        DashboardScroll.Visibility =
+            Visibility.Collapsed;
+
+        ModuleFrame.Visibility =
+            Visibility.Visible;
+
+        PageTitleText.Text =
+            title;
+
+        PageSubtitleText.Text =
+            subtitle;
+
+        RefreshWorkspaceTabs();
+        PulseNavigation();
+
+        return module;
+    }
+
+    internal void CloseModule(
+        string key)
+    {
+        _moduleHost.Close(key);
+    }
+
+    internal void ActivateEmbeddedModule(
+        Window module)
+    {
+        if (_moduleHost.Activate(module))
+        {
+            if (WindowState ==
+                WindowState.Minimized)
+            {
+                WindowState =
+                    WindowState.Maximized;
+            }
+
+            Show();
+            Activate();
+        }
+    }
+
+    private void ShowDashboardWorkspace()
+    {
+        _activeWorkspace =
+            "dashboard";
+
+        ModuleFrame.Visibility =
+            Visibility.Collapsed;
+
+        DashboardScroll.Visibility =
+            Visibility.Visible;
+
+        PageTitleText.Text =
+            "COMMAND OVERVIEW";
+
+        PageSubtitleText.Text =
+            "Fleet, industry and corporation operations";
+
+        RefreshWorkspaceTabs();
+        PulseNavigation();
+        RefreshDashboard();
+    }
+
+    private void RefreshWorkspaceTabs()
+    {
+        WorkspaceTabStrip.ItemsSource =
+            _openTabs
+                .Select(tab =>
+                    tab.WithActive(
+                        string.Equals(
+                            tab.Key,
+                            _activeWorkspace,
+                            StringComparison.OrdinalIgnoreCase)))
+                .ToArray();
+    }
+
+    private void WorkspaceTab_Click(
+        object sender,
+        RoutedEventArgs e)
+    {
+        if (sender is not
+            System.Windows.Controls.Button button ||
+            button.Tag is not
+            string key)
+            return;
+
+        OpenModule(key);
+    }
+
+    private static (
+        string Title,
+        string Subtitle,
+        string Icon)
+        WorkspaceMetadata(
+            string key) =>
+        key switch
+        {
+            "mining" =>
+                (
+                    "MINING",
+                    "Live mining analytics, market value and fleet performance",
+                    "\uE9D2"
+                ),
+            "pilots" =>
+                (
+                    "PILOTS",
+                    "Characters, skills, training, wallet and assets",
+                    "\uE716"
+                ),
+            "industry" =>
+                (
+                    "INDUSTRY",
+                    "Jobs, blueprints, materials and production planning",
+                    "\uE7B8"
+                ),
+            "pi" =>
+                (
+                    "PLANETARY INDUSTRY",
+                    "Colonies, extractors, factories, stock and refill planning",
+                    "\uE774"
+                ),
+            "moons" =>
+                (
+                    "MOON OPERATIONS",
+                    "Schedules, active fields, fuel, profiles and moon reporting",
+                    "\uE7C3"
+                ),
+            "contracts" =>
+                (
+                    "CONTRACTS / ACCOUNTS",
+                    "Corporation contracts, buyback reporting and miner accounts",
+                    "\uE8C7"
+                ),
+            "notifications" =>
+                (
+                    "NOTIFICATIONS",
+                    "Current operational alerts and notification history",
+                    "\uEA8F"
+                ),
+            "settings" =>
+                (
+                    "SETTINGS",
+                    "Profiles, previews, controls, alerts and application preferences",
+                    "\uE713"
+                ),
+            _ =>
+                (
+                    key.ToUpperInvariant(),
+                    "Command Center module",
+                    "\uE80F"
+                )
+        };
+
+    private sealed record WorkspaceTabState(
+        string Key,
+        string Title,
+        string Icon,
+        string Background,
+        string Border,
+        string Foreground)
+    {
+        internal static WorkspaceTabState For(
+            string key,
+            string title,
+            string icon) =>
+            new(
+                key,
+                title,
+                icon,
+                "#0B2229",
+                "#234752",
+                "#9CC4C3");
+
+        internal WorkspaceTabState WithActive(
+            bool active) =>
+            this with
+            {
+                Background =
+                    active
+                        ? "#17483F"
+                        : "#0B2229",
+                Border =
+                    active
+                        ? "#58D3B4"
+                        : "#234752",
+                Foreground =
+                    active
+                        ? "#F5FFFD"
+                        : "#9CC4C3"
+            };
+    }
     private void LaunchOverview_Click(
         object sender,
         RoutedEventArgs e)
@@ -942,85 +1260,64 @@ public partial class CommandCenterWindow : Window
         object sender,
         RoutedEventArgs e)
     {
-        PulseNavigation();
-
-        WindowState =
-            WindowState.Maximized;
-
-        Activate();
-        RefreshDashboard();
+        ShowDashboardWorkspace();
     }
 
     private void Mining_Click(
         object sender,
         RoutedEventArgs e)
     {
-        PulseNavigation();
-
-        (System.Windows.Application.Current as App)?
-            .ShowMiningCommandCenter();
+        OpenModule("mining");
     }
 
     private void Pilots_Click(
         object sender,
         RoutedEventArgs e)
     {
-        PulseNavigation();
-
-        (System.Windows.Application.Current as App)?
-            .ShowPilotCommandCenter();
+        OpenModule("pilots");
     }
 
     private void Industry_Click(
         object sender,
         RoutedEventArgs e)
     {
-        PulseNavigation();
-        BackgroundOperations.Current.OpenIndustry();
+        OpenModule("industry");
     }
 
     private void Planetary_Click(
         object sender,
         RoutedEventArgs e)
     {
-        PulseNavigation();
-        BackgroundOperations.Current.OpenPlanetary();
+        OpenModule("pi");
     }
 
     private void Moons_Click(
         object sender,
         RoutedEventArgs e)
     {
-        PulseNavigation();
-        BackgroundOperations.Current.OpenMoons();
+        OpenModule("moons");
     }
 
     private void Contracts_Click(
         object sender,
         RoutedEventArgs e)
     {
-        PulseNavigation();
-        BackgroundOperations.Current.OpenContracts();
+        OpenModule("contracts");
     }
 
     private void Notifications_Click(
         object sender,
         RoutedEventArgs e)
     {
-        PulseNavigation();
-        BackgroundOperations.Current.OpenNotifications();
+        OpenModule("notifications");
     }
 
     private void Settings_Click(
         object sender,
         RoutedEventArgs e)
     {
-        PulseNavigation();
-
-        (System.Windows.Application.Current as App)?
-            .ShowGeneralSettings();
+        OpenModule("settings");
     }
-
     private void Refresh_Click(
         object sender,
         RoutedEventArgs e)
