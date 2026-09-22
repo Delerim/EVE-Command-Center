@@ -45,6 +45,7 @@ public partial class App : Application
     private ProcessMonitorService? _processMonitor;
     private CropManager? _cropManager;
     private SettingsWindow? _settingsWindow;
+    private CommandCenterWindow? _commandCenterWindow;
     private MiningDashboardWindow? _miningDashboardWindow;
     private PilotCommandCenterWindow? _pilotCommandCenterWindow;
     private MiningFleetOverviewWindow? _miningFleetOverviewWindow;
@@ -402,8 +403,7 @@ public partial class App : Application
             SetupTrayIcon();
             PerfLog($"[Deferred] Tray icon: {deferSw.ElapsedMilliseconds}ms");
 
-            if (_miningIdleWatchdog?.Preferences.AutoShowFleetOverview == true)
-                Application.Current?.Dispatcher.BeginInvoke(new Action(OpenMiningFleetOverview));
+            // v3.6: Command Center is the startup surface; Character Overview is launched explicitly.
 
             _alertHub.Show();
             PerfLog($"[Deferred] AlertHub.Show: {deferSw.ElapsedMilliseconds}ms");
@@ -492,18 +492,17 @@ public partial class App : Application
         // ── Auto-open Settings on launch (user preference, StartupSettings) ──
         // Skipped on Apply-reload (the reopen-flag path above already handles that case)
         // and skipped while the Setup Wizard is still needed.
-        var startupMode = _settings.Settings.StartupSettings;
-        if (!reopenAfterApply && _settings.Settings.SetupCompleted
-            && startupMode != EveCommandCenter.Models.StartupSettingsMode.Off)
+        // Command Center landing window is now the startup shell.
+        // It remains useful even before any EVE clients are running.
+        if (!reopenAfterApply && _settings.Settings.SetupCompleted)
         {
-            var startupTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
-            startupTimer.Tick += (_, _) =>
+            var landingTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(650) };
+            landingTimer.Tick += (_, _) =>
             {
-                startupTimer.Stop();
-                OpenSettings(startMinimized: startupMode == EveCommandCenter.Models.StartupSettingsMode.OpenMinimized);
-                Debug.WriteLine($"[App:Startup] 🪟 Settings auto-opened (mode={startupMode})");
+                landingTimer.Stop();
+                ShowCommandCenter();
             };
-            startupTimer.Start();
+            landingTimer.Start();
         }
 
         Debug.WriteLine("[App:Startup] ✅ All services started successfully");
@@ -744,6 +743,11 @@ public partial class App : Application
         var header = menu.Items.Add("EVE Command Center");
         header.Enabled = false;
         menu.Items.Add(new ToolStripSeparator());
+
+        var commandCenterItem = menu.Items.Add("Open Command Center", null, (_, _) =>
+        {
+            Application.Current?.Dispatcher.BeginInvoke(new Action(ShowCommandCenter));
+        });
 
         // Settings
         // Defer to let the tray menu fully close before Show() — otherwise
@@ -1062,6 +1066,8 @@ public partial class App : Application
 
         if (_miningFleetOverviewWindow != null)
         {
+            if (_miningFleetOverviewWindow.WindowState == WindowState.Minimized)
+                _miningFleetOverviewWindow.WindowState = WindowState.Normal;
             _miningFleetOverviewWindow.Show();
             _miningFleetOverviewWindow.Activate();
             return;
@@ -1081,6 +1087,35 @@ public partial class App : Application
         };
 
         _miningFleetOverviewWindow.Show();
+    }
+
+    internal void ShowCharacterOverview()
+    {
+        if (_commandCenterWindow != null)
+            _commandCenterWindow.WindowState = WindowState.Minimized;
+        OpenMiningFleetOverview();
+    }
+
+    public void ShowCommandCenter()
+    {
+        if (_miningFleetOverviewWindow != null && _miningFleetOverviewWindow.IsVisible)
+            _miningFleetOverviewWindow.WindowState = WindowState.Minimized;
+
+        if (_commandCenterWindow != null)
+        {
+            if (_commandCenterWindow.WindowState == WindowState.Minimized)
+                _commandCenterWindow.WindowState = WindowState.Maximized;
+            _commandCenterWindow.Show();
+            _commandCenterWindow.Activate();
+            return;
+        }
+
+        _commandCenterWindow = new CommandCenterWindow();
+        MainWindow = _commandCenterWindow;
+        _commandCenterWindow.Closed += (_, _) => _commandCenterWindow = null;
+        _commandCenterWindow.Show();
+        _commandCenterWindow.WindowState = WindowState.Maximized;
+        _commandCenterWindow.Activate();
     }
 
     internal void ShowMiningCommandCenter()

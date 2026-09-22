@@ -110,69 +110,20 @@
                     </Border>
                 </StackPanel>
 
-                <StackPanel x:Name="FullActions" Grid.Column="4"
-                            Orientation="Horizontal"
-                            VerticalAlignment="Center"
-                            Margin="12,0,2,0">
-                    <Button Content="COMBINE PREVIEWS" Height="21" FontSize="10" Click="Combine_Click" Margin="0,0,5,0"/><Button Content="OMEGA" Height="21" FontSize="10" Margin="4,0,0,0" Click="OpenOmega_Click"/>
-                    <Button Content="NOTICES" Height="21" Padding="7,1" FontSize="10" Margin="4,0" Click="Notifications_Click"/>
-                    <Button x:Name="RockToggle" Content="ROCKS OFF" Height="21" Padding="7,1" FontSize="10" Margin="4,0" Click="RockToggle_Click" ToolTip="Toggle estimated per-laser rock tracking"/>
-                    <Button Content="MINING"
-                            MinWidth="58"
-                            Height="21"
-                            Padding="7,1"
-                            FontSize="10"
-                            FontWeight="SemiBold"
-                            Click="OpenMiningCommandCenter_Click"
-                            ToolTip="Open Mining Command Center"/>
-
-                    <Button Content="PILOTS"
-                            MinWidth="58"
-                            Height="21"
-                            Padding="7,1"
-                            FontSize="10"
-                            FontWeight="SemiBold"
-                            Margin="4,0,0,0"
-                            Click="OpenPilotCommandCenter_Click"
-                            ToolTip="Open Pilot Command Center"/>
-
-                    <Button x:Name="MoonsButton" Visibility="Collapsed" Content="MOONS"
-                            MinWidth="58"
-                            Height="21"
-                            Padding="7,1"
-                            FontSize="10"
-                            FontWeight="SemiBold"
-                            Margin="4,0,0,0"
-                            Click="OpenMoonReport_Click"
-                            ToolTip="Open Moon Report"/>
-                    <Button x:Name="ContractsButton" Visibility="Collapsed" Content="CONTRACTS" MinWidth="72" Height="21" Padding="7,1" FontSize="10" FontWeight="SemiBold" Margin="4,0,0,0" Click="OpenContracts_Click" ToolTip="Corporation contracts and buyback checks"/>
-                    <Button Content="INDUSTRY" Height="21" FontSize="10" Margin="4,0,0,0" Click="OpenIndustry_Click"/>
-                    <Button Content="PI" Height="21" FontSize="10" Margin="4,0,0,0" Click="OpenPlanetary_Click" ToolTip="Planetary industry across all linked pilots"/>
-                    <Button Content="SETTINGS" Height="21" FontSize="10" Margin="18,0,4,0" Click="OpenClientSettings_Click"/>
-                    <Button Content="PREVIEW SETTINGS" Height="21" FontSize="10" Margin="4,0,4,0" Click="OpenPreviewSettings_Click"/>
-                    <Button Content="CLOUD"
-                            MinWidth="58"
-                            Height="21"
-                            Padding="7,1"
-                            FontSize="10"
-                            FontWeight="SemiBold"
-                            Margin="4,0,0,0"
-                            Click="OpenCloudBackup_Click"
-                            ToolTip="Google Drive backup and restore"/>
-                    <Button x:Name="OrderButton"
-                            Content="ORDER CLIENTS"
-                            MinWidth="58"
-                            Height="21"
-                            Padding="7,1"
-                            FontSize="10"
-                            FontWeight="SemiBold"
-                            Margin="4,0,0,0"
-                            Click="OrderMode_Click"
-                            MouseRightButtonUp="OrderButton_MouseRightButtonUp"
-                            ToolTip="Click to enable tile reordering, drag tiles left/right, then click DONE. Right-click to reset."/>
+                <StackPanel x:Name="FullActions" Grid.Column="4" Orientation="Horizontal" VerticalAlignment="Center" Margin="12,0,2,0">
+                    <Button Content="COMMAND CENTER" Height="21" FontSize="10" FontWeight="SemiBold" Click="OpenCommandCenter_Click" Margin="0,0,5,0" ToolTip="Restore the full EVE Command Center dashboard"/>
+                    <Button Content="COMBINE PREVIEWS" Height="21" FontSize="10" Click="Combine_Click" Margin="0,0,5,0"/>
+                    <Button x:Name="RockToggle" Content="ROCKS OFF" Height="21" Padding="7,1" FontSize="10" Margin="0,0,5,0" Click="RockToggle_Click" ToolTip="Toggle estimated per-laser rock tracking"/>
+                    <Button Content="MINING" MinWidth="58" Height="21" Padding="7,1" FontSize="10" FontWeight="SemiBold" Click="OpenMiningCommandCenter_Click" ToolTip="Open Mining Command Center"/>
+                    <Button Content="TOOLS" Height="21" FontSize="10" Margin="5,0" Click="Tools_Click"><Button.ContextMenu><ContextMenu>
+                        <MenuItem Header="Pilots" Click="OpenPilotCommandCenter_Click"/><MenuItem Header="Omega" Click="OpenOmega_Click"/><MenuItem Header="Notifications" Click="Notifications_Click"/><Separator/>
+                        <MenuItem Header="Moons" Click="OpenMoonReport_Click"/><MenuItem Header="Contracts" Click="OpenContracts_Click"/><MenuItem Header="Industry" Click="OpenIndustry_Click"/><MenuItem Header="Planetary Industry" Click="OpenPlanetary_Click"/><Separator/>
+                        <MenuItem Header="Client settings" Click="OpenClientSettings_Click"/><MenuItem Header="Preview settings" Click="OpenPreviewSettings_Click"/><MenuItem Header="Cloud backup" Click="OpenCloudBackup_Click"/>
+                    </ContextMenu></Button.ContextMenu></Button>
+                    <Button x:Name="OrderButton" Content="ORDER CLIENTS" MinWidth="58" Height="21" Padding="7,1" FontSize="10" FontWeight="SemiBold" Click="OrderMode_Click" MouseRightButtonUp="OrderButton_MouseRightButtonUp" ToolTip="Click to enable tile reordering, drag tiles left/right, then click DONE. Right-click to reset."/>
                 </StackPanel>
-
                 <StackPanel x:Name="CompactActions" Grid.Column="4" Orientation="Horizontal" Visibility="Collapsed">
+                    <Button Content="COMMAND CENTER" Height="23" FontSize="10" Margin="0,0,5,0" Click="OpenCommandCenter_Click"/>
                     <Button x:Name="ModeButton" Content="MODE: CHARACTERS" Height="23" FontSize="10" Click="Mode_Click" ToolTip="Choose character, mining, PvE or PvP cards"><Button.ContextMenu><ContextMenu>
                         <MenuItem Header="Characters - previews" Tag="CHARACTERS" Click="OverviewMode_Click"/>
                         <MenuItem Header="Mining - yield and alarms" Tag="MINING" Click="OverviewMode_Click"/>

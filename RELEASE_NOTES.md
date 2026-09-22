@@ -1,5 +1,5 @@
-# EVE Command Center v3.5.34
+# EVE Command Center v3.6.0
 
-- Rebuilt Account Ledger miner grouping into an explicit workflow with separate create, rename, remove, link, solo and automatic actions.
-- Fixed editable Contracts drop-downs so selected and typed character names are always visible, with clear empty-group, assignment and row-selection feedback.
-- Compacted the mining CRIT row: the CRIT label itself flashes with a star on new critical pulls, while the latest critical volume uses compact m3 formatting with the exact value in the tooltip.
+- Introduced a full-size Command Center landing dashboard that opens at startup even with no EVE clients and summarizes Mining, Moons, Industry, PI, Contracts, notifications and data freshness.
+- Character Overview is now an operational overlay launched from the dashboard; opening it minimizes Command Center, while a new COMMAND CENTER button restores the full application and secondary tools move under TOOLS.
+- Added the supplied Raren VI - Moon 18 and Joppaya VII - Moon 9 R4 compositions, allowed empty saved profiles to heal from bundled data, and shortened inferred LAST FRACTURE text to an ASCII-safe ledger label.

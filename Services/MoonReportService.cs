@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -1555,8 +1555,8 @@ public sealed class MoonReportService : IDisposable
                 break;
             start = dates[i];
         }
-        return "â‰ˆ " + start.ToString("dd MMM yyyy") +
-            " | inferred from ledger";
+        return "~ " + start.ToString("dd MMM yyyy") +
+            " | ledger";
     }
 
     private MoonProfile ProfileFor(MoonPullRecord pull)
@@ -1868,7 +1868,8 @@ public sealed class MoonReportService : IDisposable
             {
                 // Imported/manual values remain authoritative. The bundled
                 // audit only fills a profile that has never been configured.
-                if (!existing.ProfileConfigured)
+                double existingTotal = existing.BitumensPercent + existing.CoesitePercent + existing.SylvitePercent + existing.ZeolitesPercent;
+                if (!existing.ProfileConfigured || existingTotal <= 0)
                     ApplyComposition(existing, bundled);
                 continue;
             }

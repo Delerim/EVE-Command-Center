@@ -128,8 +128,19 @@ internal static partial class Program
         Check(ContractService.FindNew(persisted, 43, new() { Row(id: 3) }).Count == 0, "Corporation baselines isolated");
         CheckRefreshAsync().GetAwaiter().GetResult();
 
+        var raren18 = LseMoonAuditService.GetProfiles().Single(p => p.MoonName == "Raren VI - Moon 18");
+        Check(raren18.BitumensPercent == 31 && raren18.CoesitePercent == 29 && raren18.SylvitePercent == 9 && raren18.ZeolitesPercent == 31,
+            "Raren VI - Moon 18 bundled composition is complete");
+        var joppaya9 = LseMoonAuditService.GetProfiles().Single(p => p.MoonName == "Joppaya VII - Moon 9");
+        Check(joppaya9.BitumensPercent == 47 && joppaya9.CoesitePercent == 0 && joppaya9.SylvitePercent == 32 && joppaya9.ZeolitesPercent == 21,
+            "Joppaya VII - Moon 9 bundled composition is complete");
+
         // Load XAML and render sample data without starting the app or live ESI polling.
         var app = new System.Windows.Application { ShutdownMode=ShutdownMode.OnExplicitShutdown };
+        var landing = new CommandCenterWindow(live: false);
+        Check(landing.FindName("LaunchOverviewButton") != null && landing.FindName("MiningTodayText") != null && landing.FindName("MoonProfileIssueText") != null && landing.FindName("IndustryItems") != null && landing.FindName("PiItems") != null,
+            "Command Center landing window loads without live services");
+        landing.Close();
         var profitWindow = new MiningDashboardWindow(new StatTrackerService(), new AppSettings());
         var waitingPrice = new TaskCompletionSource<MiningMarketQuote?>();
         var profitRefresh = profitWindow.RefreshProfitRowsAsync(new[] { new MiningAggregateRow { DayKey="2026-09-13", Character="Sample pilot", Ore="Zeolites", Units=1080, NormalUnits=1080, Cycles=2 } }, _ => waitingPrice.Task);

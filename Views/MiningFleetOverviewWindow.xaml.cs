@@ -1746,13 +1746,14 @@ public partial class MiningFleetOverviewWindow : Window
 
     private void UpdateAccess()
     {
-        var access = BackgroundOperations.Current.Access;
-        MoonsButton.Visibility = access.CanReadMoons ? Visibility.Visible : Visibility.Collapsed;
-        ContractsButton.Visibility = access.CanReadContracts ? Visibility.Visible : Visibility.Collapsed;
+        // Secondary tools now live under TOOLS and the full Command Center.
         OverviewHeader.Measure(new System.Windows.Size(double.PositiveInfinity, double.PositiveInfinity));
         MinWidth = Math.Max(620, OverviewHeader.DesiredSize.Width + 24);
         if (Width < MinWidth) Width = MinWidth;
     }
+
+    private void OpenCommandCenter_Click(object sender, RoutedEventArgs e) =>
+        (System.Windows.Application.Current as App)?.ShowCommandCenter();
 
     private void OpenPreviewSettings_Click(object sender, RoutedEventArgs e) => (System.Windows.Application.Current as App)?.ShowGeneralSettings();
 

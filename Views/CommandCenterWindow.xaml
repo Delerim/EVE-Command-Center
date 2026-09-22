@@ -1,0 +1,195 @@
+<Window x:Class="EveCommandCenter.Views.CommandCenterWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="EVE Command Center"
+        MinWidth="1120" MinHeight="720"
+        Width="1600" Height="920"
+        WindowState="Maximized"
+        WindowStartupLocation="CenterScreen"
+        Background="#071116" Foreground="#E9F7F6">
+    <Window.Resources>
+        <Style TargetType="Button">
+            <Setter Property="Background" Value="#0D2730"/>
+            <Setter Property="Foreground" Value="#DCEFED"/>
+            <Setter Property="BorderBrush" Value="#234752"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="12,8"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="HorizontalContentAlignment" Value="Left"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Shell" Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="6" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Shell" Property="Background" Value="#123A40"/>
+                                <Setter TargetName="Shell" Property="BorderBrush" Value="#42B6A3"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True"><Setter TargetName="Shell" Property="Background" Value="#185247"/></Trigger>
+                            <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.45"/></Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="NavButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="Margin" Value="0,3,0,0"/><Setter Property="Padding" Value="14,10"/><Setter Property="FontSize" Value="12"/>
+        </Style>
+        <Style x:Key="LaunchButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="Background" Value="#174F45"/><Setter Property="BorderBrush" Value="#58D3B4"/><Setter Property="Foreground" Value="#FFFFFF"/>
+            <Setter Property="Padding" Value="14,12"/><Setter Property="FontSize" Value="13"/>
+        </Style>
+        <Style x:Key="Card" TargetType="Border">
+            <Setter Property="Background" Value="#0A1C22"/><Setter Property="BorderBrush" Value="#173A43"/><Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="8"/><Setter Property="Padding" Value="16"/><Setter Property="Margin" Value="0,0,10,10"/>
+        </Style>
+        <Style x:Key="SectionTitle" TargetType="TextBlock"><Setter Property="Foreground" Value="#55D7D2"/><Setter Property="FontWeight" Value="Bold"/><Setter Property="FontSize" Value="12"/></Style>
+        <Style x:Key="BigMetric" TargetType="TextBlock"><Setter Property="Foreground" Value="#F2FFFD"/><Setter Property="FontWeight" Value="Bold"/><Setter Property="FontSize" Value="21"/></Style>
+        <Style x:Key="Muted" TargetType="TextBlock"><Setter Property="Foreground" Value="#6E9496"/><Setter Property="FontSize" Value="10.5"/></Style>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.ColumnDefinitions><ColumnDefinition Width="225"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+
+        <Border Grid.Column="0" Background="#081820" BorderBrush="#17333C" BorderThickness="0,0,1,0" Padding="14">
+            <DockPanel LastChildFill="False">
+                <StackPanel DockPanel.Dock="Top">
+                    <TextBlock Text="EVE" Foreground="#55D7D2" FontWeight="Bold" FontSize="28"/>
+                    <TextBlock Text="COMMAND CENTER" Foreground="#F1F8F7" FontWeight="SemiBold" FontSize="16"/>
+                    <TextBlock Text="OPERATIONS CONSOLE" Foreground="#5E7E85" FontSize="9.5" Margin="0,2,0,16"/>
+                    <Button x:Name="LaunchOverviewButton" Style="{StaticResource LaunchButton}" Content="LAUNCH CHARACTER OVERVIEW" Click="LaunchOverview_Click"/>
+                    <Button Style="{StaticResource NavButton}" Content="DASHBOARD" Click="Dashboard_Click" Margin="0,12,0,0"/>
+                    <Button Style="{StaticResource NavButton}" Content="MINING" Click="Mining_Click"/>
+                    <Button Style="{StaticResource NavButton}" Content="PILOTS" Click="Pilots_Click"/>
+                    <Button Style="{StaticResource NavButton}" Content="INDUSTRY" Click="Industry_Click"/>
+                    <Button Style="{StaticResource NavButton}" Content="PLANETARY INDUSTRY" Click="Planetary_Click"/>
+                    <Button Style="{StaticResource NavButton}" Content="MOON OPERATIONS" Click="Moons_Click"/>
+                    <Button Style="{StaticResource NavButton}" Content="CONTRACTS / ACCOUNTS" Click="Contracts_Click"/>
+                    <Button Style="{StaticResource NavButton}" Content="NOTIFICATIONS" Click="Notifications_Click"/>
+                </StackPanel>
+                <StackPanel DockPanel.Dock="Bottom">
+                    <Button Style="{StaticResource NavButton}" Content="SETTINGS" Click="Settings_Click"/>
+                    <Button Style="{StaticResource NavButton}" Content="REFRESH LIVE DATA" Click="Refresh_Click"/>
+                    <Border Background="#0A2228" BorderBrush="#21454E" BorderThickness="1" CornerRadius="6" Padding="10" Margin="0,10,0,0">
+                        <StackPanel><TextBlock Text="DATA STATUS" Foreground="#55D7D2" FontSize="10" FontWeight="Bold"/>
+                            <TextBlock x:Name="SidebarFreshnessText" Text="Loading saved operations data..." Foreground="#86A9AB" FontSize="10" TextWrapping="Wrap" Margin="0,5,0,0"/>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </DockPanel>
+        </Border>
+
+        <Grid Grid.Column="1">
+            <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+            <Border Grid.Row="0" Background="#08151A" BorderBrush="#17333C" BorderThickness="0,0,0,1" Padding="22,13">
+                <DockPanel LastChildFill="False">
+                    <StackPanel DockPanel.Dock="Left"><TextBlock Text="COMMAND OVERVIEW" FontSize="24" FontWeight="Bold" Foreground="#F2F8F7"/>
+                        <TextBlock Text="Your EVE operations at a glance" Foreground="#66898F" FontSize="11" Margin="0,2,0,0"/></StackPanel>
+                    <StackPanel DockPanel.Dock="Right" HorizontalAlignment="Right"><TextBlock x:Name="VersionClockText" Text="v3.6.0 | EVE --:--:-- | LOCAL --:--:--" Foreground="#8DB1B3" HorizontalAlignment="Right"/>
+                        <TextBlock x:Name="ClientStatusText" Text="0 EVE clients detected" Foreground="#55D7D2" FontSize="11" HorizontalAlignment="Right" Margin="0,3,0,0"/></StackPanel>
+                </DockPanel>
+            </Border>
+
+            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                <StackPanel Margin="22">
+                    <Border Background="#0C252B" BorderBrush="#2E605B" BorderThickness="1" CornerRadius="7" Padding="13" Margin="0,0,0,12">
+                        <DockPanel LastChildFill="False"><TextBlock DockPanel.Dock="Left" Text="NEEDS ATTENTION" Foreground="#FFD166" FontWeight="Bold" Margin="0,0,15,0"/>
+                            <TextBlock x:Name="AttentionText" Text="Checking saved operations state..." Foreground="#D8E7E5" TextWrapping="Wrap"/></DockPanel>
+                    </Border>
+
+                    <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="1.15*"/><ColumnDefinition Width="1*"/></Grid.ColumnDefinitions>
+                        <Border Grid.Column="0" Style="{StaticResource Card}">
+                            <StackPanel><DockPanel LastChildFill="False"><TextBlock DockPanel.Dock="Left" Style="{StaticResource SectionTitle}" Text="MINING ACTIVITY"/>
+                                <Button DockPanel.Dock="Right" Content="OPEN MINING" Padding="8,4" FontSize="10" Click="Mining_Click"/></DockPanel>
+                                <UniformGrid Columns="4" Margin="0,14,0,0">
+                                    <StackPanel><TextBlock Text="TODAY" Style="{StaticResource Muted}"/><TextBlock x:Name="MiningTodayText" Text="--" Style="{StaticResource BigMetric}"/></StackPanel>
+                                    <StackPanel><TextBlock Text="YESTERDAY" Style="{StaticResource Muted}"/><TextBlock x:Name="MiningYesterdayText" Text="--" Style="{StaticResource BigMetric}"/></StackPanel>
+                                    <StackPanel><TextBlock Text="THIS WEEK" Style="{StaticResource Muted}"/><TextBlock x:Name="MiningWeekText" Text="--" Style="{StaticResource BigMetric}"/></StackPanel>
+                                    <StackPanel><TextBlock Text="THIS MONTH" Style="{StaticResource Muted}"/><TextBlock x:Name="MiningMonthText" Text="--" Style="{StaticResource BigMetric}"/></StackPanel>
+                                </UniformGrid>
+                                <TextBlock x:Name="MiningDetailText" Style="{StaticResource Muted}" Text="Mining history will appear as soon as logs are available." Margin="0,12,0,0"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Grid.Column="1" Style="{StaticResource Card}" Margin="0,0,0,10">
+                            <StackPanel><DockPanel LastChildFill="False"><TextBlock DockPanel.Dock="Left" Style="{StaticResource SectionTitle}" Text="MOON OPERATIONS"/>
+                                <Button DockPanel.Dock="Right" Content="OPEN MOONS" Padding="8,4" FontSize="10" Click="Moons_Click"/></DockPanel>
+                                <UniformGrid Columns="4" Margin="0,14,0,8">
+                                    <StackPanel><TextBlock Text="ACTIVE" Style="{StaticResource Muted}"/><TextBlock x:Name="MoonActiveText" Text="0" Style="{StaticResource BigMetric}"/></StackPanel>
+                                    <StackPanel><TextBlock Text="READY" Style="{StaticResource Muted}"/><TextBlock x:Name="MoonReadyText" Text="0" Style="{StaticResource BigMetric}"/></StackPanel>
+                                    <StackPanel><TextBlock Text="SCHEDULED" Style="{StaticResource Muted}"/><TextBlock x:Name="MoonScheduledText" Text="0" Style="{StaticResource BigMetric}"/></StackPanel>
+                                    <StackPanel><TextBlock Text="PROFILE ISSUES" Style="{StaticResource Muted}"/><TextBlock x:Name="MoonProfileIssueText" Text="0" Style="{StaticResource BigMetric}"/></StackPanel>
+                                </UniformGrid>
+                                <TextBlock x:Name="MoonHealthText" Foreground="#74D6C9" FontSize="11" Margin="0,4,0,8" Text="Profile health loading..."/>
+                                <ItemsControl x:Name="MoonNextItems"><ItemsControl.ItemTemplate><DataTemplate>
+                                    <Grid Margin="0,2"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                        <TextBlock Text="{Binding Primary}" Foreground="#E0F0EE" TextTrimming="CharacterEllipsis"/>
+                                        <TextBlock Grid.Column="1" Text="{Binding Secondary}" Foreground="{Binding Tone}" Margin="12,0,0,0"/></Grid>
+                                </DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+
+                    <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="1*"/><ColumnDefinition Width="1*"/></Grid.ColumnDefinitions>
+                        <Border Grid.Column="0" Style="{StaticResource Card}">
+                            <StackPanel><DockPanel LastChildFill="False"><TextBlock DockPanel.Dock="Left" Style="{StaticResource SectionTitle}" Text="INDUSTRY BY PILOT"/>
+                                <Button DockPanel.Dock="Right" Content="OPEN INDUSTRY" Padding="8,4" FontSize="10" Click="Industry_Click"/></DockPanel>
+                                <TextBlock x:Name="IndustrySummaryText" Style="{StaticResource Muted}" Text="Loading saved industry snapshots..." Margin="0,8,0,7"/>
+                                <ItemsControl x:Name="IndustryItems"><ItemsControl.ItemTemplate><DataTemplate>
+                                    <Border Background="#09171C" BorderBrush="#15343B" BorderThickness="1" CornerRadius="5" Padding="8" Margin="0,2">
+                                        <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="1*"/><ColumnDefinition Width="1.5*"/></Grid.ColumnDefinitions>
+                                            <TextBlock Text="{Binding Name}" Foreground="#EAF5F3" FontWeight="SemiBold"/>
+                                            <TextBlock Grid.Column="1" Text="{Binding Summary}" Foreground="{Binding Tone}" HorizontalAlignment="Right"/></Grid>
+                                    </Border>
+                                </DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Grid.Column="1" Style="{StaticResource Card}" Margin="0,0,0,10">
+                            <StackPanel><DockPanel LastChildFill="False"><TextBlock DockPanel.Dock="Left" Style="{StaticResource SectionTitle}" Text="PLANETARY INDUSTRY BY PILOT"/>
+                                <Button DockPanel.Dock="Right" Content="OPEN PI" Padding="8,4" FontSize="10" Click="Planetary_Click"/></DockPanel>
+                                <TextBlock x:Name="PiSummaryText" Style="{StaticResource Muted}" Text="Loading saved colony snapshots..." Margin="0,8,0,7"/>
+                                <ItemsControl x:Name="PiItems"><ItemsControl.ItemTemplate><DataTemplate>
+                                    <Border Background="#09171C" BorderBrush="#15343B" BorderThickness="1" CornerRadius="5" Padding="8" Margin="0,2">
+                                        <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="1*"/><ColumnDefinition Width="1.5*"/></Grid.ColumnDefinitions>
+                                            <TextBlock Text="{Binding Name}" Foreground="#EAF5F3" FontWeight="SemiBold"/>
+                                            <TextBlock Grid.Column="1" Text="{Binding Summary}" Foreground="{Binding Tone}" HorizontalAlignment="Right"/></Grid>
+                                    </Border>
+                                </DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+
+                    <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="1.05*"/><ColumnDefinition Width="0.95*"/></Grid.ColumnDefinitions>
+                        <Border Grid.Column="0" Style="{StaticResource Card}">
+                            <StackPanel><DockPanel LastChildFill="False"><TextBlock DockPanel.Dock="Left" Style="{StaticResource SectionTitle}" Text="CONTRACTS / ACCOUNTING"/>
+                                <Button DockPanel.Dock="Right" Content="OPEN CONTRACTS" Padding="8,4" FontSize="10" Click="Contracts_Click"/></DockPanel>
+                                <UniformGrid Columns="4" Margin="0,14,0,0">
+                                    <StackPanel><TextBlock Text="OUTSTANDING" Style="{StaticResource Muted}"/><TextBlock x:Name="ContractsOutstandingText" Text="0" Style="{StaticResource BigMetric}"/></StackPanel>
+                                    <StackPanel><TextBlock Text="BUYBACKS THIS WEEK" Style="{StaticResource Muted}"/><TextBlock x:Name="ContractsBuybackCountText" Text="0" Style="{StaticResource BigMetric}"/></StackPanel>
+                                    <StackPanel><TextBlock Text="VALUE THIS WEEK" Style="{StaticResource Muted}"/><TextBlock x:Name="ContractsBuybackValueText" Text="0 ISK" Style="{StaticResource BigMetric}"/></StackPanel>
+                                    <StackPanel><TextBlock Text="REPORTING GROUPS" Style="{StaticResource Muted}"/><TextBlock x:Name="ContractsGroupText" Text="0" Style="{StaticResource BigMetric}"/></StackPanel>
+                                </UniformGrid>
+                                <TextBlock x:Name="ContractsDetailText" Style="{StaticResource Muted}" Margin="0,11,0,0" Text="Waiting for corporation contract state."/>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Grid.Column="1" Style="{StaticResource Card}" Margin="0,0,0,10">
+                            <StackPanel><DockPanel LastChildFill="False"><TextBlock DockPanel.Dock="Left" Style="{StaticResource SectionTitle}" Text="SYSTEM / DATA FRESHNESS"/>
+                                <Button DockPanel.Dock="Right" Content="OPEN NOTICES" Padding="8,4" FontSize="10" Click="Notifications_Click"/></DockPanel>
+                                <TextBlock x:Name="NotificationText" Foreground="#FFD166" FontWeight="SemiBold" Margin="0,12,0,8" Text="0 active notifications"/>
+                                <TextBlock x:Name="FreshnessDetailText" Foreground="#8BB0B2" TextWrapping="Wrap" LineHeight="19" Text="Loading service freshness..."/>
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+                </StackPanel>
+            </ScrollViewer>
+        </Grid>
+    </Grid>
+</Window>
