@@ -70,6 +70,8 @@ public partial class CommandCenterWindow : Window
                 "\uE80F"));
 
         RefreshWorkspaceTabs();
+        SetNavigationSelection(
+            "dashboard");
 
         _clockTimer.Tick += (_, _) =>
             UpdateClock();
@@ -201,43 +203,99 @@ public partial class CommandCenterWindow : Window
             ModuleFrame.Visibility ==
             Visibility.Visible;
 
+        FrameworkElement target =
+            moduleVisible
+                ? ModuleFrame
+                : DashboardContent;
+
         TranslateTransform transform =
             moduleVisible
                 ? ModuleTransform
                 : DashboardTransform;
 
-        UIElement target =
-            moduleVisible
-                ? ModuleFrame
-                : DashboardContent;
-
-        transform.BeginAnimation(
-            TranslateTransform.XProperty,
-            new DoubleAnimation(
-                0,
-                9,
-                TimeSpan.FromMilliseconds(90))
+        var ease =
+            new CubicEase
             {
-                AutoReverse =
-                    true,
-                EasingFunction =
-                    new CubicEase
-                    {
-                        EasingMode =
-                            EasingMode.EaseInOut
-                    }
-            });
+                EasingMode =
+                    EasingMode.EaseOut
+            };
+
+        target.Opacity =
+            0.88;
+
+        transform.X =
+            14;
 
         target.BeginAnimation(
             OpacityProperty,
             new DoubleAnimation(
+                0.88,
                 1,
-                0.9,
-                TimeSpan.FromMilliseconds(90))
+                TimeSpan.FromMilliseconds(170))
             {
-                AutoReverse =
-                    true
+                EasingFunction =
+                    ease
             });
+
+        transform.BeginAnimation(
+            TranslateTransform.XProperty,
+            new DoubleAnimation(
+                14,
+                0,
+                TimeSpan.FromMilliseconds(210))
+            {
+                EasingFunction =
+                    ease
+            });
+    }
+
+    private void SetNavigationSelection(
+        string key)
+    {
+        var items =
+            new (System.Windows.Controls.Button Button, string Key)[]
+            {
+                (NavDashboard, "dashboard"),
+                (NavMining, "mining"),
+                (NavPilots, "pilots"),
+                (NavIndustry, "industry"),
+                (NavPlanetary, "pi"),
+                (NavMoons, "moons"),
+                (NavContracts, "contracts"),
+                (NavNotifications, "notifications"),
+                (NavSettings, "settings")
+            };
+
+        foreach ((System.Windows.Controls.Button button, string itemKey) in
+                 items)
+        {
+            bool active =
+                string.Equals(
+                    itemKey,
+                    key,
+                    StringComparison.OrdinalIgnoreCase);
+
+            button.Background =
+                new SolidColorBrush(
+                    (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(
+                        active
+                            ? "#17483F"
+                            : "#0D2730"));
+
+            button.BorderBrush =
+                new SolidColorBrush(
+                    (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(
+                        active
+                            ? "#58D3B4"
+                            : "#234752"));
+
+            button.Foreground =
+                new SolidColorBrush(
+                    (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(
+                        active
+                            ? "#FFFFFF"
+                            : "#DCEFED"));
+        }
     }
 
     private void UpdateClock()
@@ -498,6 +556,10 @@ public partial class CommandCenterWindow : Window
                             card.MoonName,
                         Secondary =
                             card.ScheduleValue,
+                        Icon =
+                            card.MoonImageUri,
+                        SecondaryIcon =
+                            card.StructureImageUri,
                         Tone =
                             card.Status == "READY"
                                 ? "#FFD166"
@@ -539,6 +601,8 @@ public partial class CommandCenterWindow : Window
                     {
                         Name =
                             pilot.Name,
+                        Icon =
+                            pilot.Portrait,
                         Summary =
                             $"{active:N0} active | {ready:N0} ready",
                         Tone =
@@ -615,6 +679,19 @@ public partial class CommandCenterWindow : Window
                         {
                             Name =
                                 group.Key,
+                            Icon =
+                                group.First().Colony!.Portrait,
+                            MiniIcons =
+                                group
+                                    .Select(row =>
+                                        PlanetIcon(
+                                            row.Colony?.PlanetType))
+                                    .Where(icon =>
+                                        !string.IsNullOrWhiteSpace(icon))
+                                    .Distinct(
+                                        StringComparer.OrdinalIgnoreCase)
+                                    .Take(6)
+                                    .ToArray(),
                             Summary =
                                 summary,
                             Tone =
@@ -874,6 +951,28 @@ public partial class CommandCenterWindow : Window
                     parts);
     }
 
+    private static string PlanetIcon(
+        string? planetType)
+    {
+        int typeId =
+            planetType?
+                .Trim()
+                .ToLowerInvariant() switch
+            {
+                "temperate" => 11,
+                "ice" => 12,
+                "gas" => 13,
+                "oceanic" => 2014,
+                "lava" => 2015,
+                "barren" => 2016,
+                "storm" => 2017,
+                "plasma" => 2063,
+                _ => 2016
+            };
+
+        return
+            $"https://images.evetech.net/types/{typeId}/icon?size=64";
+    }
     private static string FormatM3(
         double value)
     {
@@ -990,6 +1089,9 @@ public partial class CommandCenterWindow : Window
             key.Trim()
                 .ToLowerInvariant();
 
+        SetNavigationSelection(
+            key);
+
         if (key == "dashboard")
         {
             ShowDashboardWorkspace();
@@ -1098,6 +1200,9 @@ public partial class CommandCenterWindow : Window
 
     private void ShowDashboardWorkspace()
     {
+        SetNavigationSelection(
+            "dashboard");
+
         _activeWorkspace =
             "dashboard";
 
@@ -1346,6 +1451,12 @@ public partial class CommandCenterWindow : Window
         public string Secondary { get; init; } =
             "";
 
+        public string Icon { get; init; } =
+            "";
+
+        public string SecondaryIcon { get; init; } =
+            "";
+
         public string Tone { get; init; } =
             "#74D6C9";
     }
@@ -1354,6 +1465,12 @@ public partial class CommandCenterWindow : Window
     {
         public string Name { get; init; } =
             "";
+
+        public string Icon { get; init; } =
+            "";
+
+        public IReadOnlyList<string> MiniIcons { get; init; } =
+            Array.Empty<string>();
 
         public string Summary { get; init; } =
             "";

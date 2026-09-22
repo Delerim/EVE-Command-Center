@@ -6,10 +6,10 @@ using System.Windows.Documents;
 namespace EveCommandCenter.Views;
 
 /// <summary>
-/// Hosts the existing mature WPF tool windows inside Command Center without
-/// duplicating or replacing their feature code. The backing Window is created
-/// and loaded off-screen so its existing Loaded/Closed lifecycle keeps working;
-/// only its visual content is re-parented into the Command Center workspace.
+/// Hosts an existing mature WPF tool inside Command Center while preserving the
+/// tool's normal Window-based lifecycle. The backing Window is briefly loaded
+/// completely off-screen, then its visual content is moved into the shell and
+/// the empty backing Window is immediately hidden.
 /// </summary>
 internal sealed class EmbeddedModuleHost : IDisposable
 {
@@ -123,6 +123,9 @@ internal sealed class EmbeddedModuleHost : IDisposable
         window.Owner =
             _shell;
 
+        // Critical for embedded modules: force a harmless normal off-screen
+        // presentation so Window.Loaded handlers run without ever exposing a
+        // visible black/maximized backing window.
         window.ShowInTaskbar =
             false;
 
@@ -132,36 +135,42 @@ internal sealed class EmbeddedModuleHost : IDisposable
         window.WindowStartupLocation =
             WindowStartupLocation.Manual;
 
+        window.WindowState =
+            WindowState.Normal;
+
+        window.WindowStyle =
+            WindowStyle.None;
+
+        window.ResizeMode =
+            ResizeMode.NoResize;
+
         window.Left =
-            -32000;
+            -100000;
 
         window.Top =
-            -32000;
+            -100000;
 
         window.Opacity =
             0;
 
-        double width =
+        window.Width =
             Math.Max(
-                1000,
+                1100,
                 _surface.ActualWidth);
 
-        double height =
+        window.Height =
             Math.Max(
-                700,
+                720,
                 _surface.ActualHeight);
 
-        window.Width =
-            width;
-
-        window.Height =
-            height;
-
+        // Existing tools do important initialization from Window.Loaded.
+        // Let that proven lifecycle run once, then immediately detach/hide.
         window.Show();
 
         if (window.Content is not
             FrameworkElement content)
         {
+            window.Hide();
             window.Close();
 
             throw new InvalidOperationException(
@@ -188,7 +197,8 @@ internal sealed class EmbeddedModuleHost : IDisposable
                 window.Resources.MergedDictionaries[0];
 
             window.Resources.MergedDictionaries.RemoveAt(0);
-            content.Resources.MergedDictionaries.Add(dictionary);
+            content.Resources.MergedDictionaries.Add(
+                dictionary);
         }
 
         if (content.ReadLocalValue(
@@ -212,9 +222,6 @@ internal sealed class EmbeddedModuleHost : IDisposable
             TextElement.ForegroundProperty,
             window.Foreground);
 
-        window.Content =
-            null;
-
         if (window.FindName("EmbeddedTitleBar") is
             FrameworkElement embeddedTitleBar)
         {
@@ -227,8 +234,11 @@ internal sealed class EmbeddedModuleHost : IDisposable
                      .Cast<System.Windows.Input.CommandBinding>()
                      .ToArray())
         {
-            window.CommandBindings.Remove(binding);
-            content.CommandBindings.Add(binding);
+            window.CommandBindings.Remove(
+                binding);
+
+            content.CommandBindings.Add(
+                binding);
         }
 
         foreach (System.Windows.Input.InputBinding binding in
@@ -236,9 +246,20 @@ internal sealed class EmbeddedModuleHost : IDisposable
                      .Cast<System.Windows.Input.InputBinding>()
                      .ToArray())
         {
-            window.InputBindings.Remove(binding);
-            content.InputBindings.Add(binding);
+            window.InputBindings.Remove(
+                binding);
+
+            content.InputBindings.Add(
+                binding);
         }
+
+        window.Content =
+            null;
+
+        // The backing Window has finished its lifecycle initialization. Keeping
+        // it hidden preserves timers/fields/code-behind without leaving a
+        // visible empty shell on the desktop.
+        window.Hide();
 
         content.Width =
             double.NaN;
@@ -266,7 +287,8 @@ internal sealed class EmbeddedModuleHost : IDisposable
                 if (_disposing)
                     return;
 
-                _modules.Remove(key);
+                _modules.Remove(
+                    key);
 
                 if (ReferenceEquals(
                         _surface.Content,
@@ -276,7 +298,8 @@ internal sealed class EmbeddedModuleHost : IDisposable
                         null;
                 }
 
-                ModuleClosed?.Invoke(key);
+                ModuleClosed?.Invoke(
+                    key);
             };
 
         return state;

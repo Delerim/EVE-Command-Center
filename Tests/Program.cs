@@ -149,6 +149,12 @@ internal static partial class Program
             landing.FindName("WorkspaceArea") != null &&
             landing.FindName("WorkspaceTabStrip") != null &&
             landing.FindName("ModuleSurface") != null &&
+            landing.FindName("NavDashboard") != null &&
+            landing.FindName("NavMining") != null &&
+            landing.FindName("NavPilots") != null &&
+            landing.FindName("NavIndustry") != null &&
+            landing.FindName("NavPlanetary") != null &&
+            landing.FindName("NavMoons") != null &&
             landing.FindName("DashboardContent") != null &&
             landing.FindName("MiningTodayText") != null &&
             landing.FindName("MoonProfileIssueText") != null &&

@@ -1,5 +1,5 @@
-# EVE Command Center v3.6.2
+# EVE Command Center v3.6.3
 
-- Command Center left-side navigation now opens Mining, Pilots, Industry, PI, Moons, Contracts/Accounts, Notifications and Settings inside persistent workspace tabs instead of spawning visible top-level tool windows.
-- Existing mature tool UIs and state are preserved through a reusable WPF embedded-module host; non-Command-Center launch paths remain unchanged, and specialist detail dialogs such as skill planners, moon editors and contract contents still open as focused child dialogs.
-- Added the new original EVE-style Command Center icon to the executable and in-app branding, with workspace tabs retaining module state as you move around the operations console.
+- Fixed embedded Command Center modules so their backing WPF windows load invisibly and are immediately hidden after the real tool content is mounted in the right-hand workspace, eliminating empty black popup windows.
+- Reworked Command Center navigation into a cleaner page experience: the left rail is now the primary page selector, the duplicate workspace strip is hidden, the active section is visibly highlighted, and navigation uses a single smooth slide/fade instead of the old jiggle.
+- Polished the shell with a wider sidebar, a properly padded Character Overview launcher, more breathing room around embedded pages, EVE character portraits, PI planet icons, and moon/refinery imagery on the dashboard.

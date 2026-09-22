@@ -28,8 +28,8 @@
         <Style x:Key="IconGlyph" TargetType="TextBlock">
             <Setter Property="FontFamily" Value="Segoe MDL2 Assets"/>
             <Setter Property="Foreground" Value="#55D7D2"/>
-            <Setter Property="FontSize" Value="16"/>
-            <Setter Property="Width" Value="26"/>
+            <Setter Property="FontSize" Value="18"/>
+            <Setter Property="Width" Value="30"/>
             <Setter Property="VerticalAlignment" Value="Center"/>
             <Setter Property="TextAlignment" Value="Center"/>
         </Style>
@@ -73,17 +73,21 @@
         </Style>
 
         <Style x:Key="NavButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
-            <Setter Property="Margin" Value="0,4,0,0"/>
-            <Setter Property="Padding" Value="11,10"/>
+            <Setter Property="Margin" Value="0,5,0,0"/>
+            <Setter Property="Padding" Value="14,10"/>
+            <Setter Property="MinHeight" Value="42"/>
             <Setter Property="FontSize" Value="12"/>
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
         </Style>
 
         <Style x:Key="LaunchButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
             <Setter Property="Background" Value="#17564B"/>
             <Setter Property="BorderBrush" Value="#64E3C8"/>
             <Setter Property="Foreground" Value="#FFFFFF"/>
-            <Setter Property="Padding" Value="13,13"/>
-            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Padding" Value="14,12"/>
+            <Setter Property="MinHeight" Value="68"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
         </Style>
 
         <Style x:Key="Card" TargetType="Border">
@@ -142,7 +146,7 @@
     <Grid x:Name="RootShell"
           Opacity="1">
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="236"/>
+            <ColumnDefinition Width="286"/>
             <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
 
@@ -193,16 +197,42 @@
                     <Button x:Name="LaunchOverviewButton"
                             Style="{StaticResource LaunchButton}"
                             Click="LaunchOverview_Click">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="&#xE768;" Style="{StaticResource IconGlyph}" Foreground="#FFFFFF"/>
-                            <StackPanel>
-                                <TextBlock Text="LAUNCH CHARACTER OVERVIEW"/>
-                                <TextBlock Text="Live fleet overlay"
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="38"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <Border Width="32"
+                                    Height="32"
+                                    CornerRadius="16"
+                                    Background="#0E3C35"
+                                    BorderBrush="#7BE7D0"
+                                    BorderThickness="1"
+                                    VerticalAlignment="Center">
+                                <TextBlock Text="&#xE768;"
+                                           FontFamily="Segoe MDL2 Assets"
+                                           Foreground="#FFFFFF"
+                                           FontSize="16"
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Center"/>
+                            </Border>
+
+                            <StackPanel Grid.Column="1"
+                                        Margin="9,0,0,0"
+                                        VerticalAlignment="Center">
+                                <TextBlock Text="CHARACTER OVERVIEW"
+                                           Foreground="#FFFFFF"
+                                           FontWeight="Bold"
+                                           FontSize="12"
+                                           TextWrapping="Wrap"/>
+                                <TextBlock Text="Launch live fleet overlay"
                                            Foreground="#A8D9CF"
                                            FontSize="9.5"
-                                           FontWeight="Normal"/>
+                                           FontWeight="Normal"
+                                           Margin="0,3,0,0"/>
                             </StackPanel>
-                        </StackPanel>
+                        </Grid>
                     </Button>
 
                     <TextBlock Text="OPERATIONS"
@@ -211,56 +241,56 @@
                                FontWeight="Bold"
                                Margin="4,17,0,3"/>
 
-                    <Button Style="{StaticResource NavButton}" Click="Dashboard_Click">
+                    <Button x:Name="NavDashboard" Style="{StaticResource NavButton}" Click="Dashboard_Click">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="&#xE80F;" Style="{StaticResource IconGlyph}"/>
                             <TextBlock Text="DASHBOARD" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Button>
 
-                    <Button Style="{StaticResource NavButton}" Click="Mining_Click">
+                    <Button x:Name="NavMining" Style="{StaticResource NavButton}" Click="Mining_Click">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="&#xE9D2;" Style="{StaticResource IconGlyph}"/>
                             <TextBlock Text="MINING" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Button>
 
-                    <Button Style="{StaticResource NavButton}" Click="Pilots_Click">
+                    <Button x:Name="NavPilots" Style="{StaticResource NavButton}" Click="Pilots_Click">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="&#xE716;" Style="{StaticResource IconGlyph}"/>
                             <TextBlock Text="PILOTS" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Button>
 
-                    <Button Style="{StaticResource NavButton}" Click="Industry_Click">
+                    <Button x:Name="NavIndustry" Style="{StaticResource NavButton}" Click="Industry_Click">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="&#xE7B8;" Style="{StaticResource IconGlyph}"/>
                             <TextBlock Text="INDUSTRY" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Button>
 
-                    <Button Style="{StaticResource NavButton}" Click="Planetary_Click">
+                    <Button x:Name="NavPlanetary" Style="{StaticResource NavButton}" Click="Planetary_Click">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="&#xE774;" Style="{StaticResource IconGlyph}"/>
                             <TextBlock Text="PLANETARY INDUSTRY" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Button>
 
-                    <Button Style="{StaticResource NavButton}" Click="Moons_Click">
+                    <Button x:Name="NavMoons" Style="{StaticResource NavButton}" Click="Moons_Click">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="&#xE7C3;" Style="{StaticResource IconGlyph}"/>
                             <TextBlock Text="MOON OPERATIONS" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Button>
 
-                    <Button Style="{StaticResource NavButton}" Click="Contracts_Click">
+                    <Button x:Name="NavContracts" Style="{StaticResource NavButton}" Click="Contracts_Click">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="&#xE8C7;" Style="{StaticResource IconGlyph}"/>
                             <TextBlock Text="CONTRACTS / ACCOUNTS" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Button>
 
-                    <Button Style="{StaticResource NavButton}" Click="Notifications_Click">
+                    <Button x:Name="NavNotifications" Style="{StaticResource NavButton}" Click="Notifications_Click">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="&#xEA8F;" Style="{StaticResource IconGlyph}"/>
                             <TextBlock Text="NOTIFICATIONS" VerticalAlignment="Center"/>
@@ -269,7 +299,7 @@
                 </StackPanel>
 
                 <StackPanel DockPanel.Dock="Bottom">
-                    <Button Style="{StaticResource NavButton}" Click="Settings_Click">
+                    <Button x:Name="NavSettings" Style="{StaticResource NavButton}" Click="Settings_Click">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="&#xE713;" Style="{StaticResource IconGlyph}"/>
                             <TextBlock Text="SETTINGS" VerticalAlignment="Center"/>
@@ -338,7 +368,7 @@
                     <StackPanel DockPanel.Dock="Right"
                                 HorizontalAlignment="Right">
                         <TextBlock x:Name="VersionClockText"
-                                   Text="v3.6.1 | EVE --:--:-- | LOCAL --:--:--"
+                                   Text="v3.6.3 | EVE --:--:-- | LOCAL --:--:--"
                                    Foreground="#8DB1B3"
                                    HorizontalAlignment="Right"/>
                         <TextBlock x:Name="ClientStatusText"
@@ -359,6 +389,7 @@
                 </Grid.RowDefinitions>
 
                 <Border Grid.Row="0"
+                        Visibility="Collapsed"
                         Background="#07171D"
                         BorderBrush="#173A43"
                         BorderThickness="0,0,0,1"
@@ -634,17 +665,40 @@
                                 <ItemsControl x:Name="MoonNextItems">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
-                                            <Grid Margin="0,2">
+                                            <Grid Margin="0,3">
                                                 <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="32"/>
+                                                    <ColumnDefinition Width="26"/>
                                                     <ColumnDefinition Width="*"/>
                                                     <ColumnDefinition Width="Auto"/>
                                                 </Grid.ColumnDefinitions>
-                                                <TextBlock Text="{Binding Primary}"
+
+                                                <Image Source="{Binding Icon}"
+                                                       Width="26"
+                                                       Height="26"
+                                                       Stretch="UniformToFill"
+                                                       VerticalAlignment="Center"/>
+
+                                                <Image Grid.Column="1"
+                                                       Source="{Binding SecondaryIcon}"
+                                                       Width="22"
+                                                       Height="22"
+                                                       Stretch="Uniform"
+                                                       VerticalAlignment="Center"
+                                                       Opacity="0.9"/>
+
+                                                <TextBlock Grid.Column="2"
+                                                           Text="{Binding Primary}"
                                                            Foreground="#E0F0EE"
-                                                           TextTrimming="CharacterEllipsis"/>
-                                                <TextBlock Grid.Column="1"
+                                                           FontWeight="SemiBold"
+                                                           VerticalAlignment="Center"
+                                                           TextTrimming="CharacterEllipsis"
+                                                           Margin="6,0,0,0"/>
+
+                                                <TextBlock Grid.Column="3"
                                                            Text="{Binding Secondary}"
                                                            Foreground="{Binding Tone}"
+                                                           VerticalAlignment="Center"
                                                            Margin="12,0,0,0"/>
                                             </Grid>
                                         </DataTemplate>
@@ -693,16 +747,54 @@
                                                     Margin="0,2">
                                                 <Grid>
                                                     <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="1*"/>
-                                                        <ColumnDefinition Width="1.5*"/>
+                                                        <ColumnDefinition Width="34"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="Auto"/>
                                                     </Grid.ColumnDefinitions>
-                                                    <TextBlock Text="{Binding Name}"
-                                                               Foreground="#EAF5F3"
-                                                               FontWeight="SemiBold"/>
-                                                    <TextBlock Grid.Column="1"
+
+                                                    <Border Width="28"
+                                                            Height="28"
+                                                            CornerRadius="14"
+                                                            Background="#0D2A30"
+                                                            BorderBrush="#245058"
+                                                            BorderThickness="1">
+                                                        <Image Source="{Binding Icon}"
+                                                               Width="26"
+                                                               Height="26"
+                                                               Stretch="UniformToFill"/>
+                                                    </Border>
+
+                                                    <StackPanel Grid.Column="1"
+                                                                Margin="8,0,8,0"
+                                                                VerticalAlignment="Center">
+                                                        <TextBlock Text="{Binding Name}"
+                                                                   Foreground="#EAF5F3"
+                                                                   FontWeight="SemiBold"/>
+
+                                                        <ItemsControl ItemsSource="{Binding MiniIcons}"
+                                                                      Margin="0,3,0,0">
+                                                            <ItemsControl.ItemsPanel>
+                                                                <ItemsPanelTemplate>
+                                                                    <StackPanel Orientation="Horizontal"/>
+                                                                </ItemsPanelTemplate>
+                                                            </ItemsControl.ItemsPanel>
+                                                            <ItemsControl.ItemTemplate>
+                                                                <DataTemplate>
+                                                                    <Image Source="{Binding}"
+                                                                           Width="18"
+                                                                           Height="18"
+                                                                           Stretch="Uniform"
+                                                                           Margin="0,0,3,0"/>
+                                                                </DataTemplate>
+                                                            </ItemsControl.ItemTemplate>
+                                                        </ItemsControl>
+                                                    </StackPanel>
+
+                                                    <TextBlock Grid.Column="2"
                                                                Text="{Binding Summary}"
                                                                Foreground="{Binding Tone}"
-                                                               HorizontalAlignment="Right"/>
+                                                               HorizontalAlignment="Right"
+                                                               VerticalAlignment="Center"/>
                                                 </Grid>
                                             </Border>
                                         </DataTemplate>
@@ -745,16 +837,54 @@
                                                     Margin="0,2">
                                                 <Grid>
                                                     <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="1*"/>
-                                                        <ColumnDefinition Width="1.5*"/>
+                                                        <ColumnDefinition Width="34"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="Auto"/>
                                                     </Grid.ColumnDefinitions>
-                                                    <TextBlock Text="{Binding Name}"
-                                                               Foreground="#EAF5F3"
-                                                               FontWeight="SemiBold"/>
-                                                    <TextBlock Grid.Column="1"
+
+                                                    <Border Width="28"
+                                                            Height="28"
+                                                            CornerRadius="14"
+                                                            Background="#0D2A30"
+                                                            BorderBrush="#245058"
+                                                            BorderThickness="1">
+                                                        <Image Source="{Binding Icon}"
+                                                               Width="26"
+                                                               Height="26"
+                                                               Stretch="UniformToFill"/>
+                                                    </Border>
+
+                                                    <StackPanel Grid.Column="1"
+                                                                Margin="8,0,8,0"
+                                                                VerticalAlignment="Center">
+                                                        <TextBlock Text="{Binding Name}"
+                                                                   Foreground="#EAF5F3"
+                                                                   FontWeight="SemiBold"/>
+
+                                                        <ItemsControl ItemsSource="{Binding MiniIcons}"
+                                                                      Margin="0,3,0,0">
+                                                            <ItemsControl.ItemsPanel>
+                                                                <ItemsPanelTemplate>
+                                                                    <StackPanel Orientation="Horizontal"/>
+                                                                </ItemsPanelTemplate>
+                                                            </ItemsControl.ItemsPanel>
+                                                            <ItemsControl.ItemTemplate>
+                                                                <DataTemplate>
+                                                                    <Image Source="{Binding}"
+                                                                           Width="18"
+                                                                           Height="18"
+                                                                           Stretch="Uniform"
+                                                                           Margin="0,0,3,0"/>
+                                                                </DataTemplate>
+                                                            </ItemsControl.ItemTemplate>
+                                                        </ItemsControl>
+                                                    </StackPanel>
+
+                                                    <TextBlock Grid.Column="2"
                                                                Text="{Binding Summary}"
                                                                Foreground="{Binding Tone}"
-                                                               HorizontalAlignment="Right"/>
+                                                               HorizontalAlignment="Right"
+                                                               VerticalAlignment="Center"/>
                                                 </Grid>
                                             </Border>
                                         </DataTemplate>
@@ -854,7 +984,9 @@
                         Visibility="Collapsed"
                         Background="#061116"
                         BorderBrush="#173A43"
-                        BorderThickness="0">
+                        BorderThickness="0"
+                        Padding="18,14,18,18"
+                        ClipToBounds="True">
                     <Border.RenderTransform>
                         <TranslateTransform x:Name="ModuleTransform"/>
                     </Border.RenderTransform>
