@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -320,6 +320,7 @@ public partial class SettingsWindow : Window
             TxtCycleDelay.Text = S.CycleDelayMs.ToString();
             ChkCycleWhileHeld.IsChecked = S.CycleWhileHeld;
             CmbStartupSettings.SelectedIndex = (int)S.StartupSettings;
+            ChkMinimizeCommandCenterOnOverviewLaunch.IsChecked = S.MinimizeCommandCenterOnOverviewLaunch;
 
             // UI Scale
             SliderUiScale.Value = S.SettingsUiFontSize;

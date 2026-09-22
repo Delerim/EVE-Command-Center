@@ -1,5 +1,5 @@
-# EVE Command Center v3.6.0
+# EVE Command Center v3.6.1
 
-- Introduced a full-size Command Center landing dashboard that opens at startup even with no EVE clients and summarizes Mining, Moons, Industry, PI, Contracts, notifications and data freshness.
-- Character Overview is now an operational overlay launched from the dashboard; opening it minimizes Command Center, while a new COMMAND CENTER button restores the full application and secondary tools move under TOOLS.
-- Added the supplied Raren VI - Moon 18 and Joppaya VII - Moon 9 R4 compositions, allowed empty saved profiles to heal from bundled data, and shortened inferred LAST FRACTURE text to an ASCII-safe ledger label.
+- Character Overview and the full Command Center can now stay open together; restoring Command Center no longer minimizes the live overview, and minimizing Command Center on overview launch is an optional setting that defaults off.
+- Polished the Command Center landing experience with EVE-style navigation and section icons, a Welcome Commander operations header, stronger visual hierarchy and live fleet-link status.
+- Added lightweight fade, slide, hover and navigation feedback animations so the dashboard feels smoother without delaying or blocking tool launches.

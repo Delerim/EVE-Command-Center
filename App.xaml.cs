@@ -1091,16 +1091,23 @@ public partial class App : Application
 
     internal void ShowCharacterOverview()
     {
-        if (_commandCenterWindow != null)
-            _commandCenterWindow.WindowState = WindowState.Minimized;
+        // v3.6.1: Command Center and Character Overview are companion windows.
+        // Keep the full operations dashboard open by default; users who prefer
+        // the old single-window focus flow can opt into minimizing it.
+        if (_settings?.Settings.MinimizeCommandCenterOnOverviewLaunch == true &&
+            _commandCenterWindow != null)
+        {
+            _commandCenterWindow.WindowState =
+                WindowState.Minimized;
+        }
+
         OpenMiningFleetOverview();
     }
 
     public void ShowCommandCenter()
     {
-        if (_miningFleetOverviewWindow != null && _miningFleetOverviewWindow.IsVisible)
-            _miningFleetOverviewWindow.WindowState = WindowState.Minimized;
-
+        // Do not hide Character Overview when returning to Command Center.
+        // Both windows can remain available and be arranged independently.
         if (_commandCenterWindow != null)
         {
             if (_commandCenterWindow.WindowState == WindowState.Minimized)

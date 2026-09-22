@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -254,6 +254,7 @@ public partial class SettingsWindow
         // (events outpace processing), too high feels broken.
         if (int.TryParse(TxtCycleDelay.Text, out int cd)) S.CycleDelayMs = Math.Clamp(cd, 25, 2000);
         S.CycleWhileHeld = ChkCycleWhileHeld.IsChecked == true;
+        S.MinimizeCommandCenterOnOverviewLaunch = ChkMinimizeCommandCenterOnOverviewLaunch.IsChecked == true;
         // Startup-settings mode: clamp to the 3 known values.
         int startupIdx = CmbStartupSettings.SelectedIndex;
         S.StartupSettings = startupIdx switch

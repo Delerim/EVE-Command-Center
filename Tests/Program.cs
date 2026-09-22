@@ -137,9 +137,20 @@ internal static partial class Program
 
         // Load XAML and render sample data without starting the app or live ESI polling.
         var app = new System.Windows.Application { ShutdownMode=ShutdownMode.OnExplicitShutdown };
+        Check(
+            new AppSettings().MinimizeCommandCenterOnOverviewLaunch == false,
+            "Command Center defaults to keeping both windows open");
         var landing = new CommandCenterWindow(live: false);
-        Check(landing.FindName("LaunchOverviewButton") != null && landing.FindName("MiningTodayText") != null && landing.FindName("MoonProfileIssueText") != null && landing.FindName("IndustryItems") != null && landing.FindName("PiItems") != null,
-            "Command Center landing window loads without live services");
+        Check(
+            landing.FindName("LaunchOverviewButton") != null &&
+            landing.FindName("WelcomePanel") != null &&
+            landing.FindName("WelcomeTitleText") != null &&
+            landing.FindName("DashboardContent") != null &&
+            landing.FindName("MiningTodayText") != null &&
+            landing.FindName("MoonProfileIssueText") != null &&
+            landing.FindName("IndustryItems") != null &&
+            landing.FindName("PiItems") != null,
+            "Command Center polished landing window loads without live services");
         landing.Close();
         var profitWindow = new MiningDashboardWindow(new StatTrackerService(), new AppSettings());
         var waitingPrice = new TaskCompletionSource<MiningMarketQuote?>();

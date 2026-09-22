@@ -72,6 +72,12 @@ public class AppSettings
     /// <summary>Controls whether the Settings window auto-opens when the app launches.</summary>
     public StartupSettingsMode StartupSettings { get; set; } = StartupSettingsMode.Off;
 
+    /// <summary>
+    /// Optional legacy-style focus behavior. Default false keeps the full
+    /// Command Center open when Character Overview is launched.
+    /// </summary>
+    public bool MinimizeCommandCenterOnOverviewLaunch { get; set; } = false;
+
     // ── Debug Logging ───────────────────────────────────────────────
     public bool EnableDebugLogging_Injection { get; set; } = false;
     public bool EnableDebugLogging_Cycling { get; set; } = false;
