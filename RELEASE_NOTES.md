@@ -1,5 +1,5 @@
-# EVE Command Center v3.6.7
+# EVE Command Center v3.6.8
 
-- Removed Window.Show() from Command Center embedded-module startup, eliminating the native top-level backing-window presentation that could flash black when a tool opened for the first time.
-- Embedded tools now create only a hidden HWND for interop/SourceInitialized needs, move their visual content directly into Command Center, and run their existing Window.Loaded bootstrap once the embedded visual tree is naturally loaded.
-- Preserves existing standalone tool behavior, timers, refresh logic, dialogs and Window-based code-behind while making Command Center page switching visually native to the main shell.
+- Reverted the experimental v3.6.7 embedded-window lifecycle after it could black out a secondary monitor when opening Command Center pages on multi-monitor systems.
+- Restored the proven v3.6.6 off-screen Show/Loaded/hide host path, preserving normal tool initialization and multi-monitor behavior.
+- This intentionally accepts the small first-open flash on some legacy Window-based modules until those tools are converted to reusable embedded controls instead of top-level Windows.

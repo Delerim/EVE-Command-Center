@@ -2,14 +2,14 @@ using System.Collections;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Documents;
-using System.Windows.Threading;
 
 namespace EveCommandCenter.Views;
 
 /// <summary>
-/// Hosts mature Window-based tools inside Command Center without ever showing
-/// their backing top-level Window. The hidden Window still owns the existing
-/// code-behind/lifecycle, while its real visual content lives in the shell.
+/// Hosts an existing mature WPF tool inside Command Center while preserving the
+/// tool's normal Window-based lifecycle. The backing Window is briefly loaded
+/// completely off-screen, then its visual content is moved into the shell and
+/// the empty backing Window is immediately hidden.
 /// </summary>
 internal sealed class EmbeddedModuleHost : IDisposable
 {
@@ -57,9 +57,6 @@ internal sealed class EmbeddedModuleHost : IDisposable
 
         _surface.Content =
             state.Content;
-
-        EnsureWindowLoaded(
-            state);
 
         SyncBackingWindowSize();
 
@@ -126,9 +123,9 @@ internal sealed class EmbeddedModuleHost : IDisposable
         window.Owner =
             _shell;
 
-        // The backing Window exists only for code-behind and lifecycle state.
-        // Creating its HWND is enough for SourceInitialized/interop consumers;
-        // unlike Window.Show(), EnsureHandle never makes it visible.
+        // Critical for embedded modules: force a harmless normal off-screen
+        // presentation so Window.Loaded handlers run without ever exposing a
+        // visible black/maximized backing window.
         window.ShowInTaskbar =
             false;
 
@@ -156,6 +153,21 @@ internal sealed class EmbeddedModuleHost : IDisposable
         window.Opacity =
             0;
 
+        // Moon Operations gets an extra transparent backing surface because
+        // its large first layout can otherwise expose a one-frame black DWM
+        // surface while its Loaded work is starting.
+        if (string.Equals(
+                key,
+                "moons",
+                StringComparison.OrdinalIgnoreCase))
+        {
+            window.AllowsTransparency =
+                true;
+
+            window.Background =
+                System.Windows.Media.Brushes.Transparent;
+        }
+
         window.Width =
             Math.Max(
                 1100,
@@ -166,6 +178,9 @@ internal sealed class EmbeddedModuleHost : IDisposable
                 720,
                 _surface.ActualHeight);
 
+        // Pre-create the native HWND hidden and off-screen before WPF runs the
+        // normal Show/Loaded lifecycle. This prevents the compositor from ever
+        // presenting the temporary backing Window as a black desktop popup.
         IntPtr hwnd =
             new System.Windows.Interop.WindowInteropHelper(
                 window)
@@ -201,9 +216,18 @@ internal sealed class EmbeddedModuleHost : IDisposable
             hwnd,
             EveCommandCenter.Interop.User32.SW_HIDE);
 
+        // Existing tools do important initialization from Window.Loaded.
+        // Run that lifecycle once while the native window remains off-screen.
+        window.Show();
+
+        EveCommandCenter.Interop.User32.ShowWindow(
+            hwnd,
+            EveCommandCenter.Interop.User32.SW_HIDE);
+
         if (window.Content is not
             FrameworkElement content)
         {
+            window.Hide();
             window.Close();
 
             throw new InvalidOperationException(
@@ -230,7 +254,6 @@ internal sealed class EmbeddedModuleHost : IDisposable
                 window.Resources.MergedDictionaries[0];
 
             window.Resources.MergedDictionaries.RemoveAt(0);
-
             content.Resources.MergedDictionaries.Add(
                 dictionary);
         }
@@ -290,6 +313,11 @@ internal sealed class EmbeddedModuleHost : IDisposable
         window.Content =
             null;
 
+        // The backing Window has finished its lifecycle initialization. Keeping
+        // it hidden preserves timers/fields/code-behind without leaving a
+        // visible empty shell on the desktop.
+        window.Hide();
+
         content.Width =
             double.NaN;
 
@@ -332,75 +360,6 @@ internal sealed class EmbeddedModuleHost : IDisposable
             };
 
         return state;
-    }
-
-    private void EnsureWindowLoaded(
-        ModuleState state)
-    {
-        if (state.WindowLoadedRaised ||
-            state.WindowLoadedScheduled)
-            return;
-
-        if (state.Content.IsLoaded)
-        {
-            ScheduleWindowLoaded(
-                state);
-
-            return;
-        }
-
-        RoutedEventHandler? loaded =
-            null;
-
-        loaded =
-            (_, _) =>
-            {
-                state.Content.Loaded -=
-                    loaded;
-
-                ScheduleWindowLoaded(
-                    state);
-            };
-
-        state.Content.Loaded +=
-            loaded;
-    }
-
-    private void ScheduleWindowLoaded(
-        ModuleState state)
-    {
-        if (state.WindowLoadedRaised ||
-            state.WindowLoadedScheduled)
-            return;
-
-        state.WindowLoadedScheduled =
-            true;
-
-        state.Content.Dispatcher.BeginInvoke(
-            DispatcherPriority.ContextIdle,
-            new Action(
-                () =>
-                {
-                    state.WindowLoadedScheduled =
-                        false;
-
-                    if (_disposing ||
-                        state.WindowLoadedRaised)
-                        return;
-
-                    state.WindowLoadedRaised =
-                        true;
-
-                    // Existing tools attach their refresh/bootstrap logic to
-                    // Window.Loaded. The visual tree is already embedded and
-                    // naturally loaded at this point, so raising only the
-                    // Window event preserves that logic without ever calling
-                    // Window.Show() on the backing HWND.
-                    state.Window.RaiseEvent(
-                        new RoutedEventArgs(
-                            FrameworkElement.LoadedEvent,
-                            state.Window));
-                }));
     }
 
     private void SyncBackingWindowSize()
@@ -471,25 +430,7 @@ internal sealed class EmbeddedModuleHost : IDisposable
         return true;
     }
 
-    private sealed class ModuleState
-    {
-        internal ModuleState(
-            Window window,
-            FrameworkElement content)
-        {
-            Window =
-                window;
-
-            Content =
-                content;
-        }
-
-        internal Window Window { get; }
-
-        internal FrameworkElement Content { get; }
-
-        internal bool WindowLoadedRaised { get; set; }
-
-        internal bool WindowLoadedScheduled { get; set; }
-    }
+    private sealed record ModuleState(
+        Window Window,
+        FrameworkElement Content);
 }
