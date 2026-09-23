@@ -98,8 +98,11 @@
             <Setter Property="Foreground" Value="#B9F1E8"/>
             <Setter Property="Padding" Value="11,5"/>
             <Setter Property="MinHeight" Value="30"/>
+            <Setter Property="MinWidth" Value="92"/>
+            <Setter Property="Margin" Value="12,0,0,0"/>
             <Setter Property="FontSize" Value="11"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="HorizontalAlignment" Value="Right"/>
             <Setter Property="HorizontalContentAlignment" Value="Center"/>
         </Style>
 
