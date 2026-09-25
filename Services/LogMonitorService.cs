@@ -999,13 +999,17 @@ public sealed class LogMonitorService : IDisposable
             try
             {
                 // Throttle file discovery — only scan every Nth poll cycle
+                bool scannedForFiles = false;
                 _scanThrottleCounter++;
                 if (_scanThrottleCounter >= SCAN_EVERY_N_POLLS)
                 {
                     _scanThrottleCounter = 0;
                     ScanForNewFiles();
+                    scannedForFiles = true;
                 }
                 ReadNewLines();
+                if (scannedForFiles)
+                    PruneSupersededTrackedFiles();
                 FlushPendingGameSystems();   // #98 — apply deferred jumps chat never confirmed
 
                 // After first scan: fire SystemChanged once per character with final system
@@ -1155,6 +1159,122 @@ public sealed class LogMonitorService : IDisposable
 
         if (newFiles > 0)
             Debug.WriteLine($"[LogMonitor:Scan] 📂 Found {newFiles} new log file(s), total tracked: {_trackedFiles.Count}");
+    }
+
+    private void PruneSupersededTrackedFiles()
+    {
+        var snapshots =
+            new List<(
+                string Path,
+                LogFileState State,
+                string Character,
+                DateTime LastWriteUtc,
+                DateTime CreationUtc,
+                long Length)>();
+
+        foreach (var (path, state) in _trackedFiles)
+        {
+            try
+            {
+                var info = new FileInfo(path);
+
+                if (!info.Exists)
+                {
+                    RemoveTrackedFile(
+                        path,
+                        "file missing");
+                    continue;
+                }
+
+                string character =
+                    _fileCharacterMap
+                        .GetValueOrDefault(
+                            path,
+                            "");
+
+                if (string.IsNullOrWhiteSpace(
+                        character))
+                    continue;
+
+                snapshots.Add(
+                    (
+                        path,
+                        state,
+                        character,
+                        info.LastWriteTimeUtc,
+                        info.CreationTimeUtc,
+                        info.Length
+                    ));
+            }
+            catch
+            {
+                // Transient file-system errors must not interrupt live log reading.
+            }
+        }
+
+        foreach (var group in
+                 snapshots.GroupBy(
+                     item =>
+                         item.State.Type +
+                         "\u001f" +
+                         item.Character,
+                     StringComparer.OrdinalIgnoreCase))
+        {
+            var ordered =
+                group
+                    .OrderByDescending(
+                        item =>
+                            item.LastWriteUtc)
+                    .ThenByDescending(
+                        item =>
+                            item.CreationUtc)
+                    .ThenByDescending(
+                        item =>
+                            item.Length)
+                    .ThenBy(
+                        item =>
+                            item.Path,
+                        StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+
+            if (ordered.Count <= 1)
+                continue;
+
+            string newestPath =
+                ordered[0].Path;
+
+            foreach (var stale in
+                     ordered.Skip(1))
+            {
+                // Never retire a session while unread bytes remain.
+                if (stale.Length >
+                    stale.State.LastPosition)
+                    continue;
+
+                RemoveTrackedFile(
+                    stale.Path,
+                    "superseded by " +
+                    Path.GetFileName(
+                        newestPath));
+            }
+        }
+    }
+
+    private void RemoveTrackedFile(
+        string path,
+        string reason)
+    {
+        if (!_trackedFiles.TryRemove(
+                path,
+                out _))
+            return;
+
+        _fileCharacterMap.TryRemove(
+            path,
+            out _);
+
+        DiagnosticsService.LogAlerts(
+            $"[Track] -file {Path.GetFileName(path)} reason={reason} remaining={_trackedFiles.Count}");
     }
 
     private void ReadNewLines()

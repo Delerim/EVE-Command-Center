@@ -1,6 +1,6 @@
-# EVE Command Center v3.6.9
+# EVE Command Center v3.6.10
 
-- Fixed a long-session Mining hot path: current-day continuity and break statistics are now maintained incrementally instead of rescanning and sorting every mining pull for every pilot on every one-second dashboard refresh. The current-day JSONL still restores the same totals after restart.
-- Cached Mining pages now stop their one-second/three-second dashboard work while hidden and prevent overlapping refreshes; the visible dashboard reuses each pilot's activity summary instead of querying it twice.
-- Reduced preview/compositor churn by removing per-layout live-preview updates, pausing and unregistering native live-preview surfaces while an EVE client is hung, and coalescing process-stat UI callbacks so a busy dispatcher cannot accumulate stale work.
-- Made optional CPU-affinity management less aggressive: background clients use BelowNormal rather than Idle priority, automatic balancing gives them a pair of logical processors instead of one, topology is no longer guessed from CPU numbering, and unchanged affinity is rechecked on a five-second cadence instead of four times per second.
+- Retired fully consumed EVE session logs after a newer session for the same character and log type is established, so repeated relogs no longer expand the live polling set. Raw EVE logs, current-day mining persistence, and mining-history rebuilds are unchanged.
+- Added dead-HWND admission checks around queued, batched, and deferred preview creation so a client that exits during discovery cannot leave orphan primary, PiP, or stat windows.
+- Coalesced foreground and minimize border refreshes so rapid focus changes cannot queue redundant full preview sweeps behind a busy UI dispatcher.
+- Added regression coverage for safe session-log retirement and dead-window preview admission.

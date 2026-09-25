@@ -96,6 +96,7 @@ public sealed class ThumbnailManager : IDisposable
     private bool _primaryHiddenByFocus = false; // Primary thumbnails fully hidden by "Hide When Alt-Tabbed" (focus loss)
     private bool _lastEveFocused = false;   // Track focus transitions for one-time BringToFront
     private IntPtr _lastZOrderHwnd = IntPtr.Zero; // Last foreground HWND we re-raised thumbnails for
+    private int _activeBorderUiPending;
     private bool? _lastAppliedTopmost;      // Last topmost state pushed to all windows (forces full re-assert on change)
     private bool _lastGpuFreezeState = false; // StaticThumbnails / SuspendThumbnailsWhenBackground transitions
     private bool _lastHideActiveThumbnailState = false; // HideActiveThumbnail on→off transition tracking
@@ -323,12 +324,23 @@ public sealed class ThumbnailManager : IDisposable
 
     private static void PerfLog(string msg) => App.PerfLog(msg);
 
+    private static bool CanCreatePreviewForWindow(
+        EveWindow window) =>
+        window.Hwnd != IntPtr.Zero &&
+        Interop.User32.IsWindow(
+            window.Hwnd);
+
     private void OnWindowFound(EveWindow window)
     {
         // Accumulate discovered windows and batch-create thumbnails.
         // This prevents 20+ sequential BeginInvoke calls from blocking the UI thread.
         Application.Current?.Dispatcher.BeginInvoke(() =>
         {
+            // Drop a discovery callback if its HWND died before the UI batch saw it.
+            if (!CanCreatePreviewForWindow(
+                    window))
+                return;
+
             _pendingWindows.Add(window);
 
             // Restart the batch timer — after 50ms of no new windows, process the batch
@@ -376,8 +388,23 @@ public sealed class ThumbnailManager : IDisposable
 
         for (int i = 0; i < batch.Count; i++)
         {
-            CreateThumbnailForWindow(batch[i]);
-            deferredWindows.Add(batch[i]);
+            EveWindow window =
+                batch[i];
+
+            // Re-check every batch item because WindowLost can win the race.
+            if (!CanCreatePreviewForWindow(
+                    window))
+                continue;
+
+            CreateThumbnailForWindow(
+                window);
+
+            if (_thumbnails.ContainsKey(
+                    window.Hwnd))
+            {
+                deferredWindows.Add(
+                    window);
+            }
 
             // Yield to the UI thread between groups to keep the app responsive
             if ((i + 1) % groupSize == 0 && i + 1 < batch.Count)
@@ -397,8 +424,21 @@ public sealed class ThumbnailManager : IDisposable
             {
                 deferTimer.Stop();
                 var deferSw = Stopwatch.StartNew();
-                foreach (var window in deferredWindows)
-                    CreateDeferredWindows(window);
+                foreach (var window in
+                         deferredWindows)
+                {
+                    // A primary preview must still own the HWND before dependants are created.
+                    if (!CanCreatePreviewForWindow(
+                            window) ||
+                        !_thumbnails.ContainsKey(
+                            window.Hwnd))
+                    {
+                        continue;
+                    }
+
+                    CreateDeferredWindows(
+                        window);
+                }
                 PerfLog($"✅ Batch deferred {deferredWindows.Count} secondary/stat windows in {deferSw.ElapsedMilliseconds}ms");
             };
             deferTimer.Start();
@@ -678,6 +718,11 @@ public sealed class ThumbnailManager : IDisposable
 
     private void CreateThumbnailForWindow(EveWindow window)
     {
+        // Final admission check before allocating preview resources.
+        if (!CanCreatePreviewForWindow(
+                window))
+            return;
+
         // Guard: skip if we already track this HWND
         if (_thumbnails.ContainsKey(window.Hwnd))
         {
@@ -1568,9 +1613,45 @@ public sealed class ThumbnailManager : IDisposable
             }
         }
 
-        var dispatcher = Application.Current?.Dispatcher;
-        if (dispatcher == null) return;
-        dispatcher.BeginInvoke(new Action(UpdateActiveBorders), DispatcherPriority.Background);
+        var dispatcher =
+            Application.Current?.Dispatcher;
+
+        if (dispatcher == null ||
+            dispatcher.HasShutdownStarted ||
+            dispatcher.HasShutdownFinished)
+            return;
+
+        // Keep at most one border sweep queued behind a busy UI dispatcher.
+        if (System.Threading.Interlocked.Exchange(
+                ref _activeBorderUiPending,
+                1) != 0)
+            return;
+
+        try
+        {
+            dispatcher.BeginInvoke(
+                DispatcherPriority.Background,
+                new Action(
+                    () =>
+                    {
+                        try
+                        {
+                            UpdateActiveBorders();
+                        }
+                        finally
+                        {
+                            System.Threading.Volatile.Write(
+                                ref _activeBorderUiPending,
+                                0);
+                        }
+                    }));
+        }
+        catch
+        {
+            System.Threading.Volatile.Write(
+                ref _activeBorderUiPending,
+                0);
+        }
     }
 
     private void UpdateActiveBorders()

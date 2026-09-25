@@ -52,6 +52,29 @@ internal static partial class Program
         var replay=typeof(User32).GetMethod(nameof(User32.FixTargetHeldKeys),BindingFlags.Public|BindingFlags.Static)!;
         Check(!PreviewCallsMethod(managerActivate,replay),
             "Preview switching never replays held keyboard or mouse state into a client");
+
+        var canCreate=typeof(ThumbnailManager).GetMethod(
+            "CanCreatePreviewForWindow",
+            BindingFlags.NonPublic|BindingFlags.Static);
+        Check(
+            canCreate!=null &&
+            !(bool)canCreate.Invoke(
+                null,
+                new object[]
+                {
+                    new EveWindow(
+                        IntPtr.Zero,
+                        "EVE",
+                        "Dead")
+                })!,
+            "Preview batch rejects dead HWNDs before native surface creation");
+
+        var activeBorderGate=typeof(ThumbnailManager).GetField(
+            "_activeBorderUiPending",
+            BindingFlags.NonPublic|BindingFlags.Instance);
+        Check(
+            activeBorderGate?.FieldType==typeof(int),
+            "Focus event bridge keeps a coalescing gate for border sweeps");
     }
 
     private static bool PreviewCallsMethod(MethodInfo caller,MethodInfo target)

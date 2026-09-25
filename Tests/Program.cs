@@ -75,6 +75,7 @@ internal static partial class Program
         CheckNotificationCenter();
         CheckMiningRates();
         CheckMiningDailyActivityAccumulator();
+        CheckLogMonitorSessionPruning();
         CheckMiningWatchdog();
         CheckPlanetaryProjection();
         CheckBuybackPeriods();
@@ -592,6 +593,253 @@ internal static partial class Program
                 System.IO.Directory.Delete(folder, true);
         }
     }
+    private static void CheckLogMonitorSessionPruning()
+    {
+        string folder =
+            System.IO.Path.Combine(
+                System.IO.Path.GetTempPath(),
+                "ecc-log-prune-" +
+                Guid.NewGuid().ToString("N"));
+
+        System.IO.Directory.CreateDirectory(
+            folder);
+
+        try
+        {
+            string oldPath =
+                System.IO.Path.Combine(
+                    folder,
+                    "old.txt");
+
+            string unreadPath =
+                System.IO.Path.Combine(
+                    folder,
+                    "unread.txt");
+
+            string newPath =
+                System.IO.Path.Combine(
+                    folder,
+                    "new.txt");
+
+            string otherPath =
+                System.IO.Path.Combine(
+                    folder,
+                    "other.txt");
+
+            foreach (string path in
+                     new[]
+                     {
+                         oldPath,
+                         unreadPath,
+                         newPath,
+                         otherPath
+                     })
+            {
+                System.IO.File.WriteAllText(
+                    path,
+                    "test");
+            }
+
+            DateTime now =
+                DateTime.UtcNow;
+
+            System.IO.File.SetLastWriteTimeUtc(
+                oldPath,
+                now.AddMinutes(-30));
+
+            System.IO.File.SetLastWriteTimeUtc(
+                unreadPath,
+                now.AddMinutes(-20));
+
+            System.IO.File.SetLastWriteTimeUtc(
+                newPath,
+                now.AddMinutes(-10));
+
+            System.IO.File.SetLastWriteTimeUtc(
+                otherPath,
+                now.AddMinutes(-40));
+
+            using var monitor =
+                new LogMonitorService();
+
+            Type monitorType =
+                typeof(LogMonitorService);
+
+            Type stateType =
+                monitorType.GetNestedType(
+                    "LogFileState",
+                    System.Reflection.BindingFlags.NonPublic)!;
+
+            Type logType =
+                monitorType.GetNestedType(
+                    "LogType",
+                    System.Reflection.BindingFlags.NonPublic)!;
+
+            object gameLog =
+                Enum.Parse(
+                    logType,
+                    "GameLog");
+
+            object tracked =
+                monitorType.GetField(
+                    "_trackedFiles",
+                    System.Reflection.BindingFlags.NonPublic |
+                    System.Reflection.BindingFlags.Instance)!
+                    .GetValue(
+                        monitor)!;
+
+            var characterMap =
+                (System.Collections.Concurrent.ConcurrentDictionary<string, string>)
+                monitorType.GetField(
+                    "_fileCharacterMap",
+                    System.Reflection.BindingFlags.NonPublic |
+                    System.Reflection.BindingFlags.Instance)!
+                    .GetValue(
+                        monitor)!;
+
+            System.Reflection.MethodInfo tryAdd =
+                tracked.GetType().GetMethod(
+                    "TryAdd")!;
+
+            System.Reflection.MethodInfo containsKey =
+                tracked.GetType().GetMethod(
+                    "ContainsKey")!;
+
+            System.Reflection.PropertyInfo lastPosition =
+                stateType.GetProperty(
+                    "LastPosition")!;
+
+            object AddState(
+                string path,
+                string character,
+                bool fullyRead)
+            {
+                object state =
+                    Activator.CreateInstance(
+                        stateType,
+                        true)!;
+
+                stateType.GetProperty(
+                    "Path")!
+                    .SetValue(
+                        state,
+                        path);
+
+                stateType.GetProperty(
+                    "Type")!
+                    .SetValue(
+                        state,
+                        gameLog);
+
+                long length =
+                    new System.IO.FileInfo(
+                        path)
+                        .Length;
+
+                lastPosition.SetValue(
+                    state,
+                    fullyRead
+                        ? length
+                        : 0L);
+
+                bool added =
+                    (bool)tryAdd.Invoke(
+                        tracked,
+                        new object[]
+                        {
+                            path,
+                            state
+                        })!;
+
+                if (!added)
+                    throw new Exception(
+                        "Failed to seed log-monitor regression state.");
+
+                characterMap[path] =
+                    character;
+
+                return state;
+            }
+
+            bool Contains(
+                string path) =>
+                (bool)containsKey.Invoke(
+                    tracked,
+                    new object[]
+                    {
+                        path
+                    })!;
+
+            AddState(
+                oldPath,
+                "Miner One",
+                true);
+
+            object unreadState =
+                AddState(
+                    unreadPath,
+                    "Miner One",
+                    false);
+
+            AddState(
+                newPath,
+                "Miner One",
+                true);
+
+            AddState(
+                otherPath,
+                "Miner Two",
+                true);
+
+            System.Reflection.MethodInfo prune =
+                monitorType.GetMethod(
+                    "PruneSupersededTrackedFiles",
+                    System.Reflection.BindingFlags.NonPublic |
+                    System.Reflection.BindingFlags.Instance)!;
+
+            prune.Invoke(
+                monitor,
+                null);
+
+            Check(
+                !Contains(oldPath) &&
+                Contains(unreadPath) &&
+                Contains(newPath) &&
+                Contains(otherPath) &&
+                !characterMap.ContainsKey(
+                    oldPath),
+                "Log monitor retires fully consumed superseded sessions without dropping another pilot");
+
+            lastPosition.SetValue(
+                unreadState,
+                new System.IO.FileInfo(
+                    unreadPath)
+                    .Length);
+
+            prune.Invoke(
+                monitor,
+                null);
+
+            Check(
+                !Contains(unreadPath) &&
+                Contains(newPath) &&
+                Contains(otherPath) &&
+                !characterMap.ContainsKey(
+                    unreadPath),
+                "Unread superseded logs stay tracked until their bytes are consumed");
+        }
+        finally
+        {
+            if (System.IO.Directory.Exists(
+                    folder))
+            {
+                System.IO.Directory.Delete(
+                    folder,
+                    true);
+            }
+        }
+    }
+
     private static async Task CheckRefreshAsync()
     {
         var folder = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "ecc-contract-checks-" + Guid.NewGuid().ToString("N"));
