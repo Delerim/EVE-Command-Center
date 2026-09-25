@@ -41,7 +41,7 @@ public sealed class OverviewLivePreview : FrameworkElement
         } UpdateSurface(); };
         Unloaded+=(_,_)=>Release();
         IsVisibleChanged+=(_,_)=>UpdateSurface();
-        LayoutUpdated+=(_,_)=>UpdateSurface();
+        SizeChanged+=(_,_)=>UpdateSurface();
     }
     private static void Changed(DependencyObject d,DependencyPropertyChangedEventArgs e)
     {
@@ -69,6 +69,18 @@ public sealed class OverviewLivePreview : FrameworkElement
             _timer.Stop(); DisposeSurface(); StateText="Waiting for live preview"; return;
         }
         if(!_timer.IsEnabled)_timer.Start();
+
+        // Never keep a native DWM thumbnail relationship attached to an EVE
+        // client that Windows reports as hung. A stalled client can otherwise
+        // leave the overview compositor doing work against an unresponsive
+        // source until that client is closed.
+        if(User32.IsHungAppWindow(SourceHwnd)) {
+            DisposeSurface();
+            StateText="Client unresponsive - live preview paused";
+            _retryAfter=DateTime.UtcNow.AddSeconds(2);
+            return;
+        }
+
         if(User32.IsIconic(SourceHwnd) || ActualWidth<1 || ActualHeight<1) { _surface?.Hide(); StateText="Minimized - last snapshot"; return; }
         var ownerHandle=new WindowInteropHelper(_owner).Handle;
         if(ownerHandle==IntPtr.Zero || PresentationSource.FromVisual(this)==null)return;

@@ -10,7 +10,7 @@ namespace EveCommandCenter.Services;
 /// <summary>
 /// Current mining-day store.
 ///
-/// Only the active mining day keeps individual lightweight events in JSONL so
+/// Only the active mining day keeps individual lightweight events on disk in JSONL so
 /// live restarts are safe. Completed days are compacted by MiningHistoryService
 /// into history-v1.json and their JSONL files are deleted.
 /// </summary>
@@ -26,10 +26,17 @@ public sealed class MiningDailyStore
     private readonly Dictionary<string, string> _lastOre =
         new(StringComparer.OrdinalIgnoreCase);
 
-    private readonly List<MiningDailyEvent> _events = new();
+    private readonly Dictionary<string, DailyActivityAccumulator> _activityByCharacter =
+        new(StringComparer.OrdinalIgnoreCase);
 
-    public MiningDailyStore()
+    public MiningDailyStore(string? directory = null)
     {
+        if (!string.IsNullOrWhiteSpace(directory))
+        {
+            _directory = Path.GetFullPath(directory);
+            return;
+        }
+
         var exeDir = Path.GetDirectoryName(Environment.ProcessPath)
                      ?? AppDomain.CurrentDomain.BaseDirectory;
         _directory = Path.Combine(exeDir, "MiningData");
@@ -89,7 +96,7 @@ public sealed class MiningDailyStore
             _loadedDay = day;
             _byCharacter.Clear();
             _lastOre.Clear();
-            _events.Clear();
+            _activityByCharacter.Clear();
 
             foreach (var e in accepted)
             {
@@ -292,7 +299,7 @@ public sealed class MiningDailyStore
         _loadedDay = day;
         _byCharacter.Clear();
         _lastOre.Clear();
-        _events.Clear();
+        _activityByCharacter.Clear();
 
         string path = Path.Combine(_directory, $"{day}.jsonl");
         if (!File.Exists(path)) return;
@@ -340,8 +347,18 @@ public sealed class MiningDailyStore
         {
             totals.NormalUnits += ev.Units;
         }
+
         _lastOre[ev.Character] = ev.Ore;
-        _events.Add(ev);
+
+        if (!_activityByCharacter.TryGetValue(
+                ev.Character,
+                out DailyActivityAccumulator? activity))
+        {
+            activity = new DailyActivityAccumulator();
+            _activityByCharacter[ev.Character] = activity;
+        }
+
+        activity.Apply(ev.TimestampUtc);
     }
 
     public MiningActivitySummary GetActivitySummary(string character)
@@ -350,71 +367,113 @@ public sealed class MiningDailyStore
         {
             EnsureDayLocked(GetDayKey(DateTime.UtcNow));
 
-            var times = _events
-                .Where(e => string.Equals(
-                    e.Character,
+            return _activityByCharacter.TryGetValue(
                     character,
-                    StringComparison.OrdinalIgnoreCase))
-                .Select(e => e.TimestampUtc)
-                .OrderBy(t => t)
-                .ToList();
+                    out DailyActivityAccumulator? activity)
+                ? activity.Snapshot()
+                : new MiningActivitySummary();
+        }
+    }
 
-            if (times.Count == 0)
+    private sealed class DailyActivityAccumulator
+    {
+        private const double BreakThresholdSeconds = 180;
+
+        private int _pulls;
+        private DateTime? _firstPullUtc;
+        private DateTime? _lastPullUtc;
+        private double _activeSeconds;
+        private double _breakSeconds;
+        private int _breaks;
+
+        internal void Apply(DateTime timestampUtc)
+        {
+            if (_pulls == 0)
+            {
+                _pulls = 1;
+                _firstPullUtc = timestampUtc;
+                _lastPullUtc = timestampUtc;
+                return;
+            }
+
+            DateTime previous =
+                _lastPullUtc ??
+                timestampUtc;
+
+            // Current-day JSONL is written in observation order and rebuilds are
+            // explicitly timestamp-sorted. Guard a malformed/out-of-order line
+            // without allowing it to create a negative or enormous interval.
+            double gap =
+                timestampUtc >= previous
+                    ? (timestampUtc - previous).TotalSeconds
+                    : 0;
+
+            if (gap > BreakThresholdSeconds)
+            {
+                _breaks++;
+                _breakSeconds += gap;
+            }
+            else
+            {
+                _activeSeconds += gap;
+            }
+
+            _pulls++;
+
+            if (!_firstPullUtc.HasValue ||
+                timestampUtc < _firstPullUtc.Value)
+            {
+                _firstPullUtc = timestampUtc;
+            }
+
+            if (!_lastPullUtc.HasValue ||
+                timestampUtc > _lastPullUtc.Value)
+            {
+                _lastPullUtc = timestampUtc;
+            }
+        }
+
+        internal MiningActivitySummary Snapshot()
+        {
+            if (_pulls <= 0 ||
+                !_firstPullUtc.HasValue ||
+                !_lastPullUtc.HasValue)
+            {
                 return new MiningActivitySummary();
+            }
 
-            if (times.Count == 1)
+            if (_pulls == 1)
             {
                 return new MiningActivitySummary
                 {
                     Pulls = 1,
-                    FirstPullUtc = times[0],
-                    LastPullUtc = times[0],
+                    FirstPullUtc = _firstPullUtc,
+                    LastPullUtc = _lastPullUtc,
                     ContinuityPercent = 100
                 };
             }
 
-            const double breakThresholdSeconds = 180;
-            double activeSeconds = 0;
-            double breakSeconds = 0;
-            int breaks = 0;
-
-            for (int i = 1; i < times.Count; i++)
-            {
-                double gap = Math.Max(
-                    0,
-                    (times[i] - times[i - 1]).TotalSeconds);
-
-                if (gap > breakThresholdSeconds)
-                {
-                    breaks++;
-                    breakSeconds += gap;
-                }
-                else
-                {
-                    activeSeconds += gap;
-                }
-            }
-
-            double spanSeconds = Math.Max(
-                1,
-                (times[^1] - times[0]).TotalSeconds);
+            double spanSeconds =
+                Math.Max(
+                    1,
+                    (_lastPullUtc.Value -
+                     _firstPullUtc.Value).TotalSeconds);
 
             return new MiningActivitySummary
             {
-                Pulls = times.Count,
-                FirstPullUtc = times[0],
-                LastPullUtc = times[^1],
-                ActiveSeconds = activeSeconds,
-                BreakSeconds = breakSeconds,
-                Breaks = breaks,
+                Pulls = _pulls,
+                FirstPullUtc = _firstPullUtc,
+                LastPullUtc = _lastPullUtc,
+                ActiveSeconds = _activeSeconds,
+                BreakSeconds = _breakSeconds,
+                Breaks = _breaks,
                 ContinuityPercent = Math.Clamp(
-                    activeSeconds * 100.0 / spanSeconds,
+                    _activeSeconds * 100.0 / spanSeconds,
                     0,
                     100)
             };
         }
     }
-
     private sealed class DailyOreTotals
     {
         public double Units { get; set; }

@@ -74,6 +74,7 @@ internal static partial class Program
         CheckRockTracking();
         CheckNotificationCenter();
         CheckMiningRates();
+        CheckMiningDailyActivityAccumulator();
         CheckMiningWatchdog();
         CheckPlanetaryProjection();
         CheckBuybackPeriods();
@@ -528,6 +529,69 @@ internal static partial class Program
         }
     }
 
+    private static void CheckMiningDailyActivityAccumulator()
+    {
+        string folder =
+            System.IO.Path.Combine(
+                System.IO.Path.GetTempPath(),
+                "ecc-mining-daily-" +
+                Guid.NewGuid().ToString("N"));
+
+        System.IO.Directory.CreateDirectory(folder);
+
+        try
+        {
+            DateTime start =
+                MiningDailyStore
+                    .GetCurrentDayStartUtc()
+                    .AddMinutes(10);
+
+            var store =
+                new MiningDailyStore(folder);
+
+            store.Record(start, "Miner One", "Veldspar", 100, false);
+            store.Record(start.AddSeconds(60), "Miner One", "Veldspar", 100, false);
+            store.Record(start.AddSeconds(120), "Miner One", "Veldspar", 100, false);
+            store.Record(start.AddSeconds(400), "Miner One", "Veldspar", 100, false);
+
+            MiningActivitySummary summary =
+                store.GetActivitySummary("Miner One");
+
+            Check(
+                summary.Pulls == 4 &&
+                summary.Breaks == 1 &&
+                Math.Abs(summary.ActiveSeconds - 120) < 0.001 &&
+                Math.Abs(summary.BreakSeconds - 280) < 0.001 &&
+                Math.Abs(summary.ContinuityPercent - 30) < 0.001,
+                "Mining-day activity accumulator preserves continuity and break math");
+
+            var restored =
+                new MiningDailyStore(folder);
+
+            MiningActivitySummary afterRestart =
+                restored.GetActivitySummary("Miner One");
+
+            Check(
+                afterRestart.Pulls == summary.Pulls &&
+                afterRestart.Breaks == summary.Breaks &&
+                Math.Abs(
+                    afterRestart.ContinuityPercent -
+                    summary.ContinuityPercent) < 0.001,
+                "Mining-day activity accumulator rebuilds from JSONL without keeping a growing event list");
+
+            Check(
+                typeof(MiningDailyStore).GetField(
+                    "_events",
+                    System.Reflection.BindingFlags.Instance |
+                    System.Reflection.BindingFlags.NonPublic) == null,
+                "Mining-day live summaries do not retain the full day event list in memory");
+        }
+        finally
+        {
+            if (System.IO.Directory.Exists(folder))
+                System.IO.Directory.Delete(folder, true);
+        }
+    }
     private static async Task CheckRefreshAsync()
     {
         var folder = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "ecc-contract-checks-" + Guid.NewGuid().ToString("N"));

@@ -177,6 +177,7 @@ public sealed class ThumbnailManager : IDisposable
     // ── Process Monitor Integration ─────────────────────────────────
     private ProcessMonitorService? _processMonitor;
     private readonly ConcurrentDictionary<int, double> _latestFpsByPid = new();
+    private int _processStatsUiPending;
 
     public void SetProcessMonitor(ProcessMonitorService monitor)
     {
@@ -186,21 +187,68 @@ public sealed class ThumbnailManager : IDisposable
 
     private void OnProcessStatsUpdated()
     {
-        if (_processMonitor == null || !_settings.Settings.ShowProcessStats) return;
+        if (_processMonitor == null ||
+            !_settings.Settings.ShowProcessStats)
+            return;
 
-        Application.Current?.Dispatcher.BeginInvoke(() =>
+        // ProcessMonitor can continue producing samples while the WPF dispatcher
+        // is busy. Keep at most one UI update queued instead of building a stale
+        // backlog that must be drained before client-switch input is handled.
+        if (System.Threading.Interlocked.Exchange(
+                ref _processStatsUiPending,
+                1) != 0)
+            return;
+
+        Dispatcher? dispatcher =
+            Application.Current?.Dispatcher;
+
+        if (dispatcher == null)
         {
-            foreach (var (_, thumb) in _thumbnails)
-            {
-                int pid = thumb.GetProcessId();
-                var stats = _processMonitor.GetStats(pid);
-                thumb.UpdateProcessStats(stats != null
-                    ? ProcessMonitorService.FormatStats(stats)
-                    : null);
-            }
-        });
-    }
+            System.Threading.Volatile.Write(
+                ref _processStatsUiPending,
+                0);
+            return;
+        }
 
+        try
+        {
+            dispatcher.BeginInvoke(
+                DispatcherPriority.Background,
+                new Action(
+                    () =>
+                    {
+                        try
+                        {
+                            if (_processMonitor == null ||
+                                !_settings.Settings.ShowProcessStats)
+                                return;
+
+                            foreach (var (_, thumb) in _thumbnails)
+                            {
+                                int pid = thumb.GetProcessId();
+                                var stats = _processMonitor.GetStats(pid);
+
+                                thumb.UpdateProcessStats(
+                                    stats != null
+                                        ? ProcessMonitorService.FormatStats(stats)
+                                        : null);
+                            }
+                        }
+                        finally
+                        {
+                            System.Threading.Volatile.Write(
+                                ref _processStatsUiPending,
+                                0);
+                        }
+                    }));
+        }
+        catch
+        {
+            System.Threading.Volatile.Write(
+                ref _processStatsUiPending,
+                0);
+        }
+    }
     /// <summary>
     /// Start the focus tracker and session timer. Must be called on UI thread.
     /// </summary>
@@ -1958,45 +2006,81 @@ public sealed class ThumbnailManager : IDisposable
     }
 
     private bool _lastManageAffinityState = false;
+    private IntPtr _lastAffinityActiveHwnd = IntPtr.Zero;
+    private DateTime _lastAffinityApplyUtc = DateTime.MinValue;
 
     private void ManageCpuAffinity(IntPtr activeHwnd, AppSettings s)
     {
-        // Detect on→off transition and restore every tracked EVE process to
-        // Normal priority + full-core affinity once, otherwise the user's
-        // clients stay stuck at Idle / restricted cores after they uncheck the
-        // master toggle. Then bail. The tracker persists across calls so we
-        // only fire the reset once per disable, not on every tick.
+        // Detect on->off transition and restore every tracked EVE process once.
         if (!s.ManageAffinity)
         {
             if (_lastManageAffinityState)
             {
                 ResetAllEveAffinity();
                 _lastManageAffinityState = false;
+                _lastAffinityActiveHwnd = IntPtr.Zero;
+                _lastAffinityApplyUtc = DateTime.MinValue;
             }
+
             return;
         }
+
+        DateTime now =
+            DateTime.UtcNow;
+
+        // Focus changes must be applied immediately, but the safety sweep runs
+        // four times per second. Reopening every EVE Process and re-reading its
+        // priority/affinity on every sweep is unnecessary long-session churn.
+        if (_lastManageAffinityState &&
+            activeHwnd == _lastAffinityActiveHwnd &&
+            now - _lastAffinityApplyUtc < TimeSpan.FromSeconds(5))
+        {
+            return;
+        }
+
         _lastManageAffinityState = true;
+        _lastAffinityActiveHwnd = activeHwnd;
+        _lastAffinityApplyUtc = now;
 
-        int totalCores = Environment.ProcessorCount;
-        int eCoreStart = totalCores / 2; // Bottom half of logical processors
+        int totalCores =
+            Math.Clamp(
+                Environment.ProcessorCount,
+                1,
+                IntPtr.Size * 8);
 
-        // Collect all running EVE processes that we are tracking
-        var activeEves = new List<(Process Proc, string CharName, bool IsActive)>();
+        long allCoresMask =
+            FullAffinityMask(totalCores);
+
+        var activeEves =
+            new List<(Process Proc, string CharName, bool IsActive)>();
+
         foreach (var (hwnd, thumb) in _thumbnails)
         {
             try
             {
-                int pid = thumb.GetProcessId();
+                int pid =
+                    thumb.GetProcessId();
+
                 if (pid > 0)
                 {
-                    var p = Process.GetProcessById(pid);
-                    activeEves.Add((p, thumb.CharacterName, hwnd == activeHwnd));
+                    Process process =
+                        Process.GetProcessById(pid);
+
+                    activeEves.Add(
+                        (
+                            process,
+                            thumb.CharacterName,
+                            hwnd == activeHwnd
+                        ));
                 }
             }
-            catch { /* Process might have just exited */ }
+            catch
+            {
+                // Process might have just exited.
+            }
         }
 
-        int eCoreIndex = eCoreStart;
+        int backgroundSlot = 0;
 
         foreach (var eve in activeEves)
         {
@@ -2004,54 +2088,71 @@ public sealed class ThumbnailManager : IDisposable
             {
                 if (eve.IsActive)
                 {
-                    // Active client: Normal priority, all cores
-                    if (eve.Proc.PriorityClass != ProcessPriorityClass.Normal)
-                        eve.Proc.PriorityClass = ProcessPriorityClass.Normal;
+                    if (eve.Proc.PriorityClass !=
+                        ProcessPriorityClass.Normal)
+                    {
+                        eve.Proc.PriorityClass =
+                            ProcessPriorityClass.Normal;
+                    }
 
-                    long allCoresMask = (1L << totalCores) - 1;
-                    if ((long)eve.Proc.ProcessorAffinity != allCoresMask)
-                        eve.Proc.ProcessorAffinity = (IntPtr)allCoresMask;
+                    if ((long)eve.Proc.ProcessorAffinity !=
+                        allCoresMask)
+                    {
+                        eve.Proc.ProcessorAffinity =
+                            (IntPtr)allCoresMask;
+                    }
+
+                    continue;
                 }
-                else
+
+                // Idle priority plus one logical CPU is too aggressive for a
+                // live EVE client that still has rendering/network work to do.
+                // BelowNormal keeps background clients polite without starving
+                // them until they are selected again.
+                if (eve.Proc.PriorityClass !=
+                    ProcessPriorityClass.BelowNormal)
                 {
-                    // Inactive client: Idle priority
-                    if (eve.Proc.PriorityClass != ProcessPriorityClass.Idle)
-                        eve.Proc.PriorityClass = ProcessPriorityClass.Idle;
+                    eve.Proc.PriorityClass =
+                        ProcessPriorityClass.BelowNormal;
+                }
 
-                    // Inactive Core Assignment
-                    long affinityMask = 0;
+                long affinityMask = 0;
 
-                    if (s.PerClientCores.TryGetValue(eve.CharName, out int overrideCore))
-                    {
-                        // Explicit user override
-                        affinityMask = 1L << overrideCore;
-                    }
+                if (s.PerClientCores.TryGetValue(
+                        eve.CharName,
+                        out int overrideCore) &&
+                    overrideCore >= 0 &&
+                    overrideCore < totalCores)
+                {
+                    // Explicit single-core choices remain intentional.
+                    affinityMask =
+                        1L << overrideCore;
+                }
+                else if (s.AutoBalanceCores)
+                {
+                    // Do not guess Intel/AMD P-core/E-core topology from logical
+                    // CPU numbering. Rotate background clients through pairs of
+                    // logical processors so no live client is pinned to one CPU.
+                    affinityMask =
+                        BackgroundAffinityMask(
+                            totalCores,
+                            backgroundSlot++);
+                }
 
-                    else if (s.AutoBalanceCores)
-                    {
-                        // Auto-balance round robin on E-cores
-                        affinityMask = 1L << eCoreIndex;
-                        eCoreIndex++;
-                        if (eCoreIndex >= totalCores)
-                            eCoreIndex = eCoreStart;
-                    }
+                if (affinityMask == 0)
+                    affinityMask = allCoresMask;
 
-                    // If zero, it means auto-balance is off and no override exists. Don't restrict cores.
-                    if (affinityMask != 0)
-                    {
-                        if ((long)eve.Proc.ProcessorAffinity != affinityMask)
-                            eve.Proc.ProcessorAffinity = (IntPtr)affinityMask;
-                    }
-                    else
-                    {
-                        // Restore to all cores but keep 'Idle' priority
-                        long allCoresMask = (1L << totalCores) - 1;
-                        if ((long)eve.Proc.ProcessorAffinity != allCoresMask)
-                            eve.Proc.ProcessorAffinity = (IntPtr)allCoresMask;
-                    }
+                if ((long)eve.Proc.ProcessorAffinity !=
+                    affinityMask)
+                {
+                    eve.Proc.ProcessorAffinity =
+                        (IntPtr)affinityMask;
                 }
             }
-            catch { /* Ignore Access Denied or Exited processes */ }
+            catch
+            {
+                // Ignore access denied or exited processes.
+            }
             finally
             {
                 eve.Proc.Dispose();
@@ -2059,36 +2160,116 @@ public sealed class ThumbnailManager : IDisposable
         }
     }
 
+    private static long FullAffinityMask(int totalCores)
+    {
+        int bits =
+            Math.Clamp(
+                totalCores,
+                1,
+                IntPtr.Size * 8);
+
+        return bits >= 64
+            ? -1L
+            : (1L << bits) - 1;
+    }
+
+    private static long BackgroundAffinityMask(
+        int totalCores,
+        int slot)
+    {
+        int bits =
+            Math.Clamp(
+                totalCores,
+                1,
+                IntPtr.Size * 8);
+
+        if (bits == 1)
+            return 1;
+
+        int start =
+            bits / 2;
+
+        int pool =
+            Math.Max(
+                1,
+                bits - start);
+
+        int first =
+            start +
+            Math.Abs(slot % pool);
+
+        int second =
+            start +
+            Math.Abs((slot + 1) % pool);
+
+        if (second == first)
+            second =
+                (first + 1) % bits;
+
+        return
+            (1L << first) |
+            (1L << second);
+    }
+
     /// <summary>Restore every tracked EVE process to Normal priority and the
-    /// full-cores affinity mask. Called once when the user disables
-    /// ManageAffinity so previously-throttled inactive clients aren't left
-    /// stuck on Idle priority + a single E-Core after the master toggle goes
-    /// off.</summary>
+    /// full-core affinity mask. Called once when the user disables affinity
+    /// management so previously-throttled clients are never left constrained.</summary>
     private void ResetAllEveAffinity()
     {
-        int totalCores = Environment.ProcessorCount;
-        long allCoresMask = (1L << totalCores) - 1;
+        int totalCores =
+            Math.Clamp(
+                Environment.ProcessorCount,
+                1,
+                IntPtr.Size * 8);
+
+        long allCoresMask =
+            FullAffinityMask(totalCores);
 
         foreach (var (_, thumb) in _thumbnails)
         {
             int pid;
-            try { pid = thumb.GetProcessId(); }
-            catch { continue; }
-            if (pid <= 0) continue;
 
             try
             {
-                using var p = Process.GetProcessById(pid);
-                if (p.PriorityClass != ProcessPriorityClass.Normal)
-                    p.PriorityClass = ProcessPriorityClass.Normal;
-                if ((long)p.ProcessorAffinity != allCoresMask)
-                    p.ProcessorAffinity = (IntPtr)allCoresMask;
-                Debug.WriteLine($"[Affinity:Reset] '{thumb.CharacterName}' restored to Normal + all cores");
+                pid =
+                    thumb.GetProcessId();
             }
-            catch { /* process exited / access denied */ }
+            catch
+            {
+                continue;
+            }
+
+            if (pid <= 0)
+                continue;
+
+            try
+            {
+                using var process =
+                    Process.GetProcessById(pid);
+
+                if (process.PriorityClass !=
+                    ProcessPriorityClass.Normal)
+                {
+                    process.PriorityClass =
+                        ProcessPriorityClass.Normal;
+                }
+
+                if ((long)process.ProcessorAffinity !=
+                    allCoresMask)
+                {
+                    process.ProcessorAffinity =
+                        (IntPtr)allCoresMask;
+                }
+
+                Debug.WriteLine(
+                    $"[Affinity:Reset] '{thumb.CharacterName}' restored to Normal + all cores");
+            }
+            catch
+            {
+                // Process exited or access was denied.
+            }
         }
     }
-
     /// <summary>Check whether an inactive border should be shown for this character.
     /// Returns false when InactiveClientBorderColor is empty and no custom/group color applies.</summary>
     private bool ShouldShowInactiveBorder(string charName)

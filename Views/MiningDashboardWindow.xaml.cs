@@ -28,6 +28,7 @@ public partial class MiningDashboardWindow : Window
     private string _historyPreset = "today";
     private string _profitPreset = "today";
     private bool _syncingSettings;
+    private bool _dashboardRefreshBusy;
 
     public MiningDashboardWindow(
         StatTrackerService tracker,
@@ -56,6 +57,13 @@ public partial class MiningDashboardWindow : Window
         _historyRefreshTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
         _historyRefreshTimer.Tick += async (_, _) =>
         {
+            // Long-session guard: embedded Mining pages stay alive when another
+            // Command Center page is selected. Do not keep doing hidden history,
+            // profit or market work on the UI thread.
+            if (!MiningTabs.IsVisible ||
+                PresentationSource.FromVisual(MiningTabs) == null)
+                return;
+
             if (HistoryTab.IsSelected)
                 await RefreshHistoryAsync();
             else if (ProfitTab.IsSelected)
@@ -64,13 +72,22 @@ public partial class MiningDashboardWindow : Window
         _historyRefreshTimer.Start();
 
         _refreshTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
-        _refreshTimer.Tick += async (_, _) => await RefreshDashboardAsync();
+        _refreshTimer.Tick += async (_, _) =>
+        {
+            if (MiningTabs.IsVisible &&
+                PresentationSource.FromVisual(MiningTabs) != null)
+            {
+                await RefreshDashboardAsync();
+            }
+        };
         _refreshTimer.Start();
+
         Closed += (_, _) =>
         {
             _refreshTimer.Stop();
             _historyRefreshTimer.Stop();
         };
+
         Loaded += async (_, _) => await RefreshDashboardAsync();
     }
 
@@ -276,6 +293,15 @@ public partial class MiningDashboardWindow : Window
 
     private async System.Threading.Tasks.Task RefreshDashboardAsync()
     {
+        if (_dashboardRefreshBusy ||
+            !MiningTabs.IsVisible ||
+            PresentationSource.FromVisual(MiningTabs) == null)
+            return;
+
+        _dashboardRefreshBusy = true;
+
+        try
+        {
         var fleetOre = _tracker.GetFleetMiningSessionUnitsByOre();
         foreach (var ore in fleetOre.Keys)
             _ = _tracker.EnsureMiningQuoteAsync(ore);
@@ -284,6 +310,7 @@ public partial class MiningDashboardWindow : Window
 
         var liveRows = new List<LiveMiningRow>();
         var overviewRows = new List<OverviewCharacterRow>();
+        var activityRows = new List<MiningActivitySummary>();
 
         double totalBase = 0;
         double totalActual = 0;
@@ -305,6 +332,9 @@ public partial class MiningDashboardWindow : Window
 
             var dailyCrit = _tracker.GetTodayMiningCritSummary(character);
             var activity = _tracker.GetTodayMiningActivity(character);
+
+            if (activity.Pulls >= 2)
+                activityRows.Add(activity);
 
             bool actualReady = s.MiningCycleCount >= 6 && s.ActualM3PerSec > 0;
             string actualText = actualReady
@@ -352,10 +382,6 @@ public partial class MiningDashboardWindow : Window
             totalCorpToday += s.SessionBuybackValue;
         }
 
-        var activityRows = _tracker.GetMiningDashboardCharacters()
-            .Select(c => _tracker.GetTodayMiningActivity(c))
-            .Where(a => a.Pulls >= 2)
-            .ToList();
 
         double fleetContinuity = activityRows.Count > 0
             ? activityRows.Average(a => a.ContinuityPercent)
@@ -757,6 +783,11 @@ public partial class MiningDashboardWindow : Window
 
         LastRefreshText.Text =
             $"{_tracker.GetMiningDayLabel()} day | ESI {DateTime.Now:HH:mm:ss} | {marketOres.Count}/{allKnownOres.Count} market ore(s) | {watchdogText} | {dropText}";
+        }
+        finally
+        {
+            _dashboardRefreshBusy = false;
+        }
     }
 
 
