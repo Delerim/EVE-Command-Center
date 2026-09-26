@@ -491,6 +491,9 @@ public partial class CommandCenterWindow : Window
 
                     return new DashboardMiningLine
                     {
+                        Icon =
+                            MiningPortrait(
+                                row.Character),
                         Name =
                             row.Character,
                         Ore =
@@ -505,6 +508,11 @@ public partial class CommandCenterWindow : Window
                                         "0.0",
                                         CultureInfo.CurrentCulture) +
                                   " m3/s"
+                                : "warming up",
+                        IskPerHour =
+                            snapshot.BestIskPerHour > 0
+                                ? StatTrackerService.FormatIskPerHour(
+                                    snapshot.BestIskPerHour)
                                 : "warming up",
                         Age =
                             age,
@@ -536,6 +544,42 @@ public partial class CommandCenterWindow : Window
             "historical m3 uses locally recorded mining and available ore-volume quotes";
     }
 
+    private static string MiningPortrait(
+        string character)
+    {
+        BackgroundPilotRefresh pilots =
+            BackgroundOperations.Current.Pilots;
+
+        EveMiningShipIntel? intel =
+            pilots.Intel.Values
+                .FirstOrDefault(item =>
+                    string.Equals(
+                        item.CharacterName,
+                        character,
+                        StringComparison.OrdinalIgnoreCase));
+
+        long characterId =
+            intel?.CharacterId ?? 0;
+
+        if (characterId <= 0)
+        {
+            EvePilotSummary? summary =
+                pilots.Summaries.Values
+                    .FirstOrDefault(item =>
+                        string.Equals(
+                            item.CharacterName,
+                            character,
+                            StringComparison.OrdinalIgnoreCase));
+
+            characterId =
+                summary?.CharacterId ?? 0;
+        }
+
+        return
+            characterId > 0
+                ? $"https://images.evetech.net/characters/{characterId}/portrait?size=64"
+                : "";
+    }
     private static double MiningVolume(
         StatTrackerService stats,
         DateTime start,
@@ -1547,6 +1591,9 @@ public partial class CommandCenterWindow : Window
 
     private sealed class DashboardMiningLine
     {
+        public string Icon { get; init; } =
+            "";
+
         public string Name { get; init; } =
             "";
 
@@ -1554,6 +1601,9 @@ public partial class CommandCenterWindow : Window
             "";
 
         public string Rate { get; init; } =
+            "";
+
+        public string IskPerHour { get; init; } =
             "";
 
         public string Age { get; init; } =

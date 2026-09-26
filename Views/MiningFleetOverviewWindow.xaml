@@ -392,8 +392,17 @@
                                             <TextBlock Text="{Binding BaseText}" Foreground="#FFFFFF"
                                                        FontWeight="Bold" FontSize="13.5"
                                                        ToolTip="{Binding BaseToolTip}"/>
-                                            <TextBlock Foreground="#718D87" FontSize="10.5" Text="PROFIT"
-                                                       Margin="0,3,0,0"/>
+                                            <DockPanel Margin="0,3,0,0">
+                                                <TextBlock Text="{Binding IskPerHourText}"
+                                                           DockPanel.Dock="Right"
+                                                           Foreground="#FFB84D"
+                                                           FontSize="9.5"
+                                                           FontWeight="SemiBold"
+                                                           ToolTip="{Binding IskPerHourToolTip}"/>
+                                                <TextBlock Foreground="#718D87"
+                                                           FontSize="10.5"
+                                                           Text="PROFIT"/>
+                                            </DockPanel>
                                             <TextBlock Text="{Binding ValueText}" Foreground="#58D3B4"
                                                        FontWeight="SemiBold" FontSize="12.5"
                                                        ToolTip="{Binding ProfitToolTip}"/>

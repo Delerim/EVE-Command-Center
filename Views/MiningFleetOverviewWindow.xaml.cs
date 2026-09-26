@@ -930,6 +930,18 @@ public partial class MiningFleetOverviewWindow : Window
                 character,
                 out string? portraitUrl);
 
+            string iskPerHourFull =
+                StatTrackerService.FormatIskPerHour(
+                    s.BestIskPerHour);
+
+            string iskPerHourCompact =
+                iskPerHourFull == "-"
+                    ? "warming"
+                    : iskPerHourFull.Replace(
+                        " ISK/hr",
+                        "/h",
+                        StringComparison.Ordinal);
+
             var rocks = _tracker.RockTracking.Get(character);
             cards.Add(new FleetCard
             {
@@ -986,6 +998,13 @@ public partial class MiningFleetOverviewWindow : Window
                 BuybackText = s.SessionBuybackValue > 0
                     ? StatTrackerService.FormatNumber(s.SessionBuybackValue)
                     : "-",
+                IskPerHourText =
+                    iskPerHourCompact,
+                IskPerHourToolTip =
+                    iskPerHourFull == "-"
+                        ? "Live mining value rate is warming up. ECC needs enough recent completed mining intervals and an available enabled-market quote."
+                        : $"Live mining value rate: {iskPerHourFull}.{Environment.NewLine}" +
+                          "This is the existing rolling Best ISK/hr estimate from recent completed mining pulls using the better enabled Jita/Amarr quote. It is not the session-average profit.",
                 AlarmMuted = alarmMuted,
                 // Keep the DRONE badge enabled so WPF does not wash out the
                 // intentionally bright blue/cyan style. Orca clicks are
@@ -1079,6 +1098,10 @@ public partial class MiningFleetOverviewWindow : Window
                     $"Last mining pull: {lastPullAge} ago at {lastPullClock}.",
                 ProfitToolTip =
                     $"Session market-value estimate: {s.SessionBestValue:N0} ISK.{Environment.NewLine}" +
+                    (iskPerHourFull == "-"
+                        ? "Live ISK/hr is still warming up."
+                        : $"Live rolling value rate: {iskPerHourFull}.") +
+                    Environment.NewLine +
                     $"Open Mining Command Center for the detailed market breakdown.",
                 BuybackToolTip =
                     $"Session buyback-value estimate: {s.SessionBuybackValue:N0} ISK.",
@@ -1866,6 +1889,8 @@ public partial class MiningFleetOverviewWindow : Window
         public string BaseToolTip { get; set; } = "";
         public string RealToolTip { get; set; } = "";
         public string ProfitToolTip { get; set; } = "";
+        public string IskPerHourText { get; set; } = "";
+        public string IskPerHourToolTip { get; set; } = "";
         public string BuybackToolTip { get; set; } = "";
         public string CritToolTip { get; set; } = "";
     }

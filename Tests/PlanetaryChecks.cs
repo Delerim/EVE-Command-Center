@@ -138,5 +138,15 @@ internal static partial class Program
         var additional = MiningRateEstimator.Calculate(bonusLine, end.AddSeconds(1));
         Check(Math.Abs(additional.Base-result.Base)<0.001 && Math.Abs(additional.Actual-result.Actual-1620/additional.Seconds)<0.001, "Separate additional critical log entry adds only bonus volume to REAL");
         Check(MiningRateEstimator.Calculate(pulls.Take(2),end).Base == 0, "A first paired pull cannot become an enormous instantaneous rate");
+        Check(
+            StatTrackerService.FormatIskPerHour(
+                63_090_000) ==
+            "63.09M ISK/hr",
+            "Live mining value rate formats in the compact Discord-style ISK/hr presentation");
+        Check(
+            StatTrackerService.FormatIskPerHour(
+                0) ==
+            "-",
+            "Live mining value rate stays unavailable until the existing estimator has a value");
     }
 }

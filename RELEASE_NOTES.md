@@ -1,6 +1,6 @@
-# EVE Command Center v3.6.10
+# EVE Command Center v3.6.11
 
-- Retired fully consumed EVE session logs after a newer session for the same character and log type is established, so repeated relogs no longer expand the live polling set. Raw EVE logs, current-day mining persistence, and mining-history rebuilds are unchanged.
-- Added dead-HWND admission checks around queued, batched, and deferred preview creation so a client that exits during discovery cannot leave orphan primary, PiP, or stat windows.
-- Coalesced foreground and minimize border refreshes so rapid focus changes cannot queue redundant full preview sweeps behind a busy UI dispatcher.
-- Added regression coverage for safe session-log retirement and dead-window preview admission.
+- Added Discord-style live ISK/hr telemetry to every active miner on the Command Center landing dashboard, including the pilot portrait, current ore, observed m3/s, value rate and pull age.
+- Added the same live rolling ISK/hr figure to every mining card in Character Overview without removing the existing session PROFIT value.
+- Reused the existing Best ISK/hr estimator and enabled-market quotes, so this patch changes presentation only; mining ledger, JSONL persistence, history rebuilding and rate calculations are unchanged.
+- Added regression coverage for the compact live ISK/hr presentation.
