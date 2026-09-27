@@ -13,6 +13,17 @@ namespace EveCommandCenter.Views;
 /// </summary>
 internal sealed class EmbeddedModuleHost : IDisposable
 {
+    private static readonly DependencyProperty EmbeddedContentProperty = DependencyProperty.RegisterAttached(
+        "EmbeddedContent", typeof(FrameworkElement), typeof(EmbeddedModuleHost));
+    internal static bool IsEmbedded(Window window) => window.GetValue(EmbeddedContentProperty) is FrameworkElement;
+    internal static bool IsInactive(Window window) => window.GetValue(EmbeddedContentProperty) is FrameworkElement root &&
+        (!root.IsVisible || window.Owner?.WindowState == WindowState.Minimized);
+    internal static void RefreshWhenVisible(Window window, Action refresh)
+    {
+        if (window.Content is FrameworkElement root)
+            root.IsVisibleChanged += (_, _) => { if(root.IsVisible && !IsInactive(window)) refresh(); };
+    }
+
     private readonly CommandCenterWindow _shell;
     private readonly ContentControl _surface;
     private readonly Dictionary<string, ModuleState> _modules =
@@ -43,10 +54,9 @@ internal sealed class EmbeddedModuleHost : IDisposable
                 key,
                 out ModuleState? state))
         {
-            state =
-                Create(
-                    key,
-                    factory());
+            var window = factory();
+            try { state = Create(key, window); }
+            catch { window.Close(); throw; }
 
             _modules[key] =
                 state;
@@ -105,14 +115,8 @@ internal sealed class EmbeddedModuleHost : IDisposable
                 out ModuleState? state))
             return;
 
-        if (ReferenceEquals(
-                _surface.Content,
-                state.Content))
-        {
-            _surface.Content =
-                null;
-        }
-
+        // Closing may be cancelled (for example, unsaved settings). Keep the
+        // page attached until the Closed event confirms that it actually closed.
         state.Window.Close();
     }
 
@@ -120,6 +124,9 @@ internal sealed class EmbeddedModuleHost : IDisposable
         string key,
         Window window)
     {
+        if (window.Content is not FrameworkElement root)
+            throw new InvalidOperationException("Embedded module did not expose WPF content.");
+        window.SetValue(EmbeddedContentProperty, root);
         window.Owner =
             _shell;
 

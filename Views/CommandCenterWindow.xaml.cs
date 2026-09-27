@@ -36,6 +36,9 @@ public partial class CommandCenterWindow : Window
         _live = live;
         InitializeComponent();
 
+        Activated += (_,_) => (System.Windows.Application.Current as App)?.SetSettingsWorkspaceActive(_activeWorkspace=="settings");
+        Deactivated += (_,_) => (System.Windows.Application.Current as App)?.SetSettingsWorkspaceActive(false);
+        Closed += (_,_) => (System.Windows.Application.Current as App)?.SetSettingsWorkspaceActive(false);
         _moduleHost =
             new EmbeddedModuleHost(
                 this,
@@ -261,6 +264,7 @@ public partial class CommandCenterWindow : Window
     private void SetNavigationSelection(
         string key)
     {
+        (System.Windows.Application.Current as App)?.SetSettingsWorkspaceActive(IsActive && key=="settings");
         var items =
             new (System.Windows.Controls.Button Button, string Key)[]
             {
@@ -355,6 +359,7 @@ public partial class CommandCenterWindow : Window
 
     private void RefreshDashboard()
     {
+        if (!IsVisible || WindowState == WindowState.Minimized || _activeWorkspace != "dashboard") return;
         try
         {
             UpdateClock();
@@ -1240,7 +1245,7 @@ public partial class CommandCenterWindow : Window
                 StringComparison.OrdinalIgnoreCase);
 
     internal Window? OpenModule(
-        string key)
+        string key, Func<Window>? factory = null, string? customTitle = null)
     {
         key =
             key.Trim()
@@ -1266,12 +1271,11 @@ public partial class CommandCenterWindow : Window
         (string title, string subtitle, string icon) =
             WorkspaceMetadata(key);
 
+        title = customTitle ?? _openTabs.FirstOrDefault(tab => tab.Key == key)?.Title ?? title;
         Window module =
             _moduleHost.Show(
                 key,
-                () =>
-                    app.CreateCommandCenterModule(
-                        key));
+                factory ?? (() => app.CreateCommandCenterModule(key)));
 
         if (!_openTabs.Any(tab =>
                 string.Equals(
@@ -1553,13 +1557,7 @@ public partial class CommandCenterWindow : Window
         object sender,
         RoutedEventArgs e)
     {
-        var setup =
-            new ClientSetupWindow
-            {
-                Owner = this
-            };
-
-        setup.ShowDialog();
+        OpenModule("setup");
         RefreshDashboard();
     }
 

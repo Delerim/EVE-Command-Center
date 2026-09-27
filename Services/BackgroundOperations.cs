@@ -20,10 +20,7 @@ public sealed class BackgroundOperations : IDisposable
     public PlanetaryService Planetary { get; }
     public IndustryService Industry { get; }
     public OmegaService Omega { get; }
-    private OmegaWindow? _omegaWindow;
-    private IndustryWindow? _industryWindow;
     public BackgroundPilotRefresh Pilots { get; }
-    private PlanetaryWindow? _planetaryWindow;
     private DateTimeOffset _nextAccess;
     private readonly CancellationTokenSource _lifetime = new();
     private readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromMinutes(1) };
@@ -34,8 +31,6 @@ public sealed class BackgroundOperations : IDisposable
     private bool _moonBusy;
     private bool _contractBusy;
     private bool _accessBusy;
-    private MoonReportWindow? _moonWindow;
-    private ContractsWindow? _contractsWindow;
     public string? MoonError { get; private set; }
     public void ScheduleRefresh() { _nextMoon = _nextContracts = default; }
 
@@ -55,11 +50,6 @@ public sealed class BackgroundOperations : IDisposable
             Access.State.MoonCharacterId = Moons.SelectedCharacterId;
             Access.State.ContractCharacterId = Contracts.State.CharacterId;
         }
-        Access.Changed += () =>
-        {
-            if (!Access.CanReadMoons) _moonWindow?.Close();
-            if (!Access.CanReadContracts) _contractsWindow?.Close();
-        };
         _file = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "EVE Command Center", "operating-alerts.json");
         try { _moonNotified = JsonSerializer.Deserialize<Dictionary<string, DateTimeOffset>>(File.ReadAllText(_file)) ?? new(); }
         catch { _moonNotified = new(); }
@@ -214,64 +204,26 @@ public sealed class BackgroundOperations : IDisposable
             OperatingToast.Notify(pilot + " | " + ore, "Glistening ore detected in a live mining log. The corporation ledger will identify the moon when available.",
                 () => { if (Access.CanReadMoons) OpenMoons(); }, "GLISTENING ORE DETECTED");
     }
-    private NotificationCenterWindow? _notifications;
     public void OpenNotifications()
     {
         try { NotificationCenterService.Current.SyncPi(Planetary.State,DateTimeOffset.UtcNow); } catch(Exception ex){EsiDiagnostics.Write("PI notification sync: "+ex.GetType().Name);}
-        if(_notifications==null){_notifications=new NotificationCenterWindow();_notifications.Closed+=(_,_)=>_notifications=null;}
-        _notifications.Show();if(_notifications.WindowState==WindowState.Minimized)_notifications.WindowState=WindowState.Normal;_notifications.Activate();
+        OpenModule("notifications");
     }
-    public void OpenOmega()
-    {
-        if(_omegaWindow==null){_omegaWindow=new OmegaWindow();_omegaWindow.Closed+=(_,_)=>_omegaWindow=null;}
-        _omegaWindow.Show();if(_omegaWindow.WindowState==WindowState.Minimized)_omegaWindow.WindowState=WindowState.Normal;_omegaWindow.Activate();
-    }
-    public void OpenIndustry()
-    {
-        if (_industryWindow == null) { _industryWindow = new IndustryWindow(); _industryWindow.Closed += (_,_) => _industryWindow=null; }
-        _industryWindow.Show(); if(_industryWindow.WindowState==WindowState.Minimized)_industryWindow.WindowState=WindowState.Normal; _industryWindow.Activate();
-    }
-    public void OpenPlanetary()
-    {
-        if (_planetaryWindow == null)
-        {
-            _planetaryWindow = new PlanetaryWindow();
-            _planetaryWindow.Closed += (_, _) => _planetaryWindow = null;
-        }
-        _planetaryWindow.Show();
-        if (_planetaryWindow.WindowState == WindowState.Minimized) _planetaryWindow.WindowState = WindowState.Normal;
-        _planetaryWindow.Activate();
-    }
+    private static Window? OpenModule(string key) => (System.Windows.Application.Current as App)?.OpenCommandCenterModule(key);
+    public void OpenOmega() => OpenModule("omega");
+    public void OpenIndustry() => OpenModule("industry");
+    public void OpenPlanetary() => OpenModule("pi");
     public void OpenMoons(string? search = null)
     {
-        if (!Access.CanReadMoons) { new ClientSetupWindow().ShowDialog(); return; }
-        if (_moonWindow == null)
-        {
-            _moonWindow = new MoonReportWindow();
-            _moonWindow.Closed += (_, _) => _moonWindow = null;
-        }
-        _moonWindow.Show();
-        if (_moonWindow.WindowState == WindowState.Minimized) _moonWindow.WindowState = WindowState.Normal;
-        _moonWindow.Activate();
-        if (search != null) _moonWindow.FocusStructure(search);
+        if (OpenModule("moons") is MoonReportWindow window && search != null) window.FocusStructure(search);
     }
     public void OpenFuel()
     {
-        OpenMoons();
-        _moonWindow?.FocusFuel();
+        if (OpenModule("moons") is MoonReportWindow window) window.FocusFuel();
     }
     public void OpenContracts(ContractRow? row = null)
     {
-        if (!Access.CanReadContracts) { new ClientSetupWindow().ShowDialog(); return; }
-        if (_contractsWindow == null)
-        {
-            _contractsWindow = new ContractsWindow();
-            _contractsWindow.Closed += (_, _) => _contractsWindow = null;
-        }
-        _contractsWindow.Show();
-        if (_contractsWindow.WindowState == WindowState.Minimized) _contractsWindow.WindowState = WindowState.Normal;
-        _contractsWindow.Activate();
-        if (row != null) _contractsWindow.OpenContents(row);
+        if (OpenModule("contracts") is ContractsWindow window && row != null) window.OpenContents(row);
     }
     public void Dispose()
     {

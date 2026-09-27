@@ -268,6 +268,29 @@ public sealed class StatTrackerService
     public Dictionary<string, double> GetFleetMiningSessionUnitsByOre() =>
         _dailyMiningStore.GetFleetUnitsByOre();
 
+    public (double Value, int MissingQuotes) GetTodayFleetMiningValue() => CalculateFleetMiningValue(
+        GetFleetMiningSessionUnitsByOre(), ore =>
+        {
+            if(!_miningMarket.TryGetQuote(ore,out var quote)||!quote.IsAvailable)return null;
+            double price=0;
+            if(_settings.MiningMarketJitaEnabled)price=Math.Max(price,GetMarketUnitPrice(quote,"Jita",_settings.MiningMarketPriceMode));
+            if(_settings.MiningMarketAmarrEnabled)price=Math.Max(price,GetMarketUnitPrice(quote,"Amarr",_settings.MiningMarketPriceMode));
+            return price>0?price:null;
+        });
+    internal static (double Value, int MissingQuotes) CalculateFleetMiningValue(
+        IReadOnlyDictionary<string,double> units, Func<string,double?> price)
+    {
+        double total=0;int missing=0;
+        foreach(var item in units)
+        {
+            if(item.Value<=0)continue;
+            var quote=price(item.Key);
+            if(!quote.HasValue || !double.IsFinite(quote.Value) || quote.Value<=0){missing++;continue;}
+            total+=item.Value*quote.Value;
+        }
+        return(total,missing);
+    }
+
     public MiningDailyCritSummary GetTodayMiningCritSummary(string? character = null) =>
         _dailyMiningStore.GetCritSummary(character);
 

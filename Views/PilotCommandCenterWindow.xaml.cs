@@ -37,13 +37,15 @@ public partial class PilotCommandCenterWindow : Window
         if (PilotList.SelectedItem is not PilotCardViewModel card) { WpfMessageBox.Show(EmbeddedModuleHost.ResolveOwner(this),"Select a pilot first.","Skill Planner"); return; }
         try
         {
-            if (_planners.TryGetValue(card.CharacterId,out var open)) { if(open.WindowState==WindowState.Minimized)open.WindowState=WindowState.Normal;open.Activate();return; }
+            if (_planners.TryGetValue(card.CharacterId,out var open)) { if(!EmbeddedModuleHost.TryActivateShell(open)){if(open.WindowState==WindowState.Minimized)open.WindowState=WindowState.Normal;open.Activate();}return; }
             bool ready=_planningSnapshot?.Summary.CharacterId==card.CharacterId;
             var data=ready?_planningSnapshot!:new EvePilotDashboard {Summary=new(){CharacterId=card.CharacterId,CharacterName=card.CharacterName}};
-            var planner=new SkillPlannerWindow(data,ready){Owner=EmbeddedModuleHost.ResolveOwner(this)};
+            var planner=(System.Windows.Application.Current as App)?.OpenCommandCenterModule("planner:"+card.CharacterId,
+                ()=>new SkillPlannerWindow(data,ready), "SKILL PLAN | "+card.CharacterName) as SkillPlannerWindow;
+            if(planner==null)return;
             _planners[card.CharacterId]=planner;
             planner.Closed+=(_,_)=>_planners.Remove(card.CharacterId);
-            planner.Show();planner.Activate();
+            if(ready)planner.ApplySnapshot(data);
         }
         catch(Exception ex){EsiDiagnostics.Write("Skill planner open: "+ex);WpfMessageBox.Show(EmbeddedModuleHost.ResolveOwner(this),"Could not open Skill Planner: "+ex.Message,"Skill Planner");}
     }
@@ -793,19 +795,9 @@ public partial class PilotCommandCenterWindow : Window
         string description,
         EveFitDefenseStats defense)
     {
-        var window =
-            new PilotFitWindow(
-                fitName,
-                shipName,
-                shipTypeId,
-                modules,
-                description,
-                defense)
-            {
-                Owner = EmbeddedModuleHost.ResolveOwner(this)
-            };
-
-        window.Show();
+        (System.Windows.Application.Current as App)?.OpenCommandCenterModule(
+            "fit:"+(PilotList.SelectedItem as PilotCardViewModel)?.CharacterId+":"+fitName,
+            ()=>new PilotFitWindow(fitName,shipName,shipTypeId,modules,description,defense), "FIT | "+fitName);
     }
     private void AttributeAlignmentToggle_Click(
         object sender,

@@ -108,6 +108,7 @@
                                        FontWeight="SemiBold"/>
                         </StackPanel>
                     </Border>
+                    <TextBlock x:Name="FleetTodayProfit" Foreground="#64D7B9" FontSize="11" FontWeight="SemiBold" Margin="10,0,0,0" VerticalAlignment="Center"/>
                 </StackPanel>
 
                 <StackPanel x:Name="FullActions" Grid.Column="4" Orientation="Horizontal" VerticalAlignment="Center" Margin="12,0,2,0">

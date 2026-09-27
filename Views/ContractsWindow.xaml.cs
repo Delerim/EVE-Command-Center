@@ -1200,7 +1200,7 @@ public partial class ContractsWindow : Window
         ReconnectButton.IsEnabled = false;
         try
         {
-            new ClientSetupWindow().ShowDialog();
+            (System.Windows.Application.Current as App)?.OpenCommandCenterModule("setup");
             await LoadPilotsAsync();
         }
         catch (OperationCanceledException) { }
@@ -1246,5 +1246,5 @@ public partial class ContractsWindow : Window
         var row = ItemsControl.ContainerFromElement(ContractsGrid, e.OriginalSource as DependencyObject) as DataGridRow;
         if (row?.Item is ContractRow contract) OpenContents(contract);
     }
-    public void OpenContents(ContractRow row) => new ContractContentsWindow(Service, _operations.Sso, row, row.ReaderCharacterId > 0 ? row.ReaderCharacterId : Service.State.CharacterId) { Owner = EmbeddedModuleHost.ResolveOwner(this) }.Show();
+    public void OpenContents(ContractRow row) => (System.Windows.Application.Current as App)?.OpenCommandCenterModule("contract:"+row.Contract.Id, () => new ContractContentsWindow(Service, _operations.Sso, row, row.ReaderCharacterId > 0 ? row.ReaderCharacterId : Service.State.CharacterId), "CONTRACT | "+row.Contract.Id);
 }

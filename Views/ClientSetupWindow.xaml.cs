@@ -102,7 +102,7 @@ public partial class ClientSetupWindow : Window
         if (_busy) return;
         if (_pilots.Count == 0) { StatusText.Text = "Link your first pilot to finish setup. Corporation links are optional."; return; }
         Busy(true);
-        try { await ValidateAsync(); _operations.Access.State.SetupCompleted = true; _operations.Access.Save(); DialogResult = true; }
+        try { await ValidateAsync(); _operations.Access.State.SetupCompleted = true; _operations.Access.Save(); if (Owner is CommandCenterWindow) Close(); else DialogResult = true; }
         catch (Exception ex) { StatusText.Text = ex.Message; }
         finally { Busy(false); }
     }

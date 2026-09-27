@@ -10,10 +10,11 @@ public partial class OmegaWindow:Window
     private readonly EveSsoService _sso=BackgroundOperations.Current.Sso;
     private readonly CancellationTokenSource _life=new();
     private readonly DispatcherTimer _timer=new(){Interval=TimeSpan.FromMinutes(1)};
-    public OmegaWindow(){InitializeComponent();Alerts.IsChecked=_service.Budget.Alerts;ReloadOffers();_service.Changed+=Update;_timer.Tick+=(_,_)=>Update();Loaded+=async(_,_)=>{Update();_timer.Start();await _service.RefreshAsync(_life.Token);};Closed+=(_,_)=>{_timer.Stop();_service.Changed-=Update;_life.Cancel();};Update();}
+    public OmegaWindow(){InitializeComponent(); EmbeddedModuleHost.RefreshWhenVisible(this, Update);Alerts.IsChecked=_service.Budget.Alerts;ReloadOffers();_service.Changed+=Update;_timer.Tick+=(_,_)=>Update();Loaded+=async(_,_)=>{Update();_timer.Start();await _service.RefreshAsync(_life.Token);};Closed+=(_,_)=>{_timer.Stop();_service.Changed-=Update;_life.Cancel();};Update();}
     private void Update()
     {
         if(!Dispatcher.CheckAccess()){Dispatcher.BeginInvoke(Update);return;}
+        if(_life.IsCancellationRequested || EmbeddedModuleHost.IsInactive(this))return;
         long id=(Pilots.SelectedItem as OmegaPilot)?.Id??0;
         if(!Pilots.Items.Cast<OmegaPilot>().Select(p=>p.Id).Order().SequenceEqual(_service.Pilots.Select(p=>p.Id).Order()))
         {

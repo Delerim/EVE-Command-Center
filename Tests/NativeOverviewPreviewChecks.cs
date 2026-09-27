@@ -43,8 +43,8 @@ internal static partial class Program
             source.WindowState=Forms.FormWindowState.Minimized;Pump();Check(Surface()?.Visible==false&&view.StateText.StartsWith("Minimized"),"Minimized clients expose the snapshot fallback");
             source.WindowState=Forms.FormWindowState.Normal;Pump();Check(Surface()?.Visible==true,"Live preview resumes when the source is restored");
             int openForms=Forms.Application.OpenForms.Count;bool released=true;
-            for(int i=0;i<30;i++) {var oldSurface=Surface();view.Enabled=false;released&=oldSurface?.IsDisposed==true;view.Enabled=true;released&=Surface()?.Visible==true;}
-            Check(released&&Forms.Application.OpenForms.Count==openForms,"Thirty live/snapshot switches release old windows without growing the native form count");
+            for(int i=0;i<200;i++) {var oldSurface=Surface();view.Enabled=false;released&=oldSurface?.IsDisposed==true;view.Enabled=true;released&=Surface()?.Visible==true;}
+            Check(released&&Forms.Application.OpenForms.Count==openForms,"Two hundred live/snapshot switches release old windows without growing the native form count");
             var restored=Surface();owner.Hide();Pump();Check(restored!.IsDisposed&&Surface()==null,"Hiding the overview releases its native surface");
             owner.Show();Pump();restored=Surface();Check(restored?.Visible==true,"Showing the overview recreates its live surface");owner.Close();Pump();Check(restored!.IsDisposed&&Surface()==null,"Closing the overview releases the native surface");
             var statOverlay=new StatOverlayWindow();
@@ -58,6 +58,11 @@ internal static partial class Program
             Check(!label.ShowActivated&&(User32.GetWindowLong(label.GetHwnd(),User32.GWL_EXSTYLE)&User32.WS_EX_NOACTIVATE)!=0,"Text overlay is non-activating before its first display");
             source.Activate();Pump();var foreground=User32.GetForegroundWindow();standalone.ShowWithOverlay();Pump();
             Check(standalone.Visible&&label.IsVisible&&User32.GetForegroundWindow()==foreground,"Showing standalone previews preserves foreground focus");
+            var thumbField=typeof(ThumbnailWindow).GetField("_thumbId",System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic)!;
+            standalone.RefreshSourceHealth(false,null);
+            Check((IntPtr)thumbField.GetValue(standalone)! == IntPtr.Zero,"Unresponsive source releases the standalone DWM registration");
+            standalone.RefreshSourceHealth(true,null);
+            Check((IntPtr)thumbField.GetValue(standalone)! != IntPtr.Zero,"Recovered source re-registers its standalone preview");
             standalone.HideWithOverlay();standalone.BringToFront();Pump();
             Check(!standalone.Visible&&!label.IsVisible,"Z-order maintenance cannot resurrect hidden previews");
             standalone.Dispose();Check(label.GetHwnd()!=IntPtr.Zero&&!label.IsVisible,"Disposing a preview also closes its text overlay");

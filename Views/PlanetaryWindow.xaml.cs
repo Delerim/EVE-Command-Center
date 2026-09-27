@@ -17,7 +17,7 @@ public partial class PlanetaryWindow : Window
     private readonly HashSet<string> _expanded = new();
     public PlanetaryWindow()
     {
-        InitializeComponent();
+        InitializeComponent(); EmbeddedModuleHost.RefreshWhenVisible(this, Update);
         RestoreOverviewLayout(_service.State);
         PiAlerts.IsChecked = _service.State.DesktopAlerts;
         CompactExtractors.IsChecked = _service.State.CompactExtractors;
@@ -77,6 +77,7 @@ public partial class PlanetaryWindow : Window
     private void Update()
     {
         if (!Dispatcher.CheckAccess()) { Dispatcher.BeginInvoke(Update); return; }
+        if(_life.IsCancellationRequested || EmbeddedModuleHost.IsInactive(this))return;
         _analysis = PlanetaryAnalysis.Build(_service.State, DateTimeOffset.UtcNow);
         Colonies.ItemsSource = PlanetaryGroups.Build(_analysis, _expanded); Production.ItemsSource = _analysis.Production;
         FactorySummary.ItemsSource = _analysis.FactoryTiers;

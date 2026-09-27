@@ -58,6 +58,7 @@ public sealed class ThumbnailManager : IDisposable
     private FrozenFrameService? _frozenFrames;
     private WinEventHookService? _winEvents;
     private DispatcherTimer? _focusTimer;
+    private DateTime _nextSourceHealthCheck;
     private DispatcherTimer? _minimizeTimer;
     /// <summary>Debounces RaiseThumbnailsAboveOverlays so a client switch never pays for
     /// it inline — see the comment where it is created (#100).</summary>
@@ -1522,10 +1523,9 @@ public sealed class ThumbnailManager : IDisposable
                 ApplyFixedClientPosition(hwnd);
 
             // Swap the cover-taskbar band here too (#100). The focus poll alone is too
-            // late for hotkey cycling — it skips the 500ms after a cycle, so the old
-            // client stayed above the new one. Runs before activation so the incoming
-            // client is already in the right band when it comes forward.
-            ApplyClientTaskbarCover(hwnd);
+            // late for hotkey cycling. Promote the incoming client only after
+            // Windows accepts focus, so a rejected request cannot cover the
+            // client that actually remains in the foreground.
 
             // Collapse any transient hover geometry before the focus handoff so a
             // preview cannot remain enlarged over another preview's click target.
@@ -1535,6 +1535,7 @@ public sealed class ThumbnailManager : IDisposable
                 p.ResetTransientGeometry();
 
             Interop.User32.ActivateWindow(hwnd);
+            if (Interop.User32.GetForegroundWindow() == hwnd) ApplyClientTaskbarCover(hwnd);
 
             // Visual feedback follows the focus request; normal focus tracking owns
             // the one required z-order reconciliation instead of scheduling another
@@ -1663,6 +1664,17 @@ public sealed class ThumbnailManager : IDisposable
         // #95 watchdog: a thumbnail left stuck in its enlarged hover state covers its
         // neighbours and eats their clicks. Cheap per-tick correction.
         foreach (var (_, t) in _thumbnails) t.EnsureHoverStateValid();
+
+        if (DateTime.UtcNow >= _nextSourceHealthCheck)
+        {
+            _nextSourceHealthCheck = DateTime.UtcNow.AddSeconds(1);
+            foreach (var group in _thumbnails.Values.Concat(_secondaryThumbnails.Values).GroupBy(t=>t.EveHwnd))
+            {
+                bool responsive=Interop.User32.IsWindow(group.Key)&&!Interop.User32.IsHungAppWindow(group.Key);
+                var fallback=responsive?null:_frozenFrames?.GetLastFrame(group.Key);
+                foreach(var thumb in group) thumb.RefreshSourceHealth(responsive,fallback);
+            }
+        }
 
         var fgHwnd = Interop.User32.GetForegroundWindow();
         var s = _settings.Settings;
@@ -3208,7 +3220,7 @@ public sealed class ThumbnailManager : IDisposable
         {
             // Find all char-select windows (title == "EVE" without character name)
             var charSelectWindows = _thumbnails
-                .Where(kv => string.IsNullOrEmpty(kv.Value.CharacterName) || kv.Value.CharacterName == "EVE")
+                .Where(kv => (string.IsNullOrEmpty(kv.Value.CharacterName) || kv.Value.CharacterName == "EVE") && Interop.User32.IsWindow(kv.Key) && !Interop.User32.IsHungAppWindow(kv.Key))
                 .Select(kv => kv.Key)
                 .OrderBy(h => h.ToInt64()) // Sort by HWND for stable ordering (matches AHK)
                 .ToList();
@@ -3224,7 +3236,7 @@ public sealed class ThumbnailManager : IDisposable
                 // Still activate it so the hotkey at least feels responsive
                 var solo = charSelectWindows[0];
                 if (Interop.User32.IsIconic(solo)) Interop.User32.ShowWindowAsync(solo, Interop.User32.SW_RESTORE);
-                Interop.User32.SetForegroundWindow(solo);
+                Interop.User32.ActivateWindow(solo);
                 return;
             }
 
@@ -3240,8 +3252,7 @@ public sealed class ThumbnailManager : IDisposable
                 Interop.User32.ShowWindowAsync(targetHwnd, Interop.User32.SW_RESTORE);
 
             // Raw window activation
-            Interop.User32.SetForegroundWindow(targetHwnd);
-            Interop.User32.SetFocus(targetHwnd);
+            Interop.User32.ActivateWindow(targetHwnd);
             
             // Explicitly pass held login actions (like Enter) to Chromium message pump
             Interop.User32.FixTargetHeldKeys(targetHwnd);

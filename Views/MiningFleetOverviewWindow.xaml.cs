@@ -15,7 +15,6 @@ namespace EveCommandCenter.Views;
 public partial class MiningFleetOverviewWindow : Window
 {
     private readonly BackgroundPilotRefresh _backgroundPilots = BackgroundOperations.Current.Pilots;
-    private CloudBackupWindow? _cloudBackupWindow;
     private readonly CloudBackupCoordinator _cloudBackupCoordinator =
         CloudBackupCoordinator.Attach();
     private readonly StatTrackerService _tracker;
@@ -119,7 +118,7 @@ public partial class MiningFleetOverviewWindow : Window
         _timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
         _timer.Tick += (_, _) =>
         {
-            RefreshCards();
+            if(IsVisible && WindowState != WindowState.Minimized) RefreshCards();
         };
         _timer.Start();
 
@@ -549,7 +548,7 @@ public partial class MiningFleetOverviewWindow : Window
     private void SetRocks_Click(object sender,RoutedEventArgs e)
     {
         if(sender is System.Windows.Controls.Button button && button.DataContext is FleetCard card)
-            new RockTrackingWindow(_tracker.RockTracking,card.Character,card.Ore=="-"?"":card.Ore){Owner=this}.Show();
+            (System.Windows.Application.Current as App)?.OpenCommandCenterModule("rocks:"+card.Character, () => new RockTrackingWindow(_tracker.RockTracking,card.Character,card.Ore=="-"?"":card.Ore), "ROCKS | "+card.Character);
     }
 
     private string OverviewMode => !_prefs.CombinedCharacterOverview ? "MINING" :
@@ -582,7 +581,14 @@ public partial class MiningFleetOverviewWindow : Window
         };
     }
 
+    private bool _refreshingCards;
     private void RefreshCards()
+    {
+        if(_refreshingCards)return;
+        _refreshingCards=true;
+        try{RefreshCardsCore();}finally{_refreshingCards=false;}
+    }
+    private void RefreshCardsCore()
     {
         var cards = new List<FleetCard>();
 
@@ -1234,6 +1240,9 @@ public partial class MiningFleetOverviewWindow : Window
 
         ApplyResizeMode();
 
+        var fleetValue=_tracker.GetTodayFleetMiningValue();
+        FleetTodayProfit.Text=$"TODAY ~{fleetValue.Value:N0} ISK"+(fleetValue.MissingQuotes>0?" *":"");
+        FleetTodayProfit.ToolTip=$"Today's fleet mining value estimate, including offline miners. Mining day starts at 04:00 local. Before taxes, fees and operating costs; not realized net profit. {fleetValue.MissingQuotes} ore types lack enabled-market quotes.";
         DayText.Text = $"DAY {_tracker.GetMiningDayLabel()}";
         UpdatedText.Text =
             _tileReorderMode
@@ -1346,7 +1355,7 @@ public partial class MiningFleetOverviewWindow : Window
         RunningApp?.OverviewThumbnails?.SetOverviewCombined(combined && IsVisible && WindowState!=WindowState.Minimized,OverviewMode=="CHARACTERS"&&!_prefs.CharacterOverviewLivePreview);
         FullActions.Visibility=combined?Visibility.Collapsed:Visibility.Visible;
         CompactActions.Visibility=combined?Visibility.Visible:Visibility.Collapsed;
-        LiveBadge.Visibility=DayText.Visibility=PlexMarketBorder.Visibility=combined?Visibility.Collapsed:Visibility.Visible;
+        LiveBadge.Visibility=DayText.Visibility=PlexMarketBorder.Visibility=FleetTodayProfit.Visibility=combined?Visibility.Collapsed:Visibility.Visible;
         LivePreviewButton.Content=_prefs.CharacterOverviewLivePreview?"PREVIEW: LIVE":"PREVIEW: SNAPSHOT";
         ModeButton.Content="MODE: "+OverviewMode;
     }
@@ -1780,7 +1789,7 @@ public partial class MiningFleetOverviewWindow : Window
 
     private void OpenPreviewSettings_Click(object sender, RoutedEventArgs e) => (System.Windows.Application.Current as App)?.ShowGeneralSettings();
 
-    private void OpenClientSettings_Click(object sender, RoutedEventArgs e) => new ClientSetupWindow().ShowDialog();
+    private void OpenClientSettings_Click(object sender, RoutedEventArgs e) => (System.Windows.Application.Current as App)?.OpenCommandCenterModule("setup");
 
     private void OpenMoonReport_Click(object sender, RoutedEventArgs e) => BackgroundOperations.Current.OpenMoons();
     private void OpenOmega_Click(object sender, RoutedEventArgs e) => BackgroundOperations.Current.OpenOmega();
@@ -1792,18 +1801,7 @@ public partial class MiningFleetOverviewWindow : Window
         object sender,
         RoutedEventArgs e)
     {
-        if (_cloudBackupWindow != null)
-        {
-            if (_cloudBackupWindow.WindowState == WindowState.Minimized)
-                _cloudBackupWindow.WindowState = WindowState.Normal;
-            _cloudBackupWindow.Activate();
-            return;
-        }
-
-        _cloudBackupWindow = new CloudBackupWindow { Owner = this };
-        _cloudBackupWindow.Closed += (_, _) => _cloudBackupWindow = null;
-        _cloudBackupWindow.Show();
-        _cloudBackupWindow.Activate();
+        (System.Windows.Application.Current as App)?.OpenCommandCenterModule("cloud");
     }
     private void Close_Click(object sender, RoutedEventArgs e) => Close();
 

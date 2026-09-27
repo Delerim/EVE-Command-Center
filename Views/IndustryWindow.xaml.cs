@@ -24,14 +24,15 @@ public partial class IndustryWindow : Window
     }
     public IndustryWindow()
     {
-        InitializeComponent();Alerts.IsChecked=_service.State.Alerts;
-        _service.Changed+=Update;_timer.Tick+=(_,_)=>UpdateDetails();
+        InitializeComponent(); EmbeddedModuleHost.RefreshWhenVisible(this, Update);Alerts.IsChecked=_service.State.Alerts;
+        _service.Changed+=Update;_timer.Tick+=(_,_)=>{if(!EmbeddedModuleHost.IsInactive(this))UpdateDetails();};
         Loaded+=async(_,_)=>{Update();_timer.Start();await _service.RefreshAsync(_life.Token);};
         Closed+=(_,_)=>{_timer.Stop();_service.Changed-=Update;_life.Cancel();_scanCancellation?.Cancel();};
     }
     private void Update()
     {
         if(!Dispatcher.CheckAccess()){Dispatcher.BeginInvoke(Update);return;}
+        if(_life.IsCancellationRequested || EmbeddedModuleHost.IsInactive(this))return;
         long id=Selected?.Id??0;
         if(!Pilots.Items.Cast<IndustryPilot>().Select(p=>p.Id).SequenceEqual(_service.State.Pilots.Select(p=>p.Id)))
         {

@@ -108,7 +108,7 @@ public partial class MoonReportWindow : Window
         SetBusy(true);
         try
         {
-            new ClientSetupWindow().ShowDialog();
+            (System.Windows.Application.Current as App)?.OpenCommandCenterModule("setup");
             await ReloadPilotsAsync();
         }
         catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { return; }

@@ -679,32 +679,16 @@ public static class User32
 
     /// <summary>
     /// Native client activation using the same input-neutral pattern as EVE-O Preview:
-    /// request foreground/focus directly and fall back to SwitchToThisWindow when
-    /// Windows declines SetForegroundWindow. No keyboard or mouse input is synthesized.
+    /// request foreground activation without cross-thread focus calls or input attachment.
+    /// No keyboard or mouse input is synthesized.
     /// </summary>
     public static void ActivateWindow(IntPtr hwnd)
     {
-        if (!IsWindow(hwnd) || IsHungAppWindow(hwnd)) return;
-
-        if (GetForegroundWindow() == hwnd)
-        {
-            SetFocus(hwnd);
-            return;
-        }
-
-        EveCommandCenter.Services.DiagnosticsService.LogWindowHook(
-            $"[ActivateWindow] Foreground shift requested for HWND {hwnd}");
-
-        bool activated = SetForegroundWindow(hwnd);
-        SetFocus(hwnd);
-
-        if (!activated || GetForegroundWindow() != hwnd)
-        {
-            EveCommandCenter.Services.DiagnosticsService.LogWindowHook(
-                $"[ActivateWindow] Native foreground request deferred; using window-switch fallback for HWND {hwnd}");
-            SwitchToThisWindow(hwnd, false);
-            SetFocus(hwnd);
-        }
+        if (!IsWindow(hwnd) || IsHungAppWindow(hwnd) || GetForegroundWindow() == hwnd) return;
+        // Never attach input queues or synchronously SetFocus/SwitchToThisWindow
+        // across processes. A stalled game must not couple its input queue to ours.
+        // Windows may decline foreground activation; the next user click can retry.
+        SetForegroundWindow(hwnd);
     }
     [DllImport("kernel32.dll")]
     public static extern uint GetCurrentThreadId();

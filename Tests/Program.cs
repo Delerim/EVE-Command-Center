@@ -28,6 +28,18 @@ internal static partial class Program
     [STAThread]
     private static void Main(string[] args)
     {
+        if (args.FirstOrDefault() == "--audit-ui")
+        {
+            var uiApp=new System.Windows.Application{ShutdownMode=ShutdownMode.OnExplicitShutdown};
+            var overview=CheckCharacterOverview();
+            var flags=System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic;
+            var preferences=(MiningDashboardPreferences)typeof(MiningFleetOverviewWindow).GetField("_prefs",flags)!.GetValue(overview)!;
+            preferences.CombinedCharacterOverview=false;
+            typeof(MiningFleetOverviewWindow).GetMethod("ApplyCombinedMode",flags)!.Invoke(overview,null);
+            typeof(MiningFleetOverviewWindow).GetMethod("RefreshCards",flags)!.Invoke(overview,null);
+            Check(((TextBlock)overview.FindName("FleetTodayProfit")).Visibility==Visibility.Visible,"Fleet mining value is visible beside PLEX in the mining header");
+            Render(overview,args[1]);overview.Close();return;
+        }
         if (args.FirstOrDefault() == "--native-preview") { CheckNativeOverviewPreview(args.Skip(1).FirstOrDefault()); return; }
         if (args.FirstOrDefault() == "--inspect-fit")
         {
@@ -142,6 +154,7 @@ internal static partial class Program
         Check(
             new AppSettings().MinimizeCommandCenterOnOverviewLaunch == false,
             "Command Center defaults to keeping both windows open");
+        CheckEmbeddedLifecycle();
         var landing = new CommandCenterWindow(live: false);
         Check(
             landing.FindName("LaunchOverviewButton") != null &&

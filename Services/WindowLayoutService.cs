@@ -62,14 +62,15 @@ public sealed class WindowLayoutService : IDisposable
         _installed = true;
         EventManager.RegisterClassHandler(typeof(Window), FrameworkElement.LoadedEvent, new RoutedEventHandler((sender, args) =>
         {
-            if (sender is Window window && ReferenceEquals(args.OriginalSource, window) && ShouldRemember(window.GetType()))
+            if (sender is Window window && !IsEmbedded(window) && ReferenceEquals(args.OriginalSource, window) && ShouldRemember(window.GetType()))
                 service.Attach(window, window.GetType().FullName!);
         }));
     }
+    internal static bool IsEmbedded(Window window) => EveCommandCenter.Views.EmbeddedModuleHost.IsEmbedded(window);
     public SavedWindowLayout? Get(string key) => _saved.GetValueOrDefault(key);
     public void Attach(Window window, string key)
     {
-        if (_disposed || _attached.ContainsKey(window)) return;
+        if (_disposed || IsEmbedded(window) || _attached.ContainsKey(window)) return;
         bool ready = false;
         void Save()
         {

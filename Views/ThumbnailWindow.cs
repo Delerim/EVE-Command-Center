@@ -33,6 +33,7 @@ namespace EveCommandCenter.Views;
 public class ThumbnailWindow : Form
 {
     private IntPtr _thumbId;
+    private bool _sourceSuspended;
     private IntPtr _eveHwnd;
     private IntPtr _ownHwnd;
 
@@ -852,7 +853,7 @@ public class ThumbnailWindow : Form
 
     private void RegisterDwmThumbnail()
     {
-        if (_eveHwnd == IntPtr.Zero || _ownHwnd == IntPtr.Zero) return;
+        if (_sourceSuspended || _eveHwnd == IntPtr.Zero || _ownHwnd == IntPtr.Zero || !User32.IsWindow(_eveHwnd)) return;
         if (_thumbId != IntPtr.Zero) return;
 
         _thumbId = DwmApi.RegisterThumbnail(_ownHwnd, _eveHwnd);
@@ -862,6 +863,23 @@ public class ThumbnailWindow : Form
             return;
         }
         ApplyThumbnailPresentation();
+    }
+
+    internal void RefreshSourceHealth(bool responsive, FrozenFrame? fallback)
+    {
+        if (_sourceSuspended == !responsive) return;
+        _sourceSuspended = !responsive;
+        if (_sourceSuspended)
+        {
+            SetFrozenFrame(fallback);
+            if (_thumbId != IntPtr.Zero) { DwmApi.UnregisterThumbnail(_thumbId); _thumbId=IntPtr.Zero; }
+        }
+        else
+        {
+            if (!_isDwmHidden) ClearFrozenFrame();
+            RegisterDwmThumbnail();
+        }
+        Invalidate();
     }
 
     public void UpdateThumbnailSize() => ApplyThumbnailPresentation();
@@ -1303,7 +1321,7 @@ public class ThumbnailWindow : Form
         // Frozen snapshot (shown when source EVE window is minimized and DWM
         // composition is blank). Drawn inside the border inset so the colored
         // frame still surrounds the content.
-        if (_frozenFrame != null && _isDwmHidden)
+        if (_frozenFrame != null && (_isDwmHidden || _sourceSuspended))
         {
             int b = Math.Max(0, _borderThickness);
             var dest = new Rectangle(b, b,

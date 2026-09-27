@@ -44,10 +44,8 @@ public partial class App : Application
     private BroadcastHudWindow? _broadcastHud;
     private ProcessMonitorService? _processMonitor;
     private CropManager? _cropManager;
-    private SettingsWindow? _settingsWindow;
     private CommandCenterWindow? _commandCenterWindow;
-    private MiningDashboardWindow? _miningDashboardWindow;
-    private PilotCommandCenterWindow? _pilotCommandCenterWindow;
+    private WindowState _commandCenterRestoreState = WindowState.Maximized;
     private MiningFleetOverviewWindow? _miningFleetOverviewWindow;
     private MiningIdleWatchdogService? _miningIdleWatchdog;
     private ToolStripMenuItem? _miningOverviewTrayItem;
@@ -1111,7 +1109,7 @@ public partial class App : Application
         if (_commandCenterWindow != null)
         {
             if (_commandCenterWindow.WindowState == WindowState.Minimized)
-                _commandCenterWindow.WindowState = WindowState.Maximized;
+                _commandCenterWindow.WindowState = _commandCenterRestoreState;
             _commandCenterWindow.Show();
             _commandCenterWindow.Activate();
             return;
@@ -1120,8 +1118,13 @@ public partial class App : Application
         _commandCenterWindow = new CommandCenterWindow();
         MainWindow = _commandCenterWindow;
         _commandCenterWindow.Closed += (_, _) => _commandCenterWindow = null;
+        _commandCenterWindow.StateChanged += (_, _) =>
+        {
+            if (_commandCenterWindow != null && _commandCenterWindow.WindowState != WindowState.Minimized)
+                _commandCenterRestoreState = _commandCenterWindow.WindowState;
+        };
         _commandCenterWindow.Show();
-        _commandCenterWindow.WindowState = WindowState.Maximized;
+        _commandCenterRestoreState = _commandCenterWindow.WindowState;
         _commandCenterWindow.Activate();
     }
 
@@ -1161,6 +1164,9 @@ public partial class App : Application
             "contracts" =>
                 new ContractsWindow(),
 
+            "setup" => new ClientSetupWindow(),
+            "omega" => new OmegaWindow(),
+            "cloud" => new CloudBackupWindow(),
             "notifications" =>
                 new NotificationCenterWindow(),
 
@@ -1246,200 +1252,29 @@ public partial class App : Application
         OpenPilotCommandCenter();
     }
 
-    private void OpenPilotCommandCenter()
+    private void OpenPilotCommandCenter() => OpenCommandCenterModule("pilots");
+    private void OpenMiningDashboard() => OpenCommandCenterModule("mining");
+
+    internal void SetSettingsWorkspaceActive(bool active)
     {
-        if (_pilotCommandCenterWindow != null)
-        {
-            if (_pilotCommandCenterWindow.WindowState ==
-                WindowState.Minimized)
-            {
-                _pilotCommandCenterWindow.WindowState =
-                    WindowState.Normal;
-            }
-
-            _pilotCommandCenterWindow.Show();
-            _pilotCommandCenterWindow.Activate();
-            return;
-        }
-
-        _pilotCommandCenterWindow =
-            new PilotCommandCenterWindow();
-
-        _pilotCommandCenterWindow.Closed += (_, _) =>
-            _pilotCommandCenterWindow = null;
-
-        _pilotCommandCenterWindow.Show();
-        _pilotCommandCenterWindow.Activate();
+        _thumbnailManager?.SetSettingsOpen(active);
+        _thumbnailManager?.SetSuppressTopmost(active);
+        _thumbnailManager?.SetSettingsClickSuppression(active);
     }
 
-    private void OpenMiningDashboard()
+    internal Window? OpenCommandCenterModule(string key, Func<Window>? factory = null, string? title = null)
     {
-        if (_statTracker == null || _settings == null) return;
-
-        if (_miningDashboardWindow != null)
-        {
-            if (_miningDashboardWindow.WindowState == WindowState.Minimized)
-                _miningDashboardWindow.WindowState = WindowState.Normal;
-            _miningDashboardWindow.Show();
-            _miningDashboardWindow.Activate();
-            return;
-        }
-
-        _miningDashboardWindow = new MiningDashboardWindow(
-            _statTracker,
-            _settings.Settings,
-            _miningIdleWatchdog,
-            () => _settings.SaveDelayed(),
-            ToggleMiningFleetOverview);
-        _miningDashboardWindow.Closed += (_, _) => _miningDashboardWindow = null;
-        _miningDashboardWindow.Show();
-        _miningDashboardWindow.Activate();
+        ShowCommandCenter();
+        return _commandCenterWindow?.OpenModule(key, factory, title);
     }
 
-    public void ShowGeneralSettings() => OpenSettings(startMinimized: false);
+    public void ShowGeneralSettings() => OpenCommandCenterModule("settings");
     private void OpenSettings() => OpenSettings(startMinimized: false);
 
     private void OpenSettings(bool startMinimized)
     {
-        SettingsDiag($"OpenSettings called, startMinimized={startMinimized}, existing={_settingsWindow != null}");
-        if (_settingsWindow != null && _settingsWindow.IsVisible)
-        {
-            if (_settingsWindow.WindowState == WindowState.Minimized)
-                _settingsWindow.WindowState = WindowState.Normal;
-
-            _settingsWindow.Activate();
-            SettingsDiag("Re-activated existing Settings window");
-            return;
-        }
-
-        _settingsWindow = new SettingsWindow(
-            _settings!,
-            _thumbnailManager!,
-            _cropManager);
-        _settingsWindow.Title =
-            "EVE Command Center - Settings";
-        // Set initial WindowState BEFORE Show() so WPF commits the restore rect
-        // with the saved Width/Height already applied. Setting WindowState after
-        // Show() can race the HWND map and corrupt the restore rect.
-        if (startMinimized)
-        {
-            _settingsWindow.WindowState = WindowState.Minimized;
-        }
-        else
-        {
-            // Auto-maximize when the saved size doesn't fit the work area —
-            // mostly catches 1080p users on the default 1080×1080 size, where
-            // the bottom of the panel would be hidden under the taskbar. Once
-            // the user resizes to something that fits, the saved smaller size
-            // is respected on subsequent opens. WorkArea is in DIPs, matching
-            // WPF's Width/Height semantics.
-            var workArea = SystemParameters.WorkArea;
-            int savedW = _settings!.Settings.SettingsWindowWidth;
-            int savedH = _settings!.Settings.SettingsWindowHeight;
-            if (savedH >= workArea.Height || savedW >= workArea.Width)
-            {
-                _settingsWindow.WindowState = WindowState.Maximized;
-                SettingsDiag($"Auto-maximized: saved {savedW}x{savedH} doesn't fit work area {workArea.Width}x{workArea.Height}");
-            }
-        }
-        
-        Action applyLiveSettings = () =>
-        {
-            if (_isShuttingDown) return;
-
-            // Reload hotkeys when settings change
-            _hotkeyService?.RegisterFromSettings(
-                _settings!.Settings, _settings.CurrentProfile,
-                _thumbnailManager!, OpenSettings);
-
-            // Re-wire log monitor settings
-            if (_logMonitor != null && _settings != null)
-            {
-                _logMonitor.PveMode = _settings.Settings.PveMode;
-                _logMonitor.SetCooldown(_settings.Settings.AlertCooldown);
-                if (_settings.Settings.EnabledAlertTypes != null)
-                    _logMonitor.SetEnabledAlertTypes(_settings.Settings.EnabledAlertTypes);
-                if (_settings.Settings.SeverityCooldowns != null)
-                    _logMonitor.SetEventCooldowns(_settings.Settings.SeverityCooldowns);
-            }
-
-            // Dynamically show/hide the Alert Hub based on settings toggle
-            if (_isShuttingDown) return;
-            try
-            {
-                if (_settings != null && _settings.Settings.AlertHubEnabled)
-                    _alertHub?.Show();
-                else
-                    _alertHub?.Hide();
-            }
-            catch (InvalidOperationException)
-            {
-                // Ignore if the window was closed during shutdown
-            }
-        };
-
-        _settingsWindow.SettingsApplied += applyLiveSettings;
-
-        _settingsWindow.Closed += (_, _) =>
-        {
-            SettingsDiag("Closed event fired");
-            // Ensure topmost + click-through are restored when settings closes
-            _thumbnailManager?.SetSuppressTopmost(false);
-            _thumbnailManager?.SetSettingsClickSuppression(false);
-            _thumbnailManager?.SetSettingsOpen(false);
-
-            _settingsWindow = null;
-            if (!_isShuttingDown)
-            {
-                applyLiveSettings();
-            }
-
-            Debug.WriteLine("[App:Settings] ⚙ Settings window closed — services re-configured");
-        };
-
-        // WinForms thumbnail windows hit-test their full client rect, so any
-        // z-order dance (Topmost, pin-below, SetWindowPos) is fragile — tray
-        // opens, minimize transitions, and foreground-lock all break it in
-        // different ways. Instead, flip thumbnails click-through while Settings
-        // is open: every click passes through them to whatever is below.
-        _settingsWindow.Activated += (_, _) =>
-        {
-            SettingsDiag("Activated event fired");
-            _thumbnailManager?.SetSuppressTopmost(true);
-            _thumbnailManager?.SetSettingsClickSuppression(true);
-        };
-        _settingsWindow.Deactivated += (_, _) =>
-        {
-            SettingsDiag("Deactivated event fired");
-            _thumbnailManager?.SetSuppressTopmost(false);
-            _thumbnailManager?.SetSettingsClickSuppression(false);
-        };
-        _settingsWindow.IsVisibleChanged += (_, e) =>
-            SettingsDiag($"IsVisibleChanged → {e.NewValue}");
-        _settingsWindow.StateChanged += (_, _) =>
-            SettingsDiag($"StateChanged → {_settingsWindow?.WindowState}");
-
-        SettingsDiag("About to call Show()");
-        _settingsWindow.Show();
-        SettingsDiag($"Show() returned. IsVisible={_settingsWindow.IsVisible}, IsEnabled={_settingsWindow.IsEnabled}, State={_settingsWindow.WindowState}, Left={_settingsWindow.Left}, Top={_settingsWindow.Top}, W={_settingsWindow.Width}, H={_settingsWindow.Height}");
-
-        // Topmost-flip forces Settings to the top of the z-band without leaving
-        // it permanently topmost. Covers the case where Show() doesn't grant
-        // foreground rights (tray-menu paths, foreground-lock policy).
-        _settingsWindow.Topmost = true;
-        _settingsWindow.Topmost = false;
-        _settingsWindow.Activate();
-
-        var settingsHwnd = new System.Windows.Interop.WindowInteropHelper(_settingsWindow).Handle;
-        var fg = Interop.User32.GetForegroundWindow();
-        SettingsDiag($"After Activate: settingsHwnd=0x{settingsHwnd.ToInt64():X}, foreground=0x{fg.ToInt64():X}, match={settingsHwnd == fg}");
-
-        // Tray-menu opens don't always fire Activated. Apply suppressions
-        // synchronously so Settings is usable regardless of how it was opened.
-        _thumbnailManager?.SetSuppressTopmost(true);
-        _thumbnailManager?.SetSettingsClickSuppression(true);
-        _thumbnailManager?.SetSettingsOpen(true);
-        SettingsDiag("OpenSettings finished");
+        OpenCommandCenterModule("settings");
+        if (startMinimized && _commandCenterWindow != null) _commandCenterWindow.WindowState = WindowState.Minimized;
     }
 
     private static readonly string SettingsDiagLogPath = System.IO.Path.Combine(
