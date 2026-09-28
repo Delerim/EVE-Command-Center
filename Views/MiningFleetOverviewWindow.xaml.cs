@@ -1252,7 +1252,12 @@ public partial class MiningFleetOverviewWindow : Window
 
         foreach (var card in ordered) {
             card.CardWidth = cardWidth;
-            card.CardMinHeight = 174 + (_tracker.RockTracking.Enabled ? 85 : 0);
+            card.CardPadding = new Thickness(8, _prefs.FleetOverviewVertical ? 3 : 6, 8, _prefs.FleetOverviewVertical ? 3 : 6);
+            card.CardMargin = new Thickness(0, 0, 6, _prefs.FleetOverviewVertical ? 3 : 6);
+            card.CardMinHeight = _prefs.FleetOverviewVertical ? 0 : 174 + (_tracker.RockTracking.Enabled ? 85 : 0);
+            card.PreviewHeight = _prefs.FleetOverviewVertical ? 60 : 115;
+            card.DetailedMiningVisibility = !_prefs.FleetOverviewVertical && OverviewMode == "MINING" ? Visibility.Visible : Visibility.Collapsed;
+            card.CompactMiningVisibility = _prefs.FleetOverviewVertical && OverviewMode == "MINING" ? Visibility.Visible : Visibility.Collapsed;
             card.CanSwitch = _prefs.CombinedCharacterOverview;
             bool compact=OverviewMode=="CHARACTERS";
             card.MiningVisibility=OverviewMode=="MINING"?Visibility.Visible:Visibility.Collapsed;
@@ -1364,7 +1369,8 @@ public partial class MiningFleetOverviewWindow : Window
             SizeToContent = SizeToContent.Manual;
             ResizeMode = ResizeMode.CanResizeWithGrip;
             MinHeight = 250;
-            MaxHeight = double.PositiveInfinity;
+            MaxHeight = Math.Max(250, SystemParameters.WorkArea.Height);
+            if (Height > MaxHeight) Height = MaxHeight;
             MinerScroll.HorizontalScrollBarVisibility = System.Windows.Controls.ScrollBarVisibility.Disabled;
             return;
         }
@@ -1891,6 +1897,11 @@ public partial class MiningFleetOverviewWindow : Window
         public bool LivePreview {get;set;}
         public bool CanSwitch {get;set;}
         public double CardMinHeight {get;set;}=174;
+        public Thickness CardPadding {get;set;} = new(8,6,8,6);
+        public Thickness CardMargin {get;set;} = new(0,0,6,6);
+        public double PreviewHeight {get;set;}=115;
+        public Visibility DetailedMiningVisibility {get;set;} = Visibility.Visible;
+        public Visibility CompactMiningVisibility {get;set;} = Visibility.Collapsed;
         public bool IsActive {get;set;}
         public Visibility MiningVisibility { get; set; } = Visibility.Visible;
         public Visibility PreviewVisibility { get; set; } = Visibility.Collapsed;

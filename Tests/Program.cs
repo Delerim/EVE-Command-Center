@@ -42,6 +42,7 @@ internal static partial class Program
             {
                 preferences.CombinedCharacterOverview = true;
                 preferences.FleetOverviewVertical = true;
+                preferences.CharacterOverviewMiningMode = true;
                 typeof(MiningFleetOverviewWindow).GetMethod("ApplyCombinedMode",flags)!.Invoke(overview,null);
                 typeof(MiningFleetOverviewWindow).GetMethod("ApplyOrientation",flags)!.Invoke(overview,null);
                 typeof(MiningFleetOverviewWindow).GetMethod("RefreshCards",flags)!.Invoke(overview,null);

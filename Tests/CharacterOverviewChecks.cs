@@ -142,8 +142,8 @@ internal static partial class Program
             ((FrameworkElement)window.FindName("OverviewHeader")).Visibility == Visibility.Collapsed,
             "Vertical overview scrolls the fleet and replaces the wide header");
         var verticalRoot = (FrameworkElement)window.Content;
-        verticalRoot.Measure(new System.Windows.Size(260, 300));
-        verticalRoot.Arrange(new Rect(0, 0, 260, 300));
+        verticalRoot.Measure(new System.Windows.Size(260, 200));
+        verticalRoot.Arrange(new Rect(0, 0, 260, 200));
         verticalRoot.UpdateLayout();
         var scroll = (ScrollViewer)window.FindName("MinerScroll");
         Check(scroll.ExtentHeight > scroll.ViewportHeight && scroll.ScrollableHeight > 0,
@@ -151,6 +151,18 @@ internal static partial class Program
         var saved = System.Text.Json.JsonSerializer.Deserialize<MiningDashboardPreferences>(System.Text.Json.JsonSerializer.Serialize(prefs))!;
         Check(saved.FleetOverviewVertical && saved.FleetOverviewVerticalHeight == prefs.FleetOverviewVerticalHeight,
             "Overview orientation and sidebar height survive preference serialization");
+        bool previousMiningMode = prefs.CharacterOverviewMiningMode;
+        prefs.CharacterOverviewMiningMode = true;
+        Refresh();
+        var originalCards = items.ItemsSource;
+        items.ItemsSource = Enumerable.Repeat(items.Items[0], 11).ToList();
+        verticalRoot.Measure(new System.Windows.Size(260, 1020));
+        verticalRoot.Arrange(new Rect(0, 0, 260, 1020));
+        verticalRoot.UpdateLayout();
+        Check(scroll.ExtentHeight <= scroll.ViewportHeight + 1,
+            "Eleven compact mining cards fit a 1020-DIP-high sidebar without scrolling");
+        items.ItemsSource = originalCards;
+        prefs.CharacterOverviewMiningMode = previousMiningMode;
         prefs.FleetOverviewVertical = false;
         applyOrientation.Invoke(window, null);
         Refresh();
