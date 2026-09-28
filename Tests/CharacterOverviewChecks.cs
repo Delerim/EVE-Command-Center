@@ -37,7 +37,7 @@ internal static partial class Program
     {
         var tracker=new StatTrackerService();
         CheckOverviewPortraitRecovery();
-        var prefs=new MiningDashboardPreferences{CombinedCharacterOverview=true};
+        var prefs=new MiningDashboardPreferences{CombinedCharacterOverview=true, FleetOverviewAutoFit=false};
         var clients=new[]{new EveWindow(IntPtr.Zero,"EVE - Pilot A","Pilot A"),new EveWindow(IntPtr.Zero,"EVE - Pilot B","Pilot B"),new EveWindow(IntPtr.Zero,"EVE - Pilot C","Pilot C")};
         var window=new MiningFleetOverviewWindow(tracker,new MiningIdleWatchdogService(tracker),prefs,()=>clients);
         BackgroundOperations.Stop();
@@ -163,6 +163,13 @@ internal static partial class Program
             "Eleven compact mining cards fit a 1020-DIP-high sidebar without scrolling");
         items.ItemsSource = originalCards;
         prefs.CharacterOverviewMiningMode = previousMiningMode;
+        prefs.FleetOverviewAutoFit = true;
+        applyOrientation.Invoke(window, null);
+        Refresh();
+        Check(window.ResizeMode == ResizeMode.NoResize && window.SizeToContent == SizeToContent.Height,
+            "Auto-fit locks vertical resize handles and measures content height");
+        Check(System.Text.Json.JsonSerializer.Deserialize<MiningDashboardPreferences>(System.Text.Json.JsonSerializer.Serialize(prefs))!.FleetOverviewAutoFit,
+            "Auto-fit lock survives preference serialization");
         prefs.FleetOverviewVertical = false;
         applyOrientation.Invoke(window, null);
         Refresh();

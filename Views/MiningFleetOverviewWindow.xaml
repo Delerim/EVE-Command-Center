@@ -112,6 +112,7 @@
                 </StackPanel>
 
                 <StackPanel x:Name="FullActions" Grid.Column="4" Orientation="Horizontal" VerticalAlignment="Center" Margin="12,0,2,0">
+                    <Button x:Name="HorizontalFitButton" Click="AutoFit_Click" FontSize="9" Margin="0,0,5,0" ToolTip="Auto-fit sizes the overview and locks its resize handles. Switch to manual to resize."/>
                     <Button Content="VERTICAL" Click="Orientation_Click" FontSize="10" Margin="0,0,5,0"/>
                     <Button Content="COMMAND CENTER" Height="21" FontSize="10" FontWeight="SemiBold" Click="OpenCommandCenter_Click" Margin="0,0,5,0" ToolTip="Restore the full EVE Command Center dashboard"/>
                     <Button Content="COMBINE PREVIEWS" Height="21" FontSize="10" Click="Combine_Click" Margin="0,0,5,0"/>
@@ -125,6 +126,7 @@
                     <Button x:Name="OrderButton" Content="ORDER CLIENTS" MinWidth="58" Height="21" Padding="7,1" FontSize="10" FontWeight="SemiBold" Click="OrderMode_Click" MouseRightButtonUp="OrderButton_MouseRightButtonUp" ToolTip="Click to enable tile reordering, drag tiles left/right, then click DONE. Right-click to reset."/>
                 </StackPanel>
                 <StackPanel x:Name="CompactActions" Grid.Column="4" Orientation="Horizontal" Visibility="Collapsed">
+                    <Button x:Name="CompactFitButton" Click="AutoFit_Click" FontSize="9" Margin="0,0,5,0"/>
                     <Button Content="VERTICAL" Click="Orientation_Click" FontSize="10" Margin="0,0,5,0"/>
                     <Button Content="COMMAND CENTER" Height="23" FontSize="10" Margin="0,0,5,0" Click="OpenCommandCenter_Click"/>
                     <Button x:Name="ModeButton" Content="MODE: CHARACTERS" Height="23" FontSize="10" Click="Mode_Click" ToolTip="Choose character, mining, PvE or PvP cards"><Button.ContextMenu><ContextMenu>
@@ -157,8 +159,9 @@
 
             <StackPanel x:Name="VerticalHeader" Grid.Row="0" Visibility="Collapsed" Margin="0,0,0,6" MouseLeftButtonDown="Header_MouseLeftButtonDown">
                 <DockPanel Margin="0,0,0,5">
+                    <Button x:Name="VerticalFitButton" DockPanel.Dock="Right" Click="AutoFit_Click" FontSize="9" Margin="3,0" ToolTip="Auto-fit locks resize handles. Manual allows resizing."/>
                     <Button DockPanel.Dock="Right" Content="X" Click="Close_Click" Width="23"/>
-                    <TextBlock Text="CHARACTER OVERVIEW" Foreground="#EAF7F4" FontWeight="SemiBold" VerticalAlignment="Center" FontSize="11"/>
+                    <TextBlock Text="OVERVIEW" Foreground="#EAF7F4" FontWeight="SemiBold" VerticalAlignment="Center" FontSize="11"/>
                 </DockPanel>
                 <WrapPanel>
                     <Button Content="HORIZONTAL" Click="Orientation_Click" FontSize="9" Margin="0,0,4,4"/>

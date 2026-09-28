@@ -40,6 +40,12 @@ public sealed class MiningDashboardPreferences
     // Characters not yet present in this list append automatically.
     public List<string> FleetTileOrder { get; set; } = new();
 
+    // Share the existing resize preference so the dashboard checkbox and overlay toggle agree.
+    public bool FleetOverviewAutoFit
+    {
+        get => !AllowFleetOverviewResize;
+        set => AllowFleetOverviewResize = !value;
+    }
     public bool FleetOverviewVertical { get; set; }
     public double FleetOverviewVerticalHeight { get; set; } = 850;
     public bool CombinedCharacterOverview { get; set; }

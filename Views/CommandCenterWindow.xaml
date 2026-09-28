@@ -21,9 +21,9 @@
 
         <SolidColorBrush x:Key="Cyan" Color="#55D7D2"/>
         <SolidColorBrush x:Key="Mint" Color="#74D6C9"/>
-        <SolidColorBrush x:Key="Muted" Color="#6E9496"/>
-        <SolidColorBrush x:Key="Panel" Color="#0A1C22"/>
-        <SolidColorBrush x:Key="PanelBorder" Color="#173A43"/>
+        <SolidColorBrush x:Key="Muted" Color="#ACC7CC"/>
+        <SolidColorBrush x:Key="Panel" Color="#102630"/>
+        <SolidColorBrush x:Key="PanelBorder" Color="#315463"/>
 
         <Style x:Key="IconGlyph" TargetType="TextBlock">
             <Setter Property="FontFamily" Value="Segoe MDL2 Assets"/>
@@ -107,8 +107,8 @@
         </Style>
 
         <Style x:Key="Card" TargetType="Border">
-            <Setter Property="Background" Value="#0A1C22"/>
-            <Setter Property="BorderBrush" Value="#173A43"/>
+            <Setter Property="Background" Value="#102630"/>
+            <Setter Property="BorderBrush" Value="#315463"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="CornerRadius" Value="9"/>
             <Setter Property="Padding" Value="16"/>
@@ -125,31 +125,13 @@
                     <Setter Property="BorderBrush" Value="#2F6465"/>
                 </Trigger>
 
-                <EventTrigger RoutedEvent="MouseEnter">
-                    <BeginStoryboard>
-                        <Storyboard>
-                            <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(TranslateTransform.Y)"
-                                             To="-3"
-                                             Duration="0:0:0.12"/>
-                        </Storyboard>
-                    </BeginStoryboard>
-                </EventTrigger>
-                <EventTrigger RoutedEvent="MouseLeave">
-                    <BeginStoryboard>
-                        <Storyboard>
-                            <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(TranslateTransform.Y)"
-                                             To="0"
-                                             Duration="0:0:0.14"/>
-                        </Storyboard>
-                    </BeginStoryboard>
-                </EventTrigger>
             </Style.Triggers>
         </Style>
 
         <Style x:Key="SectionTitle" TargetType="TextBlock">
             <Setter Property="Foreground" Value="#55D7D2"/>
             <Setter Property="FontWeight" Value="Bold"/>
-            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontSize" Value="14"/>
         </Style>
 
         <Style x:Key="BigMetric" TargetType="TextBlock">
@@ -159,8 +141,8 @@
         </Style>
 
         <Style x:Key="MutedText" TargetType="TextBlock">
-            <Setter Property="Foreground" Value="#6E9496"/>
-            <Setter Property="FontSize" Value="11.5"/>
+            <Setter Property="Foreground" Value="#ACC7CC"/>
+            <Setter Property="FontSize" Value="12.5"/>
         </Style>
     </Window.Resources>
 
@@ -210,7 +192,7 @@
                                        FontWeight="SemiBold"
                                        FontSize="13"/>
                             <TextBlock Text="OPERATIONS CONSOLE"
-                                       Foreground="#5E7E85"
+                                       Foreground="#A0BFC6"
                                        FontSize="8.5"/>
                         </StackPanel>
                     </Grid>
@@ -257,7 +239,7 @@
                     </Button>
 
                     <TextBlock Text="OPERATIONS"
-                               Foreground="#55777D"
+                               Foreground="#A0BFC6"
                                FontSize="9"
                                FontWeight="Bold"
                                Margin="4,17,0,3"/>
@@ -391,7 +373,7 @@
                                    FontWeight="Bold"
                                    Foreground="#F2F8F7"/>
                         <TextBlock x:Name="PageSubtitleText" Text="Fleet, industry and corporation operations"
-                                   Foreground="#66898F"
+                                   Foreground="#ACC7CC"
                                    FontSize="10.5"
                                    Margin="0,2,0,0"/>
                     </StackPanel>
@@ -422,12 +404,12 @@
                 <Border Grid.Row="0"
                         Visibility="Collapsed"
                         Background="#07171D"
-                        BorderBrush="#173A43"
+                        BorderBrush="#315463"
                         BorderThickness="0,0,0,1"
                         Padding="12,8">
                     <DockPanel>
                         <TextBlock Text="WORKSPACE"
-                                   Foreground="#55777D"
+                                   Foreground="#A0BFC6"
                                    FontSize="9"
                                    FontWeight="Bold"
                                    VerticalAlignment="Center"
@@ -568,7 +550,7 @@
                                            VerticalAlignment="Center"
                                            Margin="0,0,41,0"/>
                                 <TextBlock Text="ECC // OPS"
-                                           Foreground="#6E9496"
+                                           Foreground="#ACC7CC"
                                            FontSize="9"
                                            HorizontalAlignment="Left"
                                            VerticalAlignment="Bottom"
@@ -648,7 +630,7 @@
                                            Margin="0,12,0,0"/>
 
                                 <Border Background="#08191E"
-                                        BorderBrush="#173A43"
+                                        BorderBrush="#315463"
                                         BorderThickness="1"
                                         CornerRadius="7"
                                         Padding="10"
@@ -737,7 +719,7 @@
 
                                                         <TextBlock Grid.Column="5"
                                                                    Text="{Binding Age}"
-                                                                   Foreground="#6E9496"
+                                                                   Foreground="#ACC7CC"
                                                                    HorizontalAlignment="Right"
                                                                    VerticalAlignment="Center"/>
                                                     </Grid>
@@ -747,7 +729,7 @@
 
                                         <TextBlock x:Name="MiningLiveEmptyText"
                                                    Text="No mining pulls observed in the last four minutes."
-                                                   Foreground="#6E9496"
+                                                   Foreground="#ACC7CC"
                                                    FontSize="10.5"
                                                    Margin="0,2,0,0"/>
                                     </StackPanel>
@@ -849,7 +831,7 @@
 
                                 <TextBlock x:Name="MoonNextEmptyText"
                                            Text="No future fractures are currently present in the Moon Operations calendar."
-                                           Foreground="#6E9496"
+                                           Foreground="#ACC7CC"
                                            FontSize="10.5"
                                            Margin="0,4,0,0"/>
                             </StackPanel>
@@ -1097,7 +1079,7 @@
                                     <StackPanel Orientation="Horizontal">
                                         <TextBlock Text="&#xEA8F;" Style="{StaticResource IconGlyph}"/>
                                         <TextBlock Style="{StaticResource SectionTitle}"
-                                                   Text="SYSTEM / DATA FRESHNESS"
+                                                   Text="SYSTEM STATUS"
                                                    VerticalAlignment="Center"/>
                                     </StackPanel>
                                     <Button DockPanel.Dock="Right"
@@ -1112,11 +1094,24 @@
                                            Margin="0,12,0,8"
                                            Text="0 active notifications"/>
 
+                                <ItemsControl x:Name="ServiceStatusItems" Margin="0,0,0,8">
+                                    <ItemsControl.ItemTemplate><DataTemplate>
+                                        <Border Background="#091C24" BorderBrush="#315463" BorderThickness="1" CornerRadius="5" Padding="10,7" Margin="0,0,0,5" ToolTip="{Binding Detail}">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions><ColumnDefinition Width="90"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                                <TextBlock Text="{Binding Name}" Foreground="#F2FFFD" FontWeight="SemiBold" FontSize="13"/>
+                                                <TextBlock Grid.Column="1" Text="{Binding Detail}" Foreground="#BDD3D8" Margin="8,0" TextTrimming="CharacterEllipsis" FontSize="12"/>
+                                                <TextBlock Grid.Column="2" Text="{Binding Status}" Foreground="{Binding Tone}" FontWeight="Bold" FontSize="11"/>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate></ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                                <Button Content="REFRESH DATA" Click="Refresh_Click" Style="{StaticResource DashboardActionButton}" HorizontalAlignment="Left" Margin="0,0,0,8"/>
                                 <TextBlock x:Name="FreshnessDetailText"
-                                           Foreground="#8BB0B2"
+                                           Foreground="#BDD3D8"
                                            TextWrapping="Wrap"
                                            LineHeight="19"
-                                           Text="Loading service freshness..."/>
+                                           Text="Latest successful checks. Individual pilots and colonies can have older snapshots."/>
                             </StackPanel>
                         </Border>
                     </Grid>
@@ -1127,7 +1122,7 @@
                         Grid.Row="1"
                         Visibility="Collapsed"
                         Background="#061116"
-                        BorderBrush="#173A43"
+                        BorderBrush="#315463"
                         BorderThickness="0"
                         Padding="18,14,18,18"
                         ClipToBounds="True">

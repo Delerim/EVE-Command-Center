@@ -23,10 +23,17 @@ public partial class MiningFleetOverviewWindow : Window
         set => SetValue(CardOrientationProperty, value);
     }
     private readonly OverviewPortraitCache _portraits = new();
+    private void AutoFit_Click(object sender, RoutedEventArgs e)
+    {
+        _prefs.FleetOverviewAutoFit = !_prefs.FleetOverviewAutoFit;
+        ApplyResizeMode();
+        RefreshCards();
+        MiningDashboardPreferencesStore.Save(_prefs);
+    }
     private void Orientation_Click(object sender, RoutedEventArgs e)
     {
         if (_prefs.FleetOverviewVertical) _prefs.FleetOverviewVerticalHeight = Height;
-        else if (_prefs.AllowFleetOverviewResize)
+        else if (!_prefs.FleetOverviewAutoFit)
         {
             _prefs.FleetOverviewWidth = Width;
             _prefs.FleetOverviewHeight = Height;
@@ -51,7 +58,7 @@ public partial class MiningFleetOverviewWindow : Window
             Top = Math.Clamp(double.IsNaN(Top) ? SystemParameters.WorkArea.Top : Top,
                 SystemParameters.WorkArea.Top, Math.Max(SystemParameters.WorkArea.Top, SystemParameters.WorkArea.Bottom - Height));
         }
-        else if (_prefs.AllowFleetOverviewResize)
+        else if (!_prefs.FleetOverviewAutoFit)
         {
             Width = Math.Max(MinWidth, _prefs.FleetOverviewWidth);
             Height = Math.Max(MinHeight, _prefs.FleetOverviewHeight);
@@ -195,7 +202,15 @@ public partial class MiningFleetOverviewWindow : Window
                     RefreshPlexMarketAsync());
             };
 
-        SizeChanged += (_, _) => RefreshCards();
+        SizeChanged += (_, _) =>
+        {
+            if (_prefs.FleetOverviewVertical && _prefs.FleetOverviewAutoFit && !double.IsNaN(Top))
+            {
+                var work = SystemParameters.WorkArea;
+                Top = Math.Clamp(Top, work.Top, Math.Max(work.Top, work.Bottom - ActualHeight));
+            }
+            RefreshCards();
+        };
 
         Closed += (_, _) =>
         {
@@ -210,7 +225,7 @@ public partial class MiningFleetOverviewWindow : Window
             _prefs.FleetOverviewY = Top;
             if (_prefs.FleetOverviewVertical)
                 _prefs.FleetOverviewVerticalHeight = Height;
-            else if (_prefs.AllowFleetOverviewResize)
+            else if (!_prefs.FleetOverviewAutoFit)
             {
                 _prefs.FleetOverviewWidth = Width;
                 _prefs.FleetOverviewHeight = Height;
@@ -1319,7 +1334,7 @@ public partial class MiningFleetOverviewWindow : Window
 
         OverviewHeader.Measure(new System.Windows.Size(double.PositiveInfinity, double.PositiveInfinity));
         MinWidth = _prefs.FleetOverviewVertical ? 260 : Math.Max(620, OverviewHeader.DesiredSize.Width + 24);
-        if (!_prefs.AllowFleetOverviewResize && !_prefs.FleetOverviewVertical)
+        if (_prefs.FleetOverviewAutoFit && !_prefs.FleetOverviewVertical)
         {
             double desiredWidth = minerCount > 0
                 ? windowChrome +
@@ -1362,12 +1377,16 @@ public partial class MiningFleetOverviewWindow : Window
 
     private void ApplyResizeMode()
     {
+        VerticalFitButton.Content = _prefs.FleetOverviewAutoFit ? "AUTO FIT: LOCKED" : "SIZE: MANUAL";
+        HorizontalFitButton.Content = CompactFitButton.Content = VerticalFitButton.Content;
+
         MinerScroll.VerticalScrollBarVisibility = _prefs.FleetOverviewVertical
             ? System.Windows.Controls.ScrollBarVisibility.Auto : System.Windows.Controls.ScrollBarVisibility.Disabled;
         if (_prefs.FleetOverviewVertical)
         {
-            SizeToContent = SizeToContent.Manual;
-            ResizeMode = ResizeMode.CanResizeWithGrip;
+            SizeToContent = _prefs.FleetOverviewAutoFit ? SizeToContent.Height : SizeToContent.Manual;
+            ResizeMode = _prefs.FleetOverviewAutoFit ? ResizeMode.NoResize : ResizeMode.CanResizeWithGrip;
+            if (_prefs.FleetOverviewAutoFit) Width = 260;
             MinHeight = 250;
             MaxHeight = Math.Max(250, SystemParameters.WorkArea.Height);
             if (Height > MaxHeight) Height = MaxHeight;
@@ -1375,7 +1394,7 @@ public partial class MiningFleetOverviewWindow : Window
             return;
         }
 
-        if (_prefs.AllowFleetOverviewResize)
+        if (!_prefs.FleetOverviewAutoFit)
         {
             // Manual mode behaves like a normal window again.
             SizeToContent = SizeToContent.Manual;

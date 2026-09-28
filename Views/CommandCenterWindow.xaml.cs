@@ -956,6 +956,17 @@ public partial class CommandCenterWindow : Window
                   " | completed qualifying buybacks are reused from Buyback Report rules";
     }
 
+    internal sealed record ServiceStatusRow(string Name, string Detail, string Status, string Tone);
+    internal static ServiceStatusRow BuildServiceStatus(string name, DateTimeOffset? updated, string? error = null)
+    {
+        if (!string.IsNullOrWhiteSpace(error))
+            return new(name, error, "CHECK", "#FF9B95");
+        if (!updated.HasValue || updated == default(DateTimeOffset))
+            return new(name, "No successful check recorded", "NOT SYNCED", "#BDD3D8");
+        bool older = DateTimeOffset.UtcNow - updated.Value > TimeSpan.FromMinutes(30);
+        return new(name, "Last checked " + Age(updated), older ? "OLDER DATA" : "RECENT", older ? "#FFD166" : "#74D6C9");
+    }
+
     private void RefreshFreshness(
         BackgroundOperations ops)
     {
@@ -1003,20 +1014,17 @@ public partial class CommandCenterWindow : Window
                 ? null
                 : ops.Contracts.State.LastRefreshUtc;
 
-        FreshnessDetailText.Text =
-            "Mining: live local logs" +
-            Environment.NewLine +
-            "Moons: " +
-            Age(moon) +
-            Environment.NewLine +
-            "Industry: " +
-            Age(industry) +
-            Environment.NewLine +
-            "PI: " +
-            Age(pi) +
-            Environment.NewLine +
-            "Contracts: " +
-            Age(contracts);
+        int industryErrors = ops.Industry.State.Pilots.Count(p => !string.IsNullOrWhiteSpace(p.Error));
+        int piErrors = ops.Planetary.State.Colonies.Count(c => !string.IsNullOrWhiteSpace(c.Error));
+        ServiceStatusItems.ItemsSource = new[]
+        {
+            new ServiceStatusRow("Mining", "Local log monitoring", "LOCAL", "#74D6C9"),
+            BuildServiceStatus("Moons", moon, ops.MoonError),
+            BuildServiceStatus("Industry", industry, industryErrors > 0 ? $"{industryErrors} pilot(s) report a sync issue; open Industry for details" : null),
+            BuildServiceStatus("PI", pi, piErrors > 0 ? $"{piErrors} colony sync issue(s); open PI for details" : null),
+            BuildServiceStatus("Contracts", contracts, ops.Contracts.LastError)
+        };
+        FreshnessDetailText.Text = "Latest successful checks; individual pilots and colonies may have older snapshots. Amber means over 30 minutes, not necessarily an error.";
 
         SidebarFreshnessText.Text =
             $"Moons {AgeShort(moon)} | " +

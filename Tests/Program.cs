@@ -28,6 +28,17 @@ internal static partial class Program
     [STAThread]
     private static void Main(string[] args)
     {
+        if(args.FirstOrDefault() == "--audit-landing")
+        {
+            var appFixture = new System.Windows.Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
+            var shell = new CommandCenterWindow(live:false) { Width=1920, Height=1020, WindowState=WindowState.Normal };
+            ((ItemsControl)shell.FindName("ServiceStatusItems")).ItemsSource = new[] {
+                CommandCenterWindow.BuildServiceStatus("Moons", DateTimeOffset.UtcNow.AddMinutes(-4)),
+                CommandCenterWindow.BuildServiceStatus("Industry", DateTimeOffset.UtcNow.AddHours(-2)),
+                CommandCenterWindow.BuildServiceStatus("PI", null),
+                CommandCenterWindow.BuildServiceStatus("Contracts", null, "Refresh delayed; retained cached data") };
+            Render(shell,args[1]); shell.Close(); return;
+        }
         if (args.FirstOrDefault() is "--audit-ui" or "--audit-vertical")
         {
             var uiApp=new System.Windows.Application{ShutdownMode=ShutdownMode.OnExplicitShutdown};
@@ -41,6 +52,7 @@ internal static partial class Program
             if(args[0] == "--audit-vertical")
             {
                 preferences.CombinedCharacterOverview = true;
+                preferences.FleetOverviewAutoFit = true;
                 preferences.FleetOverviewVertical = true;
                 preferences.CharacterOverviewMiningMode = true;
                 typeof(MiningFleetOverviewWindow).GetMethod("ApplyCombinedMode",flags)!.Invoke(overview,null);
@@ -189,6 +201,10 @@ internal static partial class Program
             landing.FindName("IndustryItems") != null &&
             landing.FindName("PiItems") != null,
             "Command Center workspace host loads without live services");
+        Check(CommandCenterWindow.BuildServiceStatus("test", null).Status == "NOT SYNCED", "System status distinguishes missing data");
+        Check(CommandCenterWindow.BuildServiceStatus("test", DateTimeOffset.UtcNow).Status == "RECENT", "System status labels recent checks");
+        Check(CommandCenterWindow.BuildServiceStatus("test", DateTimeOffset.UtcNow.AddHours(-1)).Status == "OLDER DATA", "System status marks older checks without calling them failures");
+        Check(CommandCenterWindow.BuildServiceStatus("test", DateTimeOffset.UtcNow, "failed").Status == "CHECK", "System status gives errors priority over previous timestamps");
         landing.Close();
         var profitWindow = new MiningDashboardWindow(new StatTrackerService(), new AppSettings());
         var waitingPrice = new TaskCompletionSource<MiningMarketQuote?>();
