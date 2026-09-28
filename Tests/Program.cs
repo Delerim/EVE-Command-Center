@@ -28,7 +28,7 @@ internal static partial class Program
     [STAThread]
     private static void Main(string[] args)
     {
-        if (args.FirstOrDefault() == "--audit-ui")
+        if (args.FirstOrDefault() is "--audit-ui" or "--audit-vertical")
         {
             var uiApp=new System.Windows.Application{ShutdownMode=ShutdownMode.OnExplicitShutdown};
             var overview=CheckCharacterOverview();
@@ -38,6 +38,14 @@ internal static partial class Program
             typeof(MiningFleetOverviewWindow).GetMethod("ApplyCombinedMode",flags)!.Invoke(overview,null);
             typeof(MiningFleetOverviewWindow).GetMethod("RefreshCards",flags)!.Invoke(overview,null);
             Check(((TextBlock)overview.FindName("FleetTodayProfit")).Visibility==Visibility.Visible,"Fleet mining value is visible beside PLEX in the mining header");
+            if(args[0] == "--audit-vertical")
+            {
+                preferences.CombinedCharacterOverview = true;
+                preferences.FleetOverviewVertical = true;
+                typeof(MiningFleetOverviewWindow).GetMethod("ApplyCombinedMode",flags)!.Invoke(overview,null);
+                typeof(MiningFleetOverviewWindow).GetMethod("ApplyOrientation",flags)!.Invoke(overview,null);
+                typeof(MiningFleetOverviewWindow).GetMethod("RefreshCards",flags)!.Invoke(overview,null);
+            }
             Render(overview,args[1]);overview.Close();return;
         }
         if (args.FirstOrDefault() == "--native-preview") { CheckNativeOverviewPreview(args.Skip(1).FirstOrDefault()); return; }

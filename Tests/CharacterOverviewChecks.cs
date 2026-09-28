@@ -6,9 +6,37 @@ using EveCommandCenter.Services;
 using EveCommandCenter.Views;
 internal static partial class Program
 {
+    private static void CheckOverviewPortraitRecovery()
+    {
+        var bitmap = System.Windows.Media.Imaging.BitmapSource.Create(1, 1, 96, 96,
+            System.Windows.Media.PixelFormats.Bgra32, null, new byte[] { 0, 100, 200, 255 }, 4);
+        var encoder = new System.Windows.Media.Imaging.PngBitmapEncoder();
+        encoder.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(bitmap));
+        using var stream = new System.IO.MemoryStream();
+        encoder.Save(stream);
+        int calls = 0;
+        var now = DateTime.UtcNow;
+        using var cache = new OverviewPortraitCache((_, _) =>
+        {
+            calls++;
+            return calls == 1 ? Task.FromException<byte[]>(new System.Net.Http.HttpRequestException("fixture failure"))
+                : Task.FromResult(stream.ToArray());
+        }, () => now);
+        Check(cache.Get("portrait") == null && calls == 1, "Portrait download failures remain cosmetic");
+        cache.Get("portrait");
+        Check(calls == 1, "Portrait retries are delayed rather than repeated every UI refresh");
+        now = now.AddMinutes(2);
+        var recovered = cache.Get("portrait");
+        Check(recovered != null && recovered.IsFrozen && calls == 2, "Portrait recovers after a temporary failure without relinking");
+        Check(ReferenceEquals(recovered, cache.Get("portrait")) && calls == 2, "Successful portraits reuse a decoded image");
+        cache.Dispose();
+        Check(cache.Get("new portrait") == null && calls == 2, "Closed overviews cannot start more portrait downloads");
+    }
+
     private static MiningFleetOverviewWindow CheckCharacterOverview(string finalMode="")
     {
         var tracker=new StatTrackerService();
+        CheckOverviewPortraitRecovery();
         var prefs=new MiningDashboardPreferences{CombinedCharacterOverview=true};
         var clients=new[]{new EveWindow(IntPtr.Zero,"EVE - Pilot A","Pilot A"),new EveWindow(IntPtr.Zero,"EVE - Pilot B","Pilot B"),new EveWindow(IntPtr.Zero,"EVE - Pilot C","Pilot C")};
         var window=new MiningFleetOverviewWindow(tracker,new MiningIdleWatchdogService(tracker),prefs,()=>clients);
@@ -104,6 +132,30 @@ internal static partial class Program
             prefs.CharacterOverviewCombatMode=finalMode;Refresh();
             typeof(MiningFleetOverviewWindow).GetMethod("ApplyCombinedMode",System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic)!.Invoke(window,null);
         }
+        prefs.FleetOverviewVertical = true;
+        var applyOrientation = typeof(MiningFleetOverviewWindow).GetMethod("ApplyOrientation", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!;
+        applyOrientation.Invoke(window, null);
+        Refresh();
+        Check(window.CardOrientation == Orientation.Vertical && window.Width == 260 && window.SizeToContent == SizeToContent.Manual,
+            "Vertical overview keeps card width in a compact bounded sidebar");
+        Check(((ScrollViewer)window.FindName("MinerScroll")).VerticalScrollBarVisibility == ScrollBarVisibility.Auto &&
+            ((FrameworkElement)window.FindName("OverviewHeader")).Visibility == Visibility.Collapsed,
+            "Vertical overview scrolls the fleet and replaces the wide header");
+        var verticalRoot = (FrameworkElement)window.Content;
+        verticalRoot.Measure(new System.Windows.Size(260, 300));
+        verticalRoot.Arrange(new Rect(0, 0, 260, 300));
+        verticalRoot.UpdateLayout();
+        var scroll = (ScrollViewer)window.FindName("MinerScroll");
+        Check(scroll.ExtentHeight > scroll.ViewportHeight && scroll.ScrollableHeight > 0,
+            "A fleet taller than the sidebar remains reachable by vertical scrolling");
+        var saved = System.Text.Json.JsonSerializer.Deserialize<MiningDashboardPreferences>(System.Text.Json.JsonSerializer.Serialize(prefs))!;
+        Check(saved.FleetOverviewVertical && saved.FleetOverviewVerticalHeight == prefs.FleetOverviewVerticalHeight,
+            "Overview orientation and sidebar height survive preference serialization");
+        prefs.FleetOverviewVertical = false;
+        applyOrientation.Invoke(window, null);
+        Refresh();
+        Check(window.CardOrientation == Orientation.Horizontal && window.SizeToContent == SizeToContent.Height,
+            "Switching back restores horizontal automatic sizing");
         return window;
     }
 }

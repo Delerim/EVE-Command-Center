@@ -40,6 +40,8 @@ public sealed class MiningDashboardPreferences
     // Characters not yet present in this list append automatically.
     public List<string> FleetTileOrder { get; set; } = new();
 
+    public bool FleetOverviewVertical { get; set; }
+    public double FleetOverviewVerticalHeight { get; set; } = 850;
     public bool CombinedCharacterOverview { get; set; }
     public bool CharacterOverviewLivePreview { get; set; } = true;
     public string CharacterOverviewCombatMode { get; set; } = "";

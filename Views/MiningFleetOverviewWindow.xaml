@@ -112,6 +112,7 @@
                 </StackPanel>
 
                 <StackPanel x:Name="FullActions" Grid.Column="4" Orientation="Horizontal" VerticalAlignment="Center" Margin="12,0,2,0">
+                    <Button Content="VERTICAL" Click="Orientation_Click" FontSize="10" Margin="0,0,5,0"/>
                     <Button Content="COMMAND CENTER" Height="21" FontSize="10" FontWeight="SemiBold" Click="OpenCommandCenter_Click" Margin="0,0,5,0" ToolTip="Restore the full EVE Command Center dashboard"/>
                     <Button Content="COMBINE PREVIEWS" Height="21" FontSize="10" Click="Combine_Click" Margin="0,0,5,0"/>
                     <Button x:Name="RockToggle" Content="ROCKS OFF" Height="21" Padding="7,1" FontSize="10" Margin="0,0,5,0" Click="RockToggle_Click" ToolTip="Toggle estimated per-laser rock tracking"/>
@@ -124,6 +125,7 @@
                     <Button x:Name="OrderButton" Content="ORDER CLIENTS" MinWidth="58" Height="21" Padding="7,1" FontSize="10" FontWeight="SemiBold" Click="OrderMode_Click" MouseRightButtonUp="OrderButton_MouseRightButtonUp" ToolTip="Click to enable tile reordering, drag tiles left/right, then click DONE. Right-click to reset."/>
                 </StackPanel>
                 <StackPanel x:Name="CompactActions" Grid.Column="4" Orientation="Horizontal" Visibility="Collapsed">
+                    <Button Content="VERTICAL" Click="Orientation_Click" FontSize="10" Margin="0,0,5,0"/>
                     <Button Content="COMMAND CENTER" Height="23" FontSize="10" Margin="0,0,5,0" Click="OpenCommandCenter_Click"/>
                     <Button x:Name="ModeButton" Content="MODE: CHARACTERS" Height="23" FontSize="10" Click="Mode_Click" ToolTip="Choose character, mining, PvE or PvP cards"><Button.ContextMenu><ContextMenu>
                         <MenuItem Header="Characters - previews" Tag="CHARACTERS" Click="OverviewMode_Click"/>
@@ -153,6 +155,39 @@
                         Margin="5,0,0,0"/>
             </Grid>
 
+            <StackPanel x:Name="VerticalHeader" Grid.Row="0" Visibility="Collapsed" Margin="0,0,0,6" MouseLeftButtonDown="Header_MouseLeftButtonDown">
+                <DockPanel Margin="0,0,0,5">
+                    <Button DockPanel.Dock="Right" Content="X" Click="Close_Click" Width="23"/>
+                    <TextBlock Text="CHARACTER OVERVIEW" Foreground="#EAF7F4" FontWeight="SemiBold" VerticalAlignment="Center" FontSize="11"/>
+                </DockPanel>
+                <WrapPanel>
+                    <Button Content="HORIZONTAL" Click="Orientation_Click" FontSize="9" Margin="0,0,4,4"/>
+                    <Button Content="COMMAND CENTER" Click="OpenCommandCenter_Click" FontSize="9" Margin="0,0,0,4"/>
+                    <Button Content="MODE / TOOLS" Click="Tools_Click" FontSize="9" Margin="0,0,4,4"><Button.ContextMenu><ContextMenu>
+                        <MenuItem Header="Combine / separate previews" Click="Combine_Click"/>
+                        <MenuItem Header="Characters" Tag="CHARACTERS" Click="OverviewMode_Click"/>
+                        <MenuItem Header="Mining" Tag="MINING" Click="OverviewMode_Click"/>
+                        <MenuItem Header="PvE" Tag="PVE" Click="OverviewMode_Click"/>
+                        <MenuItem Header="PvP" Tag="PVP" Click="OverviewMode_Click"/>
+                        <MenuItem Header="Toggle live / snapshot" Click="LivePreview_Click"/>
+                        <MenuItem Header="Reorder characters" Click="OrderMode_Click"/>
+                        <Separator/>
+                        <MenuItem Header="Mining dashboard" Click="OpenMiningCommandCenter_Click"/>
+                        <MenuItem Header="Pilots" Click="OpenPilotCommandCenter_Click"/>
+                        <MenuItem Header="Planetary Industry" Click="OpenPlanetary_Click"/>
+                        <MenuItem Header="Industry" Click="OpenIndustry_Click"/>
+                        <MenuItem Header="Moons" Click="OpenMoonReport_Click"/>
+                        <MenuItem Header="Contracts" Click="OpenContracts_Click"/>
+                        <MenuItem Header="Omega" Click="OpenOmega_Click"/>
+                        <MenuItem Header="Notifications" Click="Notifications_Click"/>
+                        <MenuItem Header="Client settings" Click="OpenClientSettings_Click"/>
+                        <MenuItem Header="Settings" Click="OpenPreviewSettings_Click"/>
+                        <MenuItem Header="Cloud backup" Click="OpenCloudBackup_Click"/>
+                        <MenuItem Header="Rock tracking" Click="RockToggle_Click"/>
+                    </ContextMenu></Button.ContextMenu></Button>
+                </WrapPanel>
+                <TextBlock Text="{Binding Text, ElementName=FleetTodayProfit}" Foreground="#64D7B9" FontSize="10" ToolTip="{Binding ToolTip, ElementName=FleetTodayProfit}"/>
+            </StackPanel>
             <ScrollViewer x:Name="MinerScroll"
                           Grid.Row="1"
                           HorizontalScrollBarVisibility="Disabled"
@@ -161,7 +196,7 @@
                 <ItemsControl x:Name="MinerItems">
                     <ItemsControl.ItemsPanel>
                         <ItemsPanelTemplate>
-                            <StackPanel Orientation="Horizontal"/>
+                            <StackPanel Orientation="{Binding CardOrientation, RelativeSource={RelativeSource AncestorType=Window}}"/>
                         </ItemsPanelTemplate>
                     </ItemsControl.ItemsPanel>
 
@@ -170,7 +205,7 @@
                             <Border Width="{Binding CardWidth}" MinHeight="{Binding CardMinHeight}"
                                     VerticalAlignment="Top"
                                     CornerRadius="7" BorderThickness="1.5"
-                                    Padding="8,6" Margin="0,0,6,0"
+                                    Padding="8,6" Margin="0,0,6,6"
                                     AllowDrop="True" ToolTip="{Binding StatusToolTip}"
                                     PreviewMouseLeftButtonDown="Tile_PreviewMouseLeftButtonDown" MouseLeftButtonUp="Tile_MouseLeftButtonUp"
                                     PreviewMouseMove="Tile_PreviewMouseMove"
@@ -318,7 +353,7 @@
                                                 BorderBrush="#315E56"
                                                 BorderThickness="1"
                                                 VerticalAlignment="Top">
-                                            <Image Source="{Binding PortraitUrl}"
+                                            <Image Source="{Binding Portrait}"
                                                    Stretch="UniformToFill"/>
                                         </Border>
 

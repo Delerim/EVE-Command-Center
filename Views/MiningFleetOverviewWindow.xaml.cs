@@ -14,6 +14,50 @@ namespace EveCommandCenter.Views;
 
 public partial class MiningFleetOverviewWindow : Window
 {
+    public static readonly DependencyProperty CardOrientationProperty = DependencyProperty.Register(
+        nameof(CardOrientation), typeof(System.Windows.Controls.Orientation), typeof(MiningFleetOverviewWindow),
+        new PropertyMetadata(System.Windows.Controls.Orientation.Horizontal));
+    public System.Windows.Controls.Orientation CardOrientation
+    {
+        get => (System.Windows.Controls.Orientation)GetValue(CardOrientationProperty);
+        set => SetValue(CardOrientationProperty, value);
+    }
+    private readonly OverviewPortraitCache _portraits = new();
+    private void Orientation_Click(object sender, RoutedEventArgs e)
+    {
+        if (_prefs.FleetOverviewVertical) _prefs.FleetOverviewVerticalHeight = Height;
+        else if (_prefs.AllowFleetOverviewResize)
+        {
+            _prefs.FleetOverviewWidth = Width;
+            _prefs.FleetOverviewHeight = Height;
+        }
+        _prefs.FleetOverviewVertical = !_prefs.FleetOverviewVertical;
+        ApplyOrientation();
+        RefreshCards();
+        MiningDashboardPreferencesStore.Save(_prefs);
+    }
+    private void ApplyOrientation()
+    {
+        bool vertical = _prefs.FleetOverviewVertical;
+        CardOrientation = vertical ? System.Windows.Controls.Orientation.Vertical : System.Windows.Controls.Orientation.Horizontal;
+        OverviewHeader.Visibility = vertical ? Visibility.Collapsed : Visibility.Visible;
+        VerticalHeader.Visibility = vertical ? Visibility.Visible : Visibility.Collapsed;
+        MinWidth = vertical ? 260 : 620;
+        ApplyResizeMode();
+        if (vertical)
+        {
+            Width = 260;
+            Height = Math.Clamp(_prefs.FleetOverviewVerticalHeight, 250, Math.Max(250, SystemParameters.WorkArea.Height));
+            Top = Math.Clamp(double.IsNaN(Top) ? SystemParameters.WorkArea.Top : Top,
+                SystemParameters.WorkArea.Top, Math.Max(SystemParameters.WorkArea.Top, SystemParameters.WorkArea.Bottom - Height));
+        }
+        else if (_prefs.AllowFleetOverviewResize)
+        {
+            Width = Math.Max(MinWidth, _prefs.FleetOverviewWidth);
+            Height = Math.Max(MinHeight, _prefs.FleetOverviewHeight);
+        }
+    }
+
     private readonly BackgroundPilotRefresh _backgroundPilots = BackgroundOperations.Current.Pilots;
     private readonly CloudBackupCoordinator _cloudBackupCoordinator =
         CloudBackupCoordinator.Attach();
@@ -79,6 +123,7 @@ public partial class MiningFleetOverviewWindow : Window
         MiningIdleWatchdogService watchdog,
         MiningDashboardPreferences prefs, Func<EveWindow[]>? clientSource = null)
     {
+        _prefs = prefs;
         _clientSource=clientSource??(()=>RunningApp?.OverviewClients??Array.Empty<EveWindow>());
         InitializeComponent();
         BackgroundOperations.Current.Access.Changed += UpdateAccess;
@@ -88,7 +133,6 @@ public partial class MiningFleetOverviewWindow : Window
         _tracker = tracker;
         RockToggle.Content = tracker.RockTracking.Enabled ? "ROCKS ON" : "ROCKS OFF";
         _watchdog = watchdog;
-        _prefs = prefs;
         IsVisibleChanged += (_,_) => ApplyCombinedMode();
         StateChanged += (_,_) => ApplyCombinedMode();
         ApplyCombinedMode();
@@ -113,7 +157,7 @@ public partial class MiningFleetOverviewWindow : Window
                     if (intel.SyncedUtc > DateTimeOffset.UtcNow.AddDays(-7)) _pilotIntel[intel.CharacterName] = intel;
         }
         catch (Exception ex) { System.Diagnostics.Debug.WriteLine("[Overview cache] " + ex.Message); }
-        ApplyResizeMode();
+        ApplyOrientation();
 
         _timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
         _timer.Tick += (_, _) =>
@@ -155,6 +199,7 @@ public partial class MiningFleetOverviewWindow : Window
 
         Closed += (_, _) =>
         {
+            _portraits.Dispose();
             _timer.Stop();
             RunningApp?.OverviewThumbnails?.SetOverviewCombined(false);
             _previewImages.Clear();
@@ -163,7 +208,9 @@ public partial class MiningFleetOverviewWindow : Window
             _plexMarketTimer.Stop();
             _prefs.FleetOverviewX = Left;
             _prefs.FleetOverviewY = Top;
-            if (_prefs.AllowFleetOverviewResize)
+            if (_prefs.FleetOverviewVertical)
+                _prefs.FleetOverviewVerticalHeight = Height;
+            else if (_prefs.AllowFleetOverviewResize)
             {
                 _prefs.FleetOverviewWidth = Width;
                 _prefs.FleetOverviewHeight = Height;
@@ -542,7 +589,7 @@ public partial class MiningFleetOverviewWindow : Window
         bool enabled=!_tracker.RockTracking.Enabled;
         _tracker.RockTracking.Enable(enabled);
         RockToggle.Content=enabled?"ROCKS ON":"ROCKS OFF";
-        Height=Math.Max(MinHeight,Height+(enabled?85:-85));
+        if (!_prefs.FleetOverviewVertical) Height=Math.Max(MinHeight,Height+(enabled?85:-85));
         RefreshCards();
     }
     private void SetRocks_Click(object sender,RoutedEventArgs e)
@@ -1266,8 +1313,8 @@ public partial class MiningFleetOverviewWindow : Window
                       : "miners");
 
         OverviewHeader.Measure(new System.Windows.Size(double.PositiveInfinity, double.PositiveInfinity));
-        MinWidth = Math.Max(620, OverviewHeader.DesiredSize.Width + 24);
-        if (!_prefs.AllowFleetOverviewResize)
+        MinWidth = _prefs.FleetOverviewVertical ? 260 : Math.Max(620, OverviewHeader.DesiredSize.Width + 24);
+        if (!_prefs.AllowFleetOverviewResize && !_prefs.FleetOverviewVertical)
         {
             double desiredWidth = minerCount > 0
                 ? windowChrome +
@@ -1296,6 +1343,9 @@ public partial class MiningFleetOverviewWindow : Window
                 Left = Math.Max(virtualLeft, virtualRight - Width);
         }
 
+        foreach (var card in ordered)
+            card.Portrait = _portraits.Get(card.PortraitUrl);
+
         // Preserve the visual tree (tooltips, hover and native thumbnail handles) across ticks.
         if (MinerItems.ItemsSource is List<FleetCard> existing &&
             existing.Select(c=>c.Character).SequenceEqual(ordered.Select(c=>c.Character)))
@@ -1307,6 +1357,18 @@ public partial class MiningFleetOverviewWindow : Window
 
     private void ApplyResizeMode()
     {
+        MinerScroll.VerticalScrollBarVisibility = _prefs.FleetOverviewVertical
+            ? System.Windows.Controls.ScrollBarVisibility.Auto : System.Windows.Controls.ScrollBarVisibility.Disabled;
+        if (_prefs.FleetOverviewVertical)
+        {
+            SizeToContent = SizeToContent.Manual;
+            ResizeMode = ResizeMode.CanResizeWithGrip;
+            MinHeight = 250;
+            MaxHeight = double.PositiveInfinity;
+            MinerScroll.HorizontalScrollBarVisibility = System.Windows.Controls.ScrollBarVisibility.Disabled;
+            return;
+        }
+
         if (_prefs.AllowFleetOverviewResize)
         {
             // Manual mode behaves like a normal window again.
@@ -1368,6 +1430,7 @@ public partial class MiningFleetOverviewWindow : Window
     private void OverviewMode_Click(object sender,RoutedEventArgs e)
     {
         if(sender is not System.Windows.Controls.MenuItem item||item.Tag is not string mode)return;
+        _prefs.CombinedCharacterOverview = true;
         _prefs.CharacterOverviewMiningMode=mode=="MINING";
         _prefs.CharacterOverviewCombatMode=mode is "PVE" or "PVP"?mode:"";
         ApplyCombinedMode();MiningDashboardPreferencesStore.Save(_prefs);RefreshCards();
@@ -1552,10 +1615,9 @@ public partial class MiningFleetOverviewWindow : Window
         }
 
         bool placeAfter =
-            e.GetPosition(
-                targetElement).X >
-            targetElement.ActualWidth /
-            2.0;
+            _prefs.FleetOverviewVertical
+                ? e.GetPosition(targetElement).Y > targetElement.ActualHeight / 2.0
+                : e.GetPosition(targetElement).X > targetElement.ActualWidth / 2.0;
 
         PersistFleetTileMove(
             sourceCharacter,
@@ -1780,7 +1842,7 @@ public partial class MiningFleetOverviewWindow : Window
     {
         // Secondary tools now live under TOOLS and the full Command Center.
         OverviewHeader.Measure(new System.Windows.Size(double.PositiveInfinity, double.PositiveInfinity));
-        MinWidth = Math.Max(620, OverviewHeader.DesiredSize.Width + 24);
+        MinWidth = _prefs.FleetOverviewVertical ? 260 : Math.Max(620, OverviewHeader.DesiredSize.Width + 24);
         if (Width < MinWidth) Width = MinWidth;
     }
 
@@ -1844,6 +1906,7 @@ public partial class MiningFleetOverviewWindow : Window
         public double CardWidth { get; set; } = 170;
         public string Character { get; set; } = "";
         public string PortraitUrl { get; set; } = "";
+        public System.Windows.Media.ImageSource? Portrait { get; set; }
         public string ShipText { get; set; } = "";
         public string ShipToolTip { get; set; } = "";
         public string SystemText { get; set; } = "";
