@@ -118,6 +118,8 @@ public sealed class MoonReportService : IDisposable
         }
     }
 
+    public IReadOnlyList<MoonDrillRow> GetDrillSchedule() => MoonDrillSchedule.Build(_state, DateTimeOffset.UtcNow);
+
     public MoonReportSnapshot GetSnapshot()
     {
         return BuildSnapshot(DateTimeOffset.UtcNow);

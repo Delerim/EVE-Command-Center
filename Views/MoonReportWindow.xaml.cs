@@ -40,6 +40,7 @@ public partial class MoonReportWindow : Window
     private DateTime? _expandedMonthDate;
     private bool _closed;
     private bool _busy;
+    private readonly WpfDispatcherTimer _drillTimer = new() { Interval = TimeSpan.FromSeconds(30) };
     private bool _loadingReports;
     private bool _loadingLedger;
 
@@ -48,6 +49,9 @@ public partial class MoonReportWindow : Window
         InitializeComponent();
         _service = BackgroundOperations.Current.Moons;
         _service.Refreshed += OnBackgroundRefresh;
+        _drillTimer.Tick += (_, _) => { if (DrillScheduleTab.IsSelected && !EmbeddedModuleHost.IsInactive(this)) RefreshDrillSchedule(); };
+        _drillTimer.Start();
+        MoonTabs.SelectionChanged += (_, _) => { if (DrillScheduleTab.IsSelected) RefreshDrillSchedule(); };
         DesktopAlertsCheck.IsChecked = _service.DesktopNotificationsEnabled;
         Loaded += Window_Loaded;
         Closed += Window_Closed;
@@ -71,6 +75,7 @@ public partial class MoonReportWindow : Window
 
     private void Window_Closed(object? sender, EventArgs e)
     {
+        _drillTimer.Stop();
         _closed = true;
         _lifetime.Cancel();
         _lifetime.Dispose();
@@ -184,9 +189,26 @@ public partial class MoonReportWindow : Window
             MessageBoxButton.OK, MessageBoxImage.Information);
     }
 
+    private void RefreshDrillSchedule()
+    {
+        var rows = _service.GetDrillSchedule();
+        string search = SearchBox.Text.Trim();
+        var sort = DrillGrid.Items.SortDescriptions.ToArray();
+        long? selected = (DrillGrid.SelectedItem as MoonDrillRow)?.StructureId;
+        DrillGrid.ItemsSource = rows.Where(r => search.Length == 0 || Contains(r.System, search) || Contains(r.Moon, search) || Contains(r.Structure, search)).ToArray();
+        foreach (var description in sort) DrillGrid.Items.SortDescriptions.Add(description);
+        if (selected.HasValue) DrillGrid.SelectedItem = DrillGrid.Items.Cast<MoonDrillRow>().FirstOrDefault(r => r.StructureId == selected);
+
+        DrillSummary.Text = $"{rows.Count} drills | {rows.Count(r => r.NotSet)} not set | {rows.Count(r => r.Status == "RUNNING")} running | {rows.Count(r => r.Status == "READY TO FRACTURE")} ready";
+        DrillFreshness.Text = "All times UTC. Yellow rows have no extraction in the saved ESI response. " +
+            (_snapshot.LastRefreshUtc is { } updated ? $"Snapshot checked {updated:dd MMM yyyy HH:mm} UTC. " : "No successful ESI refresh yet. ") +
+            "Timers update locally; use REFRESH for changed schedules. NOT VISIBLE means the drill is absent from the saved structure list.";
+    }
+
     private void ApplySnapshot(MoonReportSnapshot snapshot)
     {
         _snapshot = snapshot;
+        RefreshDrillSchedule();
         CycleLabel.Text = snapshot.Cycle.Description;
         ScheduledText.Text = snapshot.Cycle.Start.HasValue ? snapshot.Cycle.Fractured.ToString("N0") : "--";
         ActiveText.Text = $"{snapshot.ActiveFieldCount:N0} / {snapshot.ReadyCount:N0}";
@@ -278,7 +300,11 @@ public partial class MoonReportWindow : Window
         ApplyFilters();
     }
 
-    private void SearchBox_TextChanged(object sender, System.Windows.Controls.TextChangedEventArgs e) => ApplyFilters();
+    private void SearchBox_TextChanged(object sender, System.Windows.Controls.TextChangedEventArgs e)
+    {
+        ApplyFilters();
+        if (_service != null && DrillGrid != null) RefreshDrillSchedule();
+    }
 
     private void ApplyFilters()
     {

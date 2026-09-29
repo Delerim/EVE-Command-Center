@@ -28,6 +28,19 @@ internal static partial class Program
     [STAThread]
     private static void Main(string[] args)
     {
+        if(args.FirstOrDefault() == "--audit-drills")
+        {
+            var appFixture = new System.Windows.Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
+            var shell = new MoonReportWindow { Width=1800, Height=900, WindowState=WindowState.Normal };
+            ((TabControl)shell.FindName("MoonTabs")).SelectedItem = shell.FindName("DrillScheduleTab");
+            var now = DateTimeOffset.UtcNow;
+            ((DataGrid)shell.FindName("DrillGrid")).ItemsSource = new[] {
+                new MoonDrillRow(1,"Raren","Raren VI - Moon 3","North refinery","NOT SET","online",null,null,"-","-","-"),
+                new MoonDrillRow(2,"Raren","Raren VI - Moon 9","South refinery","RUNNING","online",now.AddDays(-2),now.AddDays(5),"7d 0h 0m","2d 0h 0m","5d 0h 0m"),
+                new MoonDrillRow(3,"Raren","Raren VII - Moon 5","East refinery","READY TO FRACTURE","online",now.AddDays(-7),now,"7d 0h 0m","7d 0h 0m","0d 0h 0m") };
+            ((TextBlock)shell.FindName("DrillSummary")).Text="3 drills | 1 not set | 1 running | 1 ready";
+            Render(shell,args[1]); shell.Close(); BackgroundOperations.Stop(); return;
+        }
         if(args.FirstOrDefault() == "--audit-landing")
         {
             var appFixture = new System.Windows.Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
@@ -100,6 +113,7 @@ internal static partial class Program
         CheckPreviewStability();
         CheckAuthorizationScopes();
         CheckWindowLayouts();
+        CheckMoonDrillSchedule();
         var piFixture = CheckPlanetary();
         var industryFixture = CheckIndustry();
         CheckSkillPlanning();

@@ -141,6 +141,28 @@
      <DataGridTextColumn Header="SERVICES" Binding="{Binding Services}" Width="1.5*"/>
     </DataGrid.Columns></DataGrid>
    </DockPanel></TabItem>
+   <TabItem x:Name="DrillScheduleTab" Header="DRILL SCHEDULE"><Grid Margin="12">
+    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+    <TextBlock x:Name="DrillSummary" Foreground="#EAF7F7" FontWeight="SemiBold" Margin="0,0,0,8"/>
+    <TextBlock Grid.Row="1" x:Name="DrillFreshness" Foreground="#ACC7CC" TextWrapping="Wrap" Margin="0,0,0,10"/>
+    <DataGrid x:Name="DrillGrid" Grid.Row="2" IsReadOnly="True" AutoGenerateColumns="False" CanUserAddRows="False" EnableRowVirtualization="True" HeadersVisibility="Column">
+     <DataGrid.RowStyle><Style TargetType="DataGridRow"><Setter Property="Background" Value="#102A30"/><Setter Property="Foreground" Value="#EAF7F7"/>
+      <Style.Triggers><DataTrigger Binding="{Binding NotSet}" Value="True"><Setter Property="Background" Value="#493518"/><Setter Property="Foreground" Value="#FFE2A0"/><Setter Property="FontWeight" Value="SemiBold"/></DataTrigger></Style.Triggers>
+     </Style></DataGrid.RowStyle>
+     <DataGrid.Columns>
+      <DataGridTextColumn Header="STATUS" Binding="{Binding Status}" Width="160"/>
+      <DataGridTextColumn Header="SYSTEM" Binding="{Binding System}" Width="110"/>
+      <DataGridTextColumn Header="MOON" Binding="{Binding Moon}" Width="160"/>
+      <DataGridTextColumn Header="STRUCTURE" Binding="{Binding Structure}" Width="*" MinWidth="170"/>
+      <DataGridTextColumn Header="DRILL SERVICE" Binding="{Binding Service}" Width="105"/>
+      <DataGridTextColumn Header="START (UTC)" Binding="{Binding StartText}" Width="145"/>
+      <DataGridTextColumn Header="TOTAL DURATION" Binding="{Binding Duration}" Width="130"/>
+      <DataGridTextColumn Header="ELAPSED" Binding="{Binding Elapsed}" Width="110"/>
+      <DataGridTextColumn Header="REMAINING" Binding="{Binding Remaining}" Width="110"/>
+      <DataGridTextColumn Header="ARRIVAL (UTC)" Binding="{Binding ArrivalText}" Width="145"/>
+     </DataGrid.Columns>
+    </DataGrid>
+   </Grid></TabItem>
   </TabControl>
   <DockPanel Grid.Row="4" Margin="2,9,2,0"><TextBlock x:Name="StatusText" Text="Select a corporation-data toon, then refresh ESI." Foreground="#8FB2B5"/><TextBlock DockPanel.Dock="Right" Text="Moon reader: structures + extractions; Accountant adds ledger access | weeks start Monday" Foreground="#52777B" FontSize="11"/></DockPanel>
  </Grid>
