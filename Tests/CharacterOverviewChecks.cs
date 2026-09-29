@@ -37,6 +37,12 @@ internal static partial class Program
     {
         var tracker=new StatTrackerService();
         CheckOverviewPortraitRecovery();
+        Check(MiningFleetOverviewWindow.RecoverOverviewPosition(new System.Drawing.Rectangle(80,-120,260,980),new System.Drawing.Rectangle(0,0,1920,1020)).Y == 0,
+            "Off-screen overview header is restored on a 1920 by 1020 work area");
+        Check(MiningFleetOverviewWindow.RecoverOverviewPosition(new System.Drawing.Rectangle(-1850,-50,260,900),new System.Drawing.Rectangle(-1920,0,1920,1020)) == new System.Drawing.Point(-1850,0),
+            "Overview recovery preserves the current secondary monitor");
+        Check(MiningFleetOverviewWindow.RecoverOverviewPosition(new System.Drawing.Rectangle(1900,900,260,1500),new System.Drawing.Rectangle(0,0,1920,1020)) == new System.Drawing.Point(1660,0),
+            "Oversized overview keeps its header reachable instead of aligning its bottom off-screen");
         var prefs=new MiningDashboardPreferences{CombinedCharacterOverview=true, FleetOverviewAutoFit=false};
         var clients=new[]{new EveWindow(IntPtr.Zero,"EVE - Pilot A","Pilot A"),new EveWindow(IntPtr.Zero,"EVE - Pilot B","Pilot B"),new EveWindow(IntPtr.Zero,"EVE - Pilot C","Pilot C")};
         var window=new MiningFleetOverviewWindow(tracker,new MiningIdleWatchdogService(tracker),prefs,()=>clients);

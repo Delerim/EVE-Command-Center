@@ -55,14 +55,62 @@ public partial class MiningFleetOverviewWindow : Window
         {
             Width = 260;
             Height = Math.Clamp(_prefs.FleetOverviewVerticalHeight, 250, Math.Max(250, SystemParameters.WorkArea.Height));
-            Top = Math.Clamp(double.IsNaN(Top) ? SystemParameters.WorkArea.Top : Top,
-                SystemParameters.WorkArea.Top, Math.Max(SystemParameters.WorkArea.Top, SystemParameters.WorkArea.Bottom - Height));
+            QueuePositionRecovery();
         }
         else if (!_prefs.FleetOverviewAutoFit)
         {
             Width = Math.Max(MinWidth, _prefs.FleetOverviewWidth);
             Height = Math.Max(MinHeight, _prefs.FleetOverviewHeight);
         }
+    }
+
+    private readonly DispatcherTimer _positionRecovery = new() { Interval = TimeSpan.FromMilliseconds(200) };
+    private bool _draggingOverview;
+    private void QueuePositionRecovery()
+    {
+        _positionRecovery.Stop();
+        _positionRecovery.Start();
+    }
+    internal static System.Drawing.Point RecoverOverviewPosition(System.Drawing.Rectangle bounds, System.Drawing.Rectangle work)
+        => new(Math.Clamp(bounds.Left, work.Left, Math.Max(work.Left, work.Right - bounds.Width)),
+               Math.Clamp(bounds.Top, work.Top, Math.Max(work.Top, work.Bottom - bounds.Height)));
+
+    private double OverviewWorkHeight()
+    {
+        var hwnd = new System.Windows.Interop.WindowInteropHelper(this).Handle;
+        return hwnd == IntPtr.Zero ? SystemParameters.WorkArea.Height
+            : System.Windows.Forms.Screen.FromHandle(hwnd).WorkingArea.Height / EveCommandCenter.Interop.DpiHelper.GetScaleFactor(this);
+    }
+    private void RecoverOverviewPosition()
+    {
+        if (!IsVisible || _draggingOverview || WindowState != WindowState.Normal) return;
+        var hwnd = new System.Windows.Interop.WindowInteropHelper(this).Handle;
+        if (hwnd == IntPtr.Zero || !EveCommandCenter.Interop.User32.GetWindowRect(hwnd, out var rect)) return;
+        var work = System.Windows.Forms.Screen.FromHandle(hwnd).WorkingArea;
+        var bounds = System.Drawing.Rectangle.FromLTRB(rect.Left, rect.Top, rect.Right, rect.Bottom);
+        if (_prefs.FleetOverviewVertical)
+        {
+            double scale = EveCommandCenter.Interop.DpiHelper.GetScaleFactor(this);
+            MaxHeight = Math.Max(MinHeight, work.Height / scale);
+        }
+        var position = RecoverOverviewPosition(bounds, work);
+        if (position.X != bounds.Left || position.Y != bounds.Top)
+            EveCommandCenter.Interop.User32.SetWindowPos(hwnd, IntPtr.Zero, position.X, position.Y, 0, 0,
+                EveCommandCenter.Interop.User32.SWP_NOSIZE | EveCommandCenter.Interop.User32.SWP_NOZORDER | EveCommandCenter.Interop.User32.SWP_NOACTIVATE);
+    }
+    private void RecoverPosition_Click(object sender, RoutedEventArgs e) => RecoverOverviewPosition();
+    private void Overview_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if ((Keyboard.Modifiers & ModifierKeys.Alt) == 0) return;
+        e.Handled = true;
+        MoveOverview();
+    }
+    private void MoveOverview()
+    {
+        _draggingOverview = true;
+        try { DragMove(); }
+        catch (InvalidOperationException) { }
+        finally { _draggingOverview = false; QueuePositionRecovery(); }
     }
 
     private readonly BackgroundPilotRefresh _backgroundPilots = BackgroundOperations.Current.Pilots;
@@ -133,6 +181,8 @@ public partial class MiningFleetOverviewWindow : Window
         _prefs = prefs;
         _clientSource=clientSource??(()=>RunningApp?.OverviewClients??Array.Empty<EveWindow>());
         InitializeComponent();
+        _positionRecovery.Tick += (_, _) => { _positionRecovery.Stop(); RecoverOverviewPosition(); };
+        LocationChanged += (_, _) => QueuePositionRecovery();
         BackgroundOperations.Current.Access.Changed += UpdateAccess;
         Closed += (_, _) => BackgroundOperations.Current.Access.Changed -= UpdateAccess;
         UpdateAccess();
@@ -196,6 +246,7 @@ public partial class MiningFleetOverviewWindow : Window
             async (_, _) =>
             {
                 RefreshCards();
+                QueuePositionRecovery();
 
                 await Task.WhenAll(
                     RefreshPilotIntelAsync(),
@@ -204,16 +255,13 @@ public partial class MiningFleetOverviewWindow : Window
 
         SizeChanged += (_, _) =>
         {
-            if (_prefs.FleetOverviewVertical && _prefs.FleetOverviewAutoFit && !double.IsNaN(Top))
-            {
-                var work = SystemParameters.WorkArea;
-                Top = Math.Clamp(Top, work.Top, Math.Max(work.Top, work.Bottom - ActualHeight));
-            }
             RefreshCards();
+            QueuePositionRecovery();
         };
 
         Closed += (_, _) =>
         {
+            _positionRecovery.Stop();
             _portraits.Dispose();
             _timer.Stop();
             RunningApp?.OverviewThumbnails?.SetOverviewCombined(false);
@@ -1388,7 +1436,7 @@ public partial class MiningFleetOverviewWindow : Window
             ResizeMode = _prefs.FleetOverviewAutoFit ? ResizeMode.NoResize : ResizeMode.CanResizeWithGrip;
             if (_prefs.FleetOverviewAutoFit) Width = 260;
             MinHeight = 250;
-            MaxHeight = Math.Max(250, SystemParameters.WorkArea.Height);
+            MaxHeight = Math.Max(250, OverviewWorkHeight());
             if (Height > MaxHeight) Height = MaxHeight;
             MinerScroll.HorizontalScrollBarVisibility = System.Windows.Controls.ScrollBarVisibility.Disabled;
             return;
@@ -1471,6 +1519,7 @@ public partial class MiningFleetOverviewWindow : Window
     }
     private void Tile_MouseLeftButtonUp(object sender,MouseButtonEventArgs e)
     {
+        if(_draggingOverview || (Keyboard.Modifiers & ModifierKeys.Alt) != 0)return;
         if(!_prefs.CombinedCharacterOverview||_tileReorderMode||sender is not FrameworkElement element||element.DataContext is not FleetCard card||FindVisualParent<System.Windows.Controls.Button>(e.OriginalSource as DependencyObject)!=null)return;
         RunningApp?.OverviewThumbnails?.ActivateEveWindow(IntPtr.Zero,card.Character);e.Handled=true;
     }
@@ -1485,7 +1534,7 @@ public partial class MiningFleetOverviewWindow : Window
     {
         if (e.LeftButton == MouseButtonState.Pressed)
         {
-            try { DragMove(); } catch { }
+            MoveOverview();
         }
     }
 

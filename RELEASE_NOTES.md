@@ -1,6 +1,6 @@
-# EVE Command Center v3.6.15
+# EVE Command Center v3.6.16
 
-- Added AUTO FIT / MANUAL controls to Character Overview. Auto-fit measures content, limits the vertical panel to screen height and disables resize handles; the window can still be moved. The setting shares the existing dashboard resize preference.
-- Improved landing-page contrast with brighter secondary text, clearer panel boundaries and larger section labels. Removed panel hover movement.
-- Replaced the system freshness paragraph with readable service rows showing recent checks, older data, missing snapshots and recorded sync issues, plus a data-refresh action. Age labels describe the latest successful check rather than guaranteeing every pilot has fresh data.
-- Added regression checks for the saved resize lock and system-status classifications.
+- Recover the Character Overview header onto its current monitor after startup, resizing or moving. Position checks use native screen coordinates and the monitor work area, including secondary monitors.
+- Hold Alt and drag anywhere on Character Overview to move it, even when its header is hidden. Right-click the overview for Bring overview onto screen.
+- Use the current monitor's height limit for the vertical sidebar instead of always using the primary display.
+- Added regression checks for off-screen headers, secondary displays and oversized windows.
