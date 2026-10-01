@@ -81,6 +81,9 @@ internal static partial class Program
             Check((IntPtr)thumbField.GetValue(standalone)! != IntPtr.Zero,"Recovered source re-registers its standalone preview");
             standalone.HideWithOverlay();standalone.BringToFront();Pump();
             Check(!standalone.Visible&&!label.IsVisible,"Z-order maintenance cannot resurrect hidden previews");
+            label.Close();
+            standalone.ShowWithOverlay();
+            Check(!standalone.Visible && !label.IsVisible, "Closing the WPF overlay before restoring standalone previews cannot reopen a closed window");
             standalone.Dispose();Check(label.GetHwnd()!=IntPtr.Zero&&!label.IsVisible,"Disposing a preview also closes its text overlay");
         } finally {owner.Close();source.Close();}
         Console.WriteLine($"{_checks} native preview checks passed.");

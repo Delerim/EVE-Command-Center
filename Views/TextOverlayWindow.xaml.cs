@@ -16,10 +16,12 @@ namespace EveCommandCenter.Views;
 public partial class TextOverlayWindow : Window
 {
     private IntPtr _ownHwnd;
+    internal bool IsClosed { get; private set; }
 
     public TextOverlayWindow()
     {
         InitializeComponent();
+        Closed += (_, _) => IsClosed = true;
         SourceInitialized += OnSourceReady;
     }
 

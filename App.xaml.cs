@@ -1291,6 +1291,12 @@ public partial class App : Application
         catch { /* logging must never throw */ }
     }
 
+    internal void PrepareForShutdown()
+    {
+        _isShuttingDown = true;
+        _thumbnailManager?.Dispose();
+    }
+
     private void ExitApplication()
     {
         _isShuttingDown = true;
@@ -1299,7 +1305,8 @@ public partial class App : Application
         _settings?.Save();
 
         Debug.WriteLine("[App:Startup] 🛑 Application exiting");
-        // All service disposal happens in OnExit (triggered by Shutdown)
+        // Stop previews before WPF closes their overlays; remaining services stop in OnExit.
+        PrepareForShutdown();
         Shutdown();
     }
 

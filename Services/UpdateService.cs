@@ -204,6 +204,7 @@ try {{
         Debug.WriteLine("[Update] Updater script launched — shutting down app");
         System.Windows.Application.Current?.Dispatcher.Invoke(() =>
         {
+            (System.Windows.Application.Current as App)?.PrepareForShutdown();
             System.Windows.Application.Current.Shutdown();
         });
     }

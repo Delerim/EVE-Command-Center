@@ -1210,7 +1210,7 @@ public class ThumbnailWindow : Form
 
     public void EnsureOverlayZOrder()
     {
-        if (_textOverlay == null) return;
+        if (IsDisposed || Disposing || _textOverlay == null || _textOverlay.IsClosed) return;
         if (!_textOverlay.IsVisible)
             _textOverlay.Show();
 
@@ -1292,6 +1292,8 @@ public class ThumbnailWindow : Form
 
     public void ShowWithOverlay()
     {
+        // WPF closes overlays before OnExit disposes the native preview manager.
+        if (IsDisposed || Disposing || _textOverlay?.IsClosed == true) return;
         Show();
         _textOverlay?.Show();
         // Re-assert z-order: a plain Show() re-inserts the window at a default

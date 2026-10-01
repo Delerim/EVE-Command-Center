@@ -76,11 +76,13 @@ public sealed class ThumbnailManager : IDisposable
     private bool _primaryHidden = false;
     private bool _overviewCombined;
     private bool _overviewCapture;
+    private bool _disposed;
     private bool PrimarySuppressed => _primaryHidden || _overviewCombined;
     internal event Action<IntPtr>? OverviewForegroundChanged;
     internal FrozenFrame? OverviewFrame(IntPtr hwnd) => _frozenFrames?.GetLastFrame(hwnd);
     internal void SetOverviewCombined(bool enabled, bool capture = true)
     {
+        if (_disposed) return;
         _overviewCapture=enabled&&capture;
         if(_overviewCombined==enabled)return;
         _overviewCombined=enabled;
@@ -373,7 +375,7 @@ public sealed class ThumbnailManager : IDisposable
         // Detect that state and bail before allocating any WPF windows.
         // (Reported by @CatsLiKeDogs, issue #42.)
         var app = Application.Current;
-        if (app == null || app.Dispatcher.HasShutdownStarted || app.Dispatcher.HasShutdownFinished)
+        if (_disposed || app == null || app.Dispatcher.HasShutdownStarted || app.Dispatcher.HasShutdownFinished)
         {
             _pendingWindows.Clear();
             return;
@@ -1597,6 +1599,7 @@ public sealed class ThumbnailManager : IDisposable
     /// </summary>
     private void OnForegroundOrMinimizeEvent(IntPtr hwnd)
     {
+        if (_disposed) return;
         OverviewForegroundChanged?.Invoke(Interop.User32.GetForegroundWindow());
         // Immediately snapshot non-EVE focus so tracking state is correct even
         // if the queued UpdateActiveBorders runs too late to observe the
@@ -1659,6 +1662,7 @@ public sealed class ThumbnailManager : IDisposable
 
     private void UpdateActiveBorders()
     {
+        if (_disposed) return;
         // Skip all heavy Win32/DWM work during drag — prevents contention
         if (_thumbnails.Values.Any(t => t.IsDragging))
             return;
@@ -4484,6 +4488,8 @@ public sealed class ThumbnailManager : IDisposable
 
     public void Dispose()
     {
+        if (_disposed) return;
+        _disposed = true;
         // Don't leave clients muted from auto-solo after we exit.
         try { UnmuteAllClientAudio(); } catch { }
 

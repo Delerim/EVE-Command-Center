@@ -1,7 +1,6 @@
-# EVE Command Center v3.6.19
+# EVE Command Center v3.6.20
 
-- Active-client highlighting now follows foreground-window events and updates immediately after a successful client switch, without waiting for the mining refresh.
-- Replaced the inset green frame with a single outer highlight, keeping mining text clear and preserving alarm colors.
-- Added explicit Live and Snapshot preview choices. Existing configurations switch to Live once on upgrade; subsequent choices are remembered.
-- Live mode uses continuous Windows DWM thumbnails, the same rendering technology as separate previews. Minimized or unresponsive clients still require a fallback.
-- Verified continuous preview pixels with the placement timer stopped; 383 regression checks and 21 native preview checks passed.
+- Fixed update/exit ordering that could restore separate previews after WPF had closed their text overlays, causing a closed-window exception during restart.
+- Stop and dispose preview management before update shutdown; ignore queued foreground work and combined-preview restoration after disposal.
+- Prevent preview display and z-order maintenance from reopening a closed text overlay.
+- Added a native regression for closing an overlay before restoring its preview.
