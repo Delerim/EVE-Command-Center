@@ -1491,7 +1491,10 @@ public partial class MiningFleetOverviewWindow : Window
         FullActions.Visibility=combined?Visibility.Collapsed:Visibility.Visible;
         CompactActions.Visibility=combined?Visibility.Visible:Visibility.Collapsed;
         LiveBadge.Visibility=DayText.Visibility=PlexMarketBorder.Visibility=FleetTodayProfit.Visibility=combined?Visibility.Collapsed:Visibility.Visible;
-        LivePreviewButton.Content=_prefs.CharacterOverviewLivePreview?"PREVIEW: LIVE":"PREVIEW: SNAPSHOT";
+        LivePreviewButton.Content = _prefs.CharacterOverviewLivePreview ? "LIVE PREVIEW: ON" : "ENABLE LIVE PREVIEW";
+        LivePreviewButton.ToolTip = _prefs.CharacterOverviewLivePreview
+            ? "Real-time Windows DWM thumbnails, as used by separate previews. Click for slower snapshots. Minimized or unresponsive clients cannot supply live frames."
+            : "Click to enable real-time Windows DWM thumbnails, as used by separate previews. Snapshot mode updates only periodically.";
         ModeButton.Content="MODE: "+OverviewMode;
     }
     private void Combine_Click(object sender,RoutedEventArgs e)

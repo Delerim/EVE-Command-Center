@@ -125,6 +125,12 @@ internal static partial class Program
         SetVisualState(0,"IDLE",true);
         var border=(Border)System.Windows.Media.VisualTreeHelper.GetChild((ContentPresenter)items.ItemContainerGenerator.ContainerFromIndex(0),0);
         Check(border.BorderBrush.ToString()=="#FFE85C66"&&border.Effect!=null,"An active client's alarm colour remains visible alongside selection feedback");
+        var activePresenter = (ContentPresenter)items.ItemContainerGenerator.ContainerFromIndex(0);
+        var activeOutline = (Border)items.ItemTemplate.FindName("ActiveClientOutline", activePresenter);
+        Check(activeOutline.Visibility == Visibility.Visible && activeOutline.BorderBrush.ToString() == "#FF4DFF88" && !activeOutline.IsHitTestVisible,
+            "Active client has a bright independent green outline without intercepting clicks or hiding its alarm border");
+        SetVisualState(0,"MINING",false);
+        Check(activeOutline.Visibility == Visibility.Collapsed, "Inactive clients lose the green active outline");
         SetVisualState(0,"MINING",true);SetVisualState(1,"IDLE",false);
         foreach(var name in new[]{"_timer","_pilotIntelTimer","_plexMarketTimer"})((DispatcherTimer)typeof(MiningFleetOverviewWindow).GetField(name,System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic)!.GetValue(window)!).Stop();
         if(finalMode.Length>0) {

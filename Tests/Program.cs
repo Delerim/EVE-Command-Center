@@ -28,6 +28,14 @@ internal static partial class Program
     [STAThread]
     private static void Main(string[] args)
     {
+        if(args.FirstOrDefault() == "--audit-active")
+        {
+            var appFixture = new System.Windows.Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
+            var overview = CheckCharacterOverview();
+            var cards = (ItemsControl)overview.FindName("MinerItems");
+            cards.Items[0].GetType().GetProperty("IsActive")!.SetValue(cards.Items[0], true);
+            Render(overview,args[1]); overview.Close(); return;
+        }
         if(args.FirstOrDefault() == "--audit-drills")
         {
             var appFixture = new System.Windows.Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };

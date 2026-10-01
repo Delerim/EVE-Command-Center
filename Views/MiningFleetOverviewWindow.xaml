@@ -177,7 +177,7 @@
                         <MenuItem Header="Mining" Tag="MINING" Click="OverviewMode_Click"/>
                         <MenuItem Header="PvE" Tag="PVE" Click="OverviewMode_Click"/>
                         <MenuItem Header="PvP" Tag="PVP" Click="OverviewMode_Click"/>
-                        <MenuItem Header="Toggle live / snapshot" Click="LivePreview_Click"/>
+                        <MenuItem Header="Toggle real-time / snapshot previews" Click="LivePreview_Click"/>
                         <MenuItem Header="Reorder characters" Click="OrderMode_Click"/>
                         <Separator/>
                         <MenuItem Header="Mining dashboard" Click="OpenMiningCommandCenter_Click"/>
@@ -226,7 +226,7 @@
                                         <Setter Property="Background" Value="#111D1C"/>
                                         <Style.Triggers>
                                             <DataTrigger Binding="{Binding CanSwitch}" Value="True"><Setter Property="Cursor" Value="Hand"/></DataTrigger>
-                                            <DataTrigger Binding="{Binding IsActive}" Value="True"><Setter Property="BorderBrush" Value="#80BFFF"/><Setter Property="Background" Value="#19313D"/><Setter Property="Effect"><Setter.Value><DropShadowEffect Color="#80BFFF" BlurRadius="8" ShadowDepth="0" Opacity="0.75"/></Setter.Value></Setter></DataTrigger>
+                                            <DataTrigger Binding="{Binding IsActive}" Value="True"><Setter Property="BorderBrush" Value="#4DFF88"/><Setter Property="Background" Value="#163024"/><Setter Property="Effect"><Setter.Value><DropShadowEffect Color="#4DFF88" BlurRadius="14" ShadowDepth="0" Opacity="1"/></Setter.Value></Setter></DataTrigger>
                                             <Trigger Property="IsMouseOver" Value="True"><Setter Property="Effect"><Setter.Value><DropShadowEffect Color="#8CEEE2" BlurRadius="9" ShadowDepth="0" Opacity="0.8"/></Setter.Value></Setter></Trigger>
                                             <DataTrigger Binding="{Binding Status}" Value="PVP"><Setter Property="BorderBrush" Value="#AE91E8"/></DataTrigger>
                                             <DataTrigger Binding="{Binding Status}" Value="PVE"><Setter Property="BorderBrush" Value="#78BCD3"/></DataTrigger>
@@ -263,6 +263,15 @@
                                         <RowDefinition Height="Auto"/>
                                     <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
 
+                                    <Border x:Name="ActiveClientOutline" Grid.RowSpan="8" Panel.ZIndex="20"
+                                            Margin="-4,-2,-4,-2" BorderThickness="2.5" CornerRadius="5"
+                                            BorderBrush="#4DFF88" IsHitTestVisible="False">
+                                        <Border.Effect><DropShadowEffect Color="#4DFF88" BlurRadius="10" ShadowDepth="0" Opacity="1"/></Border.Effect>
+                                        <Border.Style><Style TargetType="Border">
+                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                            <Style.Triggers><DataTrigger Binding="{Binding IsActive}" Value="True"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers>
+                                        </Style></Border.Style>
+                                    </Border>
                                     <Border Grid.RowSpan="8"
                                             Margin="-5,-3,-5,-3"
                                             CornerRadius="6"
