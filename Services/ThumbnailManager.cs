@@ -303,7 +303,7 @@ public sealed class ThumbnailManager : IDisposable
 
         // Session timer — 1 second intervals
         _sessionTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
-        _sessionTimer.Tick += (_, _) => { UpdateSessionTimers(); CheckUnderFireExpiry(); };
+        _sessionTimer.Tick += (_, _) => { UpdateSessionTimers(); CheckUnderFireExpiry(); if (AllClientsMuted) ApplyAllClientMute(); };
         _sessionTimer.Start();
 
         // Flash timer — 100ms for urgent, responsive alert flashing (10Hz)
@@ -2770,8 +2770,27 @@ public sealed class ThumbnailManager : IDisposable
     }
 
     /// <summary>Mute every tracked client except the active one (auto-solo).</summary>
+    public bool AllClientsMuted { get; private set; }
+    public void ToggleAllClientAudio()
+    {
+        if (_disposed) return;
+        AllClientsMuted = !AllClientsMuted;
+        if (AllClientsMuted) ApplyAllClientMute();
+        else {
+            UnmuteAllClientAudio();
+            if (_settings.Settings.AutoSoloClientAudio) ApplyAudioSolo(Interop.User32.GetForegroundWindow());
+        }
+    }
+    private void ApplyAllClientMute()
+    {
+        if (_disposed) return;
+        var pids = CollectClientPids(IntPtr.Zero, out _);
+        if (pids.Count > 0) _audio.MuteAll(pids);
+    }
+
     private void ApplyAudioSolo(IntPtr activeHwnd)
     {
+        if (AllClientsMuted) { ApplyAllClientMute(); return; }
         var pids = CollectClientPids(activeHwnd, out uint activePid);
         if (activePid != 0 && pids.Count > 0) _audio.ApplySolo(activePid, pids);
     }
@@ -2779,6 +2798,7 @@ public sealed class ThumbnailManager : IDisposable
     /// <summary>Unmute every tracked client's audio (auto-solo turned off / on exit).</summary>
     public void UnmuteAllClientAudio()
     {
+        if (AllClientsMuted) return;
         var pids = CollectClientPids(IntPtr.Zero, out _);
         if (pids.Count > 0) _audio.UnmuteAll(pids);
     }
@@ -2815,7 +2835,7 @@ public sealed class ThumbnailManager : IDisposable
             {
                 thumb.AudioVolume = percent;   // keep the right-click slider in sync
                 Interop.User32.GetWindowThreadProcessId(hwnd, out uint pid);
-                if (pid != 0) _audio.SetVolume(pid, percent / 100f);
+                if (pid != 0) _audio.SetVolume(pid, percent / 100f, unmute: !AllClientsMuted);
             }
     }
 
@@ -2829,7 +2849,7 @@ public sealed class ThumbnailManager : IDisposable
         if (_settings.Settings.PerClientAudioVolume.TryGetValue(thumb.CharacterName, out var v) && v < 100)
         {
             Interop.User32.GetWindowThreadProcessId(hwnd, out uint p);
-            if (p != 0) _audio.SetVolume(p, v / 100f);
+            if (p != 0) _audio.SetVolume(p, v / 100f, unmute: !AllClientsMuted);
         }
     }
 
@@ -4491,7 +4511,7 @@ public sealed class ThumbnailManager : IDisposable
         if (_disposed) return;
         _disposed = true;
         // Don't leave clients muted from auto-solo after we exit.
-        try { UnmuteAllClientAudio(); } catch { }
+        try { AllClientsMuted = false; UnmuteAllClientAudio(); } catch { }
 
         // Same principle for "cover taskbar" (#99): a client left in the topmost band
         // would keep sitting over the taskbar after Command Center closes, with nothing

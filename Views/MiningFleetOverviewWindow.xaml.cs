@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
@@ -705,6 +705,7 @@ public partial class MiningFleetOverviewWindow : Window
     private bool _refreshingCards;
     private void RefreshCards()
     {
+        UpdateAudioButton();
         if(_refreshingCards)return;
         _refreshingCards=true;
         try{RefreshCardsCore();}finally{_refreshingCards=false;}
@@ -1521,6 +1522,19 @@ public partial class MiningFleetOverviewWindow : Window
         _prefs.CharacterOverviewMiningMode=mode=="MINING";
         _prefs.CharacterOverviewCombatMode=mode is "PVE" or "PVP"?mode:"";
         ApplyCombinedMode();MiningDashboardPreferencesStore.Save(_prefs);RefreshCards();
+    }
+    private void MuteAllClients_Click(object sender, RoutedEventArgs e)
+    {
+        RunningApp?.OverviewThumbnails?.ToggleAllClientAudio();
+        UpdateAudioButton();
+    }
+    private void UpdateAudioButton()
+    {
+        bool muted = RunningApp?.OverviewThumbnails?.AllClientsMuted == true;
+        foreach (var button in new[] { FullMuteButton, CompactMuteButton, VerticalMuteButton }) {
+            button.Content = muted ? "UNMUTE EVE" : "MUTE EVE";
+            button.Foreground = muted ? System.Windows.Media.Brushes.Gold : System.Windows.Media.Brushes.WhiteSmoke;
+        }
     }
     private void LivePreview_Click(object sender, RoutedEventArgs e) => Tools_Click(sender, e);
     private void UseLivePreview_Click(object sender, RoutedEventArgs e) => SetPreviewMode(true);

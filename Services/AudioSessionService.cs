@@ -21,15 +21,18 @@ public sealed class AudioSessionService
         => EnumerateSessions((p, vol) => { if (p == pid) vol.SetMute(mute, ref _noCtx); });
 
     /// <summary>Set volume (0..1) for every audio session owned by <paramref name="pid"/>.</summary>
-    public void SetVolume(uint pid, float level)
+    public void SetVolume(uint pid, float level, bool unmute = true)
     {
         float l = Math.Clamp(level, 0f, 1f);
-        EnumerateSessions((p, vol) => { if (p == pid) { vol.SetMute(false, ref _noCtx); vol.SetMasterVolume(l, ref _noCtx); } });
+        EnumerateSessions((p, vol) => { if (p == pid) { if (unmute) vol.SetMute(false, ref _noCtx); vol.SetMasterVolume(l, ref _noCtx); } });
     }
 
     /// <summary>Mute every client in <paramref name="pids"/> except the active one.</summary>
     public void ApplySolo(uint activePid, HashSet<uint> pids)
         => EnumerateSessions((p, vol) => { if (pids.Contains(p)) vol.SetMute(p != activePid, ref _noCtx); });
+
+    public void MuteAll(HashSet<uint> pids)
+        => EnumerateSessions((p, vol) => { if (pids.Contains(p)) vol.SetMute(true, ref _noCtx); });
 
     /// <summary>Unmute every client in <paramref name="pids"/> (restore on disable/exit).</summary>
     public void UnmuteAll(HashSet<uint> pids)
