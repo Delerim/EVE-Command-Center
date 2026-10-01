@@ -77,6 +77,7 @@ public sealed class ThumbnailManager : IDisposable
     private bool _overviewCombined;
     private bool _overviewCapture;
     private bool PrimarySuppressed => _primaryHidden || _overviewCombined;
+    internal event Action<IntPtr>? OverviewForegroundChanged;
     internal FrozenFrame? OverviewFrame(IntPtr hwnd) => _frozenFrames?.GetLastFrame(hwnd);
     internal void SetOverviewCombined(bool enabled, bool capture = true)
     {
@@ -1596,6 +1597,7 @@ public sealed class ThumbnailManager : IDisposable
     /// </summary>
     private void OnForegroundOrMinimizeEvent(IntPtr hwnd)
     {
+        OverviewForegroundChanged?.Invoke(Interop.User32.GetForegroundWindow());
         // Immediately snapshot non-EVE focus so tracking state is correct even
         // if the queued UpdateActiveBorders runs too late to observe the
         // intermediate state (e.g. rapid alt+tab: switcher + EVE both queue

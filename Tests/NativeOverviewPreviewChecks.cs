@@ -38,6 +38,22 @@ internal static partial class Program
                 var pixel=bitmap.GetPixel(bitmap.Width/2,bitmap.Height/2);
                 Check(pixel.B>150&&pixel.B>pixel.R,"DWM source pixels appear inside the combined surface");
             }
+            // Stop the 250ms placement/health timer: live frames must still advance via DWM.
+            var placementTimer=(DispatcherTimer)typeof(OverviewLivePreview).GetField("_timer",System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.Instance)!.GetValue(view)!;
+            placementTimer.Stop();
+            System.Drawing.Color PreviewPixel()
+            {
+                var center=owner.PointToScreen(new System.Windows.Point(owner.ActualWidth/2,owner.ActualHeight/2));
+                using var bitmap=new System.Drawing.Bitmap(1,1);
+                using(var graphics=System.Drawing.Graphics.FromImage(bitmap))graphics.CopyFromScreen((int)center.X,(int)center.Y,0,0,bitmap.Size);
+                return bitmap.GetPixel(0,0);
+            }
+            source.BackColor=System.Drawing.Color.Red;source.Refresh();Pump();
+            var red=PreviewPixel();
+            source.BackColor=System.Drawing.Color.Lime;source.Refresh();Pump();
+            var green=PreviewPixel();
+            Check(red.R>150 && red.G<100 && green.G>150 && green.R<100 && !placementTimer.IsEnabled,
+                "Live DWM pixels change continuously with the source even while the placement timer is stopped; no snapshot capture is involved");
             view.Enabled=false;Pump();Check(surface.IsDisposed&&Surface()==null,"Disabling live mode disposes its native window and registration");
             view.Enabled=true;Pump();Check(Surface()?.Visible==true,"Live mode can be enabled again without reopening the overview");
             source.WindowState=Forms.FormWindowState.Minimized;Pump();Check(Surface()?.Visible==false&&view.StateText.StartsWith("Minimized"),"Minimized clients expose the snapshot fallback");

@@ -125,12 +125,19 @@ internal static partial class Program
         SetVisualState(0,"IDLE",true);
         var border=(Border)System.Windows.Media.VisualTreeHelper.GetChild((ContentPresenter)items.ItemContainerGenerator.ContainerFromIndex(0),0);
         Check(border.BorderBrush.ToString()=="#FFE85C66"&&border.Effect!=null,"An active client's alarm colour remains visible alongside selection feedback");
-        var activePresenter = (ContentPresenter)items.ItemContainerGenerator.ContainerFromIndex(0);
-        var activeOutline = (Border)items.ItemTemplate.FindName("ActiveClientOutline", activePresenter);
-        Check(activeOutline.Visibility == Visibility.Visible && activeOutline.BorderBrush.ToString() == "#FF4DFF88" && !activeOutline.IsHitTestVisible,
-            "Active client has a bright independent green outline without intercepting clicks or hiding its alarm border");
+        Check(border.Effect is System.Windows.Media.Effects.DropShadowEffect glow && glow.Color.ToString() == "#FF4DFF88",
+            "Active client uses one outer frame with a green glow, keeping red alarm borders visible");
         SetVisualState(0,"MINING",false);
-        Check(activeOutline.Visibility == Visibility.Collapsed, "Inactive clients lose the green active outline");
+        Check(border.Effect == null, "Inactive clients lose the active glow");
+        SetVisualState(0,"MINING",true);
+        Check(border.BorderBrush.ToString() == "#FF4DFF88", "Active mining clients use a clean green outer border");
+        cardType.GetProperty("SourceHwnd")!.SetValue(items.Items[0], new IntPtr(123));
+        cardType.GetProperty("SourceHwnd")!.SetValue(items.Items[1], new IntPtr(456));
+        window.UpdateActiveClient(new IntPtr(456));
+        Check(!(bool)cardType.GetProperty("IsActive")!.GetValue(items.Items[0])! && (bool)cardType.GetProperty("IsActive")!.GetValue(items.Items[1])!,
+            "Foreground events update selection immediately without waiting for the stats timer");
+        window.UpdateActiveClient(IntPtr.Zero);
+        Check(!(bool)cardType.GetProperty("IsActive")!.GetValue(items.Items[1])!, "Non-client focus clears active feedback");
         SetVisualState(0,"MINING",true);SetVisualState(1,"IDLE",false);
         foreach(var name in new[]{"_timer","_pilotIntelTimer","_plexMarketTimer"})((DispatcherTimer)typeof(MiningFleetOverviewWindow).GetField(name,System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic)!.GetValue(window)!).Stop();
         if(finalMode.Length>0) {

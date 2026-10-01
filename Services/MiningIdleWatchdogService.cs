@@ -9,7 +9,7 @@ namespace EveCommandCenter.Services;
 
 public sealed class MiningDashboardPreferences
 {
-    public int PreferencesVersion { get; set; } = 10;
+    public int PreferencesVersion { get; set; } = 11;
 
     public bool JitaEnabled { get; set; } = true;
     public bool AmarrEnabled { get; set; } = true;
@@ -191,7 +191,13 @@ public static class MiningDashboardPreferencesStore
             if (string.IsNullOrWhiteSpace(prefs.MarketOreFilter))
                 prefs.MarketOreFilter = "myhs";
 
-            prefs.PreferencesVersion = 10;
+            if (storedVersion < 11)
+            {
+                // Restore true live previews for the new explicit Live/Snapshot selector.
+                prefs.CharacterOverviewLivePreview = true;
+                changed = true;
+            }
+            prefs.PreferencesVersion = 11;
             prefs.DashboardOpacityPercent = Math.Clamp(prefs.DashboardOpacityPercent, 55, 100);
             prefs.FleetOverviewOpacityPercent = Math.Clamp(prefs.FleetOverviewOpacityPercent, 55, 100);
 

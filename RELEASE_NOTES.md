@@ -1,6 +1,7 @@
-# EVE Command Center v3.6.18
+# EVE Command Center v3.6.19
 
-- Added a bright green outline and glow to the active client in Character Overview, visible in horizontal and vertical layouts.
-- Kept active-client feedback separate from alarm borders so warnings and critical alerts remain visible. The highlight does not intercept clicks.
-- Added regression coverage for active/inactive outline visibility and alarm coexistence.
-- Clarified the preview control: ENABLE LIVE PREVIEW selects the existing real-time Windows DWM thumbnails used by combined mode, while snapshot mode remains available as the slower alternative.
+- Active-client highlighting now follows foreground-window events and updates immediately after a successful client switch, without waiting for the mining refresh.
+- Replaced the inset green frame with a single outer highlight, keeping mining text clear and preserving alarm colors.
+- Added explicit Live and Snapshot preview choices. Existing configurations switch to Live once on upgrade; subsequent choices are remembered.
+- Live mode uses continuous Windows DWM thumbnails, the same rendering technology as separate previews. Minimized or unresponsive clients still require a fallback.
+- Verified continuous preview pixels with the placement timer stopped; 383 regression checks and 21 native preview checks passed.

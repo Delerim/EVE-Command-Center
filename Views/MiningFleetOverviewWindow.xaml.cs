@@ -113,6 +113,14 @@ public partial class MiningFleetOverviewWindow : Window
         finally { _draggingOverview = false; QueuePositionRecovery(); }
     }
 
+    private readonly ThumbnailManager? _focusManager;
+    internal void UpdateActiveClient(IntPtr foreground)
+    {
+        if (!Dispatcher.CheckAccess()) { Dispatcher.BeginInvoke(() => UpdateActiveClient(foreground), DispatcherPriority.Render); return; }
+        foreach (var card in MinerItems.Items.OfType<FleetCard>())
+            card.SetActive(_prefs.CombinedCharacterOverview && foreground != IntPtr.Zero && card.SourceHwnd == foreground);
+    }
+
     private readonly BackgroundPilotRefresh _backgroundPilots = BackgroundOperations.Current.Pilots;
     private readonly CloudBackupCoordinator _cloudBackupCoordinator =
         CloudBackupCoordinator.Attach();
@@ -181,6 +189,8 @@ public partial class MiningFleetOverviewWindow : Window
         _prefs = prefs;
         _clientSource=clientSource??(()=>RunningApp?.OverviewClients??Array.Empty<EveWindow>());
         InitializeComponent();
+        _focusManager = RunningApp?.OverviewThumbnails;
+        if (_focusManager != null) _focusManager.OverviewForegroundChanged += UpdateActiveClient;
         _positionRecovery.Tick += (_, _) => { _positionRecovery.Stop(); RecoverOverviewPosition(); };
         LocationChanged += (_, _) => QueuePositionRecovery();
         BackgroundOperations.Current.Access.Changed += UpdateAccess;
@@ -261,6 +271,7 @@ public partial class MiningFleetOverviewWindow : Window
 
         Closed += (_, _) =>
         {
+            if (_focusManager != null) _focusManager.OverviewForegroundChanged -= UpdateActiveClient;
             _positionRecovery.Stop();
             _portraits.Dispose();
             _timer.Stop();
@@ -1491,10 +1502,10 @@ public partial class MiningFleetOverviewWindow : Window
         FullActions.Visibility=combined?Visibility.Collapsed:Visibility.Visible;
         CompactActions.Visibility=combined?Visibility.Visible:Visibility.Collapsed;
         LiveBadge.Visibility=DayText.Visibility=PlexMarketBorder.Visibility=FleetTodayProfit.Visibility=combined?Visibility.Collapsed:Visibility.Visible;
-        LivePreviewButton.Content = _prefs.CharacterOverviewLivePreview ? "LIVE PREVIEW: ON" : "ENABLE LIVE PREVIEW";
+        LivePreviewButton.Content = _prefs.CharacterOverviewLivePreview ? "PREVIEW: LIVE" : "PREVIEW: SNAPSHOT";
         LivePreviewButton.ToolTip = _prefs.CharacterOverviewLivePreview
-            ? "Real-time Windows DWM thumbnails, as used by separate previews. Click for slower snapshots. Minimized or unresponsive clients cannot supply live frames."
-            : "Click to enable real-time Windows DWM thumbnails, as used by separate previews. Snapshot mode updates only periodically.";
+            ? "Real-time Windows DWM thumbnails, as used by separate previews. Choose Snapshot from the menu for periodic captures. Minimized or unresponsive clients cannot supply live frames."
+            : "Choose Live from the menu to enable real-time Windows DWM thumbnails, as used by separate previews. Snapshot mode updates only periodically.";
         ModeButton.Content="MODE: "+OverviewMode;
     }
     private void Combine_Click(object sender,RoutedEventArgs e)
@@ -1511,10 +1522,15 @@ public partial class MiningFleetOverviewWindow : Window
         _prefs.CharacterOverviewCombatMode=mode is "PVE" or "PVP"?mode:"";
         ApplyCombinedMode();MiningDashboardPreferencesStore.Save(_prefs);RefreshCards();
     }
-    private void LivePreview_Click(object sender,RoutedEventArgs e)
+    private void LivePreview_Click(object sender, RoutedEventArgs e) => Tools_Click(sender, e);
+    private void UseLivePreview_Click(object sender, RoutedEventArgs e) => SetPreviewMode(true);
+    private void UseSnapshotPreview_Click(object sender, RoutedEventArgs e) => SetPreviewMode(false);
+    private void SetPreviewMode(bool live)
     {
-        _prefs.CharacterOverviewLivePreview=!_prefs.CharacterOverviewLivePreview;
-        ApplyCombinedMode();MiningDashboardPreferencesStore.Save(_prefs);RefreshCards();
+        _prefs.CharacterOverviewLivePreview = live;
+        ApplyCombinedMode();
+        MiningDashboardPreferencesStore.Save(_prefs);
+        RefreshCards();
     }
     private void Tools_Click(object sender,RoutedEventArgs e)
     {
@@ -1524,7 +1540,9 @@ public partial class MiningFleetOverviewWindow : Window
     {
         if(_draggingOverview || (Keyboard.Modifiers & ModifierKeys.Alt) != 0)return;
         if(!_prefs.CombinedCharacterOverview||_tileReorderMode||sender is not FrameworkElement element||element.DataContext is not FleetCard card||FindVisualParent<System.Windows.Controls.Button>(e.OriginalSource as DependencyObject)!=null)return;
-        RunningApp?.OverviewThumbnails?.ActivateEveWindow(IntPtr.Zero,card.Character);e.Handled=true;
+        RunningApp?.OverviewThumbnails?.ActivateEveWindow(IntPtr.Zero,card.Character);
+        UpdateActiveClient(EveCommandCenter.Interop.User32.GetForegroundWindow());
+        e.Handled=true;
     }
     private static string AgeText(double seconds)
     {
@@ -1974,6 +1992,12 @@ public partial class MiningFleetOverviewWindow : Window
         public Visibility DetailedMiningVisibility {get;set;} = Visibility.Visible;
         public Visibility CompactMiningVisibility {get;set;} = Visibility.Collapsed;
         public bool IsActive {get;set;}
+        public void SetActive(bool active)
+        {
+            if (IsActive == active) return;
+            IsActive = active;
+            PropertyChanged?.Invoke(this, new System.ComponentModel.PropertyChangedEventArgs(nameof(IsActive)));
+        }
         public Visibility MiningVisibility { get; set; } = Visibility.Visible;
         public Visibility PreviewVisibility { get; set; } = Visibility.Collapsed;
         public System.Windows.Media.ImageSource? Preview { get; set; }

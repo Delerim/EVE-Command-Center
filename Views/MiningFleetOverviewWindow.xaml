@@ -140,7 +140,10 @@
                         <MenuItem Header="PvE - damage and bounties" Tag="PVE" Click="OverviewMode_Click"/>
                         <MenuItem Header="PvP - pressure and recent tackle" Tag="PVP" Click="OverviewMode_Click"/>
                     </ContextMenu></Button.ContextMenu></Button>
-                    <Button x:Name="LivePreviewButton" Content="PREVIEW: SNAPSHOT" Height="23" FontSize="10" Margin="5,0,0,0" Click="LivePreview_Click" ToolTip="Live/snapshot setting for Character mode. Minimized clients retain the last available snapshot."/>
+                    <Button x:Name="LivePreviewButton" Content="PREVIEW: LIVE" Height="23" FontSize="10" Margin="5,0,0,0" Click="LivePreview_Click" ToolTip="Choose real-time DWM previews or periodic snapshots"><Button.ContextMenu><ContextMenu>
+                        <MenuItem Header="Live - real-time DWM" Click="UseLivePreview_Click"/>
+                        <MenuItem Header="Snapshot - periodic captures" Click="UseSnapshotPreview_Click"/>
+                    </ContextMenu></Button.ContextMenu></Button>
                     <Button Content="TOOLS" Height="23" FontSize="10" Margin="5,0" Click="Tools_Click"><Button.ContextMenu><ContextMenu>
                         <MenuItem Header="Mining" Click="OpenMiningCommandCenter_Click"/><MenuItem Header="Pilots" Click="OpenPilotCommandCenter_Click"/><MenuItem Header="Planetary Industry" Click="OpenPlanetary_Click"/><MenuItem Header="Industry" Click="OpenIndustry_Click"/><MenuItem Header="Omega" Click="OpenOmega_Click"/><MenuItem Header="Notifications" Click="Notifications_Click"/><MenuItem Header="Moons" Click="OpenMoonReport_Click"/><MenuItem Header="Contracts" Click="OpenContracts_Click"/><Separator/><MenuItem Header="Settings" Click="OpenClientSettings_Click"/><MenuItem Header="Preview settings" Click="OpenPreviewSettings_Click"/><MenuItem Header="Cloud backup" Click="OpenCloudBackup_Click"/><MenuItem Header="Reorder characters" Click="OrderMode_Click"/><MenuItem Header="Toggle rock tracking" Click="RockToggle_Click"/>
                     </ContextMenu></Button.ContextMenu></Button>
@@ -177,7 +180,7 @@
                         <MenuItem Header="Mining" Tag="MINING" Click="OverviewMode_Click"/>
                         <MenuItem Header="PvE" Tag="PVE" Click="OverviewMode_Click"/>
                         <MenuItem Header="PvP" Tag="PVP" Click="OverviewMode_Click"/>
-                        <MenuItem Header="Toggle real-time / snapshot previews" Click="LivePreview_Click"/>
+                        <MenuItem Header="Live - real-time DWM" Click="UseLivePreview_Click"/><MenuItem Header="Snapshot - periodic captures" Click="UseSnapshotPreview_Click"/>
                         <MenuItem Header="Reorder characters" Click="OrderMode_Click"/>
                         <Separator/>
                         <MenuItem Header="Mining dashboard" Click="OpenMiningCommandCenter_Click"/>
@@ -219,20 +222,25 @@
                                     PreviewMouseMove="Tile_PreviewMouseMove"
                                     DragOver="Tile_DragOver"
                                     Drop="Tile_Drop">
-                                <Border.Triggers><EventTrigger RoutedEvent="MouseLeftButtonDown"><BeginStoryboard><Storyboard><DoubleAnimation Storyboard.TargetProperty="Opacity" To="0.65" Duration="0:0:0.08" AutoReverse="True"/></Storyboard></BeginStoryboard></EventTrigger></Border.Triggers>
+
                                 <Border.Style>
                                     <Style TargetType="Border">
                                         <Setter Property="BorderBrush" Value="#39796C"/>
                                         <Setter Property="Background" Value="#111D1C"/>
                                         <Style.Triggers>
                                             <DataTrigger Binding="{Binding CanSwitch}" Value="True"><Setter Property="Cursor" Value="Hand"/></DataTrigger>
-                                            <DataTrigger Binding="{Binding IsActive}" Value="True"><Setter Property="BorderBrush" Value="#4DFF88"/><Setter Property="Background" Value="#163024"/><Setter Property="Effect"><Setter.Value><DropShadowEffect Color="#4DFF88" BlurRadius="14" ShadowDepth="0" Opacity="1"/></Setter.Value></Setter></DataTrigger>
+
                                             <Trigger Property="IsMouseOver" Value="True"><Setter Property="Effect"><Setter.Value><DropShadowEffect Color="#8CEEE2" BlurRadius="9" ShadowDepth="0" Opacity="0.8"/></Setter.Value></Setter></Trigger>
                                             <DataTrigger Binding="{Binding Status}" Value="PVP"><Setter Property="BorderBrush" Value="#AE91E8"/></DataTrigger>
                                             <DataTrigger Binding="{Binding Status}" Value="PVE"><Setter Property="BorderBrush" Value="#78BCD3"/></DataTrigger>
                                             <DataTrigger Binding="{Binding Status}" Value="MINING">
                                                 <Setter Property="BorderBrush" Value="#38BE91"/>
                                             </DataTrigger>
+                                            <DataTrigger Binding="{Binding Status}" Value="MUTED">
+                                                <Setter Property="BorderBrush" Value="#647D84"/>
+                                                <Setter Property="Background" Value="#162124"/>
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding IsActive}" Value="True"><Setter Property="BorderBrush" Value="#4DFF88"/><Setter Property="Background" Value="#163024"/><Setter Property="Effect"><Setter.Value><DropShadowEffect Color="#4DFF88" BlurRadius="8" ShadowDepth="0" Opacity="0.8"/></Setter.Value></Setter></DataTrigger>
                                             <DataTrigger Binding="{Binding Status}" Value="LATE">
                                                 <Setter Property="BorderBrush" Value="#D8A84A"/>
                                                 <Setter Property="Background" Value="#2A2418"/>
@@ -245,10 +253,7 @@
                                                 <Setter Property="BorderBrush" Value="#E85C66"/>
                                                 <Setter Property="Background" Value="#351B20"/>
                                             </DataTrigger>
-                                            <DataTrigger Binding="{Binding Status}" Value="MUTED">
-                                                <Setter Property="BorderBrush" Value="#647D84"/>
-                                                <Setter Property="Background" Value="#162124"/>
-                                            </DataTrigger>
+
                                         </Style.Triggers>
                                     </Style>
                                 </Border.Style>
@@ -263,15 +268,6 @@
                                         <RowDefinition Height="Auto"/>
                                     <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
 
-                                    <Border x:Name="ActiveClientOutline" Grid.RowSpan="8" Panel.ZIndex="20"
-                                            Margin="-4,-2,-4,-2" BorderThickness="2.5" CornerRadius="5"
-                                            BorderBrush="#4DFF88" IsHitTestVisible="False">
-                                        <Border.Effect><DropShadowEffect Color="#4DFF88" BlurRadius="10" ShadowDepth="0" Opacity="1"/></Border.Effect>
-                                        <Border.Style><Style TargetType="Border">
-                                            <Setter Property="Visibility" Value="Collapsed"/>
-                                            <Style.Triggers><DataTrigger Binding="{Binding IsActive}" Value="True"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers>
-                                        </Style></Border.Style>
-                                    </Border>
                                     <Border Grid.RowSpan="8"
                                             Margin="-5,-3,-5,-3"
                                             CornerRadius="6"
