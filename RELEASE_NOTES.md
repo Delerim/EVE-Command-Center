@@ -1,7 +1,6 @@
-# EVE Command Center v3.6.26
+# EVE Command Center v3.6.27
 
-- Added an independent, movable control tile containing PLEX, mining totals, clocks, mute and overview controls at readable text sizes.
-- Control tile opens at startup; launch the character cards separately with OPEN CHARACTER OVERVIEW. Closing cards keeps the controls running.
-- Remember control tile position and width; controls wrap when resized instead of shrinking their text.
-- Separate previews no longer auto-launch. Use their explicit button when wanted.
-- Settings > General > Also open character cards at startup controls whether cards launch alongside the tile.
+- Redesigned the control tile as Command Deck with a dark draggable title bar, minimize/hide controls, rounded border and shaded sections.
+- Grouped market/mining stats, launch actions and display/audio tools with consistent spacing and readable button sizes.
+- Removed the duplicate Character Overview title and stray close button from the controls.
+- Preserved independent positioning, resizing, startup behavior and character-card controls.

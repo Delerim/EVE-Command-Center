@@ -33,14 +33,14 @@ public partial class MiningFleetOverviewWindow : Window
         VerticalHeader.Visibility = Visibility.Collapsed;
         var launch = new System.Windows.Controls.Button { Content = "OPEN CHARACTER OVERVIEW", Margin = new Thickness(0,0,0,8), Padding = new Thickness(10,5,10,5) };
         launch.Click += (_,_) => { _prefs.CombinedCharacterOverview = true; ApplyCombinedMode(); Show(); WindowState = WindowState.Normal; Activate(); MiningDashboardPreferencesStore.Save(_prefs); };
-        var panel = new System.Windows.Controls.StackPanel();
-        panel.Children.Add(launch); panel.Children.Add(controls);
+        var tileContent = BuildControlTileContent(controls, launch);
         _controlTile = new Window {
-            Title = "EVE Command Center | Controls", Width = Math.Max(380,_prefs.ControlTileWidth),
-            MinWidth = 380, SizeToContent = SizeToContent.Height, ResizeMode = ResizeMode.CanResizeWithGrip,
+            Title = "EVE Command Center | Controls", Width = Math.Max(420,_prefs.ControlTileWidth),
+            MinWidth = 420, SizeToContent = SizeToContent.Height, ResizeMode = ResizeMode.CanResizeWithGrip,
             ShowInTaskbar = true, Topmost = _prefs.FleetOverviewTopmost,
-            Background = System.Windows.Media.Brushes.Black,
-            Content = new System.Windows.Controls.Border { Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(11,20,22)), Padding = new Thickness(12), Child = panel }
+            WindowStyle = WindowStyle.None, AllowsTransparency = true,
+            Background = System.Windows.Media.Brushes.Transparent,
+            Content = tileContent
         };
         _controlTile.Resources = Resources;
         if (_prefs.ControlTileX is double x && _prefs.ControlTileY is double y) {
