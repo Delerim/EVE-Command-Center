@@ -1,6 +1,5 @@
-# EVE Command Center v3.6.24
+# EVE Command Center v3.6.25
 
-- Auto-fit Character Overview now shrinks as clients log off and expands when they return, down to a compact 620-DIP horizontal minimum.
-- Header controls wrap at smaller widths instead of forcing a fleet-sized minimum window width. PLEX and fleet stats remain accessible.
-- Manual sizing remains unchanged; vertical auto-fit continues to follow the remaining cards.
-- Added regression checks for client removal and return resizing.
+- Keep PLEX prices, today's mining value and overview controls together on one horizontal header row.
+- Scale the header down when space is limited instead of wrapping it and increasing overview height.
+- Preserve the compact vertical sidebar and automatic client-count sizing.
