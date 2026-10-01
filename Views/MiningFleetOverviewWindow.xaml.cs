@@ -35,8 +35,8 @@ public partial class MiningFleetOverviewWindow : Window
         launch.Click += (_,_) => { _prefs.CombinedCharacterOverview = true; ApplyCombinedMode(); Show(); WindowState = WindowState.Normal; Activate(); MiningDashboardPreferencesStore.Save(_prefs); };
         var tileContent = BuildControlTileContent(controls, launch);
         _controlTile = new Window {
-            Title = "EVE Command Center | Controls", Width = Math.Max(420,_prefs.ControlTileWidth),
-            MinWidth = 420, SizeToContent = SizeToContent.Height, ResizeMode = ResizeMode.CanResizeWithGrip,
+            Title = "EVE Command Center | Controls", Width = Math.Max(360,_prefs.ControlTileWidth),
+            MinWidth = 360, SizeToContent = SizeToContent.Height, ResizeMode = ResizeMode.CanResizeWithGrip,
             ShowInTaskbar = true, Topmost = _prefs.FleetOverviewTopmost,
             WindowStyle = WindowStyle.None, AllowsTransparency = true,
             Background = System.Windows.Media.Brushes.Transparent,

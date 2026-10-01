@@ -1,7 +1,5 @@
-# EVE Command Center v3.6.28
+# EVE Command Center v3.6.29
 
-- Renamed the control section to Overview Settings and grouped controls into Layout, Card View, Audio & Tools, and More Options.
-- Added consistent two-column button layouts, rounded corners, and hover, pressed and keyboard-focus feedback.
-- Clarified orientation and separate-preview button labels while preserving existing behavior.
-
-- Overview Settings is collapsible and remembers its expanded state. Starts collapsed, keeping market stats and both launch buttons visible.
+- Compacted Command Deck by removing redundant Fleet Control, Market & Mining and Launch headings.
+- Reduced title size, section padding, gaps and launch-button height while keeping stats readable.
+- Lowered the minimum tile width to 360 DIP so it can fit narrower spaces. Existing saved width remains adjustable.
