@@ -254,6 +254,42 @@
                                                 <Setter Property="Background" Value="#351B20"/>
                                             </DataTrigger>
 
+                                            <MultiDataTrigger>
+                                                <MultiDataTrigger.Conditions>
+                                                    <Condition Binding="{Binding AlertPending}" Value="True"/>
+                                                    <Condition Binding="{Binding AlertSeverity}" Value="warning"/>
+                                                </MultiDataTrigger.Conditions>
+                                                <Setter Property="BorderBrush" Value="#FFD34D"/>
+                                                <Setter Property="Background" Value="#302819"/>
+                                                <Setter Property="Effect"><Setter.Value><DropShadowEffect Color="#FFD34D" BlurRadius="8" ShadowDepth="0" Opacity="0.95"/></Setter.Value></Setter>
+                                            </MultiDataTrigger>
+                                            <MultiDataTrigger>
+                                                <MultiDataTrigger.Conditions>
+                                                    <Condition Binding="{Binding AlertPending}" Value="True"/>
+                                                    <Condition Binding="{Binding AlertSeverity}" Value="critical"/>
+                                                </MultiDataTrigger.Conditions>
+                                                <Setter Property="BorderBrush" Value="#FF5264"/>
+                                                <Setter Property="Background" Value="#351B20"/>
+                                                <Setter Property="Effect"><Setter.Value><DropShadowEffect Color="#FF5264" BlurRadius="8" ShadowDepth="0" Opacity="0.95"/></Setter.Value></Setter>
+                                            </MultiDataTrigger>
+                                            <MultiDataTrigger>
+                                                <MultiDataTrigger.Conditions>
+                                                    <Condition Binding="{Binding AlertActive}" Value="True"/>
+                                                    <Condition Binding="{Binding AlertSeverity}" Value="warning"/>
+                                                </MultiDataTrigger.Conditions>
+                                                <Setter Property="BorderBrush" Value="#FFD34D"/>
+                                                <Setter Property="Background" Value="#302819"/>
+                                                <Setter Property="Effect"><Setter.Value><DropShadowEffect Color="#FFD34D" BlurRadius="8" ShadowDepth="0" Opacity="0.95"/></Setter.Value></Setter>
+                                            </MultiDataTrigger>
+                                            <MultiDataTrigger>
+                                                <MultiDataTrigger.Conditions>
+                                                    <Condition Binding="{Binding AlertActive}" Value="True"/>
+                                                    <Condition Binding="{Binding AlertSeverity}" Value="critical"/>
+                                                </MultiDataTrigger.Conditions>
+                                                <Setter Property="BorderBrush" Value="#FF5264"/>
+                                                <Setter Property="Background" Value="#351B20"/>
+                                                <Setter Property="Effect"><Setter.Value><DropShadowEffect Color="#FF5264" BlurRadius="8" ShadowDepth="0" Opacity="0.95"/></Setter.Value></Setter>
+                                            </MultiDataTrigger>
                                         </Style.Triggers>
                                     </Style>
                                 </Border.Style>
@@ -268,58 +304,13 @@
                                         <RowDefinition Height="Auto"/>
                                     <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
 
-                                    <Border Grid.RowSpan="8"
-                                            Margin="-5,-3,-5,-3"
-                                            CornerRadius="6"
-                                            BorderThickness="2"
-                                            Background="Transparent"
-                                            IsHitTestVisible="False"
-                                            Panel.ZIndex="20">
-                                        <Border.Style>
-                                            <Style TargetType="Border">
-                                                <Setter Property="Visibility" Value="Collapsed"/>
-                                                <Setter Property="Opacity" Value="0.55"/>
-                                                <Setter Property="BorderBrush" Value="#66BFD9"/>
-                                                <Style.Triggers>
-                                                    <DataTrigger Binding="{Binding AlertPending}" Value="True">
-                                                        <Setter Property="Visibility" Value="Visible"/>
-                                                    </DataTrigger>
-                                                    <DataTrigger Binding="{Binding AlertSeverity}" Value="warning">
-                                                        <Setter Property="BorderBrush" Value="#E0AE4F"/>
-                                                    </DataTrigger>
-                                                    <DataTrigger Binding="{Binding AlertSeverity}" Value="critical">
-                                                        <Setter Property="BorderBrush" Value="#EF6673"/>
-                                                    </DataTrigger>
-                                                    <DataTrigger Binding="{Binding AlertSeverity}" Value="info">
-                                                        <Setter Property="BorderBrush" Value="#66BFD9"/>
-                                                    </DataTrigger>
-                                                    <DataTrigger Binding="{Binding AlertActive}" Value="True">
-                                                        <Setter Property="Visibility" Value="Visible"/>
-                                                        <DataTrigger.EnterActions>
-                                                            <BeginStoryboard Name="AlertPulseStoryboard">
-                                                                <Storyboard RepeatBehavior="Forever" AutoReverse="True">
-                                                                    <DoubleAnimation Storyboard.TargetProperty="Opacity"
-                                                                                     From="0.35" To="1"
-                                                                                     Duration="0:0:0.45"/>
-                                                                </Storyboard>
-                                                            </BeginStoryboard>
-                                                        </DataTrigger.EnterActions>
-                                                        <DataTrigger.ExitActions>
-                                                            <RemoveStoryboard BeginStoryboardName="AlertPulseStoryboard"/>
-                                                        </DataTrigger.ExitActions>
-                                                    </DataTrigger>
-                                                </Style.Triggers>
-                                            </Style>
-                                        </Border.Style>
-                                    </Border>
-
-                                    <Border Grid.Row="0"
+                                    <Border x:Name="AlertCountBadge" Grid.Row="0"
                                             HorizontalAlignment="Right"
                                             VerticalAlignment="Top"
-                                            MinWidth="18"
-                                            Height="18"
+                                            MinWidth="24"
+                                            Height="22"
                                             Padding="4,0"
-                                            Margin="0,-4,-4,0"
+                                            Margin="0,0,0,0"
                                             CornerRadius="9"
                                             BorderThickness="1"
                                             IsHitTestVisible="False"
@@ -327,31 +318,34 @@
                                         <Border.Style>
                                             <Style TargetType="Border">
                                                 <Setter Property="Visibility" Value="Collapsed"/>
-                                                <Setter Property="Background" Value="#D9233942"/>
+                                                <Setter Property="Background" Value="#66BFD9"/>
                                                 <Setter Property="BorderBrush" Value="#66BFD9"/>
                                                 <Style.Triggers>
                                                     <DataTrigger Binding="{Binding AlertPending}" Value="True">
                                                         <Setter Property="Visibility" Value="Visible"/>
                                                     </DataTrigger>
                                                     <DataTrigger Binding="{Binding AlertSeverity}" Value="warning">
-                                                        <Setter Property="Background" Value="#D93A2F18"/>
+                                                        <Setter Property="Background" Value="#FFD34D"/>
                                                         <Setter Property="BorderBrush" Value="#E0AE4F"/>
                                                     </DataTrigger>
                                                     <DataTrigger Binding="{Binding AlertSeverity}" Value="critical">
-                                                        <Setter Property="Background" Value="#D9411820"/>
+                                                        <Setter Property="Background" Value="#FF5264"/>
                                                         <Setter Property="BorderBrush" Value="#EF6673"/>
                                                     </DataTrigger>
                                                 </Style.Triggers>
                                             </Style>
                                         </Border.Style>
                                         <TextBlock Text="{Binding AlertBadgeText}"
-                                                   Foreground="#FFFFFF"
-                                                   FontSize="9"
+                                                   Foreground="#101719"
+                                                   FontSize="12"
                                                    FontWeight="Bold"
                                                    HorizontalAlignment="Center"
                                                    VerticalAlignment="Center"/>
                                     </Border>
                                     <Grid Grid.Row="0">
+                                        <Grid.Style><Style TargetType="Grid"><Style.Triggers>
+                                            <DataTrigger Binding="{Binding AlertPending}" Value="True"><Setter Property="Margin" Value="0,0,30,0"/></DataTrigger>
+                                        </Style.Triggers></Style></Grid.Style>
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="34"/>
                                             <ColumnDefinition Width="*"/>

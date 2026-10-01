@@ -131,6 +131,19 @@ internal static partial class Program
         Check(border.Effect == null, "Inactive clients lose the active glow");
         SetVisualState(0,"MINING",true);
         Check(border.BorderBrush.ToString() == "#FF4DFF88", "Active mining clients use a clean green outer border");
+        foreach (var (severity, color) in new[] { ("warning", "#FFFFD34D"), ("critical", "#FFFF5264") }) {
+            var next=typeof(object).GetMethod("MemberwiseClone",System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic)!.Invoke(items.Items[0],null)!;
+            cardType.GetProperty("AlertPending")!.SetValue(next,true);
+            cardType.GetProperty("AlertSeverity")!.SetValue(next,severity);
+            cardType.GetProperty("AlertBadgeText")!.SetValue(next,"12");
+            cardType.GetMethod("UpdateFrom")!.Invoke(items.Items[0],new[]{next});FrameHeight();
+            Check(border.BorderBrush.ToString()==color && border.Effect is System.Windows.Media.Effects.DropShadowEffect alarmGlow && alarmGlow.Color.ToString()==color,
+                severity+" unread alerts override the active green border and glow");
+        }
+        var cleared=typeof(object).GetMethod("MemberwiseClone",System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic)!.Invoke(items.Items[0],null)!;
+        cardType.GetProperty("AlertPending")!.SetValue(cleared,false);
+        cardType.GetMethod("UpdateFrom")!.Invoke(items.Items[0],new[]{cleared});FrameHeight();
+        Check(border.BorderBrush.ToString()=="#FF4DFF88", "Acknowledged alerts restore active-client green");
         cardType.GetProperty("SourceHwnd")!.SetValue(items.Items[0], new IntPtr(123));
         cardType.GetProperty("SourceHwnd")!.SetValue(items.Items[1], new IntPtr(456));
         window.UpdateActiveClient(new IntPtr(456));
