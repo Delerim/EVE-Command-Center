@@ -70,6 +70,7 @@ public partial class App : Application
     private readonly List<MediaPlayer> _activeSoundPlayers = new();
 
     private bool _isShuttingDown = false;
+    internal bool IsShuttingDown => _isShuttingDown;
 
     // ── Startup perf logging ──
     private static readonly string _perfLogPath = System.IO.Path.Combine(
@@ -162,8 +163,7 @@ public partial class App : Application
         // 3. Create thumbnail manager
         _thumbnailManager = new ThumbnailManager(_discovery, _settings);
         // Suppress standalone windows before discovery can create them.
-        if (_settings.Settings.SetupCompleted && _settings.Settings.AutoLaunchCharacterOverview &&
-            MiningDashboardPreferencesStore.Load().CombinedCharacterOverview)
+        if (_settings.Settings.SetupCompleted)
             _thumbnailManager.SetOverviewCombined(true, false);
 
 
@@ -407,8 +407,10 @@ public partial class App : Application
             PerfLog($"[Deferred] Tray icon: {deferSw.ElapsedMilliseconds}ms");
 
             // Restore after tracker/watchdog and tray are ready.
-            if (_settings.Settings.SetupCompleted && _settings.Settings.AutoLaunchCharacterOverview)
-                OpenMiningFleetOverview();
+            if (_settings.Settings.SetupCompleted) {
+                _miningIdleWatchdog.Preferences.CombinedCharacterOverview = true;
+                OpenMiningFleetOverview(_settings.Settings.AutoLaunchCharacterOverview);
+            }
 
             _alertHub.Show();
             PerfLog($"[Deferred] AlertHub.Show: {deferSw.ElapsedMilliseconds}ms");
@@ -1065,7 +1067,9 @@ public partial class App : Application
         OpenMiningFleetOverview();
     }
 
-    private void OpenMiningFleetOverview()
+    private void OpenMiningFleetOverview() => OpenMiningFleetOverview(true);
+
+    private void OpenMiningFleetOverview(bool showCards)
     {
         if (_statTracker == null || _miningIdleWatchdog == null) return;
 
@@ -1073,8 +1077,8 @@ public partial class App : Application
         {
             if (_miningFleetOverviewWindow.WindowState == WindowState.Minimized)
                 _miningFleetOverviewWindow.WindowState = WindowState.Normal;
-            _miningFleetOverviewWindow.Show();
-            _miningFleetOverviewWindow.Activate();
+            _miningFleetOverviewWindow.ShowControlTile();
+            if (showCards) { _miningFleetOverviewWindow.Show(); _miningFleetOverviewWindow.Activate(); }
             return;
         }
 
@@ -1091,7 +1095,8 @@ public partial class App : Application
                 _miningOverviewTrayItem.Checked = false;
         };
 
-        _miningFleetOverviewWindow.Show();
+        _miningFleetOverviewWindow.ShowControlTile();
+        if (showCards) _miningFleetOverviewWindow.Show();
     }
 
     internal void ShowCharacterOverview()

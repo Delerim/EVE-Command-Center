@@ -448,10 +448,10 @@
                                 </ComboBox>
                             </StackPanel>
                             <CheckBox x:Name="ChkAutoLaunchCharacterOverview"
-                                      Content="Launch Character Overview at startup using its last mode"
+                                      Content="Also open character cards at startup"
                                       Margin="140,7,0,0" Checked="OnGeneralChanged" Unchecked="OnGeneralChanged"
                                       Foreground="{StaticResource TextPrimaryBrush}"
-                                      ToolTip="Restore combined or separate mode, orientation and preview settings. Combined mode starts without showing separate previews first."/>
+                                      ToolTip="The control tile always opens. Enable this to open character cards too; separate previews require an explicit launch."/>
                             <CheckBox x:Name="ChkMinimizeCommandCenterOnOverviewLaunch"
                                       Content="Minimize Command Center when launching Character Overview"
                                       Margin="140,7,0,0"

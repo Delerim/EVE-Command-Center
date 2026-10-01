@@ -22,6 +22,50 @@ public partial class MiningFleetOverviewWindow : Window
         get => (System.Windows.Controls.Orientation)GetValue(CardOrientationProperty);
         set => SetValue(CardOrientationProperty, value);
     }
+    private Window? _controlTile;
+    private bool _tileClosing;
+    internal void ShowControlTile()
+    {
+        if (_controlTile != null) { _controlTile.Show(); _controlTile.WindowState = WindowState.Normal; return; }
+        var controls = (System.Windows.Controls.Panel)OverviewHeader.Child;
+        OverviewHeader.Child = null;
+        OverviewHeader.Visibility = Visibility.Collapsed;
+        VerticalHeader.Visibility = Visibility.Collapsed;
+        var launch = new System.Windows.Controls.Button { Content = "OPEN CHARACTER OVERVIEW", Margin = new Thickness(0,0,0,8), Padding = new Thickness(10,5,10,5) };
+        launch.Click += (_,_) => { _prefs.CombinedCharacterOverview = true; ApplyCombinedMode(); Show(); WindowState = WindowState.Normal; Activate(); MiningDashboardPreferencesStore.Save(_prefs); };
+        var panel = new System.Windows.Controls.StackPanel();
+        panel.Children.Add(launch); panel.Children.Add(controls);
+        _controlTile = new Window {
+            Title = "EVE Command Center | Controls", Width = Math.Max(380,_prefs.ControlTileWidth),
+            MinWidth = 380, SizeToContent = SizeToContent.Height, ResizeMode = ResizeMode.CanResizeWithGrip,
+            ShowInTaskbar = true, Topmost = _prefs.FleetOverviewTopmost,
+            Background = System.Windows.Media.Brushes.Black,
+            Content = new System.Windows.Controls.Border { Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(11,20,22)), Padding = new Thickness(12), Child = panel }
+        };
+        _controlTile.Resources = Resources;
+        if (_prefs.ControlTileX is double x && _prefs.ControlTileY is double y) {
+            var screen = System.Windows.Forms.Screen.FromPoint(new System.Drawing.Point((int)x,(int)y)).WorkingArea;
+            var safe = RecoverOverviewPosition(new System.Drawing.Rectangle((int)x,(int)y,(int)_controlTile.Width,200),screen);
+            _controlTile.Left = safe.X; _controlTile.Top = safe.Y;
+        }
+        _controlTile.Closing += (_,e) => {
+            if (!_tileClosing && RunningApp?.IsShuttingDown != true) { e.Cancel = true; _controlTile.Hide(); }
+            SaveControlTile();
+        };
+        _controlTile.LocationChanged += (_,_) => SaveControlTile();
+        _controlTile.SizeChanged += (_,_) => SaveControlTile();
+        _controlTile.Show();
+        ApplyCombinedMode();
+        _ = RefreshPlexMarketAsync();
+        RefreshCards();
+    }
+    private void SaveControlTile()
+    {
+        if (_controlTile == null) return;
+        _prefs.ControlTileX = _controlTile.Left; _prefs.ControlTileY = _controlTile.Top;
+        _prefs.ControlTileWidth = _controlTile.Width;
+    }
+
     private readonly OverviewPortraitCache _portraits = new();
     private void AutoFit_Click(object sender, RoutedEventArgs e)
     {
@@ -47,8 +91,8 @@ public partial class MiningFleetOverviewWindow : Window
     {
         bool vertical = _prefs.FleetOverviewVertical;
         CardOrientation = vertical ? System.Windows.Controls.Orientation.Vertical : System.Windows.Controls.Orientation.Horizontal;
-        OverviewHeader.Visibility = vertical ? Visibility.Collapsed : Visibility.Visible;
-        VerticalHeader.Visibility = vertical ? Visibility.Visible : Visibility.Collapsed;
+        OverviewHeader.Visibility = _controlTile != null ? Visibility.Collapsed : vertical ? Visibility.Collapsed : Visibility.Visible;
+        VerticalHeader.Visibility = _controlTile != null ? Visibility.Collapsed : vertical ? Visibility.Visible : Visibility.Collapsed;
         MinWidth = vertical ? 260 : 620;
         ApplyResizeMode();
         if (vertical)
@@ -229,7 +273,7 @@ public partial class MiningFleetOverviewWindow : Window
         _timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
         _timer.Tick += (_, _) =>
         {
-            if(IsVisible && WindowState != WindowState.Minimized) RefreshCards();
+            if ((IsVisible && WindowState != WindowState.Minimized) || _controlTile?.IsVisible == true) RefreshCards();
         };
         _timer.Start();
 
@@ -269,8 +313,11 @@ public partial class MiningFleetOverviewWindow : Window
             QueuePositionRecovery();
         };
 
+        Closing += (_,e) => { if (!_tileClosing && _controlTile != null && RunningApp?.IsShuttingDown != true) { e.Cancel = true; Hide(); MiningDashboardPreferencesStore.Save(_prefs); } };
         Closed += (_, _) =>
         {
+            _tileClosing = true;
+            _controlTile?.Close();
             if (_focusManager != null) _focusManager.OverviewForegroundChanged -= UpdateActiveClient;
             _positionRecovery.Stop();
             _portraits.Dispose();
@@ -1498,7 +1545,7 @@ public partial class MiningFleetOverviewWindow : Window
     private void ApplyCombinedMode()
     {
         bool combined=_prefs.CombinedCharacterOverview;
-        if (IsLoaded || IsVisible) RunningApp?.OverviewThumbnails?.SetOverviewCombined(combined && IsVisible && WindowState!=WindowState.Minimized,OverviewMode=="CHARACTERS"&&!_prefs.CharacterOverviewLivePreview);
+        if (_controlTile != null || IsLoaded || IsVisible) RunningApp?.OverviewThumbnails?.SetOverviewCombined(combined && (_controlTile != null || (IsVisible && WindowState!=WindowState.Minimized)),IsVisible && OverviewMode=="CHARACTERS"&&!_prefs.CharacterOverviewLivePreview);
         FullActions.Visibility=combined?Visibility.Collapsed:Visibility.Visible;
         CompactActions.Visibility=combined?Visibility.Visible:Visibility.Collapsed;
         LiveBadge.Visibility=DayText.Visibility=PlexMarketBorder.Visibility=FleetTodayProfit.Visibility=Visibility.Visible;

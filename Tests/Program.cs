@@ -28,6 +28,21 @@ internal static partial class Program
     [STAThread]
     private static void Main(string[] args)
     {
+        if(args.FirstOrDefault() == "--audit-controls") {
+            var appFixture = new System.Windows.Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
+            var overview = CheckCharacterOverview();
+            overview.ShowControlTile();
+            var tile = (Window)typeof(MiningFleetOverviewWindow).GetField("_controlTile",System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.Instance)!.GetValue(overview)!;
+            Check(tile.IsVisible && !overview.IsVisible, "Control tile opens without launching character cards");
+            overview.Show(); overview.Close();
+            Check(!overview.IsVisible && tile.IsVisible, "Closing character cards keeps controls alive");
+            Check(((FrameworkElement)overview.FindName("OverviewHeader")).Visibility == Visibility.Collapsed, "Card window has no toolbar after controls move to their tile");
+            if(args.Length>1) Render(tile,args[1]);
+            typeof(MiningFleetOverviewWindow).GetField("_tileClosing",System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.Instance)!.SetValue(overview,true);
+            overview.Close();
+            Check(!tile.IsVisible, "Final overview disposal closes the control tile");
+            Console.WriteLine($"{_checks} control tile checks passed."); return;
+        }
         if(args.FirstOrDefault() == "--audit-active")
         {
             var appFixture = new System.Windows.Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
