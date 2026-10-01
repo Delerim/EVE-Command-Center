@@ -43,6 +43,10 @@ internal static partial class Program
             "Overview recovery preserves the current secondary monitor");
         Check(MiningFleetOverviewWindow.RecoverOverviewPosition(new System.Drawing.Rectangle(1900,900,260,1500),new System.Drawing.Rectangle(0,0,1920,1020)) == new System.Drawing.Point(1660,0),
             "Oversized overview keeps its header reachable instead of aligning its bottom off-screen");
+        var startupSettings = new AppSettings { AutoLaunchCharacterOverview = true, MinimizeCommandCenterOnOverviewLaunch = true };
+        var restoredSettings = System.Text.Json.JsonSerializer.Deserialize<AhkConfigRoot>(System.Text.Json.JsonSerializer.Serialize(AhkConfigRoot.FromAppSettings(startupSettings)))!.ToAppSettings();
+        Check(restoredSettings.AutoLaunchCharacterOverview && restoredSettings.MinimizeCommandCenterOnOverviewLaunch,
+            "Overview startup and minimize preferences survive the actual config conversion");
         var prefs=new MiningDashboardPreferences{CombinedCharacterOverview=true, FleetOverviewAutoFit=false};
         var clients=new[]{new EveWindow(IntPtr.Zero,"EVE - Pilot A","Pilot A"),new EveWindow(IntPtr.Zero,"EVE - Pilot B","Pilot B"),new EveWindow(IntPtr.Zero,"EVE - Pilot C","Pilot C")};
         var window=new MiningFleetOverviewWindow(tracker,new MiningIdleWatchdogService(tracker),prefs,()=>clients);
@@ -70,6 +74,9 @@ internal static partial class Program
             return System.Windows.Media.VisualTreeHelper.GetChild(presenter,0) is FrameworkElement element?element.ActualHeight:0;
         }
         double measuredCharacterHeight=FrameHeight();
+        Check(((FrameworkElement)window.FindName("PlexMarketBorder")).Visibility == Visibility.Visible &&
+              ((FrameworkElement)window.FindName("FleetTodayProfit")).Visibility == Visibility.Visible,
+              "Combined overview retains PLEX and fleet value header stats");
         var initial=items.Items[0];
         var cardType=initial.GetType();
 

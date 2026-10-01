@@ -323,6 +323,7 @@ public partial class SettingsWindow : Window
             TxtCycleDelay.Text = S.CycleDelayMs.ToString();
             ChkCycleWhileHeld.IsChecked = S.CycleWhileHeld;
             CmbStartupSettings.SelectedIndex = (int)S.StartupSettings;
+            ChkAutoLaunchCharacterOverview.IsChecked = S.AutoLaunchCharacterOverview;
             ChkMinimizeCommandCenterOnOverviewLaunch.IsChecked = S.MinimizeCommandCenterOnOverviewLaunch;
 
             // UI Scale

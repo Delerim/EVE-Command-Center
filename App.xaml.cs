@@ -161,6 +161,11 @@ public partial class App : Application
 
         // 3. Create thumbnail manager
         _thumbnailManager = new ThumbnailManager(_discovery, _settings);
+        // Suppress standalone windows before discovery can create them.
+        if (_settings.Settings.SetupCompleted && _settings.Settings.AutoLaunchCharacterOverview &&
+            MiningDashboardPreferencesStore.Load().CombinedCharacterOverview)
+            _thumbnailManager.SetOverviewCombined(true, false);
+
 
         // 4. Start stat tracker (needed before thumbnails fire)
         _statTracker = new StatTrackerService(_settings.Settings);
@@ -401,7 +406,9 @@ public partial class App : Application
             SetupTrayIcon();
             PerfLog($"[Deferred] Tray icon: {deferSw.ElapsedMilliseconds}ms");
 
-            // v3.6: Command Center is the startup surface; Character Overview is launched explicitly.
+            // Restore after tracker/watchdog and tray are ready.
+            if (_settings.Settings.SetupCompleted && _settings.Settings.AutoLaunchCharacterOverview)
+                OpenMiningFleetOverview();
 
             _alertHub.Show();
             PerfLog($"[Deferred] AlertHub.Show: {deferSw.ElapsedMilliseconds}ms");
@@ -498,7 +505,7 @@ public partial class App : Application
             landingTimer.Tick += (_, _) =>
             {
                 landingTimer.Stop();
-                ShowCommandCenter();
+                if (!_settings.Settings.AutoLaunchCharacterOverview) ShowCommandCenter();
             };
             landingTimer.Start();
         }

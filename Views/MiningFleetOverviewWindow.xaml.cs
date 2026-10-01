@@ -1499,10 +1499,10 @@ public partial class MiningFleetOverviewWindow : Window
     private void ApplyCombinedMode()
     {
         bool combined=_prefs.CombinedCharacterOverview;
-        RunningApp?.OverviewThumbnails?.SetOverviewCombined(combined && IsVisible && WindowState!=WindowState.Minimized,OverviewMode=="CHARACTERS"&&!_prefs.CharacterOverviewLivePreview);
+        if (IsLoaded || IsVisible) RunningApp?.OverviewThumbnails?.SetOverviewCombined(combined && IsVisible && WindowState!=WindowState.Minimized,OverviewMode=="CHARACTERS"&&!_prefs.CharacterOverviewLivePreview);
         FullActions.Visibility=combined?Visibility.Collapsed:Visibility.Visible;
         CompactActions.Visibility=combined?Visibility.Visible:Visibility.Collapsed;
-        LiveBadge.Visibility=DayText.Visibility=PlexMarketBorder.Visibility=FleetTodayProfit.Visibility=combined?Visibility.Collapsed:Visibility.Visible;
+        LiveBadge.Visibility=DayText.Visibility=PlexMarketBorder.Visibility=FleetTodayProfit.Visibility=Visibility.Visible;
         LivePreviewButton.Content = _prefs.CharacterOverviewLivePreview ? "PREVIEW: LIVE" : "PREVIEW: SNAPSHOT";
         LivePreviewButton.ToolTip = _prefs.CharacterOverviewLivePreview
             ? "Real-time Windows DWM thumbnails, as used by separate previews. Choose Snapshot from the menu for periodic captures. Minimized or unresponsive clients cannot supply live frames."

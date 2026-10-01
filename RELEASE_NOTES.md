@@ -1,6 +1,7 @@
-# EVE Command Center v3.6.22
+# EVE Command Center v3.6.23
 
-- Added MUTE EVE / UNMUTE EVE buttons to horizontal and vertical Character Overview layouts.
-- Mutes tracked EVE audio sessions without changing saved volume levels or other applications such as voice comms.
-- Global mute takes precedence over auto-solo and volume changes, and reapplies while enabled to cover newly created audio sessions.
-- Unmuting resumes auto-solo when enabled. Closing Command Center clears the temporary mute.
+- Restored PLEX buy/sell prices, mining day and today's fleet value in combined Character Overview, with a compact second header row.
+- Added compact PLEX prices to the vertical sidebar while retaining its eleven-client fit at 1020 DIP height.
+- Added Settings > General > Launch Character Overview at startup using its last mode. Restores saved combined/separate mode, orientation and preview preferences instead of opening the landing dashboard.
+- Suppress separate previews before client discovery when restoring combined mode, avoiding the initial standalone preview flash.
+- Fixed config persistence for the existing minimize-Command-Center preference.

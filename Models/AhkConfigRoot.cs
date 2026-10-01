@@ -195,6 +195,8 @@ public class AhkConfigRoot
         s.ShowBroadcastKeyHud = g.ShowBroadcastKeyHud != 0;
         s.BroadcastHudX = g.BroadcastHudX;
         s.BroadcastHudY = g.BroadcastHudY;
+        s.AutoLaunchCharacterOverview = g.AutoLaunchCharacterOverview;
+        s.MinimizeCommandCenterOnOverviewLaunch = g.MinimizeCommandCenterOnOverviewLaunch;
         s.AutoSoloClientAudio = g.AutoSoloClientAudio != 0;
 
         // Eve Manager
@@ -334,6 +336,8 @@ public class AhkConfigRoot
         g.MinimizeDelay = s.MinimizeDelay;
         g.SimpleMode = s.SimpleMode ? 1 : 0;
         g.SetupCompleted = s.SetupCompleted ? 1 : 0;
+        g.AutoLaunchCharacterOverview = s.AutoLaunchCharacterOverview;
+        g.MinimizeCommandCenterOnOverviewLaunch = s.MinimizeCommandCenterOnOverviewLaunch;
         g.StartupSettings = (int)s.StartupSettings;
         g.LastUsedProfile = s.LastUsedProfile;
         g.EnableKeyBlockGuard = s.EnableKeyBlockGuard ? 1 : 0;
@@ -949,6 +953,9 @@ public class AhkGlobalSettings
 
     /// <summary>Auto-open behavior for the Settings window on app launch.
     /// 0 = Off, 1 = Open, 2 = Open minimized to taskbar.</summary>
+    public bool AutoLaunchCharacterOverview { get; set; }
+    public bool MinimizeCommandCenterOnOverviewLaunch { get; set; }
+
     [JsonPropertyName("StartupSettings")]
     public int StartupSettings { get; set; }
 

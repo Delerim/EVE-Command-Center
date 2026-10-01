@@ -76,6 +76,7 @@ public class AppSettings
     /// Optional legacy-style focus behavior. Default false keeps the full
     /// Command Center open when Character Overview is launched.
     /// </summary>
+    public bool AutoLaunchCharacterOverview { get; set; } = false;
     public bool MinimizeCommandCenterOnOverviewLaunch { get; set; } = false;
 
     // ── Debug Logging ───────────────────────────────────────────────
