@@ -1392,8 +1392,7 @@ public partial class MiningFleetOverviewWindow : Window
                       ? "clients"
                       : "miners");
 
-        OverviewHeader.Measure(new System.Windows.Size(double.PositiveInfinity, double.PositiveInfinity));
-        MinWidth = _prefs.FleetOverviewVertical ? 260 : Math.Max(620, OverviewHeader.DesiredSize.Width + 24);
+        MinWidth = _prefs.FleetOverviewVertical ? 260 : 620;
         if (_prefs.FleetOverviewAutoFit && !_prefs.FleetOverviewVertical)
         {
             double desiredWidth = minerCount > 0
@@ -1950,8 +1949,7 @@ public partial class MiningFleetOverviewWindow : Window
     private void UpdateAccess()
     {
         // Secondary tools now live under TOOLS and the full Command Center.
-        OverviewHeader.Measure(new System.Windows.Size(double.PositiveInfinity, double.PositiveInfinity));
-        MinWidth = _prefs.FleetOverviewVertical ? 260 : Math.Max(620, OverviewHeader.DesiredSize.Width + 24);
+        MinWidth = _prefs.FleetOverviewVertical ? 260 : 620;
         if (Width < MinWidth) Width = MinWidth;
     }
 

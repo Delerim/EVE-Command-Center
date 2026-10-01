@@ -73,6 +73,16 @@ internal static partial class Program
             var presenter=(ContentPresenter)items.ItemContainerGenerator.ContainerFromIndex(0);
             return System.Windows.Media.VisualTreeHelper.GetChild(presenter,0) is FrameworkElement element?element.ActualHeight:0;
         }
+        prefs.FleetOverviewAutoFit = true;
+        Refresh();
+        double threeClientWidth = window.Width;
+        var allClients = clients;
+        clients = clients.Take(1).ToArray();Refresh();
+        Check(window.Width < threeClientWidth && items.Items.Count == 1,
+            "Auto-fit shrinks the overview when clients log off instead of retaining the toolbar width");
+        clients = allClients;Refresh();
+        Check(window.Width == threeClientWidth, "Auto-fit expands again when clients return");
+        prefs.FleetOverviewAutoFit = false;
         double measuredCharacterHeight=FrameHeight();
         Check(((FrameworkElement)window.FindName("PlexMarketBorder")).Visibility == Visibility.Visible &&
               ((FrameworkElement)window.FindName("FleetTodayProfit")).Visibility == Visibility.Visible,

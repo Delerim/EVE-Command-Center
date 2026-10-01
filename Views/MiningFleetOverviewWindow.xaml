@@ -30,19 +30,8 @@
                 <RowDefinition Height="*"/>
             </Grid.RowDefinitions>
 
-            <Grid x:Name="OverviewHeader" Grid.Row="0" Margin="2,0,0,6"
+            <WrapPanel x:Name="OverviewHeader" Grid.Row="0" Margin="2,0,0,6"
                   MouseLeftButtonDown="Header_MouseLeftButtonDown">
-                <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="16"/>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
-
                 <TextBlock Grid.Column="0"
                            Text="CHARACTER OVERVIEW"
                            Foreground="#F1F7F5"
@@ -68,7 +57,7 @@
                             Orientation="Horizontal"
                             VerticalAlignment="Center">
 
-                    <TextBlock x:Name="DayText"
+                    <TextBlock x:Name="DayText" Margin="6,0,0,0"
                                Foreground="#7EA99F"
                                FontSize="12"
                                VerticalAlignment="Center"
@@ -117,7 +106,7 @@
                     <TextBlock x:Name="FleetTodayProfit" Foreground="#64D7B9" FontSize="11" FontWeight="SemiBold" Margin="10,0,0,0" VerticalAlignment="Center"/>
                 </WrapPanel>
 
-                <StackPanel x:Name="FullActions" Grid.Column="4" Orientation="Horizontal" VerticalAlignment="Center" Margin="12,0,2,0">
+                <WrapPanel x:Name="FullActions" Grid.Column="4" Orientation="Horizontal" VerticalAlignment="Center" Margin="12,0,2,0">
                     <Button x:Name="FullMuteButton" Content="MUTE EVE" Click="MuteAllClients_Click" FontSize="9" Margin="0,0,4,0" ToolTip="Mute all tracked EVE clients without changing comms or saved volume levels. Click again to unmute."/>
                     <Button x:Name="HorizontalFitButton" Click="AutoFit_Click" FontSize="9" Margin="0,0,5,0" ToolTip="Auto-fit sizes the overview and locks its resize handles. Switch to manual to resize."/>
                     <Button Content="VERTICAL" Click="Orientation_Click" FontSize="10" Margin="0,0,5,0"/>
@@ -131,8 +120,8 @@
                         <MenuItem Header="Client settings" Click="OpenClientSettings_Click"/><MenuItem Header="Preview settings" Click="OpenPreviewSettings_Click"/><MenuItem Header="Cloud backup" Click="OpenCloudBackup_Click"/>
                     </ContextMenu></Button.ContextMenu></Button>
                     <Button x:Name="OrderButton" Content="ORDER CLIENTS" MinWidth="58" Height="21" Padding="7,1" FontSize="10" FontWeight="SemiBold" Click="OrderMode_Click" MouseRightButtonUp="OrderButton_MouseRightButtonUp" ToolTip="Click to enable tile reordering, drag tiles left/right, then click DONE. Right-click to reset."/>
-                </StackPanel>
-                <StackPanel x:Name="CompactActions" Grid.Column="4" Orientation="Horizontal" Visibility="Collapsed">
+                </WrapPanel>
+                <WrapPanel x:Name="CompactActions" Grid.Column="4" Orientation="Horizontal" Visibility="Collapsed">
                     <Button x:Name="CompactFitButton" Click="AutoFit_Click" FontSize="9" Margin="0,0,5,0"/>
                     <Button Content="VERTICAL" Click="Orientation_Click" FontSize="10" Margin="0,0,5,0"/>
                     <Button Content="COMMAND CENTER" Height="23" FontSize="10" Margin="0,0,5,0" Click="OpenCommandCenter_Click"/>
@@ -151,7 +140,7 @@
                         <MenuItem Header="Mining" Click="OpenMiningCommandCenter_Click"/><MenuItem Header="Pilots" Click="OpenPilotCommandCenter_Click"/><MenuItem Header="Planetary Industry" Click="OpenPlanetary_Click"/><MenuItem Header="Industry" Click="OpenIndustry_Click"/><MenuItem Header="Omega" Click="OpenOmega_Click"/><MenuItem Header="Notifications" Click="Notifications_Click"/><MenuItem Header="Moons" Click="OpenMoonReport_Click"/><MenuItem Header="Contracts" Click="OpenContracts_Click"/><Separator/><MenuItem Header="Settings" Click="OpenClientSettings_Click"/><MenuItem Header="Preview settings" Click="OpenPreviewSettings_Click"/><MenuItem Header="Cloud backup" Click="OpenCloudBackup_Click"/><MenuItem Header="Reorder characters" Click="OrderMode_Click"/><MenuItem Header="Toggle rock tracking" Click="RockToggle_Click"/>
                     </ContextMenu></Button.ContextMenu></Button>
                     <Button Content="SEPARATE PREVIEWS" Height="23" FontSize="10" Click="Combine_Click" ToolTip="Restore the independent preview windows"/>
-                </StackPanel>
+                </WrapPanel>
                 <TextBlock x:Name="UpdatedText"
                            Grid.Column="5"
                            Foreground="#6F8F88"
@@ -166,7 +155,7 @@
                         Height="21"
                         Click="Close_Click"
                         Margin="5,0,0,0"/>
-            </Grid>
+            </WrapPanel>
 
             <StackPanel x:Name="VerticalHeader" Grid.Row="0" Visibility="Collapsed" Margin="0,0,0,6" MouseLeftButtonDown="Header_MouseLeftButtonDown">
                 <DockPanel Margin="0,0,0,5">
