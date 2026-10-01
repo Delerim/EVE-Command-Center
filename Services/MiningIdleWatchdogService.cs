@@ -46,6 +46,7 @@ public sealed class MiningDashboardPreferences
         get => !AllowFleetOverviewResize;
         set => AllowFleetOverviewResize = !value;
     }
+    public bool ControlTileSettingsExpanded { get; set; } = false;
     public double? ControlTileX { get; set; }
     public double? ControlTileY { get; set; }
     public double ControlTileWidth { get; set; } = 620;
