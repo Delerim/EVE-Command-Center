@@ -195,6 +195,8 @@ public class AhkConfigRoot
         s.ShowBroadcastKeyHud = g.ShowBroadcastKeyHud != 0;
         s.BroadcastHudX = g.BroadcastHudX;
         s.BroadcastHudY = g.BroadcastHudY;
+        s.OperationsMinerGroups = g.OperationsMinerGroups ?? new();
+        s.OperationsSoloMiners = g.OperationsSoloMiners ?? new();
         s.AutoLaunchCharacterOverview = g.AutoLaunchCharacterOverview;
         s.MinimizeCommandCenterOnOverviewLaunch = g.MinimizeCommandCenterOnOverviewLaunch;
         s.AutoSoloClientAudio = g.AutoSoloClientAudio != 0;
@@ -336,6 +338,8 @@ public class AhkConfigRoot
         g.MinimizeDelay = s.MinimizeDelay;
         g.SimpleMode = s.SimpleMode ? 1 : 0;
         g.SetupCompleted = s.SetupCompleted ? 1 : 0;
+        g.OperationsMinerGroups = s.OperationsMinerGroups;
+        g.OperationsSoloMiners = s.OperationsSoloMiners;
         g.AutoLaunchCharacterOverview = s.AutoLaunchCharacterOverview;
         g.MinimizeCommandCenterOnOverviewLaunch = s.MinimizeCommandCenterOnOverviewLaunch;
         g.StartupSettings = (int)s.StartupSettings;
@@ -953,6 +957,8 @@ public class AhkGlobalSettings
 
     /// <summary>Auto-open behavior for the Settings window on app launch.
     /// 0 = Off, 1 = Open, 2 = Open minimized to taskbar.</summary>
+    public Dictionary<string,List<string>> OperationsMinerGroups { get; set; } = new();
+    public List<string> OperationsSoloMiners { get; set; } = new();
     public bool AutoLaunchCharacterOverview { get; set; }
     public bool MinimizeCommandCenterOnOverviewLaunch { get; set; }
 

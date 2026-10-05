@@ -1,6 +1,7 @@
-# EVE Command Center v3.6.31
+# EVE Command Center v3.6.32
 
-- Changed the bulk alarm control to update each detected non-Orca client's alarm switch directly, instead of layering a global mute over them.
-- All on enables every targeted client, including previously muted clients. Individual switches remain usable after a bulk action.
-- Removed disabled-button styling that turned alarm buttons and Orca drone indicators white.
-- Client alert delivery now respects the same per-character mining alarm mute state. Orca drone suppression remains unchanged.
+- Account Ledger now renders local mining rows, miner grouping and available totals before waiting for ore-price requests.
+- Added bounded price refresh, incomplete-price notices and visible refresh errors instead of silently blank ledger fields.
+- Refresh ledger data when reopening the embedded Contracts module or Account Ledger tab.
+- Fixed saving/loading manual miner groups and solo overrides through the config converter.
+- Added regression checks for pending price requests and group persistence.

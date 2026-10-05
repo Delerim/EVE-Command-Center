@@ -16,8 +16,16 @@ public partial class ContractsWindow : Window
     private IReadOnlyList<EvePilotProfile> _pilots = Array.Empty<EvePilotProfile>();
     private bool _closed;
     private int _accountLedgerRenderVersion;
-    public ContractsWindow()
+    private readonly StatTrackerService? _ledgerStats;
+    private readonly AppSettings? _ledgerSettings;
+    private readonly System.Func<DateTime,DateTime,IReadOnlyList<MiningAggregateRow>>? _ledgerRows;
+    private readonly System.Func<string,Task<MiningMarketQuote?>>? _ledgerQuotes;
+    public ContractsWindow() : this(null,null,null,null) { }
+    internal ContractsWindow(StatTrackerService? stats, AppSettings? settings,
+        System.Func<DateTime,DateTime,IReadOnlyList<MiningAggregateRow>>? rows,
+        System.Func<string,Task<MiningMarketQuote?>>? quotes)
     {
+        _ledgerStats=stats; _ledgerSettings=settings; _ledgerRows=rows; _ledgerQuotes=quotes;
         InitializeComponent();
         ReportDate.SelectedDate = DateTime.UtcNow.Date;
         AccountDate.SelectedDate = DateTime.UtcNow.Date;
@@ -25,6 +33,13 @@ public partial class ContractsWindow : Window
         ToleranceBox.Text = Service.State.TolerancePercent.ToString(CultureInfo.InvariantCulture);
         AlertsCheck.IsChecked = Service.State.NotificationsEnabled;
         Service.Changed += Render;
+        EmbeddedModuleHost.RefreshWhenVisible(this, Render);
+        ContractTabs.SelectionChanged += (_,e) => {
+            if (ReferenceEquals(e.OriginalSource,ContractTabs) &&
+                (ContractTabs.SelectedItem as TabItem)?.Header?.ToString() == "ACCOUNT LEDGER")
+                _ = RenderAccountLedgerAsync();
+        };
+
         Loaded += async (_, _) =>
         {
             try { await LoadPilotsAsync(); Render(); }
@@ -425,7 +440,15 @@ public partial class ContractsWindow : Window
             hasMiner;
     }
 
-    private async Task RenderAccountLedgerAsync()
+    internal async Task RenderAccountLedgerAsync()
+    {
+        try { await RenderAccountLedgerCoreAsync(); }
+        catch (Exception ex) {
+            Debug.WriteLine("[AccountLedger] " + ex);
+            if (!_closed && AccountReportTitle != null) AccountReportTitle.Text = "Account ledger could not refresh: " + ex.Message;
+        }
+    }
+    private async Task RenderAccountLedgerCoreAsync()
     {
         if (_closed ||
             AccountDate == null ||
@@ -439,13 +462,13 @@ public partial class ContractsWindow : Window
             System.Windows.Application.Current as App;
 
         StatTrackerService? stats =
-            app?.OperationsStats;
+            _ledgerStats ?? app?.OperationsStats;
 
         SettingsService? settingsService =
             app?.OperationsSettings;
 
         AppSettings? settings =
-            settingsService?.Settings;
+            _ledgerSettings ?? settingsService?.Settings;
 
         if (stats == null ||
             settings == null)
@@ -474,9 +497,7 @@ public partial class ContractsWindow : Window
                 AccountPeriodName);
 
         IReadOnlyList<MiningAggregateRow> mining =
-            stats.GetMiningHistoryRange(
-                start.Date,
-                end.AddDays(-1).Date);
+            _ledgerRows?.Invoke(start.Date,end.AddDays(-1).Date) ?? stats.GetMiningHistoryRange(start.Date,end.AddDays(-1).Date);
 
         string[] ores =
             mining
@@ -488,127 +509,132 @@ public partial class ContractsWindow : Window
                     StringComparer.OrdinalIgnoreCase)
                 .ToArray();
 
-        try
+        void Publish()
         {
-            await Task.WhenAll(
-                ores.Select(ore =>
-                    stats.EnsureMiningQuoteAsync(ore)));
-        }
-        catch
-        {
-            // Partial market availability is fine.
-        }
+            decimal UnitPrice(string ore)
+            {
+                if (!stats.TryGetMiningQuote(
+                        ore,
+                        out MiningMarketQuote quote) ||
+                    !quote.IsAvailable)
+                    return 0m;
 
-        if (_closed ||
-            version != _accountLedgerRenderVersion)
-            return;
+                double market =
+                    stats.GetMarketUnitPrice(
+                        quote,
+                        settings.MiningCorpBuybackMarket,
+                        settings.MiningCorpBuybackPriceMode);
 
-        decimal UnitPrice(string ore)
-        {
-            if (!stats.TryGetMiningQuote(
-                    ore,
-                    out MiningMarketQuote quote) ||
-                !quote.IsAvailable)
-                return 0m;
+                double rate =
+                    Math.Clamp(
+                        settings.MiningCorpBuybackPercent,
+                        0,
+                        100) /
+                    100.0;
 
-            double market =
-                stats.GetMarketUnitPrice(
-                    quote,
-                    settings.MiningCorpBuybackMarket,
-                    settings.MiningCorpBuybackPriceMode);
-
-            double rate =
-                Math.Clamp(
-                    settings.MiningCorpBuybackPercent,
+                return (decimal)Math.Max(
                     0,
-                    100) /
-                100.0;
+                    market * rate);
+            }
 
-            return (decimal)Math.Max(
-                0,
-                market * rate);
-        }
+            IReadOnlyList<ContractRow> qualifyingBuybacks =
+                BuybackReport.Qualifying(
+                    Service.State.History,
+                    Service.State.CorporationId,
+                    start,
+                    end);
 
-        IReadOnlyList<ContractRow> qualifyingBuybacks =
-            BuybackReport.Qualifying(
-                Service.State.History,
-                Service.State.CorporationId,
-                start,
-                end);
+            OperationsLedgerSummary summary =
+                OperationsLedgerService.Build(
+                    settings,
+                    _pilots,
+                    mining,
+                    qualifyingBuybacks,
+                    UnitPrice);
 
-        OperationsLedgerSummary summary =
-            OperationsLedgerService.Build(
+            object? selectedKey =
+                (AccountLedgerGrid.SelectedItem as OperationsLedgerRow)?
+                    .GroupKey;
+
+            AccountLedgerGrid.ItemsSource =
+                summary.Rows;
+
+            if (selectedKey is string key)
+                AccountLedgerGrid.SelectedItem =
+                    summary.Rows.FirstOrDefault(row =>
+                        string.Equals(
+                            row.GroupKey,
+                            key,
+                            StringComparison.OrdinalIgnoreCase));
+
+            AccountMinedText.Text =
+                OperationsLedgerRow.FormatIsk(
+                    summary.MinedBuybackValue);
+
+            AccountContractedText.Text =
+                OperationsLedgerRow.FormatIsk(
+                    summary.ContractedBackValue);
+
+            AccountGapText.Text =
+                OperationsLedgerRow.FormatIsk(
+                    summary.UncontractedValue);
+
+            AccountGapDetailText.Text =
+                summary.OverRecordedValue > 0
+                    ? OperationsLedgerRow.FormatIsk(
+                          summary.OverRecordedValue) +
+                      " contracted above locally recorded mining"
+                    : "Tracked mining not yet represented by qualifying buybacks";
+
+            AccountCountText.Text =
+                summary.GroupCount.ToString("N0");
+
+            AccountContractCountText.Text =
+                summary.BuybackContracts.ToString("N0") +
+                " qualifying buybacks";
+
+            int miners =
+                mining
+                    .Select(row =>
+                        row.Character)
+                    .Concat(
+                        qualifyingBuybacks.Select(row =>
+                            row.Issuer))
+                    .Where(name =>
+                        !string.IsNullOrWhiteSpace(name))
+                    .Distinct(
+                        StringComparer.OrdinalIgnoreCase)
+                    .Count();
+
+            AccountReportTitle.Text =
+                $"{AccountPeriodName.ToUpperInvariant()} | " +
+                $"{start:dd MMM yyyy} - " +
+                $"{end.AddDays(-1):dd MMM yyyy} | " +
+                $"{miners:N0} miners/sellers";
+
+            int missingPrices = ores.Count(ore => !stats.TryGetMiningQuote(ore,out var quote) || !quote.IsAvailable);
+            if (missingPrices > 0) AccountReportTitle.Text += $" | {missingPrices} ore prices unavailable; estimates incomplete";
+            RefreshAccountEditor(
                 settings,
-                _pilots,
-                mining,
-                qualifyingBuybacks,
-                UnitPrice);
-
-        object? selectedKey =
-            (AccountLedgerGrid.SelectedItem as OperationsLedgerRow)?
-                .GroupKey;
-
-        AccountLedgerGrid.ItemsSource =
-            summary.Rows;
-
-        if (selectedKey is string key)
-            AccountLedgerGrid.SelectedItem =
-                summary.Rows.FirstOrDefault(row =>
-                    string.Equals(
-                        row.GroupKey,
-                        key,
-                        StringComparison.OrdinalIgnoreCase));
-
-        AccountMinedText.Text =
-            OperationsLedgerRow.FormatIsk(
-                summary.MinedBuybackValue);
-
-        AccountContractedText.Text =
-            OperationsLedgerRow.FormatIsk(
-                summary.ContractedBackValue);
-
-        AccountGapText.Text =
-            OperationsLedgerRow.FormatIsk(
-                summary.UncontractedValue);
-
-        AccountGapDetailText.Text =
-            summary.OverRecordedValue > 0
-                ? OperationsLedgerRow.FormatIsk(
-                      summary.OverRecordedValue) +
-                  " contracted above locally recorded mining"
-                : "Tracked mining not yet represented by qualifying buybacks";
-
-        AccountCountText.Text =
-            summary.GroupCount.ToString("N0");
-
-        AccountContractCountText.Text =
-            summary.BuybackContracts.ToString("N0") +
-            " qualifying buybacks";
-
-        int miners =
-            mining
-                .Select(row =>
-                    row.Character)
-                .Concat(
-                    qualifyingBuybacks.Select(row =>
-                        row.Issuer))
-                .Where(name =>
-                    !string.IsNullOrWhiteSpace(name))
-                .Distinct(
-                    StringComparer.OrdinalIgnoreCase)
-                .Count();
-
-        AccountReportTitle.Text =
-            $"{AccountPeriodName.ToUpperInvariant()} | " +
-            $"{start:dd MMM yyyy} - " +
-            $"{end.AddDays(-1):dd MMM yyyy} | " +
-            $"{miners:N0} miners/sellers";
-
-        RefreshAccountEditor(
-            settings,
-            mining.Select(row =>
-                row.Character));
+                mining.Select(row =>
+                    row.Character));
+        }
+        Publish();
+        AccountReportTitle.Text += " | Refreshing prices...";
+        try {
+            await Task.WhenAll(ores.Select(ore => _ledgerQuotes?.Invoke(ore) ?? stats.EnsureMiningQuoteAsync(ore))).WaitAsync(TimeSpan.FromSeconds(20), _lifetime.Token);
+            if (!_closed && version == _accountLedgerRenderVersion) Publish();
+        }
+        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
+        catch (Exception ex) {
+            if (!_closed && version == _accountLedgerRenderVersion) {
+                Publish();
+                AccountReportTitle.Text += " | Prices incomplete; showing available estimates";
+                Debug.WriteLine("[AccountLedger] Price refresh: " + ex.Message);
+            }
+        }
     }
+
 
     private void AccountReport_Changed(
         object sender,

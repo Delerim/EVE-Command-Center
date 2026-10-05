@@ -5,6 +5,10 @@ internal static partial class Program
 {
     private static void CheckOperationsLedger()
     {
+        var persisted = new AppSettings { OperationsMinerGroups = new() { ["Mining team"] = new() { "Ledger pilot" } }, OperationsSoloMiners = new() { "Solo pilot" } };
+        var roundtrip = System.Text.Json.JsonSerializer.Deserialize<AhkConfigRoot>(System.Text.Json.JsonSerializer.Serialize(AhkConfigRoot.FromAppSettings(persisted)))!.ToAppSettings();
+        Check(roundtrip.OperationsMinerGroups["Mining team"].Contains("Ledger pilot") && roundtrip.OperationsSoloMiners.Contains("Solo pilot"), "Ledger groups and solo overrides survive actual config serialization");
+
         var now =
             new DateTimeOffset(
                 2026,

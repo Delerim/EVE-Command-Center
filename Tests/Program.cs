@@ -243,6 +243,15 @@ internal static partial class Program
         Check(CommandCenterWindow.BuildServiceStatus("test", DateTimeOffset.UtcNow.AddHours(-1)).Status == "OLDER DATA", "System status marks older checks without calling them failures");
         Check(CommandCenterWindow.BuildServiceStatus("test", DateTimeOffset.UtcNow, "failed").Status == "CHECK", "System status gives errors priority over previous timestamps");
         landing.Close();
+        var ledgerPrice = new TaskCompletionSource<MiningMarketQuote?>();
+        var ledgerRows = new[] { new MiningAggregateRow { DayKey="2026-10-05", Character="Ledger pilot", Ore="Zeolites", Units=1000, NormalUnits=1000, Cycles=1 } };
+        var ledgerWindow = new ContractsWindow(new StatTrackerService(), new AppSettings(), (_,_)=>ledgerRows, _=>ledgerPrice.Task);
+        var ledgerRefresh = ledgerWindow.RenderAccountLedgerAsync();
+        Check(!ledgerRefresh.IsCompleted && ((DataGrid)ledgerWindow.FindName("AccountLedgerGrid")).Items.Count > 0,
+            "Account ledger shows miners immediately while price requests are pending");
+        Check(((ComboBox)ledgerWindow.FindName("AccountMinerCombo")).Items.Count > 0 && !string.IsNullOrWhiteSpace(((TextBlock)ledgerWindow.FindName("AccountMinedText")).Text),
+            "Pending prices do not blank ledger totals or miner grouping controls");
+        ledgerWindow.Close(); ledgerPrice.SetResult(null);
         var profitWindow = new MiningDashboardWindow(new StatTrackerService(), new AppSettings());
         var waitingPrice = new TaskCompletionSource<MiningMarketQuote?>();
         var profitRefresh = profitWindow.RefreshProfitRowsAsync(new[] { new MiningAggregateRow { DayKey="2026-09-13", Character="Sample pilot", Ore="Zeolites", Units=1080, NormalUnits=1080, Cycles=2 } }, _ => waitingPrice.Task);
