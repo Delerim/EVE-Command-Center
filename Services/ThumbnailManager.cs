@@ -2705,10 +2705,10 @@ public sealed class ThumbnailManager : IDisposable
     /// <summary>True while this character's alerts are muted/snoozed. Runtime-only;
     /// expired snoozes auto-clean. Checked by the central alert handler so a muted
     /// client raises no flash / badge / toast / sound.</summary>
-    public bool AllClientAlarmsMuted { get; set; }
+    public Func<string,bool>? IsMiningAlarmMuted { get; set; }
     public bool IsCharacterAlertMuted(string characterName)
     {
-        if (AllClientAlarmsMuted) return true;
+        if (IsMiningAlarmMuted?.Invoke(characterName) == true) return true;
         if (string.IsNullOrEmpty(characterName)) return false;
         if (!_alertMutedChars.TryGetValue(characterName, out var until)) return false;
         if (until == DateTime.MaxValue || DateTime.Now < until) return true;

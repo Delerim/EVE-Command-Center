@@ -25,17 +25,22 @@ public partial class MiningFleetOverviewWindow
         }
         if (_deckStatus != null) _deckStatus.Text = $"EVE {System.DateTime.UtcNow:HH:mm} | {_clientSource().Count()} clients";
         foreach(var button in _allAlarmButtons) {
-            bool muted = _prefs.AllClientAlarmsMuted;
-            button.Content = button.Tag?.ToString()=="icon" ? (muted ? "\uE7ED" : "\uEA8F") : (muted ? "UNMUTE ALL ALARMS" : "MUTE ALL ALARMS");
-            button.ToolTip = muted ? "All client alarms muted. Click to restore alarms." : "Mute alarms for every client, including mining alerts.";
+            var characters = AlarmControlCharacters();
+            bool muted = characters.Length > 0 && characters.All(_watchdog.IsCharacterAlarmMuted);
+            button.Content = button.Tag?.ToString()=="icon" ? (muted ? "\uE7ED" : "\uEA8F") : (muted ? "ALL ALARMS ON" : "ALL ALARMS OFF");
+            button.ToolTip = muted ? "Turn every client alarm switch on." : "Turn every client alarm switch off. Orca drone indicators stay unchanged.";
             button.Foreground = muted ? Brushes.Gold : Brushes.WhiteSmoke;
         }
     }
+    private string[] AlarmControlCharacters() => _clientSource()
+        .Select(c => c.CharacterName).Where(c => !string.IsNullOrWhiteSpace(c) &&
+            (!_pilotIntel.TryGetValue(c,out var intel) || !intel.IsOrca)).Distinct(System.StringComparer.OrdinalIgnoreCase).ToArray();
     private void ToggleAllAlarms(object sender, RoutedEventArgs e)
     {
-        _prefs.AllClientAlarmsMuted = !_prefs.AllClientAlarmsMuted;
-        RunningApp?.SetAllClientAlarmsMuted(_prefs.AllClientAlarmsMuted);
-        MiningDashboardPreferencesStore.Save(_prefs);
+        var characters = AlarmControlCharacters();
+        if (characters.Length == 0) return;
+        bool turnOff = !characters.All(_watchdog.IsCharacterAlarmMuted);
+        _watchdog.SetCharacterAlarmsMuted(characters, turnOff);
         RefreshCards();
     }
 

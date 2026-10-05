@@ -71,18 +71,6 @@ public partial class App : Application
 
     private bool _isShuttingDown = false;
     internal bool IsShuttingDown => _isShuttingDown;
-    internal void SetAllClientAlarmsMuted(bool muted)
-    {
-        if (_thumbnailManager != null) _thumbnailManager.AllClientAlarmsMuted = muted;
-        if (_miningIdleWatchdog != null) {
-            _miningIdleWatchdog.Preferences.AllClientAlarmsMuted = muted;
-            _miningIdleWatchdog.SavePreferences();
-        }
-        if (muted) lock (_soundPlayerLock) {
-            foreach(var player in _activeSoundPlayers.ToArray()) player.Stop();
-        }
-    }
-
 
     // ── Startup perf logging ──
     private static readonly string _perfLogPath = System.IO.Path.Combine(
@@ -411,7 +399,7 @@ public partial class App : Application
             _miningIdleWatchdog = new MiningIdleWatchdogService(_statTracker);
             _miningIdleWatchdog.IdleDetected += OnMiningIdleDetected;
             _miningIdleWatchdog.YieldDropDetected += OnMiningYieldDropDetected;
-            _thumbnailManager.AllClientAlarmsMuted = _miningIdleWatchdog.Preferences.AllClientAlarmsMuted;
+            _thumbnailManager.IsMiningAlarmMuted = _miningIdleWatchdog.IsCharacterAlarmMuted;
             _miningIdleWatchdog.Start();
             PerfLog($"[Deferred] Mining idle watchdog started: {deferSw.ElapsedMilliseconds}ms");
 
@@ -601,7 +589,7 @@ public partial class App : Application
 
     private void PlayAlertSound(string character, string alertType, string severity)
     {
-        if (_thumbnailManager?.AllClientAlarmsMuted == true) return;
+        if (_thumbnailManager?.IsCharacterAlertMuted(character) == true) return;
         var s = _settings?.Settings;
         // EnableAlertSounds is the field the "Enable Sounds" master checkbox writes
         // (#settings-audit). The old gate read AlertSoundEnabled, which no UI ever set,

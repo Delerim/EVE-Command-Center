@@ -1,6 +1,6 @@
-# EVE Command Center v3.6.30
+# EVE Command Center v3.6.31
 
-- Made Command Deck a compact 240-DIP tile with icon shortcuts, tooltips, abbreviated mining value and a compact clock/client count.
-- Existing tiles switch once to the compact width; width remains adjustable down to 210 DIP.
-- Added MUTE ALL ALARMS in Overview Settings and a bell shortcut. Applies to all client alerts and mining watchdog alarms, including newly logged-in clients.
-- Global alarm mute is remembered and preserves individual mute settings; the bell turns yellow while muted. EVE audio mute remains a separate control.
+- Changed the bulk alarm control to update each detected non-Orca client's alarm switch directly, instead of layering a global mute over them.
+- All on enables every targeted client, including previously muted clients. Individual switches remain usable after a bulk action.
+- Removed disabled-button styling that turned alarm buttons and Orca drone indicators white.
+- Client alert delivery now respects the same per-character mining alarm mute state. Orca drone suppression remains unchanged.

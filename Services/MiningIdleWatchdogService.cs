@@ -370,7 +370,6 @@ public sealed class MiningIdleWatchdogService : IDisposable
 
     private bool IsCharacterAlarmSuppressed(
         string character) =>
-        Preferences.AllClientAlarmsMuted ||
         IsCharacterAlarmMuted(character) ||
         IsCharacterAlarmAutomaticallySuppressed(
             character);
@@ -454,7 +453,7 @@ public sealed class MiningIdleWatchdogService : IDisposable
         }
     }
 
-    public void SetCharacterAlarmMuted(string character, bool muted)
+    public void SetCharacterAlarmMuted(string character, bool muted, bool save = true)
     {
         if (string.IsNullOrWhiteSpace(character))
             return;
@@ -489,7 +488,14 @@ public sealed class MiningIdleWatchdogService : IDisposable
                 _lastActivityUtc[character] = _utcNow();
         }
 
-        SavePreferences();
+        if (save) SavePreferences();
+    }
+
+    public void SetCharacterAlarmsMuted(System.Collections.Generic.IEnumerable<string> characters, bool muted, bool save = true)
+    {
+        Preferences.AllClientAlarmsMuted = false;
+        foreach (var character in characters) SetCharacterAlarmMuted(character, muted, save: false);
+        if (save) SavePreferences();
     }
 
     public MiningIdleState GetState(string character)

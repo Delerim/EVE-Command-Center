@@ -883,7 +883,7 @@ public partial class MiningFleetOverviewWindow : Window
                         character);
 
             bool alarmMuted =
-                _prefs.AllClientAlarmsMuted || manualAlarmMuted ||
+                manualAlarmMuted ||
                 automaticSuppression;
 
             string lastPullAge = laserTiming.LastPullUtc.HasValue
@@ -1185,10 +1185,10 @@ public partial class MiningFleetOverviewWindow : Window
                 // Keep the DRONE badge enabled so WPF does not wash out the
                 // intentionally bright blue/cyan style. Orca clicks are
                 // ignored by AlarmToggle_Click.
-                AlarmEnabled = !_prefs.AllClientAlarmsMuted,
+                AlarmEnabled = true,
                 AlarmButtonText = isOrca
                     ? "DRONE"
-                    : (_prefs.AllClientAlarmsMuted || manualAlarmMuted)
+                    : manualAlarmMuted
                         ? "ALARM OFF"
                         : "ALARM ON",
                 AlarmToolTip = isOrca
