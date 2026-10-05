@@ -1,3 +1,5 @@
+using Brushes = System.Windows.Media.Brushes;
+using FontFamily = System.Windows.Media.FontFamily;
 using EveCommandCenter.Services;
 using Panel = System.Windows.Controls.Panel;
 using Button = System.Windows.Controls.Button;
@@ -13,14 +15,38 @@ namespace EveCommandCenter.Views;
 
 public partial class MiningFleetOverviewWindow
 {
+    private TextBlock? _deckMining, _deckStatus;
+    private readonly System.Collections.Generic.List<Button> _allAlarmButtons = new();
+    private void UpdateCompactDeck(double value)
+    {
+        if (_deckMining != null) {
+            _deckMining.Text = "TODAY " + (value >= 1000000000d ? (value/1000000000d).ToString("N2")+"B" : value>=1000000d ? (value/1000000d).ToString("N2")+"M" : value.ToString("N0")) + " ISK";
+            _deckMining.ToolTip = FleetTodayProfit.Text;
+        }
+        if (_deckStatus != null) _deckStatus.Text = $"EVE {System.DateTime.UtcNow:HH:mm} | {_clientSource().Count()} clients";
+        foreach(var button in _allAlarmButtons) {
+            bool muted = _prefs.AllClientAlarmsMuted;
+            button.Content = button.Tag?.ToString()=="icon" ? (muted ? "\uE7ED" : "\uEA8F") : (muted ? "UNMUTE ALL ALARMS" : "MUTE ALL ALARMS");
+            button.ToolTip = muted ? "All client alarms muted. Click to restore alarms." : "Mute alarms for every client, including mining alerts.";
+            button.Foreground = muted ? Brushes.Gold : Brushes.WhiteSmoke;
+        }
+    }
+    private void ToggleAllAlarms(object sender, RoutedEventArgs e)
+    {
+        _prefs.AllClientAlarmsMuted = !_prefs.AllClientAlarmsMuted;
+        RunningApp?.SetAllClientAlarmsMuted(_prefs.AllClientAlarmsMuted);
+        MiningDashboardPreferencesStore.Save(_prefs);
+        RefreshCards();
+    }
+
     private FrameworkElement BuildControlTileContent(Panel oldHeader, Button launch)
     {
         Brush Ink(string color) => (Brush)new BrushConverter().ConvertFromString(color)!;
         var stats = (Panel)PlexMarketBorder.Parent;
         oldHeader.Children.Clear();
         var body = new StackPanel();
-        var title = new DockPanel { Margin = new Thickness(0,0,0,8), Background = Ink("#10252A"), LastChildFill = true };
-        Button TitleButton(string text) => new() { Content = text, Width = 28, Height = 26, Margin = new Thickness(4,0,0,0), Padding = new Thickness(0) };
+        var title = new DockPanel { Margin = new Thickness(0,0,0,4), Background = Ink("#10252A"), LastChildFill = true };
+        Button TitleButton(string text) => new() { Content = text, Width = 22, Height = 20, Margin = new Thickness(4,0,0,0), Padding = new Thickness(0) };
         var close = TitleButton("X"); close.ToolTip = "Hide control tile";
         close.Click += (_,_) => _controlTile?.Hide();
         DockPanel.SetDock(close, Dock.Right); title.Children.Add(close);
@@ -28,7 +54,7 @@ public partial class MiningFleetOverviewWindow
         minimize.Click += (_,_) => { if (_controlTile != null) _controlTile.WindowState = WindowState.Minimized; };
         DockPanel.SetDock(minimize, Dock.Right); title.Children.Add(minimize);
         var heading = new StackPanel();
-        heading.Children.Add(new TextBlock { Text = "COMMAND DECK", Foreground = Ink("#E9FAF7"), FontSize = 13, FontWeight = FontWeights.SemiBold });
+        heading.Children.Add(new TextBlock { Text = "COMMAND DECK", Foreground = Ink("#E9FAF7"), FontSize = 11, FontWeight = FontWeights.SemiBold });
         title.Children.Add(heading);
         title.MouseLeftButtonDown += (_,e) => { if(e.OriginalSource is TextBlock || ReferenceEquals(e.OriginalSource,title)) { try { _controlTile?.DragMove(); } catch(System.InvalidOperationException) {} } };
         body.Children.Add(title);
@@ -36,21 +62,25 @@ public partial class MiningFleetOverviewWindow
         {
             var inner = new StackPanel();
             inner.Children.Add(content);
-            return new Border { Background = Ink("#102126"), BorderBrush = Ink("#28464C"), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(6), Padding = new Thickness(8), Margin = new Thickness(0,0,0,6), Child = inner };
+            return new Border { Background = Ink("#102126"), BorderBrush = Ink("#28464C"), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(6), Padding = new Thickness(5), Margin = new Thickness(0,0,0,4), Child = inner };
         }
-        stats.Margin = new Thickness(0);
-        DayText.Margin = new Thickness(0,0,8,3);
-        PlexMarketBorder.Margin = new Thickness(0,0,8,3);
-        FleetTodayProfit.Margin = new Thickness(0,0,0,3);
-        body.Children.Add(Section(stats));
-        launch.Content = "CHARACTER OVERVIEW"; launch.FontSize = 10; launch.Height = 30; launch.Margin = new Thickness(0,0,6,0);
-        launch.Background = Ink("#205B51"); launch.BorderBrush = Ink("#48AC96");
-        var launchRow = new Grid();
-        launchRow.ColumnDefinitions.Add(new ColumnDefinition()); launchRow.ColumnDefinitions.Add(new ColumnDefinition());
+        var compactStats = new StackPanel();
+        var prices = new TextBlock { FontSize=10, Foreground=Ink("#C5DEDF"), Margin=new Thickness(0,0,0,3) };
+        prices.Inlines.Add(new System.Windows.Documents.Run("PLEX  "));
+        var buy = new System.Windows.Documents.Run(); buy.SetBinding(System.Windows.Documents.Run.TextProperty,new System.Windows.Data.Binding("Text") { Source=PlexBuyText });
+        prices.Inlines.Add(buy); prices.Inlines.Add(new System.Windows.Documents.Run(" / "));
+        var sell = new System.Windows.Documents.Run(); sell.SetBinding(System.Windows.Documents.Run.TextProperty,new System.Windows.Data.Binding("Text") { Source=PlexSellText });
+        prices.Inlines.Add(sell); prices.ToolTip="PLEX buy / sell prices";
+        compactStats.Children.Add(prices);
+        _deckMining = new TextBlock { FontSize=11, Foreground=Ink("#67D7B8"), FontWeight=FontWeights.SemiBold };
+        compactStats.Children.Add(_deckMining);
+        body.Children.Add(Section(compactStats));
+        Button IconButton(string glyph,string tooltip) => new() { Content=glyph, FontFamily=new FontFamily("Segoe MDL2 Assets"), FontSize=16, Height=28, Margin=new Thickness(0,0,4,0), Padding=new Thickness(2), ToolTip=tooltip };
+        launch.Content="\uE716"; launch.FontFamily=new FontFamily("Segoe MDL2 Assets"); launch.FontSize=16; launch.Height=28; launch.Margin=new Thickness(0,0,4,0); launch.Padding=new Thickness(2); launch.ToolTip="Open Character Overview";
+        var launchRow = new System.Windows.Controls.Primitives.UniformGrid { Columns=3 };
         launchRow.Children.Add(launch);
-        var dashboard = new Button { Content = "COMMAND CENTER", FontSize = 10, Height = 30 };
-        dashboard.Click += OpenCommandCenter_Click;
-        Grid.SetColumn(dashboard,1); launchRow.Children.Add(dashboard);
+        var dashboard = IconButton("\uE80F","Open Command Center"); dashboard.Click+=OpenCommandCenter_Click; launchRow.Children.Add(dashboard);
+        var alarms = IconButton("\uEA8F","Mute all client alarms"); alarms.Tag="icon"; alarms.Click+=ToggleAllAlarms; _allAlarmButtons.Add(alarms); launchRow.Children.Add(alarms);
         body.Children.Add(Section(launchRow));
         var tools = new StackPanel();
         var controlStyle = (Style)System.Windows.Markup.XamlReader.Parse("""
@@ -62,7 +92,7 @@ public partial class MiningFleetOverviewWindow
                 <Setter Property="Margin" Value="0,0,6,5"/>
                 <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button">
                     <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="5" Padding="{TemplateBinding Padding}">
-                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" RecognizesAccessKey="True"/>
+                        <TextBlock Text="{TemplateBinding Tag}" FontFamily="Segoe MDL2 Assets" FontSize="16" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                     </Border>
                 </ControlTemplate></Setter.Value></Setter>
                 <Style.Triggers>
@@ -91,7 +121,12 @@ public partial class MiningFleetOverviewWindow
                 child.ClearValue(FrameworkElement.HeightProperty); child.ClearValue(FrameworkElement.MarginProperty);
                 child.ClearValue(System.Windows.Controls.Control.FontSizeProperty); child.ClearValue(System.Windows.Controls.Control.PaddingProperty);
                 child.Style=controlStyle;
-                if(label=="VERTICAL") { child.Content="SWITCH ORIENTATION"; child.ToolTip="Switch character cards between horizontal and vertical layouts"; }
+                child.Tag = child == HorizontalFitButton || child == CompactFitButton ? "\uE740" :
+                    label=="VERTICAL" ? "\uE7AD" : child==ModeButton ? "\uE8A9" : child==LivePreviewButton ? "\uE714" :
+                    child==FullMuteButton || child==CompactMuteButton ? "\uE767" : label=="TOOLS" ? "\uE713" : "\uE8A7";
+                if(child.ToolTip==null) child.SetBinding(FrameworkElement.ToolTipProperty,new System.Windows.Data.Binding("Content") { Source=child });
+
+                if(label=="VERTICAL") { child.Content="ORIENTATION"; child.ToolTip="Switch character cards between horizontal and vertical layouts"; }
                 if(label=="TOOLS") child.Content="MORE TOOLS";
                 if(label=="SEPARATE PREVIEWS") { child.Content="SEPARATE WINDOWS"; child.ToolTip="Replace combined cards with individual preview windows"; }
                 row.Children.Add(child);
@@ -104,6 +139,8 @@ public partial class MiningFleetOverviewWindow
             }
             tools.Children.Add(groupPanel);
         }
+        var alarmToggle = new Button { Height=28, FontSize=9, Margin=new Thickness(0,5,0,5) };
+        alarmToggle.Click+=ToggleAllAlarms; _allAlarmButtons.Add(alarmToggle); tools.Children.Add(alarmToggle);
         var settings = new Expander {
             Header = "OVERVIEW SETTINGS", IsExpanded = _prefs.ControlTileSettingsExpanded,
             Foreground = Ink("#A4CFCE"), FontSize = 10, FontWeight = FontWeights.SemiBold,
@@ -111,10 +148,10 @@ public partial class MiningFleetOverviewWindow
         };
         settings.Expanded += (_,_) => { _prefs.ControlTileSettingsExpanded = true; MiningDashboardPreferencesStore.Save(_prefs); };
         settings.Collapsed += (_,_) => { _prefs.ControlTileSettingsExpanded = false; MiningDashboardPreferencesStore.Save(_prefs); };
-        body.Children.Add(new Border { Background = Ink("#102126"), BorderBrush = Ink("#28464C"), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(6), Padding = new Thickness(8), Margin = new Thickness(0,0,0,6), Child = settings });
-        UpdatedText.FontSize=10; UpdatedText.Foreground=Ink("#83A2A7"); UpdatedText.Margin=new Thickness(2,0,0,2);
-        UpdatedText.TextWrapping=TextWrapping.Wrap; UpdatedText.TextAlignment=TextAlignment.Left;
-        body.Children.Add(UpdatedText);
-        return new Border { Background = Ink("#0B171C"), BorderBrush = Ink("#3A686C"), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(9), Padding = new Thickness(10), Child = body };
+        body.Children.Add(new Border { Background = Ink("#102126"), BorderBrush = Ink("#28464C"), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(6), Padding = new Thickness(5), Margin = new Thickness(0,0,0,4), Child = settings });
+        _deckStatus = new TextBlock { FontSize=9, Foreground=Ink("#83A2A7"), Margin=new Thickness(1,0,0,0) };
+        _deckStatus.SetBinding(FrameworkElement.ToolTipProperty,new System.Windows.Data.Binding("Text") { Source=UpdatedText });
+        body.Children.Add(_deckStatus);
+        return new Border { Background = Ink("#0B171C"), BorderBrush = Ink("#3A686C"), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(9), Padding = new Thickness(8), Child = body };
     }
 }

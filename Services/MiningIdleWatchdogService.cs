@@ -19,6 +19,8 @@ public sealed class MiningDashboardPreferences
     public string CorpBuybackMarket { get; set; } = "Jita";
     public string CorpBuybackPriceMode { get; set; } = "sell";
 
+    public bool AllClientAlarmsMuted { get; set; }
+    public bool CompactControlTileApplied { get; set; }
     public bool IdleWatchdogEnabled { get; set; } = true;
     public int IdleSeconds { get; set; } = 90;
     public bool IdleSoundEnabled { get; set; } = true;
@@ -368,6 +370,7 @@ public sealed class MiningIdleWatchdogService : IDisposable
 
     private bool IsCharacterAlarmSuppressed(
         string character) =>
+        Preferences.AllClientAlarmsMuted ||
         IsCharacterAlarmMuted(character) ||
         IsCharacterAlarmAutomaticallySuppressed(
             character);

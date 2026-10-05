@@ -47,6 +47,15 @@ internal static partial class Program
         var restoredSettings = System.Text.Json.JsonSerializer.Deserialize<AhkConfigRoot>(System.Text.Json.JsonSerializer.Serialize(AhkConfigRoot.FromAppSettings(startupSettings)))!.ToAppSettings();
         Check(restoredSettings.AutoLaunchCharacterOverview && restoredSettings.MinimizeCommandCenterOnOverviewLaunch,
             "Overview startup and minimize preferences survive the actual config conversion");
+        var mutedPrefs = new MiningDashboardPreferences { AllClientAlarmsMuted=true, AlarmMutedCharacters=new() { "Pilot A" } };
+        var mutedWatchdog = new MiningIdleWatchdogService(tracker);
+        mutedWatchdog.Preferences.AllClientAlarmsMuted = true;
+        var suppressed = typeof(MiningIdleWatchdogService).GetMethod("IsCharacterAlarmSuppressed",System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic)!;
+        Check((bool)suppressed.Invoke(mutedWatchdog,new object[]{"Newly logged in pilot"})!, "Global alarm mute covers new characters");
+        mutedWatchdog.Preferences.AllClientAlarmsMuted=false;
+        Check(!(bool)suppressed.Invoke(mutedWatchdog,new object[]{"Newly logged in pilot"})!, "Global alarm unmute restores ordinary suppression rules");
+        var restoredMute=System.Text.Json.JsonSerializer.Deserialize<MiningDashboardPreferences>(System.Text.Json.JsonSerializer.Serialize(mutedPrefs))!;
+        Check(restoredMute.AllClientAlarmsMuted && restoredMute.AlarmMutedCharacters.SequenceEqual(new[]{"Pilot A"}), "Global alarm preference preserves individual mute settings");
         var prefs=new MiningDashboardPreferences{CombinedCharacterOverview=true, FleetOverviewAutoFit=false};
         var clients=new[]{new EveWindow(IntPtr.Zero,"EVE - Pilot A","Pilot A"),new EveWindow(IntPtr.Zero,"EVE - Pilot B","Pilot B"),new EveWindow(IntPtr.Zero,"EVE - Pilot C","Pilot C")};
         var window=new MiningFleetOverviewWindow(tracker,new MiningIdleWatchdogService(tracker),prefs,()=>clients);

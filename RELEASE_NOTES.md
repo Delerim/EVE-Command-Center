@@ -1,5 +1,6 @@
-# EVE Command Center v3.6.29
+# EVE Command Center v3.6.30
 
-- Compacted Command Deck by removing redundant Fleet Control, Market & Mining and Launch headings.
-- Reduced title size, section padding, gaps and launch-button height while keeping stats readable.
-- Lowered the minimum tile width to 360 DIP so it can fit narrower spaces. Existing saved width remains adjustable.
+- Made Command Deck a compact 240-DIP tile with icon shortcuts, tooltips, abbreviated mining value and a compact clock/client count.
+- Existing tiles switch once to the compact width; width remains adjustable down to 210 DIP.
+- Added MUTE ALL ALARMS in Overview Settings and a bell shortcut. Applies to all client alerts and mining watchdog alarms, including newly logged-in clients.
+- Global alarm mute is remembered and preserves individual mute settings; the bell turns yellow while muted. EVE audio mute remains a separate control.

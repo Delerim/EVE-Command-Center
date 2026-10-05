@@ -27,6 +27,7 @@ public partial class MiningFleetOverviewWindow : Window
     internal void ShowControlTile()
     {
         if (_controlTile != null) { _controlTile.Show(); _controlTile.WindowState = WindowState.Normal; return; }
+        if (!_prefs.CompactControlTileApplied) { _prefs.ControlTileWidth = 240; _prefs.CompactControlTileApplied = true; }
         var controls = (System.Windows.Controls.Panel)OverviewHeader.Child;
         OverviewHeader.Child = null;
         OverviewHeader.Visibility = Visibility.Collapsed;
@@ -35,8 +36,8 @@ public partial class MiningFleetOverviewWindow : Window
         launch.Click += (_,_) => { _prefs.CombinedCharacterOverview = true; ApplyCombinedMode(); Show(); WindowState = WindowState.Normal; Activate(); MiningDashboardPreferencesStore.Save(_prefs); };
         var tileContent = BuildControlTileContent(controls, launch);
         _controlTile = new Window {
-            Title = "EVE Command Center | Controls", Width = Math.Max(360,_prefs.ControlTileWidth),
-            MinWidth = 360, SizeToContent = SizeToContent.Height, ResizeMode = ResizeMode.CanResizeWithGrip,
+            Title = "EVE Command Center | Controls", Width = Math.Max(210,_prefs.ControlTileWidth),
+            MinWidth = 210, SizeToContent = SizeToContent.Height, ResizeMode = ResizeMode.CanResizeWithGrip,
             ShowInTaskbar = true, Topmost = _prefs.FleetOverviewTopmost,
             WindowStyle = WindowStyle.None, AllowsTransparency = true,
             Background = System.Windows.Media.Brushes.Transparent,
@@ -882,7 +883,7 @@ public partial class MiningFleetOverviewWindow : Window
                         character);
 
             bool alarmMuted =
-                manualAlarmMuted ||
+                _prefs.AllClientAlarmsMuted || manualAlarmMuted ||
                 automaticSuppression;
 
             string lastPullAge = laserTiming.LastPullUtc.HasValue
@@ -1184,10 +1185,10 @@ public partial class MiningFleetOverviewWindow : Window
                 // Keep the DRONE badge enabled so WPF does not wash out the
                 // intentionally bright blue/cyan style. Orca clicks are
                 // ignored by AlarmToggle_Click.
-                AlarmEnabled = true,
+                AlarmEnabled = !_prefs.AllClientAlarmsMuted,
                 AlarmButtonText = isOrca
                     ? "DRONE"
-                    : manualAlarmMuted
+                    : (_prefs.AllClientAlarmsMuted || manualAlarmMuted)
                         ? "ALARM OFF"
                         : "ALARM ON",
                 AlarmToolTip = isOrca
@@ -1416,6 +1417,7 @@ public partial class MiningFleetOverviewWindow : Window
 
         var fleetValue=_tracker.GetTodayFleetMiningValue();
         FleetTodayProfit.Text=$"TODAY ~{fleetValue.Value:N0} ISK"+(fleetValue.MissingQuotes>0?" *":"");
+        UpdateCompactDeck(fleetValue.Value);
         FleetTodayProfit.ToolTip=$"Today's fleet mining value estimate, including offline miners. Mining day starts at 04:00 local. Before taxes, fees and operating costs; not realized net profit. {fleetValue.MissingQuotes} ore types lack enabled-market quotes.";
         DayText.Text = $"DAY {_tracker.GetMiningDayLabel()}";
         UpdatedText.Text =
