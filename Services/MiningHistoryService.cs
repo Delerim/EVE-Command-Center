@@ -385,7 +385,7 @@ public sealed class MiningHistoryService : IDisposable
             if (TryParseMiningEvent(raw, character, out var ev) &&
                 ev.Timestamp >= fromUtc &&
                 ev.Timestamp < toUtc &&
-                ev.MineType == "ore")
+                (ev.MineType == "ore" || ev.MineType == "residue"))
             {
                 output.Add(ev);
             }
@@ -424,9 +424,6 @@ public sealed class MiningHistoryService : IDisposable
     {
         miningEvent = new MiningEvent();
 
-        if (AlertPatterns.Matches(rawLine, "mining_residue"))
-            return false;
-
         var ts = TimestampRegex.Match(rawLine);
         if (!ts.Success ||
             !DateTime.TryParseExact(
@@ -436,6 +433,17 @@ public sealed class MiningHistoryService : IDisposable
                 DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal,
                 out var timestampUtc))
             return false;
+
+        if (AlertPatterns.Matches(rawLine, "mining_residue"))
+        {
+            if (!MiningResidueParser.TryParseAmount(rawLine, out int residue)) return false;
+            miningEvent = new MiningEvent
+            {
+                Timestamp = timestampUtc, Amount = residue,
+                CharacterName = character, MineType = "residue"
+            };
+            return true;
+        }
 
         // Non-English EVE clients often wrap names with <localized hint="English">.
         // Prefer that stable English hint so market lookup still works.

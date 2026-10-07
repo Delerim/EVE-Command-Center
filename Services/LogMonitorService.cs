@@ -1947,10 +1947,18 @@ public sealed class LogMonitorService : IDisposable
             eventTimestampUtc = parsedTimestampUtc;
         }
 
-        // Residue is its OWN (mining) line carrying no ore name ("Additional N units
-        // depleted from asteroid as residue") — skip it, in any language (#86).
+        // Residue is its own mining event carrying no ore name ("Additional N units
+        // depleted from asteroid as residue"). Keep it separate from collected yield.
         if (AlertPatterns.Matches(line, "mining_residue"))
+        {
+            if (MiningResidueParser.TryParseAmount(line, out int residue))
+                MiningYield?.Invoke(new MiningEvent
+                {
+                    Timestamp = eventTimestampUtc, Amount = residue,
+                    MineType = "residue", CharacterName = character
+                });
             return;
+        }
 
         // Strip markup first: EVE's tags are unclosed and mix colour syntaxes.
         string cleanLine = Regex.Replace(line, @"<[^>]+>", "");
@@ -2453,7 +2461,7 @@ public record MiningEvent
     public DateTime Timestamp { get; init; }
     public int Amount { get; init; }
     public string OreType { get; init; } = "";
-    public string MineType { get; init; } = "ore"; // "ore", "gas", "ice"
+    public string MineType { get; init; } = "ore"; // "ore", "gas", "ice", "residue"
     public bool IsCritical { get; init; }
     public string CharacterName { get; init; } = "";
 }

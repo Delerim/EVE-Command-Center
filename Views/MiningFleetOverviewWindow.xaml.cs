@@ -1145,6 +1145,7 @@ public partial class MiningFleetOverviewWindow : Window
                     $"{Math.Max(0, displayBaseRate).ToString("N1", CultureInfo.CurrentCulture)} m3/s",
                 ActualText =
                     $"{Math.Max(0, displayActualRate).ToString("N1", CultureInfo.CurrentCulture)} m3/s",
+                ResidueUnits = _tracker.GetTodayMiningResidue(character),
                 CritText = crit.Cycles > 0 ? crit.ToString() : "-",
                 CritM3Text =
                     latestCritM3 > 0
@@ -1278,7 +1279,8 @@ public partial class MiningFleetOverviewWindow : Window
                         ? "Live ISK/hr is still warming up."
                         : $"Live rolling value rate: {iskPerHourFull}.") +
                     Environment.NewLine +
-                    $"Open Mining Command Center for the detailed market breakdown.",
+                    $"Today's recorded residue: {_tracker.GetTodayMiningResidue(character):N0} units (not collected ore).{Environment.NewLine}" +
+                    "Open Mining Command Center for the detailed market breakdown.",
                 BuybackToolTip =
                     $"Session buyback-value estimate: {s.SessionBuybackValue:N0} ISK.",
                 CritToolTip = crit.Cycles > 0
@@ -2088,6 +2090,9 @@ public partial class MiningFleetOverviewWindow : Window
         public string Ore { get; set; } = "";
         public string BaseText { get; set; } = "";
         public string ActualText { get; set; } = "";
+        public long ResidueUnits { get; set; }
+        public string ResidueText => "WASTE " + (ResidueUnits >= 1_000_000 ? (ResidueUnits / 1_000_000.0).ToString("0.#") + "M" : ResidueUnits >= 1_000 ? (ResidueUnits / 1_000.0).ToString("0.#") + "k" : ResidueUnits.ToString("N0"));
+        public string ResidueToolTip => $"{ResidueUnits:N0} recorded residue units destroyed today, not collected ore. Mining day resets at 04:00 local. Logs do not name the ore, so no m3 or ISK estimate is inferred. Zero means no residue found in available logs.";
         public string CritText { get; set; } = "";
         public string CritM3Text { get; set; } = "";
 

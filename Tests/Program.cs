@@ -49,6 +49,20 @@ internal static partial class Program
             var overview = CheckCharacterOverview();
             var cards = (ItemsControl)overview.FindName("MinerItems");
             cards.Items[0].GetType().GetProperty("IsActive")!.SetValue(cards.Items[0], true);
+            if (args.Skip(2).Contains("residue"))
+            {
+                foreach (var card in cards.Items)
+                {
+                    var type = card.GetType();
+                    type.GetProperty("DetailedMiningVisibility")!.SetValue(card, Visibility.Visible);
+                    type.GetProperty("MiningVisibility")!.SetValue(card, Visibility.Visible);
+                    type.GetProperty("PreviewVisibility")!.SetValue(card, Visibility.Collapsed);
+                    type.GetProperty("CombatVisibility")!.SetValue(card, Visibility.Collapsed);
+                    type.GetProperty("ResidueUnits")!.SetValue(card, 123456L);
+                    type.GetProperty("CritText")!.SetValue(card, "342/3800 (9.0%)");
+                }
+                overview.Width = 740; overview.Height = 240;
+            }
             Render(overview,args[1]); overview.Close(); return;
         }
         if(args.FirstOrDefault() == "--audit-drills")
@@ -145,6 +159,7 @@ internal static partial class Program
         CheckNotificationCenter();
         CheckMiningRates();
         CheckMiningDailyActivityAccumulator();
+        CheckMiningResidue();
         CheckLogMonitorSessionPruning();
         CheckMiningWatchdog();
         CheckPlanetaryProjection();
@@ -615,6 +630,54 @@ internal static partial class Program
             var body = path.Contains("characters/") ? "{\"name\":\"Test Pilot\",\"corporation_id\":42}" : path.EndsWith("corporations/42/") ? "{\"name\":\"Test Corporation\"}" : "[]";
             return Task.FromResult(new HttpResponseMessage(denied ? DeniedStatus : HttpStatusCode.OK) { Content = new StringContent(body) });
         }
+    }
+
+    private static void CheckMiningResidue()
+    {
+        var now = DateTime.UtcNow;
+        string prefix = $"[ {now:yyyy.MM.dd HH:mm:ss} ] (mining) ";
+        string raw = prefix + "<color=0x77ffffff>Additional <font size=12><color=#ffff454b>1,234<color=0x77ffffff><font size=10> units depleted from asteroid as residue";
+        Check(MiningResidueParser.TryParseAmount(raw, out var amount) && amount == 1234,
+            "Residue parser reads units without counting timestamps or markup numbers");
+        Check(!MiningResidueParser.TryParseAmount(prefix + "You mined 999 units of Veldspar", out _) &&
+              !MiningResidueParser.TryParseAmount(prefix + "Additional nonsense units depleted as residue", out _) &&
+              !MiningResidueParser.TryParseAmount(prefix + "Additional 999999999999999 units depleted as residue", out _),
+            "Residue parser rejects collected yield, malformed amounts and overflow");
+        using var monitor = new LogMonitorService();
+        MiningEvent? live = null;
+        monitor.MiningYield += e => live = e;
+        typeof(LogMonitorService).GetMethod("ParseMiningLine", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
+            .Invoke(monitor, new object[] { raw, "Residue pilot" });
+        Check(live?.MineType == "residue" && live.Amount == 1234 && live.OreType == "",
+            "Live residue event remains separate from collected ore and carries no guessed ore name");
+
+        string folder = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "ecc-residue-" + Guid.NewGuid().ToString("N"));
+        System.IO.Directory.CreateDirectory(folder);
+        try
+        {
+            System.IO.File.WriteAllLines(System.IO.Path.Combine(folder, "sample.txt"), new[] { "Listener: Residue pilot", raw });
+            using var history = new MiningHistoryService();
+            var events = history.ScanCurrentDay(folder);
+            Check(events.Count == 1 && events[0].MineType == "residue" && events[0].Amount == 1234,
+                "Current-day raw log backfill recovers residue skipped by older versions");
+            var store = new MiningDailyStore(folder);
+            store.ReplaceCurrentDay(events);
+            store.Record(now, "Residue pilot", "Veldspar", 500, false);
+            store.Record(now, "Residue pilot", "", 66, false, isResidue: true);
+            store.Record(now, "Other pilot", "", 15, false, isResidue: true);
+            Check(store.GetResidueUnits("residue PILOT") == 1300 && store.GetResidueUnits("Other pilot") == 15,
+                "Daily residue totals are isolated per pilot and include backfill plus live units");
+            Check(store.GetCharacterUnitsByOre("Residue pilot")["Veldspar"] == 500 &&
+                  store.GetAggregateRows().Count == 1 && store.GetActivitySummary("Residue pilot").Pulls == 1,
+                "Residue does not inflate collected ore, profit input, cycle counts or mining activity");
+            var restored = new MiningDailyStore(folder);
+            Check(restored.GetResidueUnits("Residue pilot") == 1300,
+                "Daily residue survives restart through the daily ledger");
+            store.ReplaceCurrentDay(new[] { new MiningEvent { Timestamp = now.AddDays(-2), MineType = "residue", Amount = 999, CharacterName = "Residue pilot" } });
+            Check(store.GetResidueUnits("Residue pilot") == 0,
+                "Daily rebuild clears old residue and excludes events outside the mining day");
+        }
+        finally { System.IO.Directory.Delete(folder, true); }
     }
 
     private static void CheckMiningDailyActivityAccumulator()

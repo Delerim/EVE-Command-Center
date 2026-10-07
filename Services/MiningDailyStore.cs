@@ -23,6 +23,7 @@ public sealed class MiningDailyStore
     private string _loadedDay = "";
     private readonly Dictionary<string, Dictionary<string, DailyOreTotals>> _byCharacter =
         new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, long> _residueByCharacter = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, string> _lastOre =
         new(StringComparer.OrdinalIgnoreCase);
 
@@ -83,10 +84,10 @@ public sealed class MiningDailyStore
 
         var accepted = events
             .Where(e =>
-                e.MineType == "ore" &&
+                (e.MineType == "ore" || e.MineType == "residue") &&
                 e.Amount > 0 &&
                 !string.IsNullOrWhiteSpace(e.CharacterName) &&
-                !string.IsNullOrWhiteSpace(e.OreType) &&
+                (e.MineType == "residue" || !string.IsNullOrWhiteSpace(e.OreType)) &&
                 GetDayKey(e.Timestamp) == day)
             .OrderBy(e => e.Timestamp)
             .ToList();
@@ -97,6 +98,7 @@ public sealed class MiningDailyStore
             _byCharacter.Clear();
             _lastOre.Clear();
             _activityByCharacter.Clear();
+            _residueByCharacter.Clear();
 
             foreach (var e in accepted)
             {
@@ -106,6 +108,7 @@ public sealed class MiningDailyStore
                     Character = e.CharacterName.Trim(),
                     Ore = e.OreType.Trim(),
                     Units = e.Amount,
+                    IsResidue = e.MineType == "residue",
                     IsCritical = e.IsCritical
                 });
             }
@@ -126,6 +129,7 @@ public sealed class MiningDailyStore
                             Character = e.CharacterName.Trim(),
                             Ore = e.OreType.Trim(),
                             Units = e.Amount,
+                            IsResidue = e.MineType == "residue",
                             IsCritical = e.IsCritical
                         }));
                     }
@@ -140,9 +144,9 @@ public sealed class MiningDailyStore
         }
     }
 
-    public void Record(DateTime timestampUtc, string character, string ore, int units, bool isCritical)
+    public void Record(DateTime timestampUtc, string character, string ore, int units, bool isCritical, bool isResidue = false)
     {
-        if (string.IsNullOrWhiteSpace(character) || string.IsNullOrWhiteSpace(ore) || units <= 0)
+        if (string.IsNullOrWhiteSpace(character) || (!isResidue && string.IsNullOrWhiteSpace(ore)) || units <= 0)
             return;
 
         var ev = new MiningDailyEvent
@@ -151,6 +155,7 @@ public sealed class MiningDailyStore
             Character = character.Trim(),
             Ore = ore.Trim(),
             Units = units,
+            IsResidue = isResidue,
             IsCritical = isCritical
         };
 
@@ -170,6 +175,15 @@ public sealed class MiningDailyStore
             {
                 // History persistence must never interrupt live Command Center.
             }
+        }
+    }
+
+    public long GetResidueUnits(string character)
+    {
+        lock (_gate)
+        {
+            EnsureDayLocked(GetDayKey(DateTime.UtcNow));
+            return _residueByCharacter.GetValueOrDefault(character);
         }
     }
 
@@ -300,6 +314,7 @@ public sealed class MiningDailyStore
         _byCharacter.Clear();
         _lastOre.Clear();
         _activityByCharacter.Clear();
+        _residueByCharacter.Clear();
 
         string path = Path.Combine(_directory, $"{day}.jsonl");
         if (!File.Exists(path)) return;
@@ -324,6 +339,13 @@ public sealed class MiningDailyStore
 
     private void ApplyLocked(MiningDailyEvent ev)
     {
+        if (ev.Units <= 0 || string.IsNullOrWhiteSpace(ev.Character)) return;
+        if (ev.IsResidue)
+        {
+            _residueByCharacter[ev.Character] = _residueByCharacter.GetValueOrDefault(ev.Character) + ev.Units;
+            return;
+        }
+        if (string.IsNullOrWhiteSpace(ev.Ore)) return;
         if (!_byCharacter.TryGetValue(ev.Character, out var ores))
         {
             ores = new Dictionary<string, DailyOreTotals>(StringComparer.OrdinalIgnoreCase);
@@ -490,6 +512,7 @@ public sealed class MiningDailyStore
         public string Ore { get; set; } = "";
         public int Units { get; set; }
         public bool IsCritical { get; set; }
+        public bool IsResidue { get; set; }
     }
 }
 

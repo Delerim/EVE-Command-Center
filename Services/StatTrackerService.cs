@@ -157,6 +157,11 @@ public sealed class StatTrackerService
     public void RecordMining(string character, int amount, string mineType = "ore",
         string oreType = "", bool isCriticalHint = false, DateTime? timestampUtc = null)
     {
+        if (mineType == "residue")
+        {
+            _dailyMiningStore.Record(timestampUtc ?? DateTime.UtcNow, character, "", amount, false, isResidue: true);
+            return;
+        }
         var stats = GetOrCreate(character);
         var now = timestampUtc ?? DateTime.UtcNow;
         var entry = new TimedValue(now, amount);
@@ -340,6 +345,8 @@ public sealed class StatTrackerService
 
         return Directory.Exists(defaultPath) ? defaultPath : "";
     }
+
+    public long GetTodayMiningResidue(string character) => _dailyMiningStore.GetResidueUnits(character);
 
     public void StartMiningHistory(string gameLogPath)
     {

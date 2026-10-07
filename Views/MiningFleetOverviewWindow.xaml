@@ -535,14 +535,14 @@
                                                 </TextBlock.Style>
                                             </TextBlock>
 
-                                            <TextBlock Text="{Binding CritM3Text}"
+                                            <TextBlock Text="{Binding ResidueText}"
                                                        FontSize="10.5"
-                                                       Margin="2,0,0,0"
+                                                       Margin="5,0,0,0"
                                                        VerticalAlignment="Center"
-                                                       ToolTip="{Binding CritToolTip}">
+                                                       ToolTip="{Binding ResidueToolTip}">
                                                 <TextBlock.Style>
                                                     <Style TargetType="TextBlock">
-                                                        <Setter Property="Foreground" Value="#8FB2B5"/>
+                                                        <Setter Property="Foreground" Value="#D8A84A"/>
                                                         <Style.Triggers>
                                                             <DataTrigger Binding="{Binding CritPulse}" Value="True">
                                                                 <Setter Property="Foreground" Value="#FFD75E"/>
