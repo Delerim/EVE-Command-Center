@@ -1,4 +1,5 @@
-# EVE Command Center v3.6.35
+# EVE Command Center v3.6.36
 
-- Reduced the dashboard welcome banner to a compact heading and status strip.
-- Moved Omega pilot summaries directly below Needs Attention, above mining and moon operations.
+- Mining cards now show daily WASTE as a percentage of collected ore units: logged residue divided by mined units, including critical bonus ore.
+- Hover for exact residue and collected-unit totals. Compact mining cards show the same percentage in their value tooltip.
+- Show an unavailable percentage until collected ore is logged; unit-based comparisons do not imply a volume or ISK loss.

@@ -826,6 +826,8 @@ public partial class MiningFleetOverviewWindow : Window
 
             var state = _watchdog.GetState(character);
             var crit = _tracker.GetTodayMiningCritSummary(character);
+            long residueUnits = _tracker.GetTodayMiningResidue(character);
+            double minedUnits = _tracker.GetMiningSessionUnitsByOre(character).Values.Sum();
 
             double latestCritM3 =
                 _tracker.GetLatestCriticalMiningVolumeM3(
@@ -1145,7 +1147,8 @@ public partial class MiningFleetOverviewWindow : Window
                     $"{Math.Max(0, displayBaseRate).ToString("N1", CultureInfo.CurrentCulture)} m3/s",
                 ActualText =
                     $"{Math.Max(0, displayActualRate).ToString("N1", CultureInfo.CurrentCulture)} m3/s",
-                ResidueUnits = _tracker.GetTodayMiningResidue(character),
+                ResidueUnits = residueUnits,
+                MinedUnits = minedUnits,
                 CritText = crit.Cycles > 0 ? crit.ToString() : "-",
                 CritM3Text =
                     latestCritM3 > 0
@@ -1279,7 +1282,7 @@ public partial class MiningFleetOverviewWindow : Window
                         ? "Live ISK/hr is still warming up."
                         : $"Live rolling value rate: {iskPerHourFull}.") +
                     Environment.NewLine +
-                    $"Today's recorded residue: {_tracker.GetTodayMiningResidue(character):N0} units (not collected ore).{Environment.NewLine}" +
+                    $"Today's {FormatWaste(residueUnits, minedUnits)}: {residueUnits:N0} residue units / {minedUnits:N0} collected ore units. Unit-based ratio, not volume.{Environment.NewLine}" +
                     "Open Mining Command Center for the detailed market breakdown.",
                 BuybackToolTip =
                     $"Session buyback-value estimate: {s.SessionBuybackValue:N0} ISK.",
@@ -2025,6 +2028,9 @@ public partial class MiningFleetOverviewWindow : Window
     }
     private void Close_Click(object sender, RoutedEventArgs e) => Close();
 
+    internal static string FormatWaste(long residueUnits, double minedUnits) =>
+        minedUnits > 0 ? $"WASTE {residueUnits * 100.0 / minedUnits:0.0}%" : "WASTE --";
+
     private sealed class FleetCard : System.ComponentModel.INotifyPropertyChanged
     {
         public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged;
@@ -2091,8 +2097,11 @@ public partial class MiningFleetOverviewWindow : Window
         public string BaseText { get; set; } = "";
         public string ActualText { get; set; } = "";
         public long ResidueUnits { get; set; }
-        public string ResidueText => "WASTE " + (ResidueUnits >= 1_000_000 ? (ResidueUnits / 1_000_000.0).ToString("0.#") + "M" : ResidueUnits >= 1_000 ? (ResidueUnits / 1_000.0).ToString("0.#") + "k" : ResidueUnits.ToString("N0"));
-        public string ResidueToolTip => $"{ResidueUnits:N0} recorded residue units destroyed today, not collected ore. Mining day resets at 04:00 local. Logs do not name the ore, so no m3 or ISK estimate is inferred. Zero means no residue found in available logs.";
+        public double MinedUnits { get; set; }
+        public string ResidueText => FormatWaste(ResidueUnits, MinedUnits);
+        public string ResidueToolTip => $"{ResidueUnits:N0} logged residue units / {MinedUnits:N0} collected ore units today x 100. " +
+            "Includes critical bonus ore in the mined total. Unit-based ratio, not volume; mixing ore types can affect comparisons. " +
+            "Mining day resets at 04:00 local. No percentage is available until collected ore is logged.";
         public string CritText { get; set; } = "";
         public string CritM3Text { get; set; } = "";
 

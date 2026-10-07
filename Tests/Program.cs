@@ -59,6 +59,7 @@ internal static partial class Program
                     type.GetProperty("PreviewVisibility")!.SetValue(card, Visibility.Collapsed);
                     type.GetProperty("CombatVisibility")!.SetValue(card, Visibility.Collapsed);
                     type.GetProperty("ResidueUnits")!.SetValue(card, 123456L);
+                    type.GetProperty("MinedUnits")!.SetValue(card, 1000000.0);
                     type.GetProperty("CritText")!.SetValue(card, "342/3800 (9.0%)");
                 }
                 overview.Width = 740; overview.Height = 240;
@@ -634,6 +635,13 @@ internal static partial class Program
 
     private static void CheckMiningResidue()
     {
+        Check(MiningFleetOverviewWindow.FormatWaste(25, 100) == "WASTE " + 25.0.ToString("0.0") + "%",
+            "Waste percentage uses collected ore as denominator, excluding residue");
+        Check(MiningFleetOverviewWindow.FormatWaste(0, 100) == "WASTE " + 0.0.ToString("0.0") + "%" &&
+              MiningFleetOverviewWindow.FormatWaste(10, 0) == "WASTE --",
+            "Waste distinguishes zero residue from missing mined-ore denominator");
+        Check(MiningFleetOverviewWindow.FormatWaste(150, 100) == "WASTE " + 150.0.ToString("0.0") + "%",
+            "Waste-to-mined ratio can exceed 100 percent without being clamped");
         var now = DateTime.UtcNow;
         string prefix = $"[ {now:yyyy.MM.dd HH:mm:ss} ] (mining) ";
         string raw = prefix + "<color=0x77ffffff>Additional <font size=12><color=#ffff454b>1,234<color=0x77ffffff><font size=10> units depleted from asteroid as residue";
