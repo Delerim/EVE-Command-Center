@@ -469,101 +469,28 @@
 
                     <Border x:Name="WelcomePanel"
                             Background="{StaticResource HeroBrush}"
-                            BorderBrush="#245763"
-                            BorderThickness="1"
-                            CornerRadius="12"
-                            Padding="20"
-                            Margin="0,0,0,12">
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="230"/>
-                            </Grid.ColumnDefinitions>
-
-                            <StackPanel>
-                                <DockPanel LastChildFill="False">
-                                    <Border Background="#123B40"
-                                            BorderBrush="#39796C"
-                                            BorderThickness="1"
-                                            CornerRadius="5"
-                                            Padding="7,3"
-                                            Margin="0,0,8,0">
-                                        <TextBlock Text="COMMAND LINK ONLINE"
-                                                   Foreground="#74D6C9"
-                                                   FontSize="9.5"
-                                                   FontWeight="Bold"/>
+                            BorderBrush="#245763" BorderThickness="1"
+                            CornerRadius="8" Padding="16,10" Margin="0,0,0,8">
+                        <StackPanel>
+                            <DockPanel>
+                                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <Border Background="#123B40" BorderBrush="#39796C" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="8,0,6,0">
+                                        <TextBlock Text="COMMAND LINK ONLINE" Foreground="#74D6C9" FontSize="9" FontWeight="Bold"/>
                                     </Border>
-
-                                    <Border Background="#1F2718"
-                                            BorderBrush="#6D7A35"
-                                            BorderThickness="1"
-                                            CornerRadius="5"
-                                            Padding="7,3">
-                                        <TextBlock Text="TRANQUILITY OPERATIONS"
-                                                   Foreground="#D6D784"
-                                                   FontSize="9.5"
-                                                   FontWeight="Bold"/>
+                                    <Border Background="#1F2718" BorderBrush="#6D7A35" BorderThickness="1" CornerRadius="4" Padding="6,2">
+                                        <TextBlock Text="TRANQUILITY OPERATIONS" Foreground="#D6D784" FontSize="9" FontWeight="Bold"/>
                                     </Border>
-                                </DockPanel>
-
-                                <TextBlock x:Name="WelcomeTitleText"
-                                           Text="WELCOME, COMMANDER"
-                                           Foreground="#F6FFFD"
-                                           FontSize="30"
-                                           FontWeight="Bold"
-                                           Margin="0,12,0,2"/>
-
-                                <TextBlock x:Name="WelcomeStatusText"
-                                           Text="Command Center is coming online..."
-                                           Foreground="#A6C5C5"
-                                           FontSize="12"/>
-
-                                <TextBlock x:Name="WelcomeTelemetryText"
-                                           Text="Telemetry link initializing"
-                                           Foreground="#55D7D2"
-                                           FontSize="10.5"
-                                           Margin="0,11,0,0"/>
-                            </StackPanel>
-
-                            <Grid Grid.Column="1"
-                                  HorizontalAlignment="Right"
-                                  Width="205"
-                                  Height="108">
-                                <Ellipse Width="104"
-                                         Height="104"
-                                         Stroke="#1D5961"
-                                         StrokeThickness="1"
-                                         Opacity="0.7"
-                                         HorizontalAlignment="Right"/>
-                                <Ellipse Width="76"
-                                         Height="76"
-                                         Stroke="#2B7E7C"
-                                         StrokeThickness="1"
-                                         Opacity="0.75"
-                                         HorizontalAlignment="Right"
-                                         Margin="0,0,14,0"/>
-                                <Ellipse Width="46"
-                                         Height="46"
-                                         Fill="#0C3035"
-                                         Stroke="#55D7D2"
-                                         StrokeThickness="1"
-                                         HorizontalAlignment="Right"
-                                         Margin="0,0,29,0"/>
-                                <TextBlock Text="&#xE7C1;"
-                                           FontFamily="Segoe MDL2 Assets"
-                                           Foreground="#64E3C8"
-                                           FontSize="23"
-                                           HorizontalAlignment="Right"
-                                           VerticalAlignment="Center"
-                                           Margin="0,0,41,0"/>
-                                <TextBlock Text="ECC // OPS"
-                                           Foreground="#ACC7CC"
-                                           FontSize="9"
-                                           HorizontalAlignment="Left"
-                                           VerticalAlignment="Bottom"
-                                           Margin="0,0,0,6"/>
-                            </Grid>
-                        </Grid>
+                                </StackPanel>
+                                <TextBlock x:Name="WelcomeTitleText" Text="WELCOME, COMMANDER"
+                                           Foreground="#F6FFFD" FontSize="20" FontWeight="Bold" VerticalAlignment="Center"/>
+                            </DockPanel>
+                            <WrapPanel Margin="0,5,0,0">
+                                <TextBlock x:Name="WelcomeStatusText" Text="Command Center is coming online..."
+                                           Foreground="#A6C5C5" FontSize="11" Margin="0,0,16,0"/>
+                                <TextBlock x:Name="WelcomeTelemetryText" Text="Telemetry link initializing"
+                                           Foreground="#55D7D2" FontSize="10.5" VerticalAlignment="Center"/>
+                            </WrapPanel>
+                        </StackPanel>
                     </Border>
 
                     <Border Background="#0C252B"
@@ -587,6 +514,32 @@
                                        Foreground="#D8E7E5"
                                        TextWrapping="Wrap"/>
                         </DockPanel>
+                    </Border>
+
+                    <Border Style="{StaticResource Card}" Margin="0,0,0,10">
+                        <StackPanel>
+                            <DockPanel>
+                                <Button DockPanel.Dock="Right" Content="OPEN OMEGA" HorizontalAlignment="Right" Style="{StaticResource DashboardActionButton}" Click="Omega_Click"/>
+                                <TextBlock Text="OMEGA BY PILOT" Style="{StaticResource SectionTitle}" VerticalAlignment="Center"/>
+                            </DockPanel>
+                            <TextBlock x:Name="OmegaSummaryText" Style="{StaticResource MutedText}" Margin="0,8,0,8" Text="Loading saved subscription dates..."/>
+                            <ItemsControl x:Name="OmegaItems">
+                                <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate><DataTemplate>
+                                    <Border Width="230" Background="#09171C" BorderBrush="{Binding Color}" BorderThickness="2,0,0,0" CornerRadius="4" Padding="9" Margin="0,0,8,8">
+                                        <StackPanel>
+                                            <StackPanel Orientation="Horizontal">
+                                                <Image Source="{Binding Portrait}" Width="28" Height="28" Margin="0,0,8,0"/>
+                                                <TextBlock Text="{Binding Name}" Foreground="#F2FFFD" FontWeight="SemiBold" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="170"/>
+                                            </StackPanel>
+                                            <TextBlock Text="{Binding OmegaStatus}" Foreground="{Binding Color}" Margin="0,7,0,3" FontSize="11"/>
+                                            <TextBlock Text="{Binding Remaining}" Foreground="{Binding Color}" FontWeight="Bold"/>
+                                            <TextBlock Text="{Binding Expires}" Style="{StaticResource MutedText}" Margin="0,3,0,0"/>
+                                        </StackPanel>
+                                    </Border>
+                                </DataTemplate></ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
                     </Border>
 
                     <Grid>
@@ -1122,31 +1075,6 @@
                             </StackPanel>
                         </Border>
                     </Grid>
-                    <Border Style="{StaticResource Card}" Margin="0,0,0,10">
-                        <StackPanel>
-                            <DockPanel>
-                                <Button DockPanel.Dock="Right" Content="OPEN OMEGA" HorizontalAlignment="Right" Style="{StaticResource DashboardActionButton}" Click="Omega_Click"/>
-                                <TextBlock Text="OMEGA BY PILOT" Style="{StaticResource SectionTitle}" VerticalAlignment="Center"/>
-                            </DockPanel>
-                            <TextBlock x:Name="OmegaSummaryText" Style="{StaticResource MutedText}" Margin="0,8,0,8" Text="Loading saved subscription dates..."/>
-                            <ItemsControl x:Name="OmegaItems">
-                                <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
-                                <ItemsControl.ItemTemplate><DataTemplate>
-                                    <Border Width="230" Background="#09171C" BorderBrush="{Binding Color}" BorderThickness="2,0,0,0" CornerRadius="4" Padding="9" Margin="0,0,8,8">
-                                        <StackPanel>
-                                            <StackPanel Orientation="Horizontal">
-                                                <Image Source="{Binding Portrait}" Width="28" Height="28" Margin="0,0,8,0"/>
-                                                <TextBlock Text="{Binding Name}" Foreground="#F2FFFD" FontWeight="SemiBold" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="170"/>
-                                            </StackPanel>
-                                            <TextBlock Text="{Binding OmegaStatus}" Foreground="{Binding Color}" Margin="0,7,0,3" FontSize="11"/>
-                                            <TextBlock Text="{Binding Remaining}" Foreground="{Binding Color}" FontWeight="Bold"/>
-                                            <TextBlock Text="{Binding Expires}" Style="{StaticResource MutedText}" Margin="0,3,0,0"/>
-                                        </StackPanel>
-                                    </Border>
-                                </DataTemplate></ItemsControl.ItemTemplate>
-                            </ItemsControl>
-                        </StackPanel>
-                    </Border>
                 </StackPanel>
                 </ScrollViewer>
 
