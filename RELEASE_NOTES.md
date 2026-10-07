@@ -1,7 +1,5 @@
-# EVE Command Center v3.6.32
+# EVE Command Center v3.6.33
 
-- Account Ledger now renders local mining rows, miner grouping and available totals before waiting for ore-price requests.
-- Added bounded price refresh, incomplete-price notices and visible refresh errors instead of silently blank ledger fields.
-- Refresh ledger data when reopening the embedded Contracts module or Account Ledger tab.
-- Fixed saving/loading manual miner groups and solo overrides through the config converter.
-- Added regression checks for pending price requests and group persistence.
+- Restored Omega navigation as an embedded Command Center tab.
+- Added dashboard Omega summaries for every tracked pilot, including remaining time, recorded expiry and colour-coded renewal status.
+- Account totals distinguish upcoming renewals, expired records and missing dates; subscription dates remain clearly labelled as manual records.

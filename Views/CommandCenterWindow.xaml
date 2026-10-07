@@ -265,6 +265,13 @@
                         </StackPanel>
                     </Button>
 
+                    <Button x:Name="NavOmega" Style="{StaticResource NavButton}" Click="Omega_Click">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="?" Style="{StaticResource IconGlyph}"/>
+                            <TextBlock Text="OMEGA" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+
                     <Button x:Name="NavIndustry" Style="{StaticResource NavButton}" Click="Industry_Click">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="&#xE7B8;" Style="{StaticResource IconGlyph}"/>
@@ -1115,6 +1122,31 @@
                             </StackPanel>
                         </Border>
                     </Grid>
+                    <Border Style="{StaticResource Card}" Margin="0,0,0,10">
+                        <StackPanel>
+                            <DockPanel>
+                                <Button DockPanel.Dock="Right" Content="OPEN OMEGA" HorizontalAlignment="Right" Style="{StaticResource DashboardActionButton}" Click="Omega_Click"/>
+                                <TextBlock Text="OMEGA BY PILOT" Style="{StaticResource SectionTitle}" VerticalAlignment="Center"/>
+                            </DockPanel>
+                            <TextBlock x:Name="OmegaSummaryText" Style="{StaticResource MutedText}" Margin="0,8,0,8" Text="Loading saved subscription dates..."/>
+                            <ItemsControl x:Name="OmegaItems">
+                                <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate><DataTemplate>
+                                    <Border Width="230" Background="#09171C" BorderBrush="{Binding Color}" BorderThickness="2,0,0,0" CornerRadius="4" Padding="9" Margin="0,0,8,8">
+                                        <StackPanel>
+                                            <StackPanel Orientation="Horizontal">
+                                                <Image Source="{Binding Portrait}" Width="28" Height="28" Margin="0,0,8,0"/>
+                                                <TextBlock Text="{Binding Name}" Foreground="#F2FFFD" FontWeight="SemiBold" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="170"/>
+                                            </StackPanel>
+                                            <TextBlock Text="{Binding OmegaStatus}" Foreground="{Binding Color}" Margin="0,7,0,3" FontSize="11"/>
+                                            <TextBlock Text="{Binding Remaining}" Foreground="{Binding Color}" FontWeight="Bold"/>
+                                            <TextBlock Text="{Binding Expires}" Style="{StaticResource MutedText}" Margin="0,3,0,0"/>
+                                        </StackPanel>
+                                    </Border>
+                                </DataTemplate></ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </Border>
                 </StackPanel>
                 </ScrollViewer>
 

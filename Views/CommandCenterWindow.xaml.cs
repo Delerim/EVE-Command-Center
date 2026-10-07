@@ -271,6 +271,7 @@ public partial class CommandCenterWindow : Window
                 (NavDashboard, "dashboard"),
                 (NavMining, "mining"),
                 (NavPilots, "pilots"),
+                (NavOmega, "omega"),
                 (NavIndustry, "industry"),
                 (NavPlanetary, "pi"),
                 (NavMoons, "moons"),
@@ -374,6 +375,7 @@ public partial class CommandCenterWindow : Window
             RefreshMoons(ops);
             RefreshIndustry(ops);
             RefreshPi(ops);
+            RefreshOmega(ops);
             RefreshContracts(app, ops);
             RefreshFreshness(ops);
             RefreshAttention(app, ops);
@@ -1413,6 +1415,7 @@ public partial class CommandCenterWindow : Window
                     "Characters, skills, training, wallet and assets",
                     "\uE716"
                 ),
+            "omega" => ("OMEGA", "Subscription dates, renewal planning and clone details", "\uE787"),
             "industry" =>
                 (
                     "INDUSTRY",
@@ -1518,6 +1521,23 @@ public partial class CommandCenterWindow : Window
     {
         OpenModule("mining");
     }
+
+    private void RefreshOmega(BackgroundOperations ops)
+    {
+        var pilots = ops.Omega.Pilots.ToArray();
+        OmegaItems.ItemsSource = pilots.OrderBy(p => p.Expiry ?? DateTimeOffset.MaxValue)
+            .ThenBy(p => p.Name).ToArray();
+        var accounts = OmegaPlanning.Accounts(pilots);
+        var now = DateTimeOffset.UtcNow;
+        OmegaSummaryText.Text = pilots.Length == 0
+            ? "No saved pilots yet. Open Omega to load linked pilots and record subscription dates."
+            : $"{pilots.Length} pilots | {accounts.Count} accounts | " +
+              $"{accounts.Count(p => p.Expiry > now && p.Expiry < now.AddDays(30))} due within 30 days | " +
+              $"{accounts.Count(p => p.Expiry <= now)} recorded dates expired | " +
+              $"{accounts.Count(p => !p.Expiry.HasValue)} without dates. Manual records; verify renewals in the launcher.";
+    }
+
+    private void Omega_Click(object sender, RoutedEventArgs e) => OpenModule("omega");
 
     private void Pilots_Click(
         object sender,

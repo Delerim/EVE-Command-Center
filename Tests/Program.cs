@@ -225,6 +225,9 @@ internal static partial class Program
             landing.FindName("NavDashboard") != null &&
             landing.FindName("NavMining") != null &&
             landing.FindName("NavPilots") != null &&
+            landing.FindName("NavOmega") != null &&
+            landing.FindName("OmegaItems") != null &&
+            landing.FindName("OmegaSummaryText") != null &&
             landing.FindName("NavIndustry") != null &&
             landing.FindName("NavPlanetary") != null &&
             landing.FindName("NavMoons") != null &&
