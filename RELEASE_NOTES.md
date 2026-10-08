@@ -1,5 +1,5 @@
-# EVE Command Center v3.6.36
+# EVE Command Center v3.6.37
 
-- Mining cards now show daily WASTE as a percentage of collected ore units: logged residue divided by mined units, including critical bonus ore.
-- Hover for exact residue and collected-unit totals. Compact mining cards show the same percentage in their value tooltip.
-- Show an unavailable percentage until collected ore is logged; unit-based comparisons do not imply a volume or ISK loss.
+- Fixed WASTE remaining frozen after mining totals changed: in-place card refresh now notifies calculated labels and tooltips.
+- Avoid attempts to assign read-only calculated properties during card updates.
+- Added regression coverage for live waste updates, collected-ore changes and mining-day reset.

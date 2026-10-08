@@ -2036,12 +2036,12 @@ public partial class MiningFleetOverviewWindow : Window
         public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged;
         private static readonly System.Reflection.PropertyInfo[] Fields=typeof(FleetCard).GetProperties();
         public void UpdateFrom(FleetCard next) {
-            foreach(var field in Fields) {
-                var value=field.GetValue(next);
-                if(Equals(field.GetValue(this),value))continue;
-                field.SetValue(this,value);
-                PropertyChanged?.Invoke(this,new System.ComponentModel.PropertyChangedEventArgs(field.Name));
-            }
+            // Compare before changing inputs, so computed labels also receive notifications.
+            var changed = Fields.Where(field => !Equals(field.GetValue(this), field.GetValue(next))).ToArray();
+            foreach (var field in changed.Where(field => field.CanWrite))
+                field.SetValue(this, field.GetValue(next));
+            foreach (var field in changed)
+                PropertyChanged?.Invoke(this, new System.ComponentModel.PropertyChangedEventArgs(field.Name));
         }
         public IntPtr SourceHwnd {get;set;}
         public Visibility CombatVisibility {get;set;}=Visibility.Collapsed;

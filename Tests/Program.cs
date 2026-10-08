@@ -635,6 +635,31 @@ internal static partial class Program
 
     private static void CheckMiningResidue()
     {
+        var cardType = typeof(MiningFleetOverviewWindow).GetNestedType("FleetCard", System.Reflection.BindingFlags.NonPublic)!;
+        var card = Activator.CreateInstance(cardType, nonPublic: true)!;
+        var next = Activator.CreateInstance(cardType, nonPublic: true)!;
+        var notified = new List<string>();
+        ((System.ComponentModel.INotifyPropertyChanged)card).PropertyChanged += (_, e) => notified.Add(e.PropertyName ?? "");
+        cardType.GetProperty("ResidueUnits")!.SetValue(next, 25L);
+        cardType.GetProperty("MinedUnits")!.SetValue(next, 100.0);
+        cardType.GetProperty("CritText")!.SetValue(next, "updated");
+        cardType.GetMethod("UpdateFrom")!.Invoke(card, new[] { next });
+        Check(notified.Contains("ResidueText") && notified.Contains("ResidueToolTip") &&
+              (string)cardType.GetProperty("ResidueText")!.GetValue(card)! == MiningFleetOverviewWindow.FormatWaste(25, 100) &&
+              (string)cardType.GetProperty("CritText")!.GetValue(card)! == "updated",
+            "In-place card refresh updates computed waste bindings and subsequent stats");
+        notified.Clear();
+        cardType.GetProperty("MinedUnits")!.SetValue(next, 200.0);
+        cardType.GetMethod("UpdateFrom")!.Invoke(card, new[] { next });
+        Check(notified.Contains("ResidueText") && notified.Contains("ResidueToolTip"),
+            "Collected ore alone refreshes waste percentage and exact-count tooltip");
+        notified.Clear();
+        cardType.GetProperty("ResidueUnits")!.SetValue(next, 0L);
+        cardType.GetProperty("MinedUnits")!.SetValue(next, 0.0);
+        cardType.GetMethod("UpdateFrom")!.Invoke(card, new[] { next });
+        Check(notified.Contains("ResidueText") && (string)cardType.GetProperty("ResidueText")!.GetValue(card)! == "WASTE --",
+            "Mining-day reset notifies waste display when totals return to zero");
+
         Check(MiningFleetOverviewWindow.FormatWaste(25, 100) == "WASTE " + 25.0.ToString("0.0") + "%",
             "Waste percentage uses collected ore as denominator, excluding residue");
         Check(MiningFleetOverviewWindow.FormatWaste(0, 100) == "WASTE " + 0.0.ToString("0.0") + "%" &&
