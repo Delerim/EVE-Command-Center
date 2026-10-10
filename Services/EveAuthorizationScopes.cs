@@ -7,6 +7,7 @@ internal static class EveAuthorizationScopes
     internal static readonly string[] All = EveSsoService.InitialScopes
         .Concat(ContractService.Scopes)
         .Concat(IndustryService.Scopes)
+        .Concat(new[] { MarketOrdersService.Scope })
         .Concat(new[] { PlanetaryService.Scope, OmegaService.Scope, MoonReportService.MiningScope, MoonReportService.StructureScope, MoonReportService.FuelAssetsScope })
         .Distinct(StringComparer.Ordinal).ToArray();
     internal static bool Complete(EvePilotProfile pilot) => All.All(pilot.Scopes.Contains);

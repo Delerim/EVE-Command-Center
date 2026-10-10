@@ -19,6 +19,7 @@ public sealed class BackgroundOperations : IDisposable
     public CorporationAccessService Access { get; }
     public PlanetaryService Planetary { get; }
     public IndustryService Industry { get; }
+    public MarketOrdersService MarketOrders { get; }
     public IndustryWorkspaceStore IndustryWorkspace { get; } = new();
     public OmegaService Omega { get; }
     public BackgroundPilotRefresh Pilots { get; }
@@ -42,6 +43,7 @@ public sealed class BackgroundOperations : IDisposable
         Access = new CorporationAccessService(Sso);
         Planetary = new PlanetaryService(Sso);
         Industry = new IndustryService(Sso);
+        MarketOrders = new MarketOrdersService(Sso);
         Omega = new OmegaService(Sso);
         Omega.Alert += (title,message) => OperatingToast.Notify(title,message,OpenOmega,"OMEGA RENEWAL");
         Industry.Alert += (title,message) => OperatingToast.Notify(title,message,OpenIndustry,"INDUSTRY READY");

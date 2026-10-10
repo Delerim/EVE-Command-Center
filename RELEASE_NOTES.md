@@ -1,10 +1,9 @@
-# EVE Command Center v3.6.39
+# EVE Command Center v3.6.40
 
-- Production Queue retains the shared Industry header, pilot cards, refresh controls and activity summary alongside Jobs. Reorganized the workspace into blueprint library, project/component breakdown, consolidated materials and setup pages, with themed tables, icons and sourcing colors.
-- Added an owned blueprint-instance library with toon and station/container filters, search, ME/TE, remaining BPC runs, instance IDs and snapshot/job availability. Container and station IDs remain visible where custom names are unavailable.
-- Create a production plan from a specific blueprint and automatically expand manufacturing components and their material inputs. Calculates whole runs, batch material rounding and surplus output; preserves blueprint identity and a catalog content hash.
-- Selected root blueprint ME applies to the batch. Child recipes explicitly use ME 0 with no assigned instance; facility/rig bonuses and reactions/invention are excluded. These are planning estimates, not confirmed job readiness.
-- Prevents insufficient or double-planned BPC runs, recipe cycles and edits that would leave calculated child quantities inconsistent. Existing one-node drafts can be expanded, including correcting a blueprint type into its manufactured product, without replacing existing component plans.
-- Added consolidated required/reserved/unreserved materials and copyable output across active projects. Buy / Use Stock choices stop child manufacturing demand; paused projects retain stock reservations. Uncertain stock requires review.
-- Added Delete Project with inline confirmation, reservation protection and retained audit history.
-- Added regression coverage for Obelisk component expansion, blueprint/container filtering with 2,100 instances, shared materials, BPC limits, persistence and deletion. Job matching, transfers, corporation inventory, child blueprint selection and market/financial imports remain later work.
+- Production Queue now keeps the selected blueprint and component tree in a persistent left pane, with a draggable divider and all editors/library/materials/settings on the right. Selecting a component opens its editor and highlights the selected row.
+- Added explicit local manufacturing job plans for calculated Make components: choose the executing toon and optional facility ID, then create/update the assignment. Stable plan IDs, assignments and audit history survive restart; no job is submitted in EVE.
+- Hide manual child-input controls for calculated trees and prevent conflicting sourcing changes while a local job plan is assigned.
+- Started Phase C with an embedded MARKET navigation entry, separate open buy/sell views, item search, per-character selection, remaining quantities/values, order IDs, locations, expiry and snapshot freshness.
+- Market selection and last successful personal order snapshots persist. Refresh uses existing SSO and shared ESI handling, respects the normal 20-minute order cache, and retains old observations on errors or missing scopes. Reconnect selected market toons in Settings if market-order permission is missing.
+- Open-order values are not actual spending or profit. Corporation orders are excluded; order history, transactions, financial attribution, actual industry-job matching and transfer reconciliation remain future increments.
+- Added regression and rendered UI checks for assignment persistence, component selection, market cache handling, permissions, buy/sell filtering and restart recovery.

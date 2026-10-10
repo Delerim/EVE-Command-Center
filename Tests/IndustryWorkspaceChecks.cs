@@ -15,6 +15,7 @@ internal static partial class Program
         try
         {
             CheckIndustryPlanning(folder, renderPath);
+            CheckMarketOrders(folder, renderPath);
             bool Reject(Action action) { try { action(); return false; } catch (InvalidOperationException) { return true; } }
             var material = new IndustryProjectNode { TypeId = 34, Quantity = 80, Strategy = "Buy" };
             var assembly = new IndustryProjectNode { TypeId = 19744, Quantity = 1 };

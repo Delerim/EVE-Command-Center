@@ -22,14 +22,20 @@
    <TextBlock x:Name="Message" Foreground="#8FB2B5" TextTrimming="CharacterEllipsis" ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}" Margin="3,5"/>
   </StackPanel>
   <Grid Grid.Row="1">
-   <Grid.ColumnDefinitions><ColumnDefinition Width="200"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+   <Grid.ColumnDefinitions><ColumnDefinition Width="0.8*" MinWidth="290"/><ColumnDefinition Width="6"/><ColumnDefinition Width="1.5*" MinWidth="440"/></Grid.ColumnDefinitions>
    <DockPanel Margin="0,0,10,0">
     <TextBlock DockPanel.Dock="Top" Text="ALL PROJECTS" Foreground="#55D7D2" Margin="3,8"/>
-    <ListBox x:Name="Projects" SelectionChanged="Project_Selected" Background="#091C20" BorderBrush="#245058" Foreground="#DDF6F4" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+    <ListBox DockPanel.Dock="Top" MaxHeight="130" x:Name="Projects" SelectionChanged="Project_Selected" Background="#091C20" BorderBrush="#245058" Foreground="#DDF6F4" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
      <ListBox.ItemTemplate><DataTemplate><StackPanel Margin="6"><TextBlock Text="{Binding Name}" FontWeight="Bold" TextWrapping="Wrap"/><TextBlock Text="{Binding Detail}" FontSize="11" TextWrapping="Wrap" Margin="0,4,0,0"/></StackPanel></DataTemplate></ListBox.ItemTemplate>
     </ListBox>
+      <TextBlock DockPanel.Dock="Top" Text="PRODUCTION BREAKDOWN / COMPONENTS &amp; MATERIALS" Foreground="#55D7D2" Margin="3,12,0,6"/>
+      <TreeView ScrollViewer.HorizontalScrollBarVisibility="Disabled" x:Name="Nodes" SelectedItemChanged="Node_Selected" Background="#091C20" Foreground="#DDF6F4" BorderBrush="#245058">
+       <TreeView.ItemContainerStyle><Style TargetType="TreeViewItem"><Setter Property="IsExpanded" Value="True"/><Setter Property="IsSelected" Value="{Binding Selected, Mode=OneWay}"/><Setter Property="HorizontalContentAlignment" Value="Stretch"/><Setter Property="Foreground" Value="#DDF6F4"/></Style></TreeView.ItemContainerStyle>
+       <TreeView.ItemTemplate><HierarchicalDataTemplate ItemsSource="{Binding Children}"><Border BorderBrush="{Binding Color}" BorderThickness="2,0,0,1" Padding="8,6"><Border.Style><Style TargetType="Border"><Setter Property="Background" Value="#102D31"/><Style.Triggers><DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=TreeViewItem}}" Value="True"><Setter Property="Background" Value="#1C5750"/></DataTrigger></Style.Triggers></Style></Border.Style><DockPanel><Image Source="{Binding Icon}" Width="28" Height="28" Margin="0,0,9,0"/><StackPanel><TextBlock Text="{Binding Title}" TextWrapping="Wrap" FontWeight="SemiBold" Foreground="#DDF6F4"/><TextBlock Text="{Binding Detail}" TextWrapping="Wrap" Foreground="{Binding Color}" FontSize="11" Margin="0,3,0,0"/></StackPanel></DockPanel></Border></HierarchicalDataTemplate></TreeView.ItemTemplate>
+      </TreeView>
    </DockPanel>
-   <TabControl x:Name="WorkspaceTabs" SelectedIndex="1" Grid.Column="1" Background="#07181B" BorderBrush="#245058">
+   <GridSplitter Grid.Column="1" Width="5" HorizontalAlignment="Stretch" Background="#245058"/>
+   <TabControl x:Name="WorkspaceTabs" SelectedIndex="0" Grid.Column="2" Background="#07181B" BorderBrush="#245058">
     <TabItem x:Name="ProjectDetailTab" Header="PROJECT / COMPONENTS">
    <ScrollViewer x:Name="EditorScroll" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
     <StackPanel>
@@ -50,11 +56,6 @@
        </StackPanel>
       </Border>
       </Expander>
-      <TextBlock Text="PRODUCTION BREAKDOWN / COMPONENTS &amp; MATERIALS" Foreground="#55D7D2" Margin="3,12,0,6"/>
-      <TreeView x:Name="Nodes" Height="300" SelectedItemChanged="Node_Selected" Background="#091C20" Foreground="#DDF6F4" BorderBrush="#245058">
-       <TreeView.ItemContainerStyle><Style TargetType="TreeViewItem"><Setter Property="IsExpanded" Value="True"/><Setter Property="Foreground" Value="#DDF6F4"/></Style></TreeView.ItemContainerStyle>
-       <TreeView.ItemTemplate><HierarchicalDataTemplate ItemsSource="{Binding Children}"><Border Background="#102D31" BorderBrush="{Binding Color}" BorderThickness="2,0,0,1" Padding="8,6" MinWidth="460"><DockPanel><Image Source="{Binding Icon}" Width="28" Height="28" Margin="0,0,9,0"/><StackPanel><TextBlock Text="{Binding Title}" FontWeight="SemiBold" Foreground="#DDF6F4"/><TextBlock Text="{Binding Detail}" Foreground="{Binding Color}" FontSize="11" Margin="0,3,0,0"/><TextBlock Text="{Binding Calculation}" Foreground="#8FB2B5" FontSize="11"/></StackPanel></DockPanel></Border></HierarchicalDataTemplate></TreeView.ItemTemplate>
-      </TreeView>
       <StackPanel x:Name="NodeEditor" Visibility="Collapsed">
        <TextBlock x:Name="NodeTitle" Foreground="#74D6C9" Margin="3,10"/>
        <WrapPanel>
@@ -63,9 +64,16 @@
         <StackPanel><TextBlock Text="Sourcing intention"/><ComboBox Style="{StaticResource WorkspaceCombo}" x:Name="Strategy" Width="120"/></StackPanel>
         <Button Content="SAVE COMPONENT" Click="SaveNode_Click" VerticalAlignment="Bottom"/>
        </WrapPanel>
+       <Border x:Name="PlannedJobPanel" Background="#102D31" BorderBrush="#245058" BorderThickness="1" Padding="10" Margin="3,8">
+        <StackPanel><TextBlock Text="PLANNED MANUFACTURING JOB" Foreground="#55D7D2" FontWeight="Bold"/>
+         <TextBlock x:Name="PlannedJobStatus" TextWrapping="Wrap" Margin="0,5"/>
+         <WrapPanel><TextBlock Text="Facility ID (optional)" VerticalAlignment="Center"/><TextBox x:Name="JobFacility" Width="140"/><Button Content="CREATE / UPDATE PLANNED JOB" Click="PlanJob_Click"/><Button Content="REMOVE PLANNED JOB" Click="RemovePlanJob_Click"/></WrapPanel>
+         <TextBlock Text="Uses the executing toon selected above. This saves a local assignment; start the actual job in EVE. Skills, blueprint access and hauling still require verification." TextWrapping="Wrap" Foreground="#8FB2B5"/>
+        </StackPanel>
+       </Border>
        <TextBox x:Name="NodeNotes" ToolTip="Component notes, job/haul planning" TextWrapping="Wrap" AcceptsReturn="True"/>
        <TextBlock x:Name="Eligibility" TextWrapping="Wrap" Foreground="#FFD166" Margin="3,5"/>
-       <WrapPanel Margin="0,4">
+       <WrapPanel x:Name="ManualChildControls" Margin="0,4">
         <StackPanel><TextBlock Text="Child product type ID"/><TextBox x:Name="ChildType" Width="130"/></StackPanel>
         <StackPanel><TextBlock Text="Child quantity"/><TextBox x:Name="ChildQuantity" Width="100" Text="1"/></StackPanel>
         <Button Content="ADD CHILD COMPONENT" Click="AddChild_Click" VerticalAlignment="Bottom"/>

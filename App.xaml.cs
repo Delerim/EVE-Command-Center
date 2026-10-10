@@ -1166,6 +1166,8 @@ public partial class App : Application
             "pilots" =>
                 new PilotCommandCenterWindow(),
 
+            "market" => new MarketOrdersWindow(),
+
             "industry" =>
                 new IndustryWindow(),
 

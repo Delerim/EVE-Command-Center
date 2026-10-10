@@ -160,9 +160,29 @@ public sealed class IndustryWorkspaceStore
             if (node.ExecutorId != executor) Linked(executor, linked);
             Require(node.CalculationSource.Length == 0 || node.Quantity == quantity,
                 "Calculated quantities are linked to the material tree. Create a new blueprint plan for a different batch quantity.");
+            Require(!node.PlannedJobId.HasValue || (strategy == "Make" && executor.HasValue), "Remove the planned job before changing sourcing or clearing its executor.");
             node.Quantity = quantity; node.ExecutorId = executor; node.Strategy = strategy; node.Notes = notes;
         }, $"Edited component {nodeId}: planned quantity {quantity}, executor {executor}, strategy {strategy}.", projectId);
     }
+    public void AssignPlannedJob(Guid projectId, Guid nodeId, long executor, long? facility, ISet<long> linked)
+    {
+        Linked(executor, linked);
+        Change(s =>
+        {
+            var p = Project(s, projectId); var node = p.Nodes.Single(n => n.Id == nodeId);
+            Require(!p.Archived && !p.Paused, "Resume the project before assigning a job.");
+            Require(node.Strategy == "Make" && node.BlueprintTypeId.HasValue && node.PlannedRuns > 0,
+                "Select a calculated Make component with a manufacturing recipe.");
+            Require(facility == null || facility > 0, "Enter a positive facility ID or leave it blank.");
+            node.ExecutorId = executor; node.PlannedJobId ??= Guid.NewGuid();
+            node.PlannedJobFacilityId = facility; node.PlannedJobAssignedUtc = DateTimeOffset.UtcNow;
+        }, $"Assigned local manufacturing plan for component {nodeId} to {executor}; facility {facility}. No EVE job submitted.", projectId);
+    }
+    public void RemovePlannedJob(Guid projectId, Guid nodeId) => Change(s =>
+    {
+        var node = Project(s, projectId).Nodes.Single(n => n.Id == nodeId);
+        node.PlannedJobId = null; node.PlannedJobFacilityId = null; node.PlannedJobAssignedUtc = null;
+    }, $"Removed local job assignment for component {nodeId}; history retained.", projectId);
     public void Reserve(Guid projectId, Guid nodeId, IndustryStockSource source, long quantity, DateTimeOffset now, IReadOnlyList<IndustryStockSource> currentStock)
     {
         Change(s =>
@@ -204,6 +224,11 @@ public sealed class IndustryWorkspaceStore
         Require(state.Projects.Select(p => p.Id).Distinct().Count() == state.Projects.Count, "Duplicate project IDs.");
         var allNodes = state.Projects.SelectMany(p => p.Nodes).ToArray();
         Require(allNodes.Select(n => n.Id).Distinct().Count() == allNodes.Length, "Duplicate node IDs.");
+        var plannedJobs = allNodes.Where(n => n.PlannedJobId.HasValue).ToArray();
+        Require(plannedJobs.Select(n => n.PlannedJobId).Distinct().Count() == plannedJobs.Length,
+            "Duplicate planned job IDs.");
+        Require(plannedJobs.All(n => n.PlannedJobId != Guid.Empty && n.ExecutorId > 0 && n.PlannedRuns > 0 && n.BlueprintTypeId > 0 && n.Strategy == "Make"),
+            "Planned jobs need a Make recipe, positive runs and an assigned executor.");
         foreach (var p in state.Projects)
         {
             Require(p.Id != Guid.Empty && !string.IsNullOrWhiteSpace(p.Name), "Project name is required.");

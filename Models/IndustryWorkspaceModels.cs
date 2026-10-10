@@ -47,6 +47,9 @@ public sealed class IndustryProjectNode
     public long? BlueprintOwnerId { get; set; }
     public long? BlueprintLocationId { get; set; }
     public long? BlueprintRunsAvailable { get; set; }
+    public Guid? PlannedJobId { get; set; }
+    public long? PlannedJobFacilityId { get; set; }
+    public DateTimeOffset? PlannedJobAssignedUtc { get; set; }
     public long? PlannedRuns { get; set; }
     public long? PlannedOutput { get; set; }
     public int MaterialEfficiency { get; set; }

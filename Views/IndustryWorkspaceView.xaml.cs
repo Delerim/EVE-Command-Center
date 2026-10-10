@@ -80,26 +80,27 @@ public partial class IndustryWorkspaceView : System.Windows.Controls.UserControl
     }
     private static void Select(System.Windows.Controls.ComboBox box, long? id) => box.SelectedItem = box.Items.Cast<PilotOption>().FirstOrDefault(p => p.Id == id);
     private void Project_Selected(object sender, SelectionChangedEventArgs e)
-    { if (_loading) return; _projectId = (Projects.SelectedItem as ProjectRow)?.Id; _nodeId = null; ShowProject(); }
+    { if (_loading) return; _projectId = (Projects.SelectedItem as ProjectRow)?.Id; _nodeId = null; ShowProject(); WorkspaceTabs.SelectedItem = ProjectDetailTab; EditorScroll.ScrollToTop(); }
     private void ShowProject()
     {
         var project = _state.Projects.FirstOrDefault(p => p.Id == _projectId);
         ProjectEditor.Visibility = project == null ? Visibility.Collapsed : Visibility.Visible;
-        if (project == null) return;
+        if (project == null) { Nodes.ItemsSource = null; return; }
         ConfirmDelete.IsChecked = false;
         ProjectIdentity.Text = project.Name; ProjectIdentity.ToolTip = project.Id.ToString(); ProjectName.Text = project.Name; ProjectNotes.Text = project.Notes;
         Select(ProjectLead, project.LeadId); Select(ProjectBuyer, project.BuyerId); Select(ProjectSeller, project.SellerId);
         Paused.IsChecked = project.Paused; Archived.IsChecked = project.Archived;
-        NodeRow Row(IndustryProjectNode n) => new(n.Id, $"{n.Name} [type {n.TypeId}] x {n.Quantity:N0}",
-            $"{n.Strategy} | Executor: {Pilot(n.ExecutorId)} | Reserved {_state.Reservations.Where(r => r.NodeId == n.Id).Sum(r => (decimal)r.Quantity):N0}",
-            project.Nodes.Where(child => child.ParentId == n.Id).Select(Row).ToList(), n.TypeId, n.Strategy, n.CalculationNote);
-        Nodes.ItemsSource = project.Nodes.Where(n => n.ParentId == null).Select(Row).ToList();
         if (!project.Nodes.Any(n => n.Id == _nodeId)) _nodeId = project.Nodes.Single(n => n.ParentId == null).Id;
+        NodeRow Row(IndustryProjectNode n) => new(n.Id, $"{n.Name} [type {n.TypeId}] x {n.Quantity:N0}",
+            $"{n.Strategy} | Executor: {Pilot(n.ExecutorId)} | Reserved {_state.Reservations.Where(r => r.NodeId == n.Id).Sum(r => (decimal)r.Quantity):N0}{(n.PlannedJobId.HasValue ? " | JOB PLANNED" : "")}",
+            project.Nodes.Where(child => child.ParentId == n.Id).Select(Row).ToList(), n.TypeId, n.Strategy, n.CalculationNote, n.Id == _nodeId);
+        Nodes.ItemsSource = project.Nodes.Where(n => n.ParentId == null).Select(Row).ToList();
+
         Audit.Text = string.Join(Environment.NewLine, _state.Events.Where(e => e.ProjectId == project.Id || e.ProjectId == null).OrderByDescending(e => e.TimeUtc).Take(100).Select(e => $"{e.TimeUtc:u} {e.Description}"));
         ShowNode();
     }
     private void Node_Selected(object sender, RoutedPropertyChangedEventArgs<object> e)
-    { if (e.NewValue is NodeRow node) { _nodeId = node.Id; ShowNode(); } }
+    { if (e.NewValue is NodeRow node) { _nodeId = node.Id; ShowNode(); WorkspaceTabs.SelectedItem = ProjectDetailTab; EditorScroll.ScrollToTop(); } }
     private IndustryProjectNode? Node => _state.Projects.FirstOrDefault(p => p.Id == _projectId)?.Nodes.FirstOrDefault(n => n.Id == _nodeId);
     private void ShowNode()
     {
@@ -111,6 +112,13 @@ public partial class IndustryWorkspaceView : System.Windows.Controls.UserControl
             ? "Manual draft. Generate a material tree or create a plan from the blueprint library."
             : node.CalculationNote + (node.BlueprintItemId.HasValue ? $" | Blueprint {node.BlueprintItemId}, owner {node.BlueprintOwnerId}, location {node.BlueprintLocationId}" : "") + " | Skills/facility eligibility and delivery require verification.";
         if (node.ExecutorId.HasValue && !LinkedIds.Contains(node.ExecutorId.Value)) Eligibility.Text = "Assigned toon is no longer linked; assignment retained for review. " + Eligibility.Text;
+        ManualChildControls.Visibility = node.CalculationSource.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
+        PlannedJobPanel.Visibility = node.Strategy == "Make" && node.PlannedRuns > 0 ? Visibility.Visible : Visibility.Collapsed;
+        JobFacility.Text = node.PlannedJobFacilityId?.ToString() ?? "";
+        PlannedJobStatus.ToolTip = node.PlannedJobId?.ToString();
+        PlannedJobStatus.Text = node.PlannedJobId.HasValue
+            ? $"PLANNED | {Pilot(node.ExecutorId)} | {node.PlannedRuns:N0} runs | {node.PlannedOutput:N0} output units"
+            : "No planned job assigned. Select an executing toon, then create the plan.";
         RefreshStock();
         Reservations.ItemsSource = _state.Reservations.Where(r => r.NodeId == node.Id).Select(r => new ReservationRow(r.Id, r.Quantity,
             $"{Pilot(r.OwnerId)} / {r.Path} / stack {r.ItemId}", IndustryWorkspaceInventory.Review(r, _state.Reservations, _stock, DateTimeOffset.UtcNow))).ToArray();
@@ -222,6 +230,17 @@ public partial class IndustryWorkspaceView : System.Windows.Controls.UserControl
         if (_projectId is not {} id || ConfirmDelete.IsChecked != true) throw new InvalidOperationException("Tick Confirm deletion for the selected project first.");
         _store.DeleteProject(id); _projectId = null; _nodeId = null;
     }, "Project deleted. Audit history retained; no in-game assets or jobs changed.");
+    private void PlanJob_Click(object sender, RoutedEventArgs e) => Action(() =>
+    {
+        if (_projectId is not {} id || Node is not {} node || Choice(Executor) is not {} executor)
+            throw new InvalidOperationException("Select a component and executing toon first.");
+        long? facility = string.IsNullOrWhiteSpace(JobFacility.Text) ? null : Quantity(JobFacility.Text);
+        _store.AssignPlannedJob(id, node.Id, executor, facility, LinkedIds);
+    }, "Manufacturing job plan assigned. Start the actual job in EVE; this is a local plan only.");
+    private void RemovePlanJob_Click(object sender, RoutedEventArgs e) => Action(() =>
+    {
+        if (_projectId is {} id && Node is {} node) _store.RemovePlannedJob(id, node.Id);
+    }, "Local job assignment removed; component and audit history retained.");
     private void SaveProject_Click(object sender, RoutedEventArgs e) => Action(() =>
     { if (_projectId is {} id) _store.EditProject(id, ProjectName.Text, Choice(ProjectLead), Choice(ProjectBuyer), Choice(ProjectSeller), Paused.IsChecked == true, Archived.IsChecked == true, ProjectNotes.Text, LinkedIds); }, "Project saved; all child assignments retained.");
     private void SaveNode_Click(object sender, RoutedEventArgs e) => Action(() =>
@@ -241,7 +260,7 @@ public partial class IndustryWorkspaceView : System.Windows.Controls.UserControl
 
     private sealed record PilotOption(long? Id, string Name) { public override string ToString() => Name; }
     private sealed record ProjectRow(Guid Id, string Name, string Detail);
-    private sealed record NodeRow(Guid Id, string Title, string Detail, List<NodeRow> Children, int TypeId, string Strategy, string Calculation)
+    private sealed record NodeRow(Guid Id, string Title, string Detail, List<NodeRow> Children, int TypeId, string Strategy, string Calculation, bool Selected)
     {
         public string Icon => $"https://images.evetech.net/types/{TypeId}/icon?size=32";
         public string Color => Strategy == "Make" ? "#74D6C9" : Strategy == "Buy" ? "#80BFFF" : "#FFD166";

@@ -279,6 +279,8 @@
                         </StackPanel>
                     </Button>
 
+                    <Button x:Name="NavMarket" Style="{StaticResource NavButton}" Click="Market_Click"><StackPanel Orientation="Horizontal"><TextBlock Text="&#xE8D4;" Style="{StaticResource IconGlyph}"/><TextBlock Text="MARKET" VerticalAlignment="Center"/></StackPanel></Button>
+
                     <Button x:Name="NavPlanetary" Style="{StaticResource NavButton}" Click="Planetary_Click">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="&#xE774;" Style="{StaticResource IconGlyph}"/>

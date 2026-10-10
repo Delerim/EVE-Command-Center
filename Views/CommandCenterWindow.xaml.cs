@@ -273,6 +273,7 @@ public partial class CommandCenterWindow : Window
                 (NavPilots, "pilots"),
                 (NavOmega, "omega"),
                 (NavIndustry, "industry"),
+                (NavMarket, "market"),
                 (NavPlanetary, "pi"),
                 (NavMoons, "moons"),
                 (NavContracts, "contracts"),
@@ -1416,6 +1417,7 @@ public partial class CommandCenterWindow : Window
                     "\uE716"
                 ),
             "omega" => ("OMEGA", "Subscription dates, renewal planning and clone details", "\uE787"),
+            "market" => ("MARKET", "Personal buy and sell orders", "\uE8D4"),
             "industry" =>
                 (
                     "INDUSTRY",
@@ -1545,6 +1547,8 @@ public partial class CommandCenterWindow : Window
     {
         OpenModule("pilots");
     }
+
+    private void Market_Click(object sender, RoutedEventArgs e) => OpenModule("market");
 
     private void Industry_Click(
         object sender,

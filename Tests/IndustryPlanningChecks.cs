@@ -44,6 +44,19 @@ internal static partial class Program
         Check(saved.Projects.Single().Nodes[0].Quantity == 3 && saved.Projects.Single().Nodes[0].BlueprintItemId == 9001,
             "Calculated blueprint plan persists through restart and cannot be mutated by its caller");
         var root = saved.Projects.Single().Nodes[0];
+        store.AssignPlannedJob(id, root.Id, 42, 60003760, linked);
+        Guid? jobId = store.Snapshot().Projects.Single(p => p.Id == id).Nodes[0].PlannedJobId;
+        store.AssignPlannedJob(id, root.Id, 42, 60008494, linked);
+        var assigned = new IndustryWorkspaceStore(Path.Combine(folder, "planner")).Snapshot().Projects.Single(p => p.Id == id).Nodes[0];
+        Check(jobId.HasValue && assigned.PlannedJobId == jobId && assigned.PlannedJobFacilityId == 60008494 && assigned.ExecutorId == 42,
+            "Component job assignment persists a stable local job ID, executor and facility through restart");
+        Check(Reject(() => store.AssignPlannedJob(id, root.Id, 999, null, linked)) &&
+            Reject(() => store.EditNode(id, root.Id, root.Quantity, 42, "Buy", "", linked)),
+            "Job assignments reject unlinked executors and conflicting sourcing changes");
+        store.RemovePlannedJob(id, root.Id);
+        Check(!store.Snapshot().Projects.Single(p => p.Id == id).Nodes[0].PlannedJobId.HasValue,
+            "Removing a planned job leaves its component intact");
+
         Check(Reject(() => store.EditNode(id, root.Id, 7, 42, "Make", "", linked)),
             "Calculated quantities cannot be edited without recalculating dependent materials");
         Guid draft = store.Create("Obelisk Blueprint", obelisk.Blueprint, 1, null, linked);
@@ -82,6 +95,17 @@ internal static partial class Program
             .Invoke(view, new object[] { grid, new RoutedEventArgs() });
         Check(store.Snapshot().Projects.Count == 2 && store.Snapshot().Projects.Last().Nodes[0].BlueprintOwnerId == 42 && store.Snapshot().Projects.Last().Nodes.Count > 10,
             "Library create action persists a complete component tree from the selected blueprint instance");
+        var componentTree = (TreeView)view.FindName("Nodes");
+        var firstChild = ((System.Collections.IEnumerable)componentTree.Items[0].GetType().GetProperty("Children")!.GetValue(componentTree.Items[0])!).Cast<object>().First();
+        typeof(IndustryWorkspaceView).GetMethod("Node_Selected", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
+            .Invoke(view, new object[] { componentTree, new RoutedPropertyChangedEventArgs<object>(null!, firstChild) });
+        ((System.Windows.Controls.ComboBox)view.FindName("Executor")).SelectedValue = 42L;
+        typeof(IndustryWorkspaceView).GetMethod("PlanJob_Click", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
+            .Invoke(view, new object[] { view, new RoutedEventArgs() });
+        Check(store.Snapshot().Projects.Last().Nodes.Any(n => n.ParentId != null && n.PlannedJobId.HasValue && n.ExecutorId == 42),
+            "Clicking a component exposes and saves an assignable local job without fragmenting the project");
+        Check(((TreeView)view.FindName("Nodes")).Parent != ((StackPanel)view.FindName("ProjectEditor")),
+            "Component tree is independent of the right-hand project editor");
         if (renderPath != null)
         {
             var shell = new IndustryWindow { Width = 1480, Height = 960 };
@@ -90,7 +114,7 @@ internal static partial class Program
             ((TabControl)view.FindName("WorkspaceTabs")).SelectedItem = view.FindName("LibraryTab");
             Render(shell, Path.ChangeExtension(renderPath, ".library.png"));
             ((TabControl)view.FindName("WorkspaceTabs")).SelectedItem = view.FindName("ProjectDetailTab");
-            ((ScrollViewer)view.FindName("EditorScroll")).ScrollToVerticalOffset(180);
+            ((ScrollViewer)view.FindName("EditorScroll")).ScrollToTop();
             Render(shell, Path.ChangeExtension(renderPath, ".tree.png"));
             shell.Close();
         }
