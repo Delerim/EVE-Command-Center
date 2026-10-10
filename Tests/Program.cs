@@ -28,6 +28,11 @@ internal static partial class Program
     [STAThread]
     private static void Main(string[] args)
     {
+        if (args.FirstOrDefault() == "--audit-workspace")
+        {
+            var appFixture = new System.Windows.Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
+            CheckIndustryWorkspace(args[1]); return;
+        }
         if(args.FirstOrDefault() == "--audit-controls") {
             var appFixture = new System.Windows.Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
             var overview = CheckCharacterOverview();
@@ -154,6 +159,7 @@ internal static partial class Program
         CheckMoonDrillSchedule();
         var piFixture = CheckPlanetary();
         var industryFixture = CheckIndustry();
+        CheckIndustryWorkspace();
         CheckSkillPlanning();
         CheckOmegaBudget();
         CheckRockTracking();
@@ -326,8 +332,9 @@ internal static partial class Program
         ((ListBox)industryWindow.FindName("Pilots")).SelectedIndex=0;
         if(args.Length>0)
         {
+            ((TabControl)industryWindow.FindName("IndustryTabs")).SelectedItem=industryWindow.FindName("JobsTab");
             Render(industryWindow,System.IO.Path.ChangeExtension(args[0],".industry.png"));
-            ((TabControl)industryWindow.FindName("IndustryTabs")).SelectedIndex=1;
+            ((TabControl)industryWindow.FindName("IndustryTabs")).SelectedItem=industryWindow.FindName("BlueprintPlannerTab");
             Render(industryWindow,System.IO.Path.ChangeExtension(args[0],".planner.png"));
             ((TabControl)industryWindow.FindName("PlanTabs")).SelectedIndex=3;
             Render(industryWindow,System.IO.Path.ChangeExtension(args[0],".profitability.png"));

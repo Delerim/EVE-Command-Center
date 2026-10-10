@@ -19,6 +19,7 @@ public sealed class BackgroundOperations : IDisposable
     public CorporationAccessService Access { get; }
     public PlanetaryService Planetary { get; }
     public IndustryService Industry { get; }
+    public IndustryWorkspaceStore IndustryWorkspace { get; } = new();
     public OmegaService Omega { get; }
     public BackgroundPilotRefresh Pilots { get; }
     private DateTimeOffset _nextAccess;

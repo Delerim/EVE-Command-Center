@@ -8,6 +8,10 @@ public static class IndustryCatalog
     private static Catalog Load() { using var s=typeof(IndustryCatalog).Assembly.GetManifestResourceStream("EveCommandCenter.Resources.industry-catalog.json")!; return JsonSerializer.Deserialize<Catalog>(s)!; }
     public static IReadOnlyList<IndustryRecipe> Recipes => Data.Recipes;
     public static string Name(int id) => Data.Types.GetValueOrDefault(id,"Type " + id);
+    public static IReadOnlyList<KeyValuePair<int, string>> FindTypes(string query) => string.IsNullOrWhiteSpace(query)
+        ? Array.Empty<KeyValuePair<int, string>>()
+        : Data.Types.Where(t => t.Value.Contains(query.Trim(), StringComparison.OrdinalIgnoreCase) || t.Key.ToString() == query.Trim())
+            .OrderBy(t => t.Value).Take(80).ToArray();
     public static long Num(JsonElement j,string key) => j.TryGetProperty(key,out var v) && v.TryGetInt64(out var n) ? n : 0;
     public static string Text(JsonElement j,string key) => j.TryGetProperty(key,out var v) ? v.ToString() : "";
     public static int Level(IndustryPilot p,string name) => p.Skills.GetValueOrDefault(Data.Types.FirstOrDefault(t=>t.Value==name).Key);
