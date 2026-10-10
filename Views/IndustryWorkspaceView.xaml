@@ -111,7 +111,7 @@
                         <TextBlock x:Name="InputsHint" Margin="0,0,0,8" TextWrapping="Wrap" DockPanel.Dock="Top" />
                         <DataGrid x:Name="ComponentInputs" ScrollViewer.HorizontalScrollBarVisibility="Auto" MinHeight="45" SelectionChanged="Input_Selected">
                           <DataGrid.Columns>
-                            <DataGridTemplateColumn Header="Component / material" Width="260" MinWidth="210">
+                            <DataGridTemplateColumn Header="Component / material" SortMemberPath="Name" Width="260" MinWidth="210">
                               <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
                                   <DockPanel>
@@ -121,7 +121,7 @@
                                 </DataTemplate>
                               </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
-                            <DataGridTextColumn Header="Available" Binding="{Binding Free}" Width="100" MinWidth="85">
+                            <DataGridTextColumn Header="Available" SortMemberPath="SortAvailable" Binding="{Binding Free}" Width="100" MinWidth="85">
                               <DataGridTextColumn.ElementStyle>
                                 <Style TargetType="TextBlock">
                                   <Setter Property="HorizontalAlignment" Value="Right" />
@@ -129,7 +129,7 @@
                                 </Style>
                               </DataGridTextColumn.ElementStyle>
                             </DataGridTextColumn>
-                            <DataGridTemplateColumn Header="Missing stock" Width="115" MinWidth="110"><DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding MissingLabel}" Foreground="{Binding StockColor}" FontWeight="SemiBold" HorizontalAlignment="Right" /></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
+                            <DataGridTemplateColumn Header="Missing stock" SortMemberPath="SortMissing" Width="115" MinWidth="110"><DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding MissingLabel}" Foreground="{Binding StockColor}" FontWeight="SemiBold" HorizontalAlignment="Right" /></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
 <DataGridTextColumn Header="Required" Binding="{Binding Quantity, StringFormat=N0}" Width="100" MinWidth="85">
                               <DataGridTextColumn.ElementStyle>
                                 <Style TargetType="TextBlock">
@@ -146,7 +146,7 @@
                                 </Style>
                               </DataGridTextColumn.ElementStyle>
                             </DataGridTextColumn>
-                            <DataGridTemplateColumn Header="Stock check" Width="155" MinWidth="145"><DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding StockStatus}" Foreground="{Binding StockColor}" /></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn><DataGridTextColumn Header="Source" Binding="{Binding Strategy}" Width="*" />
+                            <DataGridTemplateColumn Header="Stock check" SortMemberPath="StockStatus" Width="155" MinWidth="145"><DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding StockStatus}" Foreground="{Binding StockColor}" /></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn><DataGridTextColumn Header="Source" Binding="{Binding Strategy}" Width="*" />
                           </DataGrid.Columns>
                         </DataGrid>
                       </DockPanel>
@@ -169,7 +169,7 @@
                                 </Grid.RowDefinitions>
                                 <DataGrid x:Name="ComponentBlueprints" MinHeight="45">
                                   <DataGrid.Columns>
-                                    <DataGridTemplateColumn Header="Blueprint" Width="2*">
+                                    <DataGridTemplateColumn Header="Blueprint" SortMemberPath="Name" Width="2*">
                                       <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
                                           <DockPanel>
@@ -180,8 +180,8 @@
                                       </DataGridTemplateColumn.CellTemplate>
                                     </DataGridTemplateColumn>
                                     <DataGridTextColumn Header="Owner" Binding="{Binding Owner}" Width="*" />
-                                    <DataGridTextColumn Header="ME / TE" Binding="{Binding Efficiency}" Width="*" />
-                                    <DataGridTextColumn Header="Runs" Binding="{Binding RunText}" Width="70" />
+                                    <DataGridTextColumn Header="ME / TE" SortMemberPath="ME" Binding="{Binding Efficiency}" Width="*" />
+                                    <DataGridTextColumn Header="Runs" SortMemberPath="Runs" Binding="{Binding RunText}" Width="70" />
                                     <DataGridTextColumn Header="Location" Binding="{Binding Location}" Width="2*" />
                                     <DataGridTextColumn Header="Availability" Binding="{Binding Status}" Width="*" />
                                   </DataGrid.Columns>
@@ -229,7 +229,7 @@
                                     <DataGridTextColumn Header="Runs" Binding="{Binding Link.Runs}" Width="60" />
                                     <DataGridTextColumn Header="Facility" Binding="{Binding Facility}" Width="2*" />
                                     <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="2*" />
-                                    <DataGridTextColumn Header="Ends (EVE)" Binding="{Binding End}" Width="135" />
+                                    <DataGridTextColumn Header="Ends (EVE)" SortMemberPath="Link.EndUtc" Binding="{Binding End}" Width="135" />
                                   </DataGrid.Columns>
                                 </DataGrid>
                                 <Thumb Height="8" Cursor="SizeNS" DragDelta="ResizeTable_DragDelta" Grid.Row="1">
@@ -277,7 +277,7 @@
                           <GridSplitter Height="6" HorizontalAlignment="Stretch" Background="#284950" Grid.Row="1" />
                           <DataGrid x:Name="Stock" MinHeight="50">
                             <DataGrid.Columns>
-                              <DataGridTemplateColumn Header="Material" Width="180">
+                              <DataGridTemplateColumn Header="Material" SortMemberPath="Name" Width="180">
                                 <DataGridTemplateColumn.CellTemplate>
                                   <DataTemplate>
                                     <DockPanel>
@@ -287,7 +287,7 @@
                                   </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                               </DataGridTemplateColumn>
-                              <DataGridTextColumn Header="Free" Binding="{Binding Free}" Width="115" MinWidth="90">
+                              <DataGridTextColumn Header="Free" SortMemberPath="SortFree" Binding="{Binding Free}" Width="115" MinWidth="90">
                                 <DataGridTextColumn.ElementStyle>
                                   <Style TargetType="TextBlock">
                                     <Setter Property="HorizontalAlignment" Value="Right" />
@@ -402,7 +402,7 @@
             <Button Content="COPY MATERIALS LIST" Click="CopyShopping_Click" HorizontalAlignment="Left" DockPanel.Dock="Bottom" />
             <DataGrid x:Name="Shopping" ScrollViewer.HorizontalScrollBarVisibility="Auto">
               <DataGrid.Columns>
-                <DataGridTemplateColumn Header="Material" Width="240" MinWidth="200">
+                <DataGridTemplateColumn Header="Material" SortMemberPath="Name" Width="240" MinWidth="200">
                   <DataGridTemplateColumn.CellTemplate>
                     <DataTemplate>
                       <DockPanel>
@@ -412,7 +412,7 @@
                     </DataTemplate>
                   </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
-                <DataGridTextColumn Header="Available" Binding="{Binding FreeLabel}" Width="100" MinWidth="85">
+                <DataGridTextColumn Header="Available" SortMemberPath="SortAvailable" Binding="{Binding FreeLabel}" Width="100" MinWidth="85">
                   <DataGridTextColumn.ElementStyle>
                     <Style TargetType="TextBlock">
                       <Setter Property="HorizontalAlignment" Value="Right" />
@@ -420,7 +420,7 @@
                     </Style>
                   </DataGridTextColumn.ElementStyle>
                 </DataGridTextColumn>
-                <DataGridTemplateColumn Header="Missing stock" Width="115" MinWidth="110"><DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding MissingLabel}" Foreground="{Binding StockColor}" FontWeight="SemiBold" HorizontalAlignment="Right" /></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
+                <DataGridTemplateColumn Header="Missing stock" SortMemberPath="SortMissing" Width="115" MinWidth="110"><DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding MissingLabel}" Foreground="{Binding StockColor}" FontWeight="SemiBold" HorizontalAlignment="Right" /></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
 <DataGridTextColumn Header="Required" Binding="{Binding Required, StringFormat=N0}" Width="100" MinWidth="85">
                   <DataGridTextColumn.ElementStyle>
                     <Style TargetType="TextBlock">
@@ -437,7 +437,7 @@
                     </Style>
                   </DataGridTextColumn.ElementStyle>
                 </DataGridTextColumn>
-                <DataGridTemplateColumn Header="Stock check" Width="155" MinWidth="145"><DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding StockStatus}" Foreground="{Binding StockColor}" /></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn><DataGridTextColumn Header="Owned" Binding="{Binding OwnedLabel}" Width="100" MinWidth="85" />
+                <DataGridTemplateColumn Header="Stock check" SortMemberPath="StockStatus" Width="155" MinWidth="145"><DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding StockStatus}" Foreground="{Binding StockColor}" /></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn><DataGridTextColumn Header="Owned" SortMemberPath="SortOwned" Binding="{Binding OwnedLabel}" Width="100" MinWidth="85" />
                 <DataGridTextColumn Header="All reserved" Binding="{Binding TotalReserved, StringFormat=N0}" Width="100" MinWidth="85" />
                 <DataGridTextColumn Header="To reserve" Binding="{Binding Unreserved, StringFormat=N0}" Width="100" MinWidth="85">
                   <DataGridTextColumn.ElementStyle>
@@ -472,11 +472,11 @@
               <TextBlock x:Name="SkillsStatus" TextWrapping="Wrap" Margin="0,12"/>
             </StackPanel>
             <DataGrid x:Name="ProjectSkills"><DataGrid.Columns>
-              <DataGridTemplateColumn Header="Skill" Width="2*"><DataGridTemplateColumn.CellTemplate><DataTemplate><StackPanel Orientation="Horizontal"><Image Source="{Binding Icon}" Width="24" Height="24" Margin="0,0,8,0"/><TextBlock Text="{Binding Name}" VerticalAlignment="Center"/></StackPanel></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
+              <DataGridTemplateColumn Header="Skill" SortMemberPath="Name" Width="2*"><DataGridTemplateColumn.CellTemplate><DataTemplate><StackPanel Orientation="Horizontal"><Image Source="{Binding Icon}" Width="24" Height="24" Margin="0,0,8,0"/><TextBlock Text="{Binding Name}" VerticalAlignment="Center"/></StackPanel></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
               <DataGridTextColumn Header="Trained" Binding="{Binding Trained}" Width="80"/>
               <DataGridTextColumn Header="Required" Binding="{Binding Required}" Width="80"/>
-              <DataGridTemplateColumn Header="Training needed" Width="150"><DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding Training}" Foreground="{Binding Color}"/></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
-              <DataGridTemplateColumn Header="Used by" Width="3*"><DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding Products}" TextWrapping="Wrap" ToolTip="{Binding Products}" Margin="0,4"/></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
+              <DataGridTemplateColumn Header="Training needed" SortMemberPath="Training" Width="150"><DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding Training}" Foreground="{Binding Color}"/></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
+              <DataGridTemplateColumn Header="Used by" SortMemberPath="Products" Width="3*"><DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding Products}" TextWrapping="Wrap" ToolTip="{Binding Products}" Margin="0,4"/></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
             </DataGrid.Columns></DataGrid>
           </DockPanel>
         </TabItem>
@@ -625,7 +625,7 @@
         </Border>
         <DataGrid x:Name="Blueprints">
           <DataGrid.Columns>
-            <DataGridTemplateColumn Header="BLUEPRINT" Width="2*">
+            <DataGridTemplateColumn Header="BLUEPRINT" SortMemberPath="Name" Width="2*">
               <DataGridTemplateColumn.CellTemplate>
                 <DataTemplate>
                   <StackPanel Orientation="Horizontal">
@@ -635,10 +635,10 @@
                 </DataTemplate>
               </DataGridTemplateColumn.CellTemplate>
             </DataGridTemplateColumn>
-            <DataGridTextColumn Header="ME / TE" Binding="{Binding Efficiency}" Width="150" />
-            <DataGridTextColumn Header="RUNS" Binding="{Binding RunText}" Width="80" />
+            <DataGridTextColumn Header="ME / TE" SortMemberPath="ME" Binding="{Binding Efficiency}" Width="150" />
+            <DataGridTextColumn Header="RUNS" SortMemberPath="Runs" Binding="{Binding RunText}" Width="80" />
             <DataGridTextColumn Header="LOCATION / CONTAINER" Binding="{Binding Location}" Width="2*" />
-            <DataGridTemplateColumn Header="STATUS" Width="170">
+            <DataGridTemplateColumn Header="STATUS" SortMemberPath="Status" Width="170">
               <DataGridTemplateColumn.CellTemplate>
                 <DataTemplate>
                   <Border BorderBrush="{Binding Color}" BorderThickness="2,0,0,0" Padding="8,3">

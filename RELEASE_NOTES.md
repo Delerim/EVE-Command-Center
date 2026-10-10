@@ -1,8 +1,8 @@
-# EVE Command Center v3.6.44
+# EVE Command Center v3.6.45
 
-- Material and component tables now put available and missing stock together, with green coverage, amber shortages and grey unknown states. Missing stock subtracts usable free stock and reservations for the displayed builds; unreserved demand is separately labelled To reserve.
-- Rebalanced material column widths and moved key quantities next to item names. Existing material-table widths are reset once for this layout, then future adjustments are remembered. Other pane preferences are preserved.
-- Replaced the permanent Draft label with Planning, Assigned or EVE job linked, based on saved evidence. Linked does not claim completion or delivery; paused and archived states remain separate.
-- Simplified Assign & track into blueprint selection, builder assignment and linking a job started in EVE. No in-game job is submitted.
-- Moved shared Project defaults to the projects overview. Removed inactive role controls from the visible interface, including the Dashboard checkbox that previously only saved a preference. Existing preferences are retained. Name-based project creation now lives under New project.
-- Copied material lists include available and missing stock, preserving Unknown and Review states.
+- Production tables now sort by clicking headings, including item names and numeric shortfalls. Unknown stock sorts after known quantities in either direction, and the current sort is reapplied when the visible table reloads.
+- Added a subtle 1.5% hover lift to project, pilot and component cards. It uses rendering transforms so neighboring rows do not move and honors Windows animation preferences.
+- Continued Phase C Market work with Open, No longer observed and All observations filters. An order absent from a successful complete open-order refresh retains its last price, quantities and observation time; disappearance never implies a fill, sale or cancellation.
+- Reappearing orders return to the open view without duplicates. Failed, malformed and unauthorized refreshes preserve prior observations. Selected pilots and retained observations survive restart in the existing cache.
+- Market tables reuse the polished Industry controls, named item icons, subtle state colors, sortable quantities and dates, and a selected-order explanation. Open-order totals exclude absent orders.
+- This is an order-observation increment. Confirmed order history, wallet transactions, attribution and financial accounting remain pending and will use the planned shared ledger rather than treating these observations as financial evidence.

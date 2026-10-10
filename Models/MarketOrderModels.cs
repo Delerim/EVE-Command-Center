@@ -22,7 +22,15 @@ public sealed class MarketOrder
     [JsonIgnore] public string Location => ResolvedLocation ?? "Location name unavailable";
     [JsonIgnore] public string Icon => $"https://images.evetech.net/types/{TypeId}/icon?size=32";
     [JsonIgnore] public string Side => Buy ? "BUY" : "SELL";
+    [JsonIgnore] public DateTimeOffset ExpiryTime => Issued.AddDays(Duration);
     [JsonIgnore] public string Expiry => Issued.AddDays(Duration).UtcDateTime.ToString("dd MMM HH:mm 'UTC'");
+}
+
+public sealed class MarketOrderObservation
+{
+    public MarketOrder Order { get; set; } = new();
+    public DateTimeOffset LastSeen { get; set; }
+    public DateTimeOffset MissingSince { get; set; }
 }
 
 public sealed class MarketCharacterSnapshot
@@ -33,6 +41,7 @@ public sealed class MarketCharacterSnapshot
     public DateTimeOffset NextRefresh { get; set; }
     public string Error { get; set; } = "Not refreshed";
     public List<MarketOrder> Orders { get; set; } = new();
+    public List<MarketOrderObservation> Unobserved { get; set; } = new();
 }
 
 public sealed class MarketOrdersState

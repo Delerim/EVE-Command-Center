@@ -255,6 +255,8 @@ public partial class IndustryWorkspaceView : System.Windows.Controls.UserControl
     {
         public string Icon => $"https://images.evetech.net/types/{TypeId}/icon?size=32";
         private decimal? Available => Free == "N/A" ? 0 : decimal.TryParse(Free, System.Globalization.NumberStyles.Number, System.Globalization.CultureInfo.CurrentCulture, out var n) ? n : null;
+        public decimal? SortMissing => Available is {} free ? Math.Max(0, Quantity - Reserved - free) : null;
+        public decimal? SortAvailable => Available;
         public string MissingLabel => Available is {} free ? Math.Max(0, Quantity - Reserved - free).ToString("N0") : "Unknown";
         public string StockColor => Available == null ? "#A5BBC1" : Quantity - Reserved - Available > 0 ? "#EDAD83" : "#76D7CB";
         public string StockStatus => Available == null ? "Check inventory" : Quantity - Reserved - Available > 0 ? "Shortfall" : "Stock covers demand";
@@ -421,6 +423,7 @@ public partial class IndustryWorkspaceView : System.Windows.Controls.UserControl
         public string Name => ResolvedName;
         public string Icon => $"https://images.evetech.net/types/{Source.TypeId}/icon?size=32";
         public decimal Reserved => Math.Max(0, Source.Quantity - Available);
+        public decimal? SortFree => Source.Verified ? Available : null;
         public string Free => Source.Verified ? Available.ToString("N0") : "Unknown";
         public string Owner => Source.Owner;
         public string Path => DisplayPath;

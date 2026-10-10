@@ -6,7 +6,7 @@ using EveCommandCenter.Models;
 
 namespace EveCommandCenter.Services;
 
-// Latest observed orders only. Historical transactions/attribution will use the future shared ledger.
+// Latest observations, including orders no longer returned. Not a fill/history or financial ledger.
 public sealed class MarketOrdersService
 {
     public const string Scope = "esi-markets.read_character_orders.v1";
@@ -31,7 +31,11 @@ public sealed class MarketOrdersService
                 using var doc = JsonDocument.Parse(File.ReadAllText(_path));
                 if (!doc.RootElement.TryGetProperty("SchemaVersion", out var version) || version.GetInt32() != 1) throw new InvalidDataException("Unsupported market cache schema");
                 var loaded = doc.RootElement.Deserialize<MarketOrdersState>() ?? throw new InvalidDataException("Empty market cache");
-                foreach (var c in loaded.Characters) Validate(c.Orders);
+                foreach (var c in loaded.Characters)
+                {
+                    Validate(c.Orders); Validate(c.Unobserved.Select(o => o.Order).ToList());
+                    if (c.Unobserved.Any(o => o.LastSeen == default || o.MissingSince < o.LastSeen || o.Order.Corporation || c.Orders.Any(a => a.OrderId == o.Order.OrderId))) throw new InvalidDataException("Invalid order observation");
+                }
                 State = loaded;
             }
         }
@@ -86,6 +90,11 @@ public sealed class MarketOrdersService
                     response.EnsureSuccessStatusCode();
                     var rows = JsonSerializer.Deserialize<List<MarketOrder>>(await response.Content.ReadAsStringAsync(ct)) ?? throw new InvalidDataException("Empty response");
                     Validate(rows);
+                    foreach (var row in rows)
+                    {
+                        row.ResolvedName = data.Orders.Concat(data.Unobserved.Select(o => o.Order)).FirstOrDefault(o => o.TypeId == row.TypeId)?.ResolvedName;
+                        row.ResolvedLocation = data.Orders.Concat(data.Unobserved.Select(o => o.Order)).FirstOrDefault(o => o.LocationId == row.LocationId)?.ResolvedLocation;
+                    }
                     if (_resolveNames)
                     {
                         try
@@ -96,14 +105,20 @@ public sealed class MarketOrdersService
                                 if (await _sso.ResolveDisplayLocationAsync(location, pilot, ct) is {} name) locations[location] = name;
                             foreach (var row in rows)
                             {
-                                row.ResolvedName = names.GetValueOrDefault(row.TypeId) is {} name && !name.StartsWith("Type ") && name != "Item name unavailable" ? name : data.Orders.FirstOrDefault(o => o.TypeId == row.TypeId)?.ResolvedName;
-                                row.ResolvedLocation = locations.GetValueOrDefault(row.LocationId) ?? data.Orders.FirstOrDefault(o => o.LocationId == row.LocationId)?.ResolvedLocation;
+                                row.ResolvedName = names.GetValueOrDefault(row.TypeId) is {} name && !name.StartsWith("Type ") && name != "Item name unavailable" ? name : data.Orders.Concat(data.Unobserved.Select(o => o.Order)).FirstOrDefault(o => o.TypeId == row.TypeId)?.ResolvedName;
+                                row.ResolvedLocation = locations.GetValueOrDefault(row.LocationId) ?? data.Orders.Concat(data.Unobserved.Select(o => o.Order)).FirstOrDefault(o => o.LocationId == row.LocationId)?.ResolvedLocation;
                             }
                         }
                         catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
                         catch (Exception ex) { EsiDiagnostics.Write("Market names deferred: " + ex.GetType().Name); }
                     }
-                    data.Orders = rows; data.Updated = DateTimeOffset.UtcNow; data.Error = "";
+                    var observedAt = DateTimeOffset.UtcNow;
+                    var returned = rows.Select(o => o.OrderId).ToHashSet();
+                    data.Unobserved.RemoveAll(o => returned.Contains(o.Order.OrderId));
+                    var retained = data.Unobserved.Select(o => o.Order.OrderId).ToHashSet();
+                    foreach (var old in data.Orders.Where(o => !o.Corporation && !returned.Contains(o.OrderId)))
+                        if (retained.Add(old.OrderId)) data.Unobserved.Add(new() { Order = old, LastSeen = data.Updated, MissingSince = observedAt });
+                    data.Orders = rows; data.Updated = observedAt; data.Error = "";
                     var ttl = response.Headers.CacheControl?.MaxAge ?? TimeSpan.FromMinutes(20);
                     var age = response.Headers.Age ?? TimeSpan.Zero;
                     data.NextRefresh = data.Updated.Add(ttl > age ? ttl - age : TimeSpan.FromMinutes(1));

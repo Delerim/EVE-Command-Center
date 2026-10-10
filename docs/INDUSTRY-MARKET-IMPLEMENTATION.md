@@ -135,3 +135,10 @@ Omega preserves supplied clone names and offers explicit refresh. ESI's optional
 Missing stock is max(0, required - reservations for these builds - free stock). Unknown inventory and reservation review remain nonnumeric. Coverage is an availability comparison, not an allocation or a hauling/delivery claim. Separate component rows may share free stock; consolidated demand remains the combined comparison.
 
 Gallery status projects evidence: Planning, explicit planned-job assignment, or explicit EVE job link. There is still no delivery/consumption reconciliation or automatic Completed transition. Global defaults moved to the gallery; unused role preferences remain persisted but are not exposed as functioning dashboard controls. Assignment terminology changed without altering store invariants or starting in-game jobs.
+
+
+## v3.6.45 - Sorting, hover motion and Phase C order observations
+
+TableSorting handles template and bound columns, numeric nullable quantities with unknowns last in both directions, and reapplication after visible source replacement. HoverMotion scales card rendering by 1.015 for 130ms with an eased return; layout bounds do not change and Windows client-area animation preferences are respected.
+
+The Market open-order observation cache now retains one last observation for orders absent from a successful full response, with last-seen and first-missing timestamps. Same-character reappearance removes that absent observation; failures and missing scopes never create absence. Corporate rows are excluded from absence tracking. UI filters open/missing/all independently of buy/sell, while totals count only currently observed open rows. No new ESI endpoint, history pagination, inferred terminal state, fill or transaction was added. This stays in the existing replaceable observation cache, not a second transaction ledger. The shared transactional ledger migration is still required before confirmed historical ingestion and attribution, as specified above.

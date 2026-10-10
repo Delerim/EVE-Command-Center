@@ -12,6 +12,9 @@ public static class IndustryShoppingList
         public bool HasVerifiedStock { get; init; }
         public string OwnedLabel => HasVerifiedStock ? Owned.ToString("N0") : ConfirmedEmpty ? "N/A" : "Unknown";
         public string FreeLabel => Review.StartsWith("Reservation/source") ? "Review" : HasVerifiedStock ? FreeStock.ToString("N0") : ConfirmedEmpty ? "N/A" : "Unknown";
+        public decimal? SortMissing => FreeLabel is "Unknown" or "Review" ? null : Math.Max(0, Required - Reserved - FreeStock);
+        public decimal? SortAvailable => FreeLabel is "Unknown" or "Review" ? null : FreeStock;
+        public decimal? SortOwned => HasVerifiedStock ? Owned : ConfirmedEmpty ? 0 : null;
         public string MissingLabel => FreeLabel is "Unknown" or "Review" ? FreeLabel : Math.Max(0, Required - Reserved - FreeStock).ToString("N0");
         public string StockColor => MissingLabel is "Unknown" or "Review" ? "#A5BBC1" : Math.Max(0, Required - Reserved - FreeStock) > 0 ? "#EDAD83" : "#76D7CB";
         public string StockStatus => MissingLabel is "Unknown" or "Review" ? "Check inventory" : Math.Max(0, Required - Reserved - FreeStock) > 0 ? "Shortfall" : "Stock covers demand";

@@ -43,6 +43,7 @@ internal static class WorkspaceLayout
             .Select(n => (DataGrid)view.FindName(n)).ToArray();
         foreach (var grid in grids)
         {
+            TableSorting.Attach(grid);
             grid.CanUserResizeColumns = true;
             grid.CanUserReorderColumns = true;
             foreach (var column in grid.Columns)
