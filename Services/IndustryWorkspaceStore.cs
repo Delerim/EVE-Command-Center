@@ -97,6 +97,35 @@ public sealed class IndustryWorkspaceStore
         }, "Created draft project: " + name, id);
         return id;
     }
+    public Guid CreateCalculated(List<IndustryProjectNode> nodes, ISet<long> linked)
+    {
+        Guid id = Guid.NewGuid();
+        // Copy caller-owned nodes before they enter persistent state.
+        var copy = JsonSerializer.Deserialize<List<IndustryProjectNode>>(JsonSerializer.Serialize(nodes))!;
+        Change(s =>
+        {
+            Linked(s.DefaultLeadId, linked); Linked(s.DefaultBuyerId, linked); Linked(s.DefaultSellerId, linked);
+            foreach (var node in copy) Linked(node.ExecutorId, linked);
+            s.Projects.Add(new() { Id = id, Name = copy.Single(n => n.ParentId == null).Name,
+                LeadId = s.DefaultLeadId, BuyerId = s.DefaultBuyerId, SellerId = s.DefaultSellerId, Nodes = copy });
+        }, "Created manufacturing dependency plan with catalog provenance and explicit blueprint assumptions.", id);
+        return id;
+    }
+    public void ExpandDraft(Guid projectId, List<IndustryProjectNode> nodes)
+    {
+        var copy = JsonSerializer.Deserialize<List<IndustryProjectNode>>(JsonSerializer.Serialize(nodes))!;
+        Change(s =>
+        {
+            var p = Project(s, projectId);
+            Require(!p.Archived && p.Nodes.Count == 1 && !s.Reservations.Any(r => r.ProjectId == projectId),
+                "Only an unreserved single-node draft can be expanded. Existing component plans are preserved; create a new plan to recalculate.");
+            var old = p.Nodes.Single(); var root = copy.Single(n => n.ParentId == null); var generatedId = root.Id;
+            root.Id = old.Id; root.ExecutorId = old.ExecutorId; root.Notes = old.Notes;
+            foreach (var child in copy.Where(n => n.ParentId == generatedId)) child.ParentId = root.Id;
+            p.Nodes = copy;
+            if (p.Name == old.Name) p.Name = root.Name;
+        }, "Expanded draft into a manufacturing material tree; existing root identity and project ownership retained.", projectId);
+    }
     public Guid AddComponent(Guid projectId, Guid parentId, int typeId, long quantity)
     {
         Guid id = Guid.NewGuid();
@@ -104,6 +133,8 @@ public sealed class IndustryWorkspaceStore
         {
             var p = Project(s, projectId); Require(!p.Archived, "Reopen the project before editing.");
             Require(p.Nodes.Any(n => n.Id == parentId), "Parent component was not found.");
+            Require(p.Nodes.Single(n => n.Id == parentId).CalculationSource.Length == 0,
+                "Calculated material trees cannot accept manual extra inputs. Create a manual draft for custom requirements.");
             p.Nodes.Add(new() { Id = id, ParentId = parentId, TypeId = typeId, Name = IndustryCatalog.Name(typeId), Quantity = quantity, Strategy = "Buy" });
         }, $"Added planned component type {typeId}, quantity {quantity} under {parentId}.", projectId);
         return id;
@@ -127,6 +158,8 @@ public sealed class IndustryWorkspaceStore
             var p = Project(s, projectId); Require(!p.Archived, "Reopen the project before editing.");
             var node = p.Nodes.Single(n => n.Id == nodeId);
             if (node.ExecutorId != executor) Linked(executor, linked);
+            Require(node.CalculationSource.Length == 0 || node.Quantity == quantity,
+                "Calculated quantities are linked to the material tree. Create a new blueprint plan for a different batch quantity.");
             node.Quantity = quantity; node.ExecutorId = executor; node.Strategy = strategy; node.Notes = notes;
         }, $"Edited component {nodeId}: planned quantity {quantity}, executor {executor}, strategy {strategy}.", projectId);
     }
@@ -148,6 +181,15 @@ public sealed class IndustryWorkspaceStore
             s.Reservations.Add(new() { ProjectId = projectId, NodeId = nodeId, OwnerId = source.OwnerId, ItemId = source.ItemId, TypeId = source.TypeId,
                 LocationId = source.LocationId, LocationFlag = source.LocationFlag, Path = source.Path, Quantity = quantity, SnapshotUtc = source.SnapshotUtc });
         }, $"Reserved {quantity} of type {source.TypeId}, owner {source.OwnerId}, item {source.ItemId} at {source.Path}; delivery unverified.", projectId);
+    }
+    public void DeleteProject(Guid projectId)
+    {
+        Change(s =>
+        {
+            var project = Project(s, projectId);
+            Require(!s.Reservations.Any(r => r.ProjectId == projectId), "Release this project's stock reservations before deleting it.");
+            s.Projects.Remove(project);
+        }, "Deleted project and its component plan; audit history retained.", projectId);
     }
     public void Release(Guid reservationId)
     {
@@ -177,6 +219,11 @@ public sealed class IndustryWorkspaceStore
                 Require(state.Reservations.Where(r => r.NodeId == n.Id).Sum(r => (decimal)r.Quantity) <= n.Quantity, "Release excess reservations before reducing planned quantity.");
             }
         }
+        foreach (var group in state.Projects.Where(p => !p.Archived).SelectMany(p => p.Nodes)
+            .Where(n => n.BlueprintItemId.HasValue && n.BlueprintRunsAvailable.HasValue)
+            .GroupBy(n => (n.BlueprintOwnerId, n.BlueprintItemId)))
+            Require(group.Sum(n => (decimal)(n.PlannedRuns ?? 0)) <= group.Min(n => n.BlueprintRunsAvailable!.Value),
+                "This blueprint copy's runs are already planned in another project. Archive or delete the earlier plan before reusing those runs.");
         Require(state.Reservations.Select(r => r.Id).Distinct().Count() == state.Reservations.Count, "Duplicate reservation IDs.");
         foreach (var r in state.Reservations)
             Require(r.Quantity > 0 && r.OwnerId > 0 && r.ItemId > 0 && state.Projects.Any(p => p.Id == r.ProjectId && p.Nodes.Any(n => n.Id == r.NodeId && n.TypeId == r.TypeId)), "Invalid reservation reference.");

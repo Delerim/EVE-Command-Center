@@ -43,6 +43,15 @@ public sealed class IndustryProjectNode
     public long Quantity { get; set; } = 1;
     public long? ExecutorId { get; set; }
     public int? BlueprintTypeId { get; set; }
+    public long? BlueprintItemId { get; set; }
+    public long? BlueprintOwnerId { get; set; }
+    public long? BlueprintLocationId { get; set; }
+    public long? BlueprintRunsAvailable { get; set; }
+    public long? PlannedRuns { get; set; }
+    public long? PlannedOutput { get; set; }
+    public int MaterialEfficiency { get; set; }
+    public string CalculationSource { get; set; } = "";
+    public string CalculationNote { get; set; } = "";
     public string Strategy { get; set; } = "Make";
     public string Notes { get; set; } = "";
 }

@@ -1,9 +1,10 @@
-# EVE Command Center v3.6.38
+# EVE Command Center v3.6.39
 
-- Added an embedded Production Queue to Industry with durable draft projects, expandable component trees, project notes, pause/archive controls and an audit trail.
-- Added configurable linked-character lead, buyer and seller defaults plus planning role preferences. Component executors remain independent of the lead; reassignment never fragments the parent project.
-- Add a draft from the existing manufacturing recipe planner, or search product/component names. This first increment uses explicitly planned quantities; it does not claim to calculate a complete recursive material bill.
-- Select matching cached personal inventory by owner, stack ID and nested location/container path. Shared reservations prevent the same observed stock being allocated across projects twice.
-- Stale, moved, missing or insufficient stock needs review. Reservations do not imply transfer, delivery, manufacturing readiness or consumption.
-- Added versioned planning persistence with atomic replacement, last-good backups, explicit recovery and future-schema protection.
-- Added regression checks for project restart, delegation, shared stock, stale snapshots, containment, source selection and persistence recovery. Market imports, purchase attribution, corporation inventory and full production accounting remain later phases.
+- Production Queue retains the shared Industry header, pilot cards, refresh controls and activity summary alongside Jobs. Reorganized the workspace into blueprint library, project/component breakdown, consolidated materials and setup pages, with themed tables, icons and sourcing colors.
+- Added an owned blueprint-instance library with toon and station/container filters, search, ME/TE, remaining BPC runs, instance IDs and snapshot/job availability. Container and station IDs remain visible where custom names are unavailable.
+- Create a production plan from a specific blueprint and automatically expand manufacturing components and their material inputs. Calculates whole runs, batch material rounding and surplus output; preserves blueprint identity and a catalog content hash.
+- Selected root blueprint ME applies to the batch. Child recipes explicitly use ME 0 with no assigned instance; facility/rig bonuses and reactions/invention are excluded. These are planning estimates, not confirmed job readiness.
+- Prevents insufficient or double-planned BPC runs, recipe cycles and edits that would leave calculated child quantities inconsistent. Existing one-node drafts can be expanded, including correcting a blueprint type into its manufactured product, without replacing existing component plans.
+- Added consolidated required/reserved/unreserved materials and copyable output across active projects. Buy / Use Stock choices stop child manufacturing demand; paused projects retain stock reservations. Uncertain stock requires review.
+- Added Delete Project with inline confirmation, reservation protection and retained audit history.
+- Added regression coverage for Obelisk component expansion, blueprint/container filtering with 2,100 instances, shared materials, BPC limits, persistence and deletion. Job matching, transfers, corporation inventory, child blueprint selection and market/financial imports remain later work.

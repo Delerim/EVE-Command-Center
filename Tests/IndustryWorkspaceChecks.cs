@@ -14,7 +14,37 @@ internal static partial class Program
         Directory.CreateDirectory(folder);
         try
         {
+            CheckIndustryPlanning(folder, renderPath);
             bool Reject(Action action) { try { action(); return false; } catch (InvalidOperationException) { return true; } }
+            var material = new IndustryProjectNode { TypeId = 34, Quantity = 80, Strategy = "Buy" };
+            var assembly = new IndustryProjectNode { TypeId = 19744, Quantity = 1 };
+            material.ParentId = assembly.Id;
+            var shoppingSecond = new IndustryProjectNode { TypeId = 34, Quantity = 40, Strategy = "Use Stock" };
+            var shoppingState = new IndustryWorkspace { Projects = new()
+            {
+                new() { Name = "One", Nodes = new() { assembly, material } },
+                new() { Name = "Two", Nodes = new() { shoppingSecond } }
+            } };
+            var shopping = IndustryShoppingList.Build(shoppingState, Array.Empty<IndustryStockSource>(), DateTimeOffset.UtcNow);
+            Check(shopping.Count == 1 && shopping[0].Required == 120 && shopping[0].Unreserved == 120,
+                "Shopping groups shared materials without counting manufactured parent output as inputs");
+            assembly.Strategy = "Buy";
+            shopping = IndustryShoppingList.Build(shoppingState, Array.Empty<IndustryStockSource>(), DateTimeOffset.UtcNow);
+            Check(shopping.Single(r => r.TypeId == 34).Required == 40 && shopping.Any(r => r.TypeId == 19744),
+                "Buying a parent excludes its manufacturing subtree from shopping demand");
+            shoppingState.Projects[1].Paused = true;
+            Check(IndustryShoppingList.Build(shoppingState, Array.Empty<IndustryStockSource>(), DateTimeOffset.UtcNow).Count == 1,
+                "Paused projects do not add procurement demand");
+            shoppingSecond.TypeId = 19744;
+            var shoppingNow = DateTimeOffset.UtcNow;
+            var shoppingSource = new IndustryStockSource(41, "Builder", 999, 19744, 60003760, "Hangar", "Station", 10, shoppingNow, true, "Observed");
+            shoppingState.Reservations.Add(new() { NodeId = shoppingSecond.Id, TypeId = 19744, OwnerId = 41, ItemId = 999, LocationId = 60003760, LocationFlag = "Hangar", Path = "Station", Quantity = 4 });
+            shopping = IndustryShoppingList.Build(shoppingState, new[] { shoppingSource }, shoppingNow);
+            Check(shopping[0].FreeStock == 6 && shopping[0].Reserved == 0,
+                "Paused project reservations remain deducted from globally free stock");
+            shopping = IndustryShoppingList.Build(shoppingState, new[] { shoppingSource with { Path = "Moved" } }, shoppingNow);
+            Check(shopping[0].FreeStock == 0 && shopping[0].Review.Contains("needs review"),
+                "Unresolved stock reservations block misleading free-stock totals");
             var linked = new HashSet<long> { 41, 42, 43 };
             var store = new IndustryWorkspaceStore(folder);
             Check(store.Error == "" && store.Snapshot().DefaultLeadId == null && store.Snapshot().Projects.Count == 0,
@@ -73,6 +103,7 @@ internal static partial class Program
             var replacedStack = source with { ItemId = 990 };
             Check(Reject(() => store.Reserve(second, secondNode, replacedStack, 1, now, new[] { replacedStack })),
                 "A new stack ID cannot silently double-allocate material with unresolved old reservations");
+            Check(Reject(() => store.DeleteProject(project)), "Projects holding reservations cannot be deleted");
             var reopened = new IndustryWorkspaceStore(folder);
             Check(reopened.Snapshot().Projects.Single(p => p.Id == project).Nodes.Single(n => n.Id == child).ExecutorId == 42 && reopened.Snapshot().Reservations.Count == 2,
                 "Restart preserves project hierarchy, executing toon, exact stock source and reservations");
@@ -120,9 +151,15 @@ internal static partial class Program
                 BackgroundOperations.Stop();
                 ((TabItem)shell.FindName("ProductionTab")).Content = view;
                 ((TabControl)shell.FindName("IndustryTabs")).SelectedItem = shell.FindName("ProductionTab");
-                Check(((FrameworkElement)shell.FindName("LiveIndustryHeader")).Visibility == Visibility.Collapsed,
-                    "Production queue uses the embedded Industry surface without per-pilot header filters");
+                Check(((FrameworkElement)shell.FindName("LiveIndustryHeader")).Visibility == Visibility.Visible,
+                    "Production queue retains the shared Industry header alongside Jobs");
+                ((TabControl)view.FindName("WorkspaceTabs")).SelectedItem = view.FindName("ProjectDetailTab");
                 Render(shell, renderPath);
+                ((TabControl)view.FindName("WorkspaceTabs")).SelectedItem = view.FindName("MaterialsTab");
+                ((Expander)view.FindName("ShoppingExpander")).IsExpanded = true;
+                Render(shell, Path.ChangeExtension(renderPath, ".materials.png"));
+                ((Expander)view.FindName("ShoppingExpander")).IsExpanded = false;
+                ((TabControl)view.FindName("WorkspaceTabs")).SelectedItem = view.FindName("ProjectDetailTab");
                 ((ScrollViewer)view.FindName("EditorScroll")).ScrollToVerticalOffset(550);
                 Render(shell, Path.ChangeExtension(renderPath, ".stock.png")); shell.Close();
             }

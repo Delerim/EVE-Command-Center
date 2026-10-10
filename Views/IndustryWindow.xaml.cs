@@ -88,12 +88,6 @@ public partial class IndustryWindow : Window
         if(plans.Count>0)Recipes.SelectedItem=Recipes.Items.Cast<IndustryPlan>().FirstOrDefault(r=>r.Recipe==previousRecipe)??Recipes.Items[0];else {Materials.ItemsSource=null;RequiredSkills.ItemsSource=null;ProfitRows.ItemsSource=null;_costKey=null;PlanTitle.Text="No matching recipes";PlanState.Text="";PlanActivity.Text="";PlanDetail.Text="Upgrade this toon in Settings for all features, refresh blueprints, or enable All recipes.";}
         });
     }
-    private void IndustryTab_Selected(object sender, SelectionChangedEventArgs e)
-    {
-        if (e.Source == IndustryTabs && LiveIndustryHeader != null)
-            LiveIndustryHeader.Visibility = IndustryTabs.SelectedItem == ProductionTab ? Visibility.Collapsed : Visibility.Visible;
-    }
-
     private void QueueRecipe_Click(object sender, RoutedEventArgs e)
     {
         if (Recipes.SelectedItem is not IndustryPlan plan) return;
