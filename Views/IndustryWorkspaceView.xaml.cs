@@ -75,12 +75,12 @@ public partial class IndustryWorkspaceView : System.Windows.Controls.UserControl
             _blueprints = IndustryBlueprintLibrary.Read(_inventory(), _linked.Where(p => p.Scopes.Contains("esi-characters.read_blueprints.v1")).Select(p => p.CharacterId).ToHashSet(), DateTimeOffset.UtcNow);
             Shopping.ItemsSource = IndustryShoppingList.Build(_state, _stock, DateTimeOffset.UtcNow, InventoryComplete).Select(r => r with { ResolvedName = ProductName(r.TypeId, r.Name) }).ToArray();
             RecoverButton.Visibility = _store.Error.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
-            Message.Text = _store.Error.Length > 0 ? _store.Error : "Draft planning only. Refresh Industry to update source snapshots, then reload here. No purchases, jobs or deliveries are inferred.";
+            Message.Text = _store.Error.Length > 0 ? _store.Error : "Refresh Industry, then reload this workspace to update stock and jobs. Assignments are saved here; manufacturing starts in EVE.";
             foreach (var box in new[] { DefaultLead, DefaultBuyer, DefaultSeller, ProjectLead, ProjectBuyer, ProjectSeller, Executor }) box.ItemsSource = Options();
             Select(DefaultLead, _state.DefaultLeadId); Select(DefaultBuyer, _state.DefaultBuyerId); Select(DefaultSeller, _state.DefaultSellerId);
             Roles.ItemsSource = _linked.Select(p => new RoleRow(p.CharacterId, p.CharacterName, _state.Roles.GetValueOrDefault(p.CharacterId))).ToList();
             Projects.ItemsSource = _state.Projects.Where(p => ShowArchived.IsChecked == true || !p.Archived)
-                .OrderBy(p => p.CreatedUtc).Select(p => new ProjectRow(p.Id, p.Name, $"{(p.Archived ? "Archived" : p.Paused ? "Paused" : "Draft")} | {p.Nodes.Count} components | Lead: {Pilot(p.LeadId)}", p.Nodes.FirstOrDefault(n => n.ParentId == null)?.TypeId ?? 0)).ToArray();
+                .OrderBy(p => p.CreatedUtc).Select(p => new ProjectRow(p.Id, p.Name, $"{ProjectStage(p)} | {p.Nodes.Count} components | Lead: {Pilot(p.LeadId)}", p.Nodes.FirstOrDefault(n => n.ParentId == null)?.TypeId ?? 0)).ToArray();
             Projects.SelectedItem = Projects.Items.Cast<ProjectRow>().FirstOrDefault(p => p.Id == _projectId) ?? Projects.Items.Cast<ProjectRow>().FirstOrDefault();
             _projectId = (Projects.SelectedItem as ProjectRow)?.Id;
             Projects.SelectedItem = null;
@@ -96,19 +96,25 @@ public partial class IndustryWorkspaceView : System.Windows.Controls.UserControl
     }
     private void OpenProject()
     {
-        ProjectGallery.Visibility = CreationPage.Visibility = Visibility.Collapsed;
+        ProjectGallery.Visibility = CreationPage.Visibility = SettingsPage.Visibility = Visibility.Collapsed;
         ProjectWorkspace.Visibility = Visibility.Visible;
         WorkspaceTabs.SelectedItem = ProjectDetailTab;
     }
     private void BackProjects_Click(object sender, RoutedEventArgs e)
     {
-        ProjectWorkspace.Visibility = CreationPage.Visibility = Visibility.Collapsed;
+        ProjectWorkspace.Visibility = CreationPage.Visibility = SettingsPage.Visibility = Visibility.Collapsed;
         ProjectGallery.Visibility = Visibility.Visible;
         Projects.SelectedItem = null;
     }
+    private static string ProjectStage(IndustryProject p) => p.Archived ? "Archived" : p.Paused ? "Paused" : p.Nodes.Any(n => n.ActualJob != null) ? "EVE job linked" : p.Nodes.Any(n => n.PlannedJobId.HasValue) ? "Assigned" : "Planning";
+    private void ProjectDefaults_Click(object sender, RoutedEventArgs e)
+    {
+        ProjectGallery.Visibility = ProjectWorkspace.Visibility = CreationPage.Visibility = Visibility.Collapsed;
+        SettingsPage.Visibility = Visibility.Visible;
+    }
     private void NewProject_Click(object sender, RoutedEventArgs e)
     {
-        ProjectGallery.Visibility = ProjectWorkspace.Visibility = Visibility.Collapsed;
+        ProjectGallery.Visibility = ProjectWorkspace.Visibility = SettingsPage.Visibility = Visibility.Collapsed;
         CreationPage.Visibility = Visibility.Visible;
     }
     private void Project_Selected(object sender, SelectionChangedEventArgs e)
@@ -148,7 +154,7 @@ public partial class IndustryWorkspaceView : System.Windows.Controls.UserControl
         NodeTitle.Text = ProductName(node.TypeId, node.Name);
         NodeIcon.Source = new System.Windows.Media.Imaging.BitmapImage(new Uri($"https://images.evetech.net/types/{node.TypeId}/icon?size=64"));
         NodeSummary.Text = $"{node.Quantity:N0} required  |  {node.Strategy}  |  {Pilot(node.ExecutorId)}"; NodeTitle.ToolTip = null; NodeQuantity.Text = node.Quantity.ToString(); NodeNotes.Text = node.Notes;
-        Select(Executor, node.ExecutorId); Strategy.SelectedItem = node.Strategy;
+        Select(Executor, node.ExecutorId ?? _state.Projects.First(p => p.Id == _projectId).LeadId); Strategy.SelectedItem = node.Strategy;
         NodeQuantity.IsReadOnly = node.CalculationSource.Length > 0;
         Eligibility.Text = node.CalculationSource.Length == 0
             ? "Manual draft. Generate a material tree or create a plan from the blueprint library."
@@ -162,9 +168,10 @@ public partial class IndustryWorkspaceView : System.Windows.Controls.UserControl
         JobFacilityPicker.SelectedItem = JobFacilityPicker.Items.Cast<LocationOption>().FirstOrDefault(x => x.Id == node.PlannedJobFacilityId) ?? JobFacilityPicker.Items[0];
         JobFacility.Text = node.PlannedJobFacilityId?.ToString() ?? "";
         PlannedJobStatus.ToolTip = null;
-        PlannedJobStatus.Text = node.PlannedJobId.HasValue
-            ? $"PLANNED | {Pilot(node.ExecutorId)} | {node.PlannedRuns:N0} runs | {node.PlannedOutput:N0} output units"
-            : "No planned job assigned. Select an executing toon, then create the plan.";
+        PlannedJobPanel.IsEnabled = node.ActualJob == null;
+        PlannedJobStatus.Text = node.ActualJob != null ? $"EVE job linked to {Pilot(node.ActualJob.InstallerId)}. Unlink it below before changing this assignment." : node.PlannedJobId.HasValue
+            ? $"Assigned to {Pilot(node.ExecutorId)} | {node.PlannedRuns:N0} runs | {node.PlannedOutput:N0} units. Waiting for an EVE job to be linked."
+            : "Choose the builder above, then save who will build this component.";
         RefreshComponentDetails(node);
         StockOwner.ItemsSource = new[] { new PilotOption(null, "All personal stock owners") }.Concat(_stock.Where(s => s.TypeId == node.TypeId).GroupBy(s => s.OwnerId).Select(g => new PilotOption(g.Key, g.First().Owner))).ToArray();
         StockOwner.SelectedIndex = 0; RefreshStockLocations();
@@ -245,7 +252,13 @@ public partial class IndustryWorkspaceView : System.Windows.Controls.UserControl
     private void UnmatchJob_Click(object sender, RoutedEventArgs e) => Action(() => { if (_projectId is {} id && Node is {} node) _store.UnmatchJob(id, node.Id); }, "EVE job unlinked; history retained.");
     private void Transfer_Click(object sender, RoutedEventArgs e) => Action(() => { if (_projectId is {} id && Node is {} node) _store.MarkTransfer(id, node.Id, TransferNeeded.IsChecked == true, TransferNote.Text); }, "Transfer requirement saved; no delivery inferred.");
     private sealed record InputRow(Guid Id, string Name, int TypeId, long Quantity, string Strategy, decimal Reserved, string Free)
-    { public string Icon => $"https://images.evetech.net/types/{TypeId}/icon?size=32"; }
+    {
+        public string Icon => $"https://images.evetech.net/types/{TypeId}/icon?size=32";
+        private decimal? Available => Free == "N/A" ? 0 : decimal.TryParse(Free, System.Globalization.NumberStyles.Number, System.Globalization.CultureInfo.CurrentCulture, out var n) ? n : null;
+        public string MissingLabel => Available is {} free ? Math.Max(0, Quantity - Reserved - free).ToString("N0") : "Unknown";
+        public string StockColor => Available == null ? "#A5BBC1" : Quantity - Reserved - Available > 0 ? "#EDAD83" : "#76D7CB";
+        public string StockStatus => Available == null ? "Check inventory" : Quantity - Reserved - Available > 0 ? "Shortfall" : "Stock covers demand";
+    }
     private sealed record JobRow(IndustryJobLink Link, string Owner, string Facility)
     { public string Status => IndustryJobMatching.Describe(Link); public string End => Link.EndUtc.UtcDateTime.ToString("dd MMM HH:mm"); }
     private void StockOwner_Changed(object sender, SelectionChangedEventArgs e) => RefreshStockLocations();
@@ -284,8 +297,8 @@ public partial class IndustryWorkspaceView : System.Windows.Controls.UserControl
         try
         {
             var rows = Shopping.Items.Cast<IndustryShoppingList.Row>();
-            System.Windows.Clipboard.SetText("Material\tRequired\tReserved\tUnreserved\tFree observed\tProjects\tReview" + Environment.NewLine +
-                string.Join(Environment.NewLine, rows.Select(r => $"{r.Name}\t{r.Required}\t{r.Reserved}\t{r.Unreserved}\t{r.FreeLabel}\t{r.Projects}\t{r.Review}")));
+            System.Windows.Clipboard.SetText("Material\tAvailable\tMissing stock\tRequired\tReserved here\tTo reserve\tProjects\tReview" + Environment.NewLine +
+                string.Join(Environment.NewLine, rows.Select(r => $"{r.Name}\t{r.FreeLabel}\t{r.MissingLabel}\t{r.Required}\t{r.Reserved}\t{r.Unreserved}\t{r.Projects}\t{r.Review}")));
             Message.Text = "Copied consolidated planned materials. Free stock still needs explicit reservation.";
         }
         catch (Exception ex) { Message.Text = "Could not copy materials: " + ex.Message; }
@@ -369,7 +382,7 @@ public partial class IndustryWorkspaceView : System.Windows.Controls.UserControl
             throw new InvalidOperationException("Select a component and executing toon first.");
         long? facility = string.IsNullOrWhiteSpace(JobFacility.Text) ? null : Quantity(JobFacility.Text);
         _store.AssignPlannedJob(id, node.Id, executor, facility, LinkedIds);
-    }, "Manufacturing job plan assigned. Start the actual job in EVE; this is a local plan only.");
+    }, "Builder assigned. Start manufacturing in EVE, then use Link the job started in EVE to track it here.");
     private void RemovePlanJob_Click(object sender, RoutedEventArgs e) => Action(() =>
     {
         if (_projectId is {} id && Node is {} node) _store.RemovePlannedJob(id, node.Id);

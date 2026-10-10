@@ -128,3 +128,10 @@ Blueprint badges are scoped to LeadId; skills use ExecutorId when explicitly ass
 Stock absence is only N/A when every linked personal inventory has a current successful authorized snapshot and no matching source exists. Unknown never means zero. Allocation and canonical source identities are unchanged.
 
 Omega preserves supplied clone names and offers explicit refresh. ESI's optional name field was absent in the reported cached character response; the UI cannot infer custom names from implants or clone location.
+
+
+## v3.6.44 - Stock coverage and assignment clarity
+
+Missing stock is max(0, required - reservations for these builds - free stock). Unknown inventory and reservation review remain nonnumeric. Coverage is an availability comparison, not an allocation or a hauling/delivery claim. Separate component rows may share free stock; consolidated demand remains the combined comparison.
+
+Gallery status projects evidence: Planning, explicit planned-job assignment, or explicit EVE job link. There is still no delivery/consumption reconciliation or automatic Completed transition. Global defaults moved to the gallery; unused role preferences remain persisted but are not exposed as functioning dashboard controls. Assignment terminology changed without altering store invariants or starting in-game jobs.

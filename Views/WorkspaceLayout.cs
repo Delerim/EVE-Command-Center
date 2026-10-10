@@ -11,6 +11,7 @@ internal static class WorkspaceLayout
 {
     private sealed class State
     {
+        public int TableVersion { get; set; }
         public double Navigation { get; set; } = 390;
         public double StockRatio { get; set; } = 2;
         public Dictionary<string, double> Heights { get; set; } = new();
@@ -23,6 +24,11 @@ internal static class WorkspaceLayout
         State state;
         try { state = JsonSerializer.Deserialize<State>(File.ReadAllText(FileName)) ?? new(); } catch { state = new(); }
         state.Columns ??= new(); state.Heights ??= new();
+        if (state.TableVersion < 2)
+        {
+            foreach (var key in state.Columns.Keys.Where(k => k.StartsWith("ComponentInputs/") || k.StartsWith("Shopping/")).ToArray()) state.Columns.Remove(key);
+            state.TableVersion = 2;
+        }
         var navigation = (ColumnDefinition)view.FindName("NavigationWidth");
         var stock = (RowDefinition)view.FindName("StockHeight");
         navigation.Width = new GridLength(double.IsFinite(state.Navigation) ? Math.Clamp(state.Navigation, 300, 700) : 390);

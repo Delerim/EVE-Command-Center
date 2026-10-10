@@ -1,7 +1,8 @@
-# EVE Command Center v3.6.43
+# EVE Command Center v3.6.44
 
-- Added Required skills inside each production project, with compact pilot portraits, training status, current and required skill levels, and the components that require each skill. Comparison never changes assignments. Bought or stock-supplied subtrees are excluded; missing recipes and stale skill data cannot claim readiness.
-- Blueprint readiness now checks the project owner only. Component skills use the project owner until another executing pilot is assigned.
-- Consolidated stock and component inputs distinguish N/A (no matching stock in complete current inventories) from Unknown (inventory not confirmed). Reservations and free-stock calculations are unchanged.
-- Added Refresh clones to Omega. Custom clone names supplied by EVE remain visible; missing names now say Clone name unavailable instead of incorrectly claiming the clone is unnamed. Implant icons and names remain available.
-- Required skills table column sizes and order are remembered with the existing workspace layout preferences.
+- Material and component tables now put available and missing stock together, with green coverage, amber shortages and grey unknown states. Missing stock subtracts usable free stock and reservations for the displayed builds; unreserved demand is separately labelled To reserve.
+- Rebalanced material column widths and moved key quantities next to item names. Existing material-table widths are reset once for this layout, then future adjustments are remembered. Other pane preferences are preserved.
+- Replaced the permanent Draft label with Planning, Assigned or EVE job linked, based on saved evidence. Linked does not claim completion or delivery; paused and archived states remain separate.
+- Simplified Assign & track into blueprint selection, builder assignment and linking a job started in EVE. No in-game job is submitted.
+- Moved shared Project defaults to the projects overview. Removed inactive role controls from the visible interface, including the Dashboard checkbox that previously only saved a preference. Existing preferences are retained. Name-based project creation now lives under New project.
+- Copied material lists include available and missing stock, preserving Unknown and Review states.

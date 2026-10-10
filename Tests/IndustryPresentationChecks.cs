@@ -68,6 +68,11 @@ internal static partial class Program
         omega.LocationNames.Clear();
         Check(omega.Home == "Location name unavailable", "An unresolved clone station never exposes its numeric key");
         Check(IndustryCatalog.Name(int.MaxValue) == "Item name unavailable", "Missing item names have an honest human-readable fallback");
+        var covered = new IndustryShoppingList.Row(34, 100, 20, 80, 90, "Project", "") { HasVerifiedStock = true };
+        Check(covered.MissingLabel == "0" && covered.Unreserved == 80 && covered.StockStatus == "Stock covers demand", "Available stock is distinct from unreserved allocation demand");
+        Check((covered with { FreeStock = 30 }).MissingLabel == "50", "Shortfall subtracts available stock and reservations for these builds");
+        Check((covered with { HasVerifiedStock = false }).MissingLabel == "Unknown", "Unknown stock cannot claim a calculated shortfall");
+        Check((covered with { Review = "Reservation/source needs review" }).MissingLabel == "Review", "Unverified reservations block shortage claims");
         var view = new IndustryWorkspaceView();
         ((ColumnDefinition)view.FindName("NavigationWidth")).Width = new GridLength(440);
         var grid = (DataGrid)view.FindName("Shopping"); grid.Columns[0].Width = new DataGridLength(275); grid.Columns[1].DisplayIndex = 3;

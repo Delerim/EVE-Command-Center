@@ -112,6 +112,7 @@ internal static partial class Program
             .Invoke(view, new object[] { view, new RoutedEventArgs() });
         Check(store.Snapshot().Projects.Last().Nodes.Any(n => n.ParentId != null && n.PlannedJobId.HasValue && n.ExecutorId == 42),
             "Clicking a component exposes and saves an assignable local job without fragmenting the project");
+        Check(((ListBox)view.FindName("Projects")).Items.Cast<object>().Any(p => p.GetType().GetProperty("Detail")!.GetValue(p)!.ToString()!.StartsWith("Assigned")), "Project card advances from Planning after explicit builder assignment");
         Check(((TreeView)view.FindName("Nodes")).Parent != ((Grid)view.FindName("ProjectEditor")),
             "Component tree is independent of the right-hand project editor");
         if (renderPath != null)
@@ -153,6 +154,10 @@ internal static partial class Program
             Render(shell, Path.ChangeExtension(renderPath, ".compact.png"));
             typeof(IndustryWorkspaceView).GetMethod("BackProjects_Click", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.Invoke(view, new object[] { view, new RoutedEventArgs() });
             Render(shell, Path.ChangeExtension(renderPath, ".gallery.png"));
+            typeof(IndustryWorkspaceView).GetMethod("ProjectDefaults_Click", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.Invoke(view, new object[] { view, new RoutedEventArgs() });
+            Check(((FrameworkElement)view.FindName("SettingsPage")).Visibility == Visibility.Visible && ((FrameworkElement)view.FindName("RolesFrame")).Visibility == Visibility.Collapsed, "Global defaults open from project overview without inactive dashboard role controls");
+            Render(shell, Path.ChangeExtension(renderPath, ".defaults.png"));
+            typeof(IndustryWorkspaceView).GetMethod("BackProjects_Click", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.Invoke(view, new object[] { view, new RoutedEventArgs() });
             ((ListBox)view.FindName("Projects")).SelectedIndex = 1;
             Check(((FrameworkElement)view.FindName("ProjectWorkspace")).Visibility == Visibility.Visible, "Selecting a project card opens the component workspace");
             shell.Close();
