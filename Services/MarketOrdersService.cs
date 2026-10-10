@@ -11,6 +11,8 @@ public sealed class MarketOrdersService
 {
     public const string Scope = "esi-markets.read_character_orders.v1";
     private readonly string _path;
+    private readonly EveSsoService _sso;
+    private readonly bool _resolveNames;
     private readonly HttpClient _http;
     private readonly Func<EvePilotProfile, CancellationToken, Task<string>> _token;
     public MarketOrdersState State { get; private set; } = new();
@@ -19,6 +21,7 @@ public sealed class MarketOrdersService
     public MarketOrdersService(EveSsoService sso, string? directory = null, HttpClient? http = null,
         Func<EvePilotProfile, CancellationToken, Task<string>>? token = null)
     {
+        _sso = sso; _resolveNames = http == null;
         _http = http ?? EsiHttp.CreateClient(); _token = token ?? sso.GetAccessTokenForAsync;
         _path = Path.Combine(directory ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "EVE Command Center"), "market-orders.json");
         try
@@ -83,6 +86,23 @@ public sealed class MarketOrdersService
                     response.EnsureSuccessStatusCode();
                     var rows = JsonSerializer.Deserialize<List<MarketOrder>>(await response.Content.ReadAsStringAsync(ct)) ?? throw new InvalidDataException("Empty response");
                     Validate(rows);
+                    if (_resolveNames)
+                    {
+                        try
+                        {
+                            var names = await _sso.ResolveIndustryTypeNamesAsync(rows.Select(r => r.TypeId), ct);
+                            var locations = new Dictionary<long, string>();
+                            foreach (long location in rows.Select(r => r.LocationId).Distinct())
+                                if (await _sso.ResolveDisplayLocationAsync(location, pilot, ct) is {} name) locations[location] = name;
+                            foreach (var row in rows)
+                            {
+                                row.ResolvedName = names.GetValueOrDefault(row.TypeId) is {} name && !name.StartsWith("Type ") && name != "Item name unavailable" ? name : data.Orders.FirstOrDefault(o => o.TypeId == row.TypeId)?.ResolvedName;
+                                row.ResolvedLocation = locations.GetValueOrDefault(row.LocationId) ?? data.Orders.FirstOrDefault(o => o.LocationId == row.LocationId)?.ResolvedLocation;
+                            }
+                        }
+                        catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
+                        catch (Exception ex) { EsiDiagnostics.Write("Market names deferred: " + ex.GetType().Name); }
+                    }
                     data.Orders = rows; data.Updated = DateTimeOffset.UtcNow; data.Error = "";
                     var ttl = response.Headers.CacheControl?.MaxAge ?? TimeSpan.FromMinutes(20);
                     var age = response.Headers.Age ?? TimeSpan.Zero;

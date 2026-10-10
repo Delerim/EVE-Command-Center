@@ -78,9 +78,9 @@ public sealed class IndustryService
         // Display metadata only; failures must not invalidate the assets/jobs snapshot.
         var typeIds = data.Assets.Select(a => a.TypeId).Concat(data.Blueprints.Select(b => (int)IndustryCatalog.Num(b, "type_id")))
             .Concat(data.Jobs.SelectMany(j => new[] { (int)IndustryCatalog.Num(j, "product_type_id"), (int)IndustryCatalog.Num(j, "blueprint_type_id") }))
-            .Where(id => id > 0 && IndustryCatalog.Name(id).StartsWith("Type ") && !data.TypeNames.ContainsKey(id)).Distinct();
+            .Where(id => id > 0 && !IndustryCatalog.HasName(id) && !data.TypeNames.ContainsKey(id)).Distinct();
         foreach (var pair in await _sso.ResolveIndustryTypeNamesAsync(typeIds, ct))
-            if (!pair.Value.StartsWith("Type ")) data.TypeNames[pair.Key] = pair.Value;
+            if (!pair.Value.StartsWith("Type ") && pair.Value != "Item name unavailable") data.TypeNames[pair.Key] = pair.Value;
         var ids = data.Assets.Select(a => a.ItemId).ToHashSet();
         var parents = data.Assets.Select(a => a.LocationId).ToHashSet();
         var containers = data.Assets.Where(a => a.IsSingleton && parents.Contains(a.ItemId)).Select(a => a.ItemId).Distinct().ToArray();

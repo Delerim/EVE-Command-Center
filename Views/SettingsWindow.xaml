@@ -1531,7 +1531,6 @@
                                                 </DataTemplate>
                                             </GridViewColumn.CellTemplate>
                                         </GridViewColumn>
-                                        <GridViewColumn Header="{DynamicResource L.Common.Id}" Width="85" DisplayMemberBinding="{Binding Id}"/>
                                     </GridView>
                                 </ListView.View>
                             </ListView>
@@ -1548,7 +1547,6 @@
                                                 </DataTemplate>
                                             </GridViewColumn.CellTemplate>
                                         </GridViewColumn>
-                                        <GridViewColumn Header="{DynamicResource L.Common.Id}" Width="85" DisplayMemberBinding="{Binding Id}"/>
                                     </GridView>
                                 </ListView.View>
                             </ListView>
@@ -1615,7 +1613,6 @@
                                                 </DataTemplate>
                                             </GridViewColumn.CellTemplate>
                                         </GridViewColumn>
-                                        <GridViewColumn Header="{DynamicResource L.Common.Id}" Width="85" DisplayMemberBinding="{Binding Id}"/>
                                     </GridView>
                                 </ListView.View>
                             </ListView>
@@ -1632,7 +1629,6 @@
                                                 </DataTemplate>
                                             </GridViewColumn.CellTemplate>
                                         </GridViewColumn>
-                                        <GridViewColumn Header="{DynamicResource L.Common.Id}" Width="85" DisplayMemberBinding="{Binding Id}"/>
                                     </GridView>
                                 </ListView.View>
                             </ListView>

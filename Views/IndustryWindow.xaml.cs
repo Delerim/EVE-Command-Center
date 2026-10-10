@@ -17,10 +17,10 @@ public partial class IndustryWindow : Window
     private string? _costKey;
     private string CostKey(IndustryPilot p,IndustryRecipe r,int runs)=>$"{p.Id}:{r.Blueprint}:{r.Activity}:{runs}";
     private string ActivityFilter => (ActivityTabs?.SelectedItem as TabItem)?.Tag?.ToString() ?? "all";
-    private async void Activity_Selected(object sender,SelectionChangedEventArgs e)
+    private void Activity_Selected(object sender,SelectionChangedEventArgs e)
     {
         if(!IsInitialized || e.Source!=ActivityTabs)return;
-        UpdateDetails();await Scan();
+        UpdateDetails();
     }
     public IndustryWindow()
     {
@@ -72,7 +72,7 @@ public partial class IndustryWindow : Window
         var previousRecipe=(Recipes.SelectedItem as IndustryPlan)?.Recipe;
         ScanStatus.Text="Scanning bundled CCP recipes against this pilot's stock...";
         var owned=p.Blueprints.Select(b=>(int)IndustryCatalog.Num(b,"type_id")).ToHashSet();
-        var recipes=IndustryCatalog.Recipes.Where(r=>IndustryActivities.Matches(ActivityFilter,r.Activity)&&(all||owned.Contains(r.Blueprint))&&(filter.Length==0||r.Name.Contains(filter,StringComparison.OrdinalIgnoreCase)||r.Products.Keys.Any(t=>IndustryCatalog.Name(t).Contains(filter,StringComparison.OrdinalIgnoreCase)))).ToArray();
+        var recipes=IndustryCatalog.Recipes.Where(r=>(all||owned.Contains(r.Blueprint))&&(filter.Length==0||r.Name.Contains(filter,StringComparison.OrdinalIgnoreCase)||r.Products.Keys.Any(t=>IndustryCatalog.Name(t).Contains(filter,StringComparison.OrdinalIgnoreCase)))).ToArray();
         // Planner scan has no network requests. Each recipe is an independent alternative, not an allocated shopping basket.
         var quotes=new Dictionary<int,IndustryQuote>(_service.State.Quotes);
         List<IndustryPlan> plans;

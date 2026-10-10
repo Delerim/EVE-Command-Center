@@ -1,225 +1,626 @@
-<UserControl x:Class="EveCommandCenter.Views.IndustryWorkspaceView"
- xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
- Background="#07181B" Foreground="#DDF6F4">
- <UserControl.Resources><ResourceDictionary Source="IndustryWorkspaceTheme.xaml"/></UserControl.Resources>
- <Grid Margin="8">
-  <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
-  <StackPanel>
-   <WrapPanel>
-    <TextBlock Text="Production workspace" Foreground="#55D7D2" FontWeight="Bold" FontSize="15" VerticalAlignment="Center" Margin="0,0,15,0"/>
-    <Button Content="Reload workspace" Click="Reload_Click"/>
-    <CheckBox x:Name="ShowArchived" Content="Show archived" Click="Reload_Click"/>
-    <Button x:Name="RecoverButton" Content="RESTORE LAST GOOD BACKUP" Click="Recover_Click" Visibility="Collapsed"/>
-   </WrapPanel>
-   <TextBlock x:Name="Message" Foreground="#8FB2B5" TextTrimming="CharacterEllipsis" ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}" Margin="3,5"/>
-  </StackPanel>
-  <Grid Grid.Row="1">
-   <Grid.ColumnDefinitions><ColumnDefinition Width="390" MinWidth="300"/><ColumnDefinition Width="6"/><ColumnDefinition Width="*" MinWidth="540"/></Grid.ColumnDefinitions>
-   <DockPanel Margin="0,0,10,0">
-    <DockPanel DockPanel.Dock="Top"><Button DockPanel.Dock="Right" Content="Delete" Click="ShowDelete_Click" Foreground="#E8A9A5" Padding="10,4"/><TextBlock Text="PROJECTS" Foreground="#8FB6BA" VerticalAlignment="Center" Margin="3,8"/></DockPanel>
-    <ListBox DockPanel.Dock="Top" MaxHeight="108" x:Name="Projects" SelectionChanged="Project_Selected" Background="#091C20" BorderBrush="#245058" Foreground="#DDF6F4" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
-     <ListBox.ItemTemplate><DataTemplate><StackPanel Margin="2"><TextBlock Text="{Binding Name}" FontWeight="Bold" TextWrapping="Wrap"/><TextBlock Text="{Binding Detail}" FontSize="11" TextWrapping="Wrap" Margin="0,4,0,0"/></StackPanel></DataTemplate></ListBox.ItemTemplate>
-    </ListBox>
-    <Expander x:Name="DeletePrompt" Visibility="Collapsed" DockPanel.Dock="Top" Header="Delete selected project" Foreground="#E8A9A5" Margin="6,8"><StackPanel Margin="3,8"><TextBlock x:Name="DeleteSummary" TextWrapping="Wrap"/><CheckBox x:Name="ConfirmDelete" Content="Release its reservations and delete"/><Button Content="Delete project" Click="DeleteProject_Click" Foreground="#FFC4BC" BorderBrush="#915C58"/></StackPanel></Expander>
-      <TextBlock DockPanel.Dock="Top" Text="COMPONENTS &amp; MATERIALS" Foreground="#8FB6BA" Margin="3,12,0,6"/>
-      <TreeView ScrollViewer.HorizontalScrollBarVisibility="Disabled" x:Name="Nodes" SelectedItemChanged="Node_Selected" Background="#091C20" Foreground="#DDF6F4" BorderBrush="#245058">
-       <TreeView.ItemContainerStyle><Style TargetType="TreeViewItem" BasedOn="{StaticResource ComponentTreeItem}"/></TreeView.ItemContainerStyle>
-       <TreeView.ItemTemplate><HierarchicalDataTemplate ItemsSource="{Binding Children}"><Grid Margin="3"><Grid.ColumnDefinitions><ColumnDefinition Width="38"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions><Border Background="#20383D" CornerRadius="6" Width="30" Height="30"><Grid><TextBlock Text="&#x25C7;" HorizontalAlignment="Center" VerticalAlignment="Center"/><Image Source="{Binding Icon}"/></Grid></Border><StackPanel Grid.Column="1"><TextBlock Text="{Binding Title}" TextTrimming="CharacterEllipsis" ToolTip="{Binding Title}" FontSize="13" FontWeight="SemiBold" Foreground="#E5F1F2"/><TextBlock Text="{Binding Detail}" TextTrimming="CharacterEllipsis" Foreground="{Binding Color}" FontSize="11" Margin="0,5,0,0"/></StackPanel></Grid></HierarchicalDataTemplate></TreeView.ItemTemplate>
-      </TreeView>
-   </DockPanel>
-   <GridSplitter Grid.Column="1" Width="5" HorizontalAlignment="Stretch" Background="#245058"/>
-   <TabControl x:Name="WorkspaceTabs" SelectedIndex="0" Grid.Column="2" Background="#07181B" BorderBrush="#245058">
-    <TabItem x:Name="ProjectDetailTab" Header="Component">
-   <ScrollViewer x:Name="EditorScroll" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+<UserControl xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" x:Class="EveCommandCenter.Views.IndustryWorkspaceView" Background="#07181B" Foreground="#DDF6F4">
+  <UserControl.Resources>
+    <ResourceDictionary Source="IndustryWorkspaceTheme.xaml" />
+  </UserControl.Resources>
+  <Grid Margin="8">
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="*" />
+    </Grid.RowDefinitions>
     <StackPanel>
-     <Border x:Name="WorkspaceEmpty" Style="{StaticResource Card}" Margin="18"><StackPanel><TextBlock Text="Plan your next build" FontSize="22" FontWeight="SemiBold"/><TextBlock Text="Choose an owned blueprint in the Blueprint library, then create a production plan. Its components, stock and jobs stay together here." TextWrapping="Wrap" Margin="0,10"/></StackPanel></Border>
-     <StackPanel x:Name="ProjectEditor" Visibility="Collapsed" Margin="12">
-      <StackPanel x:Name="NodeEditor" Visibility="Collapsed">
-       <Border Style="{StaticResource Card}" Padding="12"><DockPanel><Border Width="40" Height="40" CornerRadius="9" Background="#1B383D" Margin="0,0,14,0"><Grid><TextBlock Text="&#x25C7;" FontSize="26" HorizontalAlignment="Center" VerticalAlignment="Center"/><Image x:Name="NodeIcon"/></Grid></Border><StackPanel><TextBlock x:Name="NodeTitle" Foreground="#F0FAFA" FontSize="21" FontWeight="SemiBold"/><TextBlock x:Name="NodeSummary" Foreground="#8FB6BA" Margin="0,6,0,0" TextWrapping="Wrap"/></StackPanel></DockPanel></Border>
-
-       <WrapPanel>
-        <StackPanel><TextBlock Text="Required output units"/><TextBox x:Name="NodeQuantity" Width="120" Height="34" ToolTip="Calculated demand from the parent blueprint. Select a blueprint to recalculate material efficiency."/></StackPanel>
-        <StackPanel><TextBlock Text="Assign toon"/><ComboBox Style="{StaticResource WorkspaceCombo}" x:Name="Executor" DisplayMemberPath="Name" SelectedValuePath="Id"/></StackPanel>
-        <StackPanel><TextBlock Text="Make / Buy / Use Stock"/><ComboBox Style="{StaticResource WorkspaceCombo}" x:Name="Strategy" Width="120"/></StackPanel>
-        <Button Content="Save assignment" Click="SaveNode_Click" VerticalAlignment="Bottom"/>
-       </WrapPanel>
-       <TabControl x:Name="ComponentTabs" Background="#07181B" BorderThickness="0" Margin="0,8,0,0">
-        <TabItem Header="Inputs"><StackPanel Margin="0,10">       <Border Style="{StaticResource Card}" Padding="12" Margin="0,6,0,8"><StackPanel>
-        <TextBlock Text="Required inputs" Style="{StaticResource SectionTitle}"/>
-        <TextBlock x:Name="InputsHint" Margin="0,0,0,8" TextWrapping="Wrap"/>
-        <DataGrid x:Name="ComponentInputs" MaxHeight="270" MinHeight="45" SelectionChanged="Input_Selected"><DataGrid.Columns>
-         <DataGridTemplateColumn Header="Component / material" Width="2*"><DataGridTemplateColumn.CellTemplate><DataTemplate><DockPanel><Image Source="{Binding Icon}" Width="26" Height="26" Margin="0,0,10,0"/><TextBlock Text="{Binding Name}" VerticalAlignment="Center"/></DockPanel></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
-         <DataGridTextColumn Header="Required" Binding="{Binding Quantity, StringFormat=N0}" Width="*"/><DataGridTextColumn Header="Reserved" Binding="{Binding Reserved, StringFormat=N0}" Width="*"/><DataGridTextColumn Header="Free stock" Binding="{Binding Free}" Width="*"/><DataGridTextColumn Header="Source" Binding="{Binding Strategy}" Width="*"/>
-        </DataGrid.Columns></DataGrid>
-       </StackPanel></Border>
-</StackPanel></TabItem>
-        <TabItem Header="Blueprint &amp; jobs"><StackPanel Margin="0,10">       <Expander Header="Owned blueprints for this component" IsExpanded="False" Margin="0,0,0,12"><StackPanel Margin="0,10">
-        <TextBlock x:Name="ComponentBlueprintHint" TextWrapping="Wrap" Margin="0,0,0,8"/>
-        <WrapPanel Margin="0,0,0,8"><ComboBox x:Name="ComponentBlueprintOwner" Style="{StaticResource WorkspaceCombo}" DisplayMemberPath="Name" SelectionChanged="ComponentBlueprintOwner_Changed"/><ComboBox x:Name="ComponentBlueprintLocation" Style="{StaticResource WorkspaceCombo}" MaxWidth="450" SelectionChanged="ComponentBlueprintLocation_Changed"/></WrapPanel>
-        <DataGrid x:Name="ComponentBlueprints" MaxHeight="220" MinHeight="45"><DataGrid.Columns><DataGridTextColumn Header="Blueprint" Binding="{Binding Name}" Width="2*"/><DataGridTextColumn Header="Owner" Binding="{Binding Owner}" Width="*"/><DataGridTextColumn Header="ME / TE" Binding="{Binding Efficiency}" Width="*"/><DataGridTextColumn Header="Runs" Binding="{Binding RunText}" Width="70"/><DataGridTextColumn Header="Location" Binding="{Binding Location}" Width="2*"/><DataGridTextColumn Header="Availability" Binding="{Binding Status}" Width="*"/></DataGrid.Columns></DataGrid>
-        <Button Content="Select blueprint &amp; recalculate inputs" Click="SelectComponentBlueprint_Click" HorizontalAlignment="Left"/>
-       </StackPanel></Expander>
-       <Border x:Name="PlannedJobPanel" Style="{StaticResource Card}" Margin="0,14,0,12">
-        <StackPanel><TextBlock Text="Planned job" Foreground="#55D7D2" FontWeight="Bold"/>
-         <TextBlock x:Name="PlannedJobStatus" TextWrapping="Wrap" Margin="0,5"/>
-         <WrapPanel><TextBlock Text="Production location" VerticalAlignment="Center"/><ComboBox x:Name="JobFacilityPicker" Style="{StaticResource WorkspaceCombo}" MaxWidth="350" SelectionChanged="Facility_Changed"/><TextBox x:Name="JobFacility" Visibility="Collapsed"/><Button Content="Save job plan" Click="PlanJob_Click"/><Button Content="Remove plan" Click="RemovePlanJob_Click"/></WrapPanel>
-         <TextBlock Text="Uses the executing toon selected above. This saves a local assignment; start the actual job in EVE. Skills, blueprint access and hauling still require verification." TextWrapping="Wrap" Foreground="#8FB2B5"/>
-        </StackPanel>
-       </Border>
-       <Border x:Name="ActualJobPanel" Style="{StaticResource Card}"><StackPanel>
-        <TextBlock Text="Match existing EVE job" Style="{StaticResource SectionTitle}"/>
-        <TextBlock x:Name="ActualJobStatus" TextWrapping="Wrap" Margin="0,0,0,10"/>
-        <DataGrid x:Name="ExistingJobs" MaxHeight="190" MinHeight="45" SelectionChanged="Job_Selected"><DataGrid.Columns><DataGridTextColumn Header="Toon" Binding="{Binding Owner}" Width="*"/><DataGridTextColumn Header="Runs" Binding="{Binding Link.Runs}" Width="60"/><DataGridTextColumn Header="Facility" Binding="{Binding Facility}" Width="2*"/><DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="2*"/><DataGridTextColumn Header="Ends (EVE)" Binding="{Binding End}" Width="135"/></DataGrid.Columns></DataGrid>
-        <TextBlock x:Name="JobEvidence" TextWrapping="Wrap" Margin="0,10"/>
-        <WrapPanel><Button x:Name="MatchJobButton" Content="Link selected EVE job" Click="MatchJob_Click" IsEnabled="False"/><Button Content="Unlink job" Click="UnmatchJob_Click"/></WrapPanel>
-       </StackPanel></Border>
-</StackPanel></TabItem>
-        <TabItem Header="Stock &amp; transfers"><StackPanel Margin="0,10">       <TextBlock Text="Stock sources for this component" Foreground="#55D7D2" Margin="3,10,0,5"/>
-       <TextBlock Text="Cached observed stock only. Corporation divisions and missing container contents are unverified. Reservation is not delivery; another toon or location may require hauling." TextWrapping="Wrap" Margin="3,4"/>
-       <WrapPanel Margin="0,6"><ComboBox x:Name="StockOwner" Style="{StaticResource WorkspaceCombo}" DisplayMemberPath="Name" SelectionChanged="StockOwner_Changed"/><ComboBox x:Name="StockLocation" Style="{StaticResource WorkspaceCombo}" MaxWidth="420" SelectionChanged="StockLocation_Changed"/></WrapPanel>
-       <TextBox x:Name="StockSearch" ToolTip="Filter matching stock by owner or location/container ID" TextChanged="StockSearch_Changed"/>
-       <DataGrid x:Name="Stock" MaxHeight="210" MinHeight="50">
-        <DataGrid.Columns>
-         <DataGridTextColumn Header="Owner" Binding="{Binding Owner}" Width="110"/>
-         <DataGridTextColumn Header="Location / container path" Binding="{Binding Path}" Width="2*"/>
-
-         <DataGridTextColumn Header="Observed" Binding="{Binding Quantity}" Width="80"/>
-         <DataGridTextColumn Header="Free" Binding="{Binding Free}" Width="80"/>
-         <DataGridTextColumn Header="Snapshot / verification" Binding="{Binding Detail}" Width="2*"/>
-        </DataGrid.Columns>
-       </DataGrid>
-       <WrapPanel><TextBlock Text="Reserve quantity" VerticalAlignment="Center"/><TextBox x:Name="ReserveQuantity" Width="100" Text="1"/><Button Content="RESERVE SELECTED STACK" Click="Reserve_Click"/></WrapPanel>
-       <TextBlock x:Name="Coverage" Foreground="#FFD166" TextWrapping="Wrap" Margin="3,7"/>
-       <DataGrid x:Name="Reservations" MaxHeight="160" MinHeight="45">
-        <DataGrid.Columns>
-         <DataGridTextColumn Header="Units" Binding="{Binding Quantity}" Width="70"/>
-         <DataGridTextColumn Header="Reserved source" Binding="{Binding Source}" Width="2*"/>
-         <DataGridTextColumn Header="Review" Binding="{Binding Review}" Width="2*"/>
-        </DataGrid.Columns>
-       </DataGrid>
-       <Button Content="RELEASE SELECTED RESERVATION" Click="Release_Click" HorizontalAlignment="Left"/>
-       <Expander Header="Transfer / haul requirement" Margin="0,12"><StackPanel><CheckBox x:Name="TransferNeeded" Content="Transfer needed before use at the next stage"/><TextBox x:Name="TransferNote" ToolTip="Origin, destination and handoff instructions"/><Button Content="Save transfer requirement" Click="Transfer_Click" HorizontalAlignment="Left"/><TextBlock Text="A saved requirement does not confirm delivery. Asset disappearance never completes a transfer." TextWrapping="Wrap"/></StackPanel></Expander>
-</StackPanel></TabItem>
-        <TabItem Header="Notes &amp; assumptions"><StackPanel Margin="0,10">       <TextBlock Text="Notes" Margin="3,8,0,0"/><TextBox x:Name="NodeNotes" ToolTip="Component notes, job/haul planning" TextWrapping="Wrap" AcceptsReturn="True"/>
-       <TextBlock x:Name="Eligibility" TextWrapping="Wrap" Foreground="#FFD166" Margin="3,5"/>
-       <WrapPanel x:Name="ManualChildControls" Margin="0,4">
-        <StackPanel><TextBlock Text="Child product type ID"/><TextBox x:Name="ChildType" Width="130"/></StackPanel>
-        <StackPanel><TextBlock Text="Child quantity"/><TextBox x:Name="ChildQuantity" Width="100" Text="1"/></StackPanel>
-        <Button Content="ADD CHILD COMPONENT" Click="AddChild_Click" VerticalAlignment="Bottom"/>
-       </WrapPanel>
-</StackPanel></TabItem>
-       </TabControl>
-      </StackPanel>
-      <Expander Header="Project settings" Foreground="#74D6C9" Margin="3,0,3,6">
-      <Border BorderBrush="#245058" BorderThickness="1" Background="#102D31" Padding="10" CornerRadius="5">
-       <StackPanel>
-        <Button Content="GENERATE MATERIAL TREE FOR THIS DRAFT" Click="ExpandDraft_Click" HorizontalAlignment="Right"/>
-        <TextBlock x:Name="ProjectIdentity" Foreground="#55D7D2" FontWeight="Bold"/>
-        <WrapPanel>
-         <StackPanel><TextBlock Text="Name"/><TextBox x:Name="ProjectName" Width="190"/></StackPanel>
-         <StackPanel><TextBlock Text="Lead planner" ToolTip="Changing the lead does not filter or reassign child components"/><ComboBox Style="{StaticResource WorkspaceCombo}" x:Name="ProjectLead" DisplayMemberPath="Name" SelectedValuePath="Id"/></StackPanel>
-         <StackPanel><TextBlock Text="Buyer"/><ComboBox Style="{StaticResource WorkspaceCombo}" x:Name="ProjectBuyer" DisplayMemberPath="Name" SelectedValuePath="Id"/></StackPanel>
-         <StackPanel><TextBlock Text="Seller"/><ComboBox Style="{StaticResource WorkspaceCombo}" x:Name="ProjectSeller" DisplayMemberPath="Name" SelectedValuePath="Id"/></StackPanel>
-        </WrapPanel>
-        <TextBox x:Name="ProjectNotes" ToolTip="Project notes" MinHeight="32" TextWrapping="Wrap" AcceptsReturn="True"/>
-        <WrapPanel><CheckBox x:Name="Paused" Content="Paused (holds reservations)"/><CheckBox x:Name="Archived" Content="Archived"/><Button Content="SAVE PROJECT" Click="SaveProject_Click"/></WrapPanel>
-       </StackPanel>
-      </Border>
-      </Expander>
-      <Expander Header="Project history" Foreground="#74D6C9" Margin="0,10"><TextBlock x:Name="Audit" TextWrapping="Wrap" Margin="8"/></Expander>
-     </StackPanel>
+      <WrapPanel>
+        <TextBlock Text="Production workspace" Foreground="#55D7D2" FontWeight="Bold" FontSize="15" VerticalAlignment="Center" Margin="0,0,15,0" />
+        <Button Content="Reload workspace" Click="Reload_Click" />
+        <CheckBox x:Name="ShowArchived" Content="Show archived" Click="Reload_Click" />
+        <Button x:Name="RecoverButton" Content="RESTORE LAST GOOD BACKUP" Click="Recover_Click" Visibility="Collapsed" />
+      </WrapPanel>
+      <TextBlock x:Name="Message" Foreground="#8FB2B5" TextTrimming="CharacterEllipsis" ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}" Margin="3,5" />
     </StackPanel>
-   </ScrollViewer>
-    </TabItem>
-    <TabItem x:Name="LibraryTab" Header="Blueprint library">
-     <DockPanel Margin="10">
-      <StackPanel DockPanel.Dock="Top">
-       <WrapPanel>
-        <StackPanel><TextBlock Text="BLUEPRINT OWNER" Foreground="#80BFFF"/><ComboBox x:Name="BlueprintOwner" Style="{StaticResource WorkspaceCombo}" DisplayMemberPath="Name" SelectionChanged="BlueprintOwner_Changed" MinWidth="180"/></StackPanel>
-        <StackPanel><TextBlock Text="STATION / CONTAINER" Foreground="#80BFFF"/><ComboBox x:Name="BlueprintLocation" Style="{StaticResource WorkspaceCombo}" SelectionChanged="BlueprintFilter_Changed" MinWidth="260" MaxWidth="450"/></StackPanel>
-        <StackPanel><TextBlock Text="SEARCH BLUEPRINT / PRODUCT"/><TextBox x:Name="BlueprintSearch" Width="210" TextChanged="BlueprintSearch_Changed"/></StackPanel>
-       </WrapPanel>
-       <TextBlock x:Name="BlueprintSummary" TextWrapping="Wrap" Foreground="#8FB2B5" Margin="3,8"/>
+    <Grid Grid.Row="1" x:Name="ProjectWorkspace" Visibility="Collapsed">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="390" MinWidth="300" x:Name="NavigationWidth" />
+        <ColumnDefinition Width="6" />
+        <ColumnDefinition Width="*" MinWidth="540" />
+      </Grid.ColumnDefinitions>
+      <DockPanel Margin="0,0,10,0">
+        <Button Content="← All projects" Click="BackProjects_Click" HorizontalAlignment="Left" DockPanel.Dock="Top" />
+        <DockPanel DockPanel.Dock="Top">
+          <Button DockPanel.Dock="Right" Content="Delete" Click="ShowDelete_Click" Foreground="#E8A9A5" Padding="10,4" />
+          <TextBlock Text="CURRENT PROJECT" Foreground="#8FB6BA" VerticalAlignment="Center" Margin="3,8" />
+        </DockPanel>
+        <Expander x:Name="DeletePrompt" Visibility="Collapsed" DockPanel.Dock="Top" Header="Delete selected project" Foreground="#E8A9A5" Margin="6,8">
+          <StackPanel Margin="3,8">
+            <TextBlock x:Name="DeleteSummary" TextWrapping="Wrap" />
+            <CheckBox x:Name="ConfirmDelete" Content="Release its reservations and delete" />
+            <Button Content="Delete project" Click="DeleteProject_Click" Foreground="#FFC4BC" BorderBrush="#915C58" />
+          </StackPanel>
+        </Expander>
+        <TextBlock DockPanel.Dock="Top" Text="COMPONENTS &amp; MATERIALS" Foreground="#8FB6BA" Margin="3,12,0,6" />
+        <TreeView ScrollViewer.HorizontalScrollBarVisibility="Disabled" x:Name="Nodes" SelectedItemChanged="Node_Selected" Background="#091C20" Foreground="#DDF6F4" BorderBrush="#245058">
+          <TreeView.ItemContainerStyle>
+            <Style TargetType="TreeViewItem" BasedOn="{StaticResource ComponentTreeItem}" />
+          </TreeView.ItemContainerStyle>
+          <TreeView.ItemTemplate>
+            <HierarchicalDataTemplate ItemsSource="{Binding Children}">
+              <Grid Margin="3">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="38" />
+                  <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <Border Background="#20383D" CornerRadius="6" Width="30" Height="30">
+                  <Grid>
+                    <TextBlock Text="◇" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    <Image Source="{Binding Icon}" />
+                  </Grid>
+                </Border>
+                <StackPanel Grid.Column="1">
+                  <TextBlock Text="{Binding Title}" TextTrimming="CharacterEllipsis" ToolTip="{Binding Title}" FontSize="13" FontWeight="SemiBold" Foreground="#E5F1F2" />
+                  <TextBlock Text="{Binding Detail}" TextTrimming="CharacterEllipsis" Foreground="{Binding Color}" FontSize="11" Margin="0,5,0,0" />
+                  <TextBlock Text="{Binding Readiness}" FontSize="11" Foreground="#A6C3C6" Margin="0,4,0,0" ToolTip="{Binding ReadinessDetail}" />
+                </StackPanel>
+              </Grid>
+            </HierarchicalDataTemplate>
+          </TreeView.ItemTemplate>
+        </TreeView>
+      </DockPanel>
+      <GridSplitter Grid.Column="1" Width="5" HorizontalAlignment="Stretch" Background="#245058" />
+      <TabControl x:Name="WorkspaceTabs" SelectedIndex="0" Grid.Column="2" Background="#07181B" BorderBrush="#245058">
+        <TabItem x:Name="ProjectDetailTab" Header="Component">
+          <ScrollViewer x:Name="EditorScroll" VerticalScrollBarVisibility="Disabled" HorizontalScrollBarVisibility="Disabled">
+            <Grid>
+              <Border x:Name="WorkspaceEmpty" Style="{StaticResource Card}" Margin="18">
+                <StackPanel>
+                  <TextBlock Text="Plan your next build" FontSize="22" FontWeight="SemiBold" />
+                  <TextBlock Text="Choose an owned blueprint in the Blueprint library, then create a production plan. Its components, stock and jobs stay together here." TextWrapping="Wrap" Margin="0,10" />
+                </StackPanel>
+              </Border>
+              <Grid x:Name="ProjectEditor" Visibility="Collapsed" Margin="12">
+                <DockPanel x:Name="NodeEditor" Visibility="Collapsed">
+                  <Border Style="{StaticResource Card}" Padding="12" DockPanel.Dock="Top">
+                    <DockPanel>
+                      <Border Width="40" Height="40" CornerRadius="9" Background="#1B383D" Margin="0,0,14,0">
+                        <Grid>
+                          <TextBlock Text="◇" FontSize="26" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                          <Image x:Name="NodeIcon" />
+                        </Grid>
+                      </Border>
+                      <StackPanel>
+                        <TextBlock x:Name="NodeTitle" Foreground="#F0FAFA" FontSize="21" FontWeight="SemiBold" />
+                        <TextBlock x:Name="NodeSummary" Foreground="#8FB6BA" Margin="0,6,0,0" TextWrapping="Wrap" />
+                      </StackPanel>
+                    </DockPanel>
+                  </Border>
+                  <WrapPanel DockPanel.Dock="Top">
+                    <StackPanel>
+                      <TextBlock Text="Required output units" />
+                      <TextBox x:Name="NodeQuantity" Width="120" Height="34" ToolTip="Calculated demand from the parent blueprint. Select a blueprint to recalculate material efficiency." />
+                    </StackPanel>
+                    <StackPanel>
+                      <TextBlock Text="Assign toon" />
+                      <ComboBox Style="{StaticResource WorkspaceCombo}" x:Name="Executor" DisplayMemberPath="Name" SelectedValuePath="Id" />
+                    </StackPanel>
+                    <StackPanel>
+                      <TextBlock Text="Make / Buy / Use Stock" />
+                      <ComboBox Style="{StaticResource WorkspaceCombo}" x:Name="Strategy" Width="120" />
+                    </StackPanel>
+                    <Button Content="Save assignment" Click="SaveNode_Click" VerticalAlignment="Bottom" />
+                  </WrapPanel>
+                  <TabControl x:Name="ComponentTabs" Background="#07181B" BorderThickness="0" Margin="0,8,0,0">
+                    <TabItem Header="Inputs">
+                      <DockPanel Margin="0,12">
+                        <TextBlock x:Name="InputsHint" Margin="0,0,0,8" TextWrapping="Wrap" DockPanel.Dock="Top" />
+                        <DataGrid x:Name="ComponentInputs" MinHeight="45" SelectionChanged="Input_Selected">
+                          <DataGrid.Columns>
+                            <DataGridTemplateColumn Header="Component / material" Width="2*">
+                              <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                  <DockPanel>
+                                    <Image Source="{Binding Icon}" Width="26" Height="26" Margin="0,0,10,0" />
+                                    <TextBlock Text="{Binding Name}" VerticalAlignment="Center" />
+                                  </DockPanel>
+                                </DataTemplate>
+                              </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTextColumn Header="Free stock" Binding="{Binding Free}" Width="115" MinWidth="90">
+                              <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock">
+                                  <Setter Property="HorizontalAlignment" Value="Right" />
+                                  <Setter Property="Foreground" Value="#83CFC1" />
+                                </Style>
+                              </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Header="Reserved" Binding="{Binding Reserved, StringFormat=N0}" Width="115" MinWidth="90">
+                              <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock">
+                                  <Setter Property="HorizontalAlignment" Value="Right" />
+                                  <Setter Property="Foreground" Value="#C5DADD" />
+                                </Style>
+                              </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Header="Required" Binding="{Binding Quantity, StringFormat=N0}" Width="115" MinWidth="90">
+                              <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock">
+                                  <Setter Property="HorizontalAlignment" Value="Right" />
+                                  <Setter Property="Foreground" Value="#C5DADD" />
+                                </Style>
+                              </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Header="Source" Binding="{Binding Strategy}" Width="*" />
+                          </DataGrid.Columns>
+                        </DataGrid>
+                      </DockPanel>
+                    </TabItem>
+                    <TabItem Header="Blueprint &amp; jobs">
+                      <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                        <StackPanel Margin="0,10">
+                          <Expander Header="Owned blueprints for this component" IsExpanded="False" Margin="0,0,0,12">
+                            <StackPanel Margin="0,10">
+                              <TextBlock x:Name="ComponentBlueprintHint" TextWrapping="Wrap" Margin="0,0,0,8" />
+                              <WrapPanel Margin="0,0,0,8">
+                                <ComboBox x:Name="ComponentBlueprintOwner" Style="{StaticResource WorkspaceCombo}" DisplayMemberPath="Name" SelectionChanged="ComponentBlueprintOwner_Changed" />
+                                <ComboBox x:Name="ComponentBlueprintLocation" Style="{StaticResource WorkspaceCombo}" MaxWidth="450" SelectionChanged="ComponentBlueprintLocation_Changed" />
+                              </WrapPanel>
+                              <Grid Height="220" x:Name="ComponentBlueprintsFrame">
+                                <Grid.RowDefinitions>
+                                  <RowDefinition Height="*" />
+                                  <RowDefinition Height="8" />
+                                </Grid.RowDefinitions>
+                                <DataGrid x:Name="ComponentBlueprints" MinHeight="45">
+                                  <DataGrid.Columns>
+                                    <DataGridTemplateColumn Header="Blueprint" Width="2*">
+                                      <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                          <DockPanel>
+                                            <Image Source="{Binding Icon}" Width="28" Height="28" Margin="0,0,8,0" />
+                                            <TextBlock Text="{Binding Name}" VerticalAlignment="Center" />
+                                          </DockPanel>
+                                        </DataTemplate>
+                                      </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
+                                    <DataGridTextColumn Header="Owner" Binding="{Binding Owner}" Width="*" />
+                                    <DataGridTextColumn Header="ME / TE" Binding="{Binding Efficiency}" Width="*" />
+                                    <DataGridTextColumn Header="Runs" Binding="{Binding RunText}" Width="70" />
+                                    <DataGridTextColumn Header="Location" Binding="{Binding Location}" Width="2*" />
+                                    <DataGridTextColumn Header="Availability" Binding="{Binding Status}" Width="*" />
+                                  </DataGrid.Columns>
+                                </DataGrid>
+                                <Thumb Height="8" Cursor="SizeNS" DragDelta="ResizeTable_DragDelta" Grid.Row="1">
+                                  <Thumb.Template>
+                                    <ControlTemplate TargetType="Thumb">
+                                      <Border Background="#284950" CornerRadius="3" Margin="0,2">
+                                        <Border Width="35" Height="2" Background="#80B4B9" HorizontalAlignment="Center" />
+                                      </Border>
+                                    </ControlTemplate>
+                                  </Thumb.Template>
+                                </Thumb>
+                              </Grid>
+                              <Button Content="Select blueprint &amp; recalculate inputs" Click="SelectComponentBlueprint_Click" HorizontalAlignment="Left" />
+                            </StackPanel>
+                          </Expander>
+                          <Border x:Name="PlannedJobPanel" Style="{StaticResource Card}" Margin="0,14,0,12">
+                            <StackPanel>
+                              <TextBlock Text="Planned job" Foreground="#55D7D2" FontWeight="Bold" />
+                              <TextBlock x:Name="PlannedJobStatus" TextWrapping="Wrap" Margin="0,5" />
+                              <WrapPanel>
+                                <TextBlock Text="Production location" VerticalAlignment="Center" />
+                                <ComboBox x:Name="JobFacilityPicker" Style="{StaticResource WorkspaceCombo}" MaxWidth="350" SelectionChanged="Facility_Changed" />
+                                <TextBox x:Name="JobFacility" Visibility="Collapsed" />
+                                <Button Content="Save job plan" Click="PlanJob_Click" />
+                                <Button Content="Remove plan" Click="RemovePlanJob_Click" />
+                              </WrapPanel>
+                              <TextBlock Text="Uses the executing toon selected above. This saves a local assignment; start the actual job in EVE. Skills, blueprint access and hauling still require verification." TextWrapping="Wrap" Foreground="#8FB2B5" />
+                            </StackPanel>
+                          </Border>
+                          <Border x:Name="ActualJobPanel" Style="{StaticResource Card}">
+                            <StackPanel>
+                              <TextBlock Text="Match existing EVE job" Style="{StaticResource SectionTitle}" />
+                              <TextBlock x:Name="ActualJobStatus" TextWrapping="Wrap" Margin="0,0,0,10" />
+                              <Grid Height="240" x:Name="ExistingJobsFrame">
+                                <Grid.RowDefinitions>
+                                  <RowDefinition Height="*" />
+                                  <RowDefinition Height="8" />
+                                </Grid.RowDefinitions>
+                                <DataGrid x:Name="ExistingJobs" MinHeight="45" SelectionChanged="Job_Selected">
+                                  <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Toon" Binding="{Binding Owner}" Width="*" />
+                                    <DataGridTextColumn Header="Runs" Binding="{Binding Link.Runs}" Width="60" />
+                                    <DataGridTextColumn Header="Facility" Binding="{Binding Facility}" Width="2*" />
+                                    <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="2*" />
+                                    <DataGridTextColumn Header="Ends (EVE)" Binding="{Binding End}" Width="135" />
+                                  </DataGrid.Columns>
+                                </DataGrid>
+                                <Thumb Height="8" Cursor="SizeNS" DragDelta="ResizeTable_DragDelta" Grid.Row="1">
+                                  <Thumb.Template>
+                                    <ControlTemplate TargetType="Thumb">
+                                      <Border Background="#284950" CornerRadius="3" Margin="0,2">
+                                        <Border Width="35" Height="2" Background="#80B4B9" HorizontalAlignment="Center" />
+                                      </Border>
+                                    </ControlTemplate>
+                                  </Thumb.Template>
+                                </Thumb>
+                              </Grid>
+                              <TextBlock x:Name="JobEvidence" TextWrapping="Wrap" Margin="0,10" />
+                              <WrapPanel>
+                                <Button x:Name="MatchJobButton" Content="Link selected EVE job" Click="MatchJob_Click" IsEnabled="False" />
+                                <Button Content="Unlink job" Click="UnmatchJob_Click" />
+                              </WrapPanel>
+                            </StackPanel>
+                          </Border>
+                        </StackPanel>
+                      </ScrollViewer>
+                    </TabItem>
+                    <TabItem Header="Stock &amp; transfers">
+                      <DockPanel Margin="0,8">
+                        <WrapPanel Margin="0,6" DockPanel.Dock="Top">
+                          <ComboBox x:Name="StockOwner" Style="{StaticResource WorkspaceCombo}" DisplayMemberPath="Name" SelectionChanged="StockOwner_Changed" MinWidth="150" MaxWidth="250" />
+                          <ComboBox x:Name="StockLocation" Style="{StaticResource WorkspaceCombo}" MaxWidth="250" SelectionChanged="StockLocation_Changed" MinWidth="150" />
+                          <TextBox x:Name="StockSearch" ToolTip="Search stock by pilot, station or container" TextChanged="StockSearch_Changed" DockPanel.Dock="Top" Width="190" />
+                        </WrapPanel>
+                        <StackPanel DockPanel.Dock="Bottom">
+                          <WrapPanel>
+                            <TextBlock Text="Reserve quantity" VerticalAlignment="Center" />
+                            <TextBox x:Name="ReserveQuantity" Width="100" Text="1" />
+                            <Button Content="RESERVE SELECTED STACK" Click="Reserve_Click" />
+                            <Button Content="RELEASE SELECTED RESERVATION" Click="Release_Click" HorizontalAlignment="Left" DockPanel.Dock="Bottom" />
+                          </WrapPanel>
+                          <TextBlock x:Name="Coverage" Foreground="#FFD166" TextWrapping="NoWrap" Margin="3,7" TextTrimming="CharacterEllipsis" ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}" />
+                        </StackPanel>
+                        <Grid Margin="0,12" x:Name="StockLayout">
+                          <Grid.RowDefinitions>
+                            <RowDefinition Height="2*" MinHeight="65" x:Name="StockHeight" />
+                            <RowDefinition Height="8" />
+                            <RowDefinition Height="*" MinHeight="60" />
+                          </Grid.RowDefinitions>
+                          <GridSplitter Height="6" HorizontalAlignment="Stretch" Background="#284950" Grid.Row="1" />
+                          <DataGrid x:Name="Stock" MinHeight="50">
+                            <DataGrid.Columns>
+                              <DataGridTemplateColumn Header="Material" Width="180">
+                                <DataGridTemplateColumn.CellTemplate>
+                                  <DataTemplate>
+                                    <DockPanel>
+                                      <Image Source="{Binding Icon}" Width="26" Height="26" Margin="0,0,8,0" />
+                                      <TextBlock Text="{Binding Name}" VerticalAlignment="Center" />
+                                    </DockPanel>
+                                  </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                              </DataGridTemplateColumn>
+                              <DataGridTextColumn Header="Free" Binding="{Binding Free}" Width="115" MinWidth="90">
+                                <DataGridTextColumn.ElementStyle>
+                                  <Style TargetType="TextBlock">
+                                    <Setter Property="HorizontalAlignment" Value="Right" />
+                                    <Setter Property="Foreground" Value="#83CFC1" />
+                                  </Style>
+                                </DataGridTextColumn.ElementStyle>
+                              </DataGridTextColumn>
+                              <DataGridTextColumn Header="Observed" Binding="{Binding Quantity, StringFormat=N0}" Width="115" MinWidth="90">
+                                <DataGridTextColumn.ElementStyle>
+                                  <Style TargetType="TextBlock">
+                                    <Setter Property="HorizontalAlignment" Value="Right" />
+                                    <Setter Property="Foreground" Value="#C5DADD" />
+                                  </Style>
+                                </DataGridTextColumn.ElementStyle>
+                              </DataGridTextColumn>
+                              <DataGridTextColumn Header="Reserved" Binding="{Binding Reserved, StringFormat=N0}" Width="100" />
+                              <DataGridTextColumn Header="Owner" Binding="{Binding Owner}" Width="145" />
+                              <DataGridTextColumn Header="Station / container" Binding="{Binding Path}" Width="*" MinWidth="210" />
+                              <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="90" />
+                            </DataGrid.Columns>
+                            <DataGrid.RowStyle>
+                              <Style TargetType="DataGridRow" BasedOn="{StaticResource {x:Type DataGridRow}}">
+                                <Setter Property="ToolTip" Value="{Binding Detail}" />
+                              </Style>
+                            </DataGrid.RowStyle>
+                          </DataGrid>
+                          <DataGrid x:Name="Reservations" MinHeight="45" Grid.Row="2">
+                            <DataGrid.Columns>
+                              <DataGridTextColumn Header="Units" Binding="{Binding Quantity}" Width="70" />
+                              <DataGridTextColumn Header="Reserved source" Binding="{Binding Source}" Width="2*" />
+                              <DataGridTextColumn Header="Review" Binding="{Binding Review}" Width="2*" />
+                            </DataGrid.Columns>
+                          </DataGrid>
+                        </Grid>
+                      </DockPanel>
+                    </TabItem>
+                    <TabItem Header="Notes &amp; assumptions">
+                      <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                        <StackPanel Margin="0,10">
+                          <TextBlock Text="Notes" Margin="3,8,0,0" />
+                          <TextBox x:Name="NodeNotes" ToolTip="Component notes, job/haul planning" TextWrapping="Wrap" AcceptsReturn="True" />
+                          <TextBlock x:Name="Eligibility" TextWrapping="Wrap" Foreground="#FFD166" Margin="3,5" />
+                          <WrapPanel x:Name="ManualChildControls" Margin="0,4">
+                            <StackPanel>
+                              <TextBlock Text="Component" />
+                              <TextBox x:Name="ChildType" Width="130" Visibility="Collapsed" />
+                              <TextBlock Text="Choose a product in Setup" Margin="4,10" MinWidth="160" x:Name="SelectedChildName" />
+                            </StackPanel>
+                            <StackPanel>
+                              <TextBlock Text="Child quantity" />
+                              <TextBox x:Name="ChildQuantity" Width="100" Text="1" />
+                            </StackPanel>
+                            <Button Content="ADD CHILD COMPONENT" Click="AddChild_Click" VerticalAlignment="Bottom" />
+                          </WrapPanel>
+                          <Expander Header="Project settings" Foreground="#74D6C9" Margin="3,0,3,6">
+                            <Border BorderBrush="#245058" BorderThickness="1" Background="#102D31" Padding="10" CornerRadius="5">
+                              <StackPanel>
+                                <Button Content="GENERATE MATERIAL TREE FOR THIS DRAFT" Click="ExpandDraft_Click" HorizontalAlignment="Right" />
+                                <TextBlock x:Name="ProjectIdentity" Foreground="#55D7D2" FontWeight="Bold" />
+                                <WrapPanel>
+                                  <StackPanel>
+                                    <TextBlock Text="Name" />
+                                    <TextBox x:Name="ProjectName" Width="190" />
+                                  </StackPanel>
+                                  <StackPanel>
+                                    <TextBlock Text="Lead planner" ToolTip="Changing the lead does not filter or reassign child components" />
+                                    <ComboBox Style="{StaticResource WorkspaceCombo}" x:Name="ProjectLead" DisplayMemberPath="Name" SelectedValuePath="Id" />
+                                  </StackPanel>
+                                  <StackPanel>
+                                    <TextBlock Text="Buyer" />
+                                    <ComboBox Style="{StaticResource WorkspaceCombo}" x:Name="ProjectBuyer" DisplayMemberPath="Name" SelectedValuePath="Id" />
+                                  </StackPanel>
+                                  <StackPanel>
+                                    <TextBlock Text="Seller" />
+                                    <ComboBox Style="{StaticResource WorkspaceCombo}" x:Name="ProjectSeller" DisplayMemberPath="Name" SelectedValuePath="Id" />
+                                  </StackPanel>
+                                </WrapPanel>
+                                <TextBox x:Name="ProjectNotes" ToolTip="Project notes" MinHeight="32" TextWrapping="Wrap" AcceptsReturn="True" />
+                                <WrapPanel>
+                                  <CheckBox x:Name="Paused" Content="Paused (holds reservations)" />
+                                  <CheckBox x:Name="Archived" Content="Archived" />
+                                  <Button Content="SAVE PROJECT" Click="SaveProject_Click" />
+                                </WrapPanel>
+                              </StackPanel>
+                            </Border>
+                          </Expander>
+                          <Expander Header="Project history" Foreground="#74D6C9" Margin="0,10">
+                            <TextBlock x:Name="Audit" TextWrapping="Wrap" Margin="8" />
+                          </Expander>
+                          <Expander Header="Transfer / haul requirement" Margin="0,12" DockPanel.Dock="Bottom">
+                            <StackPanel>
+                              <CheckBox x:Name="TransferNeeded" Content="Transfer needed before use at the next stage" />
+                              <TextBox x:Name="TransferNote" ToolTip="Origin, destination and handoff instructions" />
+                              <Button Content="Save transfer requirement" Click="Transfer_Click" HorizontalAlignment="Left" />
+                              <TextBlock Text="A saved requirement does not confirm delivery. Asset disappearance never completes a transfer." TextWrapping="Wrap" />
+                            </StackPanel>
+                          </Expander>
+                        </StackPanel>
+                      </ScrollViewer>
+                    </TabItem>
+                  </TabControl>
+                </DockPanel>
+              </Grid>
+            </Grid>
+          </ScrollViewer>
+        </TabItem>
+        <TabItem x:Name="LibraryTab" Header="Blueprint library" Visibility="Collapsed">
+     </TabItem>
+        <TabItem x:Name="MaterialsTab" Header="All project materials">
+          <DockPanel Margin="12">
+            <TextBlock Text="Saved quantities across all active projects. Buy / Use Stock replaces child input demand; Make uses its planned children. Free stock is shown once per material, not automatically allocated. Paused projects retain reservations. Orders and purchases are not yet imported." TextWrapping="Wrap" Margin="3,8" DockPanel.Dock="Top" />
+            <Button Content="COPY MATERIALS LIST" Click="CopyShopping_Click" HorizontalAlignment="Left" DockPanel.Dock="Bottom" />
+            <DataGrid x:Name="Shopping">
+              <DataGrid.Columns>
+                <DataGridTemplateColumn Header="Material" Width="2*" MinWidth="180">
+                  <DataGridTemplateColumn.CellTemplate>
+                    <DataTemplate>
+                      <DockPanel>
+                        <Image Source="{Binding Icon}" Width="28" Height="28" Margin="0,0,10,0" />
+                        <TextBlock Text="{Binding Name}" VerticalAlignment="Center" />
+                      </DockPanel>
+                    </DataTemplate>
+                  </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+                <DataGridTextColumn Header="Owned" Binding="{Binding OwnedLabel}" Width="115" />
+                <DataGridTextColumn Header="Free observed" Binding="{Binding FreeLabel}" Width="115" MinWidth="90">
+                  <DataGridTextColumn.ElementStyle>
+                    <Style TargetType="TextBlock">
+                      <Setter Property="HorizontalAlignment" Value="Right" />
+                      <Setter Property="Foreground" Value="#83CFC1" />
+                    </Style>
+                  </DataGridTextColumn.ElementStyle>
+                </DataGridTextColumn>
+                <DataGridTextColumn Header="All reserved" Binding="{Binding TotalReserved, StringFormat=N0}" Width="115" />
+                <DataGridTextColumn Header="For these builds" Binding="{Binding Reserved, StringFormat=N0}" Width="115" MinWidth="90">
+                  <DataGridTextColumn.ElementStyle>
+                    <Style TargetType="TextBlock">
+                      <Setter Property="HorizontalAlignment" Value="Right" />
+                      <Setter Property="Foreground" Value="#C5DADD" />
+                    </Style>
+                  </DataGridTextColumn.ElementStyle>
+                </DataGridTextColumn>
+                <DataGridTextColumn Header="Required" Binding="{Binding Required, StringFormat=N0}" Width="115" MinWidth="90">
+                  <DataGridTextColumn.ElementStyle>
+                    <Style TargetType="TextBlock">
+                      <Setter Property="HorizontalAlignment" Value="Right" />
+                      <Setter Property="Foreground" Value="#C5DADD" />
+                    </Style>
+                  </DataGridTextColumn.ElementStyle>
+                </DataGridTextColumn>
+                <DataGridTextColumn Header="Unreserved" Binding="{Binding Unreserved, StringFormat=N0}" Width="115" MinWidth="90">
+                  <DataGridTextColumn.ElementStyle>
+                    <Style TargetType="TextBlock">
+                      <Setter Property="HorizontalAlignment" Value="Right" />
+                      <Setter Property="Foreground" Value="#C5DADD" />
+                    </Style>
+                  </DataGridTextColumn.ElementStyle>
+                </DataGridTextColumn>
+                <DataGridTextColumn Header="Projects" Binding="{Binding Projects}" Width="*" />
+              </DataGrid.Columns>
+              <DataGrid.RowStyle>
+                <Style TargetType="DataGridRow" BasedOn="{StaticResource {x:Type DataGridRow}}">
+                  <Setter Property="ToolTip" Value="{Binding Review}" />
+                </Style>
+              </DataGrid.RowStyle>
+            </DataGrid>
+          </DockPanel>
+        </TabItem>
+        <TabItem Header="Setup">
+          <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <StackPanel Margin="10">
+              <Expander Header="CHARACTER DEFAULTS AND ROLES" Foreground="#74D6C9" Margin="0,4,0,8">
+                <StackPanel>
+                  <TextBlock Text="Unassigned is valid. Defaults apply only to new projects. Roles are saved planning preferences; API permissions and skills remain separate." TextWrapping="Wrap" Margin="3,8" />
+                  <WrapPanel>
+                    <StackPanel>
+                      <TextBlock Text="Lead planner" />
+                      <ComboBox Style="{StaticResource WorkspaceCombo}" x:Name="DefaultLead" DisplayMemberPath="Name" SelectedValuePath="Id" />
+                    </StackPanel>
+                    <StackPanel>
+                      <TextBlock Text="Buyer" />
+                      <ComboBox Style="{StaticResource WorkspaceCombo}" x:Name="DefaultBuyer" DisplayMemberPath="Name" SelectedValuePath="Id" />
+                    </StackPanel>
+                    <StackPanel>
+                      <TextBlock Text="Seller" />
+                      <ComboBox Style="{StaticResource WorkspaceCombo}" x:Name="DefaultSeller" DisplayMemberPath="Name" SelectedValuePath="Id" />
+                    </StackPanel>
+                    <Button Content="SAVE DEFAULTS / ROLES" Click="Defaults_Click" VerticalAlignment="Bottom" />
+                  </WrapPanel>
+                  <Grid Height="220" x:Name="RolesFrame">
+                    <Grid.RowDefinitions>
+                      <RowDefinition Height="*" />
+                      <RowDefinition Height="8" />
+                    </Grid.RowDefinitions>
+                    <DataGrid x:Name="Roles" IsReadOnly="False" Margin="0,6">
+                      <DataGrid.Columns>
+                        <DataGridTextColumn Header="Linked character" Binding="{Binding Name}" IsReadOnly="True" Width="*" />
+                        <DataGridCheckBoxColumn Header="Make" Binding="{Binding Make}" />
+                        <DataGridCheckBoxColumn Header="Buy" Binding="{Binding Buy}" />
+                        <DataGridCheckBoxColumn Header="Sell" Binding="{Binding Sell}" />
+                        <DataGridCheckBoxColumn Header="Jobs" Binding="{Binding Jobs}" />
+                        <DataGridCheckBoxColumn Header="Market" Binding="{Binding Market}" />
+                        <DataGridCheckBoxColumn Header="Wallet" Binding="{Binding Wallet}" />
+                        <DataGridCheckBoxColumn Header="Dashboard" Binding="{Binding Dashboard}" />
+                      </DataGrid.Columns>
+                    </DataGrid>
+                    <Thumb Height="8" Cursor="SizeNS" DragDelta="ResizeTable_DragDelta" Grid.Row="1">
+                      <Thumb.Template>
+                        <ControlTemplate TargetType="Thumb">
+                          <Border Background="#284950" CornerRadius="3" Margin="0,2">
+                            <Border Width="35" Height="2" Background="#80B4B9" HorizontalAlignment="Center" />
+                          </Border>
+                        </ControlTemplate>
+                      </Thumb.Template>
+                    </Thumb>
+                  </Grid>
+                </StackPanel>
+              </Expander>
+              <Expander Header="FIND PRODUCT / COMPONENT BY NAME" Foreground="#74D6C9" Margin="0,4,0,8">
+                <StackPanel>
+                  <TextBox x:Name="TypeSearch" ToolTip="Search product names; first 80 matches" TextChanged="TypeSearch_Changed" />
+                  <ListBox x:Name="TypeResults" DisplayMemberPath="Value" Height="100" Background="#091C20" Foreground="#DDF6F4" />
+                  <WrapPanel>
+                    <Button Content="USE FOR NEW PROJECT" Click="UseProduct_Click" />
+                    <Button Content="USE FOR CHILD COMPONENT" Click="UseComponent_Click" />
+                  </WrapPanel>
+                </StackPanel>
+              </Expander>
+              <Expander Header="NEW DRAFT PROJECT" IsExpanded="True" Foreground="#74D6C9" Margin="0,4,0,8">
+                <StackPanel>
+                  <TextBlock Text="Choose a product by name above, or create a build from an owned blueprint." TextWrapping="Wrap" Margin="3,6" />
+                  <WrapPanel>
+                    <StackPanel>
+                      <TextBlock Text="Project name" />
+                      <TextBox x:Name="NewName" Width="200" />
+                    </StackPanel>
+                    <StackPanel>
+                      <TextBlock Text="Product" />
+                      <TextBox x:Name="NewType" Width="95" Visibility="Collapsed" />
+                      <TextBlock Text="Choose a product in Setup" Margin="4,10" MinWidth="160" x:Name="SelectedProductName" />
+                    </StackPanel>
+                    <StackPanel>
+                      <TextBlock Text="Output quantity" />
+                      <TextBox x:Name="NewQuantity" Text="1" Width="95" />
+                    </StackPanel>
+                    <Button Content="CREATE PROJECT" Click="Create_Click" VerticalAlignment="Bottom" />
+                  </WrapPanel>
+                </StackPanel>
+              </Expander>
+            </StackPanel>
+          </ScrollViewer>
+        </TabItem>
+      </TabControl>
+    </Grid>
+    <DockPanel Grid.Row="1" Margin="12" x:Name="ProjectGallery">
+      <StackPanel DockPanel.Dock="Top" Margin="0,8,0,18">
+        <TextBlock Text="Your production projects" FontSize="24" FontWeight="SemiBold" />
+        <TextBlock Text="Choose a build to review components, blueprints, stock and jobs." Margin="0,8,0,12" Foreground="#99B7BC" />
+        <Button Content="+ New project" Click="NewProject_Click" HorizontalAlignment="Left" />
       </StackPanel>
-      <Border DockPanel.Dock="Bottom" Background="#102D31" BorderBrush="#245058" BorderThickness="1" Padding="10" Margin="0,8,0,0">
-       <StackPanel>
-        <WrapPanel><TextBlock Text="Output units" VerticalAlignment="Center"/><TextBox x:Name="BlueprintQuantity" Text="1" Width="90"/><Button Content="CREATE PRODUCTION PLAN" Click="CreateBlueprint_Click" ToolTip="Selected blueprint ME applies to final output. Child recipes use ME 0, with no facility/rig bonuses. Reactions and invention remain purchase inputs. No jobs are submitted."/></WrapPanel>
-
-       </StackPanel>
-      </Border>
-      <DataGrid x:Name="Blueprints">
-       <DataGrid.Columns>
-        <DataGridTemplateColumn Header="BLUEPRINT" Width="2*"><DataGridTemplateColumn.CellTemplate><DataTemplate><StackPanel Orientation="Horizontal"><Image Source="{Binding Icon}" Width="30" Height="30" Margin="0,0,8,0"/><TextBlock Text="{Binding Name}" VerticalAlignment="Center" FontWeight="SemiBold"/></StackPanel></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
-        <DataGridTextColumn Header="ME / TE" Binding="{Binding Efficiency}" Width="150"/>
-        <DataGridTextColumn Header="RUNS" Binding="{Binding RunText}" Width="80"/>
-        <DataGridTextColumn Header="LOCATION / CONTAINER" Binding="{Binding Location}" Width="2*"/>
-        <DataGridTemplateColumn Header="STATUS" Width="170"><DataGridTemplateColumn.CellTemplate><DataTemplate><Border BorderBrush="{Binding Color}" BorderThickness="2,0,0,0" Padding="8,3"><TextBlock Text="{Binding Status}" Foreground="{Binding Color}" TextWrapping="Wrap"/></Border></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
-        <DataGridTextColumn Header="INSTANCE ID" Binding="{Binding ItemId}" Width="110"/>
-       </DataGrid.Columns>
-      </DataGrid>
-     </DockPanel>
-    </TabItem>
-    <TabItem x:Name="MaterialsTab" Header="All project materials"><ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel Margin="10">     <Expander IsExpanded="True" x:Name="ShoppingExpander" Header="CONSOLIDATED MATERIALS / ALL ACTIVE PROJECTS" Foreground="#74D6C9" Margin="0,4,0,8">
-      <StackPanel>
-       <TextBlock Text="Saved quantities across all active projects. Buy / Use Stock replaces child input demand; Make uses its planned children. Free stock is shown once per material, not automatically allocated. Paused projects retain reservations. Orders and purchases are not yet imported." TextWrapping="Wrap" Margin="3,8"/>
-       <DataGrid x:Name="Shopping" Height="240">
-        <DataGrid.Columns>
-         <DataGridTextColumn Header="Material" Binding="{Binding Name}" Width="160"/>
-         <DataGridTextColumn Header="Required" Binding="{Binding Required}" Width="85"/>
-         <DataGridTextColumn Header="Reserved" Binding="{Binding Reserved}" Width="85"/>
-         <DataGridTextColumn Header="Unreserved" Binding="{Binding Unreserved}" Width="90"/>
-         <DataGridTextColumn Header="Free observed" Binding="{Binding FreeStock}" Width="100"/>
-         <DataGridTextColumn Header="Projects" Binding="{Binding Projects}" Width="*"/>
-         <DataGridTextColumn Header="Review / assumptions" Binding="{Binding Review}" Width="2*"/>
-        </DataGrid.Columns>
-       </DataGrid>
-       <Button Content="COPY MATERIALS LIST" Click="CopyShopping_Click" HorizontalAlignment="Left"/>
-      </StackPanel>
-     </Expander>
-</StackPanel></ScrollViewer></TabItem>
-    <TabItem Header="Setup"><ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel Margin="10">     <Expander Header="CHARACTER DEFAULTS AND ROLES" Foreground="#74D6C9" Margin="0,4,0,8">
-      <StackPanel>
-       <TextBlock Text="Unassigned is valid. Defaults apply only to new projects. Roles are saved planning preferences; API permissions and skills remain separate." TextWrapping="Wrap" Margin="3,8"/>
-       <WrapPanel>
-        <StackPanel><TextBlock Text="Lead planner"/><ComboBox Style="{StaticResource WorkspaceCombo}" x:Name="DefaultLead" DisplayMemberPath="Name" SelectedValuePath="Id"/></StackPanel>
-        <StackPanel><TextBlock Text="Buyer"/><ComboBox Style="{StaticResource WorkspaceCombo}" x:Name="DefaultBuyer" DisplayMemberPath="Name" SelectedValuePath="Id"/></StackPanel>
-        <StackPanel><TextBlock Text="Seller"/><ComboBox Style="{StaticResource WorkspaceCombo}" x:Name="DefaultSeller" DisplayMemberPath="Name" SelectedValuePath="Id"/></StackPanel>
-        <Button Content="SAVE DEFAULTS / ROLES" Click="Defaults_Click" VerticalAlignment="Bottom"/>
-       </WrapPanel>
-       <DataGrid x:Name="Roles" Height="180" IsReadOnly="False" Margin="0,6">
-        <DataGrid.Columns>
-         <DataGridTextColumn Header="Linked character" Binding="{Binding Name}" IsReadOnly="True" Width="*"/>
-         <DataGridCheckBoxColumn Header="Make" Binding="{Binding Make}"/>
-         <DataGridCheckBoxColumn Header="Buy" Binding="{Binding Buy}"/>
-         <DataGridCheckBoxColumn Header="Sell" Binding="{Binding Sell}"/>
-         <DataGridCheckBoxColumn Header="Jobs" Binding="{Binding Jobs}"/>
-         <DataGridCheckBoxColumn Header="Market" Binding="{Binding Market}"/>
-         <DataGridCheckBoxColumn Header="Wallet" Binding="{Binding Wallet}"/>
-         <DataGridCheckBoxColumn Header="Dashboard" Binding="{Binding Dashboard}"/>
-        </DataGrid.Columns>
-       </DataGrid>
-      </StackPanel>
-     </Expander>
-     <Expander Header="FIND PRODUCT / COMPONENT BY NAME" Foreground="#74D6C9" Margin="0,4,0,8">
-      <StackPanel>
-       <TextBox x:Name="TypeSearch" ToolTip="Search bundled type names or an exact type ID; first 80 matches" TextChanged="TypeSearch_Changed"/>
-       <ListBox x:Name="TypeResults" DisplayMemberPath="Value" Height="100" Background="#091C20" Foreground="#DDF6F4"/>
-       <WrapPanel><Button Content="USE FOR NEW PROJECT" Click="UseProduct_Click"/><Button Content="USE FOR CHILD COMPONENT" Click="UseComponent_Click"/></WrapPanel>
-      </StackPanel>
-     </Expander>
-     <Expander Header="NEW DRAFT PROJECT" IsExpanded="True" Foreground="#74D6C9" Margin="0,4,0,8">
-      <StackPanel>
-       <TextBlock Text="Prefer BLUEPRINT LIBRARY for an owned copy and automatic inputs. Manual drafts use product type IDs." TextWrapping="Wrap" Margin="3,6"/>
-       <WrapPanel>
-        <StackPanel><TextBlock Text="Project name"/><TextBox x:Name="NewName" Width="200"/></StackPanel>
-        <StackPanel><TextBlock Text="Product type ID"/><TextBox x:Name="NewType" Width="95"/></StackPanel>
-        <StackPanel><TextBlock Text="Output quantity"/><TextBox x:Name="NewQuantity" Text="1" Width="95"/></StackPanel>
-        <Button Content="CREATE PROJECT" Click="Create_Click" VerticalAlignment="Bottom"/>
-       </WrapPanel>
-      </StackPanel>
-     </Expander>
-</StackPanel></ScrollViewer></TabItem>
-   </TabControl>
+      <ListBox x:Name="Projects" SelectionChanged="Project_Selected" Background="#07181B" BorderThickness="0" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+        <ListBox.ItemsPanel>
+          <ItemsPanelTemplate>
+            <WrapPanel />
+          </ItemsPanelTemplate>
+        </ListBox.ItemsPanel>
+        <ListBox.ItemTemplate>
+          <DataTemplate>
+            <Border Width="260" Padding="18" Margin="5" Background="#10282D" BorderBrush="#2C4C53" BorderThickness="1" CornerRadius="12">
+              <StackPanel>
+                <Image Source="{Binding Icon}" Width="64" Height="64" HorizontalAlignment="Left" Margin="0,0,0,18" />
+                <TextBlock Text="{Binding Name}" FontSize="18" FontWeight="SemiBold" TextWrapping="Wrap" Foreground="#E5F1F2" />
+                <TextBlock Text="{Binding Detail}" Foreground="#99B7BC" TextWrapping="Wrap" Margin="0,10,0,15" />
+                <TextBlock Text="Open project  →" Foreground="#74D6C9" />
+              </StackPanel>
+            </Border>
+          </DataTemplate>
+        </ListBox.ItemTemplate>
+      </ListBox>
+    </DockPanel>
+    <DockPanel Grid.Row="1" Visibility="Collapsed" Margin="12" x:Name="CreationPage">
+      <Button Content="← Projects" Click="BackProjects_Click" HorizontalAlignment="Left" DockPanel.Dock="Top" />
+      <DockPanel Margin="10">
+        <StackPanel DockPanel.Dock="Top">
+          <WrapPanel>
+            <StackPanel>
+              <TextBlock Text="BLUEPRINT OWNER" Foreground="#80BFFF" />
+              <ComboBox x:Name="BlueprintOwner" Style="{StaticResource WorkspaceCombo}" DisplayMemberPath="Name" SelectionChanged="BlueprintOwner_Changed" MinWidth="180" />
+            </StackPanel>
+            <StackPanel>
+              <TextBlock Text="STATION / CONTAINER" Foreground="#80BFFF" />
+              <ComboBox x:Name="BlueprintLocation" Style="{StaticResource WorkspaceCombo}" SelectionChanged="BlueprintFilter_Changed" MinWidth="260" MaxWidth="450" />
+            </StackPanel>
+            <StackPanel>
+              <TextBlock Text="SEARCH BLUEPRINT / PRODUCT" />
+              <TextBox x:Name="BlueprintSearch" Width="210" TextChanged="BlueprintSearch_Changed" />
+            </StackPanel>
+          </WrapPanel>
+          <TextBlock x:Name="BlueprintSummary" TextWrapping="Wrap" Foreground="#8FB2B5" Margin="3,8" />
+        </StackPanel>
+        <Border DockPanel.Dock="Bottom" Background="#102D31" BorderBrush="#245058" BorderThickness="1" Padding="10" Margin="0,8,0,0">
+          <StackPanel>
+            <WrapPanel>
+              <TextBlock Text="Output units" VerticalAlignment="Center" />
+              <TextBox x:Name="BlueprintQuantity" Text="1" Width="90" />
+              <Button Content="CREATE PRODUCTION PLAN" Click="CreateBlueprint_Click" ToolTip="Selected blueprint ME applies to final output. Child recipes use ME 0, with no facility/rig bonuses. Reactions and invention remain purchase inputs. No jobs are submitted." />
+            </WrapPanel>
+          </StackPanel>
+        </Border>
+        <DataGrid x:Name="Blueprints">
+          <DataGrid.Columns>
+            <DataGridTemplateColumn Header="BLUEPRINT" Width="2*">
+              <DataGridTemplateColumn.CellTemplate>
+                <DataTemplate>
+                  <StackPanel Orientation="Horizontal">
+                    <Image Source="{Binding Icon}" Width="30" Height="30" Margin="0,0,8,0" />
+                    <TextBlock Text="{Binding Name}" VerticalAlignment="Center" FontWeight="SemiBold" />
+                  </StackPanel>
+                </DataTemplate>
+              </DataGridTemplateColumn.CellTemplate>
+            </DataGridTemplateColumn>
+            <DataGridTextColumn Header="ME / TE" Binding="{Binding Efficiency}" Width="150" />
+            <DataGridTextColumn Header="RUNS" Binding="{Binding RunText}" Width="80" />
+            <DataGridTextColumn Header="LOCATION / CONTAINER" Binding="{Binding Location}" Width="2*" />
+            <DataGridTemplateColumn Header="STATUS" Width="170">
+              <DataGridTemplateColumn.CellTemplate>
+                <DataTemplate>
+                  <Border BorderBrush="{Binding Color}" BorderThickness="2,0,0,0" Padding="8,3">
+                    <TextBlock Text="{Binding Status}" Foreground="{Binding Color}" TextWrapping="Wrap" />
+                  </Border>
+                </DataTemplate>
+              </DataGridTemplateColumn.CellTemplate>
+            </DataGridTemplateColumn>
+          </DataGrid.Columns>
+        </DataGrid>
+      </DockPanel>
+    </DockPanel>
   </Grid>
- </Grid>
 </UserControl>

@@ -27,15 +27,30 @@ public partial class OmegaWindow:Window
         PlexTile.Text=_service.Budget.PlexSell is >0?(_service.Budget.PlexSell.Value/1000000).ToString("N2")+"M ISK":"Unavailable";
         Summary.Text=$"{_service.Pilots.Count} pilots | {accounts.Count(p=>!p.Expiry.HasValue)} accounts without dates | Select a pilot to manage dates and clone details";
         RefreshBudget();
+        if(Pilots.SelectedItem is OmegaPilot selected) RefreshClones(selected);
     }
     private void Selected(object sender,SelectionChangedEventArgs e)
     {
         if(Pilots.SelectedItem is not OmegaPilot p)return;SelectedTitle.Text=p.Name;SelectedStatus.Text=p.OmegaStatus+" | "+p.JumpCount+" jump clones";Account.Text=p.Account;Expiry.SelectedDate=p.Expiry?.LocalDateTime.Date;Time.Text=p.Expiry?.ToLocalTime().ToString("HH:mm")??"00:00";
-        var lines=new List<string>{p.Name+" | Home: "+p.Home,p.Error.Length>0?p.Error:"Clone snapshot "+p.Updated.ToLocalTime().ToString("dd MMM HH:mm")};
-        if(p.Clones.ValueKind==System.Text.Json.JsonValueKind.Object&&p.Clones.TryGetProperty("jump_clones",out var clones))
-            foreach(var c in clones.EnumerateArray())lines.Add(IndustryCatalog.Text(c,"name")+" | "+IndustryCatalog.Text(c,"location_type")+" "+IndustryCatalog.Num(c,"location_id")+" | Implants: "+(c.TryGetProperty("implants",out var implants)?string.Join(", ",implants.EnumerateArray().Select(i=>IndustryCatalog.Name(i.GetInt32()))):"None"));
-        Clones.Text=string.Join(Environment.NewLine+Environment.NewLine,lines);
+        RefreshClones(p);
     }
+    private void RefreshClones(OmegaPilot p)
+    {
+        CloneSummary.Text = "Home: " + p.Home + "  |  " + (p.Error.Length > 0 ? p.Error : "Updated " + p.Updated.ToLocalTime().ToString("dd MMM HH:mm"));
+        var rows = new List<CloneRow>();
+        if (p.Clones.ValueKind == System.Text.Json.JsonValueKind.Object && p.Clones.TryGetProperty("jump_clones", out var clones))
+            foreach (var c in clones.EnumerateArray())
+            {
+                string name = IndustryCatalog.Text(c, "name");
+                var implants = c.TryGetProperty("implants", out var items) ? items.EnumerateArray().Select(i => new ImplantRow(i.GetInt32(), p.ImplantNames.GetValueOrDefault(i.GetInt32(), IndustryCatalog.Name(i.GetInt32())))).ToArray() : Array.Empty<ImplantRow>();
+                rows.Add(new(string.IsNullOrWhiteSpace(name) ? "Unnamed jump clone" : name, p.LocationNames.GetValueOrDefault(IndustryCatalog.Num(c, "location_id"), "Location name unavailable"), implants));
+            }
+        CloneCards.ItemsSource = rows;
+        CloneEmpty.Visibility = rows.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+    }
+    private sealed record ImplantRow(int TypeId, string Name) { public string Icon => $"https://images.evetech.net/types/{TypeId}/icon?size=32"; }
+    private sealed record CloneRow(string Name, string Location, ImplantRow[] Implants)
+    { public string ImplantSummary => Implants.Length == 0 ? "No implants" : $"{Implants.Length} implants"; }
     private void Save_Click(object sender,RoutedEventArgs e)
     {
         if(Pilots.SelectedItem is not OmegaPilot p||Expiry.SelectedDate is not {} date){StatusText.Text="Select a pilot and enter the expiry from your launcher.";return;}

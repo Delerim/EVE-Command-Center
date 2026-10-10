@@ -329,7 +329,7 @@ public sealed class MoonReportService : IDisposable
         Expires = s.FuelExpires, Now = now,
         Services = string.Join(", ", s.Services.Select(service => service.Name + " (" + service.State + ")")),
         Quantity = _state.FuelAssetsUpdatedUtc == null ? "Access needed" :
-            string.Join(" | ", _state.FuelAssets.Where(a => a.LocationId == s.StructureId).GroupBy(a => a.TypeId).Select(g => $"{g.Sum(a => a.Quantity):N0} {_state.TypeNames.GetValueOrDefault(g.Key, "Type " + g.Key)}")) is { Length: > 0 } quantity ? quantity : "0 recorded",
+            string.Join(" | ", _state.FuelAssets.Where(a => a.LocationId == s.StructureId).GroupBy(a => a.TypeId).Select(g => $"{g.Sum(a => a.Quantity):N0} {_state.TypeNames.GetValueOrDefault(g.Key, IndustryCatalog.Name(g.Key))}")) is { Length: > 0 } quantity ? quantity : "0 recorded",
     }).OrderBy(s => s.Days ?? double.MaxValue).ThenBy(s => s.StructureName).ToArray();
 
     public async Task SaveProfileAsync(MoonProfile profile)
@@ -1201,11 +1201,11 @@ public sealed class MoonReportService : IDisposable
                             CorporationName = _state.CorporationNames.TryGetValue(
                                 group.Key.RecordedCorporationId, out string? corp)
                                 ? corp
-                                : "Corp " + group.Key.RecordedCorporationId,
+                                : "Corporation name unavailable",
                             CharacterName = _state.CharacterNames.TryGetValue(
                                 group.Key.CharacterId, out string? character)
                                 ? character
-                                : "Character " + group.Key.CharacterId,
+                                : "Pilot name unavailable",
                             Quantity = group.Sum(record => record.Quantity),
                             VolumeM3 = volume,
                             EstimatedIsk = group.Sum(record => record.EstimatedIsk),

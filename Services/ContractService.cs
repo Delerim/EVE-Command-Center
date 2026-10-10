@@ -1,4 +1,4 @@
-﻿using System.Net;
+using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
@@ -109,7 +109,7 @@ public sealed class ContractService : IDisposable
                     Contract = contract, CorporationId = corp, ReaderCharacterId = pilot.CharacterId,
                     Issuer = EntityName(contract.IssuerId),
                     JaniceUrl = ExtractJaniceUrl(contract.Title),
-                    Location = State.History.FirstOrDefault(r => r.CorporationId == corp && r.Contract.Id == contract.Id)?.Location ?? contract.LocationId.ToString()
+                    Location = State.History.FirstOrDefault(r => r.CorporationId == corp && r.Contract.Id == contract.Id)?.Location ?? "Unresolved location"
                 };
                 if (contract.AcceptorId > 0) row.Acceptor = EntityName(contract.AcceptorId);
                 history.Add(row);
@@ -118,7 +118,7 @@ public sealed class ContractService : IDisposable
             var fresh = FindNew(State.SeenByCorporation, corp, rows);
             State.CharacterId = pilot.CharacterId;
             State.CorporationId = corp;
-            State.CorporationName = corporation.GetProperty("name").GetString() ?? corp.ToString();
+            State.CorporationName = corporation.GetProperty("name").GetString() ?? "Corporation name unavailable";
             State.Rows = rows;
             State.LastRefreshUtc = DateTimeOffset.UtcNow;
             LastError = null;
@@ -140,7 +140,7 @@ public sealed class ContractService : IDisposable
         return fresh;
     }
 
-    private string EntityName(long id) => State.EntityNames.TryGetValue(id, out var name) ? name : $"Unresolved ({id})";
+    private string EntityName(long id) => State.EntityNames.TryGetValue(id, out var name) ? name : "Unresolved name";
     private async Task ResolveEntitiesAsync(IEnumerable<long> ids, CancellationToken token)
     {
         foreach (var chunk in ids.Where(id => id > 0 && !State.EntityNames.ContainsKey(id)).Distinct().Chunk(1000))
@@ -196,7 +196,7 @@ public sealed class ContractService : IDisposable
         if (row.Contract.Type != "item_exchange") { issues.Add("Not an item-exchange contract"); row.HasMismatch = true; }
         if (!row.Contract.Price.HasValue) issues.Add("No contract price");
         if (row.JaniceUrl == null) issues.Add("No Janice link in the title");
-        if (row.Location.StartsWith("Unresolved (") || string.IsNullOrWhiteSpace(row.Location))
+        if (row.Location.StartsWith("Unresolved") || string.IsNullOrWhiteSpace(row.Location))
         { row.LocationCheck = "Unverified"; issues.Add("ESI could not verify the destination; check structure access"); }
         else
         {
@@ -253,7 +253,7 @@ public sealed class ContractService : IDisposable
         foreach (var item in items)
         {
             var type = await GetAsync($"/universe/types/{item.TypeId}/", null, token);
-            item.Name = type.GetProperty("name").GetString() ?? item.TypeId.ToString();
+            item.Name = type.GetProperty("name").GetString() ?? IndustryCatalog.Name(item.TypeId);
             item.UnitVolume = type.TryGetProperty("packaged_volume", out var volume) || type.TryGetProperty("volume", out volume) ? volume.GetDouble() : 0;
         }
         _items[(row.CorporationId, row.Contract.Id)] = items;
@@ -301,8 +301,8 @@ public sealed class ContractService : IDisposable
     }
     private async Task<string> ResolveNameAsync(string path, long id, string? access, CancellationToken token)
     {
-        try { return (await GetAsync(path, access, token)).GetProperty("name").GetString() ?? id.ToString(); }
-        catch (Exception ex) when (ex is not OperationCanceledException and not ThrottledException) { return $"Unresolved ({id})"; }
+        try { return (await GetAsync(path, access, token)).GetProperty("name").GetString() ?? "Name unavailable"; }
+        catch (Exception ex) when (ex is not OperationCanceledException and not ThrottledException) { return "Unresolved name"; }
     }
     private async Task<List<T>> PagesAsync<T>(string path, string access, CancellationToken token)
     {

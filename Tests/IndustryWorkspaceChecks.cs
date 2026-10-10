@@ -14,7 +14,10 @@ internal static partial class Program
         Directory.CreateDirectory(folder);
         try
         {
+            WorkspaceLayout.PreferencePath = Path.Combine(folder, "ui-layout.json");
+            CheckIndustryPresentation(folder);
             CheckIndustryPlanning(folder, renderPath);
+            if (renderPath != null) RenderCloneNames(renderPath);
             CheckMarketOrders(folder, renderPath);
             bool Reject(Action action) { try { action(); return false; } catch (InvalidOperationException) { return true; } }
             var material = new IndustryProjectNode { TypeId = 34, Quantity = 80, Strategy = "Buy" };
@@ -157,13 +160,13 @@ internal static partial class Program
                 ((TabControl)view.FindName("WorkspaceTabs")).SelectedItem = view.FindName("ProjectDetailTab");
                 Render(shell, renderPath);
                 ((TabControl)view.FindName("WorkspaceTabs")).SelectedItem = view.FindName("MaterialsTab");
-                ((Expander)view.FindName("ShoppingExpander")).IsExpanded = true;
                 Render(shell, Path.ChangeExtension(renderPath, ".materials.png"));
-                ((Expander)view.FindName("ShoppingExpander")).IsExpanded = false;
                 ((TabControl)view.FindName("WorkspaceTabs")).SelectedItem = view.FindName("ProjectDetailTab");
                 ((TabControl)view.FindName("ComponentTabs")).SelectedIndex = 2;
                 ((ScrollViewer)view.FindName("EditorScroll")).ScrollToTop();
-                Render(shell, Path.ChangeExtension(renderPath, ".stock.png")); shell.Close();
+                Render(shell, Path.ChangeExtension(renderPath, ".stock.png"));
+                Check(stockGrid.ActualHeight > 65 && ((DataGrid)view.FindName("Reservations")).ActualHeight > 55, "Stock and reservations retain visible rows in the compact right pane");
+                shell.Close();
             }
             string path = Path.Combine(folder, "industry-workspace.json");
             string good = File.ReadAllText(path);

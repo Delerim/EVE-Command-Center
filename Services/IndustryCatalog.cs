@@ -7,7 +7,8 @@ public static class IndustryCatalog
     private static readonly Catalog Data = Load();
     private static Catalog Load() { using var s=typeof(IndustryCatalog).Assembly.GetManifestResourceStream("EveCommandCenter.Resources.industry-catalog.json")!; return JsonSerializer.Deserialize<Catalog>(s)!; }
     public static IReadOnlyList<IndustryRecipe> Recipes => Data.Recipes;
-    public static string Name(int id) => Data.Types.GetValueOrDefault(id,"Type " + id);
+    public static bool HasName(int id) => Data.Types.ContainsKey(id);
+    public static string Name(int id) => Data.Types.GetValueOrDefault(id,"Item name unavailable");
     public static IReadOnlyList<KeyValuePair<int, string>> FindTypes(string query) => string.IsNullOrWhiteSpace(query)
         ? Array.Empty<KeyValuePair<int, string>>()
         : Data.Types.Where(t => t.Value.Contains(query.Trim(), StringComparison.OrdinalIgnoreCase) || t.Key.ToString() == query.Trim())

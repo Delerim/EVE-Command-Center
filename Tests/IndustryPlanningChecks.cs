@@ -91,6 +91,8 @@ internal static partial class Program
             blueprint_type_id = componentForJob.BlueprintTypeId, blueprint_id = 76543, facility_id = 60003760, runs = 4, status = "active", start_date = now.AddHours(-1), end_date = now.AddHours(2) }));
         var view = new IndustryWorkspaceView();
         view.Initialize(store, () => new[] { pilot }, new() { new() { CharacterId = 42, CharacterName = "Blueprint owner", Scopes = new[] { "esi-characters.read_blueprints.v1", "esi-assets.read_assets.v1", "esi-industry.read_character_jobs.v1" } } });
+        Check(((FrameworkElement)view.FindName("ProjectGallery")).Visibility == Visibility.Visible && ((ListBox)view.FindName("Projects")).SelectedItem == null,
+            "Production Queue opens on selectable project cards, including the first project");
         var locations = (System.Windows.Controls.ComboBox)view.FindName("BlueprintLocation");
         locations.SelectedItem = locations.Items.Cast<object>().Single(s => s.ToString()!.Contains("Capital blueprints"));
         var grid = (DataGrid)view.FindName("Blueprints");
@@ -109,7 +111,7 @@ internal static partial class Program
             .Invoke(view, new object[] { view, new RoutedEventArgs() });
         Check(store.Snapshot().Projects.Last().Nodes.Any(n => n.ParentId != null && n.PlannedJobId.HasValue && n.ExecutorId == 42),
             "Clicking a component exposes and saves an assignable local job without fragmenting the project");
-        Check(((TreeView)view.FindName("Nodes")).Parent != ((StackPanel)view.FindName("ProjectEditor")),
+        Check(((TreeView)view.FindName("Nodes")).Parent != ((Grid)view.FindName("ProjectEditor")),
             "Component tree is independent of the right-hand project editor");
         if (renderPath != null)
         {
@@ -123,9 +125,9 @@ internal static partial class Program
             ((TextBlock)shell.FindName("InventionStat")).Text = "0";
             ((TextBlock)shell.FindName("ReadyStat")).Text = "0";
             ((TabItem)shell.FindName("ProductionTab")).Content = view;
-            ((TabControl)view.FindName("WorkspaceTabs")).SelectedItem = view.FindName("LibraryTab");
+            typeof(IndustryWorkspaceView).GetMethod("NewProject_Click", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.Invoke(view, new object[] { view, new RoutedEventArgs() });
             Render(shell, Path.ChangeExtension(renderPath, ".library.png"));
-            ((TabControl)view.FindName("WorkspaceTabs")).SelectedItem = view.FindName("ProjectDetailTab");
+            typeof(IndustryWorkspaceView).GetMethod("OpenProject", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.Invoke(view, null);
             ((ScrollViewer)view.FindName("EditorScroll")).ScrollToTop();
             Render(shell, Path.ChangeExtension(renderPath, ".tree.png"));
             var treeRoot = (TreeViewItem)componentTree.ItemContainerGenerator.ContainerFromIndex(0);
@@ -144,6 +146,10 @@ internal static partial class Program
             ((TabControl)view.FindName("ComponentTabs")).SelectedIndex = 0;
             ((ScrollViewer)view.FindName("EditorScroll")).ScrollToTop();
             Render(shell, Path.ChangeExtension(renderPath, ".compact.png"));
+            typeof(IndustryWorkspaceView).GetMethod("BackProjects_Click", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.Invoke(view, new object[] { view, new RoutedEventArgs() });
+            Render(shell, Path.ChangeExtension(renderPath, ".gallery.png"));
+            ((ListBox)view.FindName("Projects")).SelectedIndex = 1;
+            Check(((FrameworkElement)view.FindName("ProjectWorkspace")).Visibility == Visibility.Visible, "Selecting a project card opens the component workspace");
             shell.Close();
         }
         var delete = typeof(IndustryWorkspaceView).GetMethod("DeleteProject_Click", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!;

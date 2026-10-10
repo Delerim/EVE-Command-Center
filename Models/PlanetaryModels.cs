@@ -40,7 +40,8 @@ public sealed class PiContainer
     public long Id { get; set; }
     public long Station { get; set; }
     public string Name { get; set; } = "";
-    public string Label => $"{Name} | location {Station} | {Id}";
+    public string? StationName { get; set; }
+    public string Label => $"{Name} | {StationName ?? "Location name unavailable"}";
 }
 public sealed class PiState
 {

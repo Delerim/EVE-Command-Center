@@ -29,7 +29,7 @@
     <Button Content="SAVE RULES" Click="SaveRules_Click"/><TextBlock Text="  Checks use the linked appraisal; contracts are never accepted automatically." Foreground="#6F9497" VerticalAlignment="Center"/>
    </WrapPanel>
    <TextBlock Text="APPROVED: Raren - Ducks Migration  |  Mazitah - Eagle One  |  Joppaya IX - Moon 9 - Ardishapur Family Bureau" Foreground="#74D6C9" TextWrapping="Wrap" Margin="0,0,0,8"/>
-   <DockPanel><TextBox x:Name="SearchBox" Width="330" TextChanged="Search_Changed" ToolTip="Search issuer, title, location or contract ID"/>
+   <DockPanel><TextBox x:Name="SearchBox" Width="330" TextChanged="Search_Changed" ToolTip="Search issuer, title or location"/>
     <ComboBox x:Name="FilterCombo" Width="190" Margin="10,0,0,0" SelectionChanged="Search_Changed"><ComboBoxItem Content="All outstanding" IsSelected="True"/><ComboBoxItem Content="Checks passed"/><ComboBoxItem Content="Needs attention"/></ComboBox>
     <TextBlock Text="Double-click a row to inspect its contents" Foreground="#8FB2B5" VerticalAlignment="Center" HorizontalAlignment="Right"/>
    </DockPanel>
@@ -54,7 +54,7 @@
    <TextBlock x:Name="HistorySummary" DockPanel.Dock="Top" Foreground="#74D6C9" FontSize="17" Margin="0,0,0,10" TextWrapping="Wrap"/>
    <TextBlock DockPanel.Dock="Bottom" Text="Recorded history includes ESI's available records and locally archived contracts. Acceptor may be a corporation; ESI does not always identify its acting pilot." Foreground="#8FB2B5" TextWrapping="Wrap" Margin="0,10,0,0"/>
    <DataGrid x:Name="HistoryGrid" MouseDoubleClick="History_DoubleClick" AlternationCount="2"><DataGrid.Columns>
-    <DataGridTextColumn Header="CONTRACT" Binding="{Binding Contract.Id}" Width="95"/><DataGridTextColumn Header="STATUS" Binding="{Binding Contract.Status}" Width="110"/>
+    <DataGridTextColumn Header="STATUS" Binding="{Binding Contract.Status}" Width="110"/>
     <DataGridTextColumn Header="ISSUER" Binding="{Binding Issuer}" Width="*"/><DataGridTextColumn Header="PRICE" Binding="{Binding PriceText}" Width="*"/>
     <DataGridTextColumn Header="ACCEPTED BY" Binding="{Binding Acceptor}" Width="*"/><DataGridTextColumn Header="ACCEPTED" Binding="{Binding AcceptedText}" Width="145"/>
     <DataGridTextColumn Header="ISSUED" Binding="{Binding Contract.Issued, StringFormat={}{0:dd MMM yyyy HH:mm}}" Width="145"/>

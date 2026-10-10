@@ -133,7 +133,7 @@ public sealed class PlanetaryService
             {
                 long id = name.GetProperty("item_id").GetInt64();
                 var item = batch.First(a => a.ItemId == id);
-                containers.Add(new() { Id = id, Station = item.LocationId, Name = name.GetProperty("name").GetString() ?? "Container " + id });
+                containers.Add(new() { Id = id, Station = item.LocationId, Name = name.GetProperty("name").GetString() ?? "Unnamed container", StationName = await _sso.ResolveDisplayLocationAsync(item.LocationId, pilot, ct) });
             }
         }
         State.StockError = ""; State.Assets = assets.ToList(); State.Containers = containers; State.StockFetched = DateTimeOffset.UtcNow;

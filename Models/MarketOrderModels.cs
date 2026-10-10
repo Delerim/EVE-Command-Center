@@ -16,7 +16,11 @@ public sealed class MarketOrder
     [JsonPropertyName("is_buy_order")] public bool Buy { get; set; }
     [JsonPropertyName("is_corporation"), JsonRequired] public bool Corporation { get; set; }
     [JsonIgnore] public decimal RemainingValue => checked(Price * Remaining);
-    [JsonIgnore] public string Name => Services.IndustryCatalog.Name(TypeId);
+    public string? ResolvedName { get; set; }
+    public string? ResolvedLocation { get; set; }
+    [JsonIgnore] public string Name => ResolvedName ?? Services.IndustryCatalog.Name(TypeId);
+    [JsonIgnore] public string Location => ResolvedLocation ?? "Location name unavailable";
+    [JsonIgnore] public string Icon => $"https://images.evetech.net/types/{TypeId}/icon?size=32";
     [JsonIgnore] public string Side => Buy ? "BUY" : "SELL";
     [JsonIgnore] public string Expiry => Issued.AddDays(Duration).UtcDateTime.ToString("dd MMM HH:mm 'UTC'");
 }

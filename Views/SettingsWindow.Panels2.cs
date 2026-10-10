@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -1367,7 +1367,7 @@ public partial class SettingsWindow
         var idx = CmbCharSrcProfile.SelectedIndex;
         if (idx < 0 || idx >= _eveProfiles.Count) return;
         var chars = EveManagerService.ListCharacters(_eveProfiles[idx].Path, _charNameMap);
-        _allSrcChars = chars.Select(c => new CharItem { Id = c.Id, Label = c.Label, CharName = c.CharName }).ToList();
+        _allSrcChars = chars.Select(c => new CharItem { Id = c.Id, Label = string.IsNullOrWhiteSpace(c.CharName) ? "Pilot name unavailable" : c.CharName, CharName = c.CharName }).ToList();
         // Source is copy-FROM: exactly one char makes sense (#91). Enforce single-select —
         // checking one unchecks the rest, so the UI can't offer an ambiguous multi-source.
         foreach (var c in _allSrcChars) c.PropertyChanged += OnSrcCharChecked;
@@ -1391,7 +1391,7 @@ public partial class SettingsWindow
         var idx = CmbCharTgtProfile.SelectedIndex;
         if (idx < 0 || idx >= _eveProfiles.Count) return;
         var chars = EveManagerService.ListCharacters(_eveProfiles[idx].Path, _charNameMap);
-        _allTgtChars = chars.Select(c => new CharItem { Id = c.Id, Label = c.Label, CharName = c.CharName }).ToList();
+        _allTgtChars = chars.Select(c => new CharItem { Id = c.Id, Label = string.IsNullOrWhiteSpace(c.CharName) ? "Pilot name unavailable" : c.CharName, CharName = c.CharName }).ToList();
         TxtCharTgtSearch.Text = "";
         LvCharTgtChars.ItemsSource = _allTgtChars;
     }
@@ -1445,7 +1445,7 @@ public partial class SettingsWindow
             if (tgtChars.Count == 0)
             { MessageBox.Show("No characters in target profile.", "EVE Manager \u2014 Char Copy"); return; }
 
-            if (MessageBox.Show($"Copy settings from char {srcCharId} to ALL {tgtChars.Count} character(s) in '{tgtProfile.Name}'?",
+            if (MessageBox.Show($"Copy settings from {srcCharItem.Label} to ALL {tgtChars.Count} character(s) in '{tgtProfile.Name}'?",
                 "Confirm Char Copy", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
 
             int total = 0;
@@ -1464,8 +1464,8 @@ public partial class SettingsWindow
             if (tgtCharItems.Count == 0)
             { MessageBox.Show("Check a target character (or check 'Copy to ALL').", "EVE Manager \u2014 Char Copy"); return; }
 
-            string targetList = string.Join("\n", tgtCharItems.Select(t => $"  \u2192 {t.Id} ({tgtProfile.Name})"));
-            if (MessageBox.Show($"Copy char settings from {srcCharId} ({srcProfile.Name}) to {tgtCharItems.Count} character(s):\n{targetList}\n\nContinue?",
+            string targetList = string.Join("\n", tgtCharItems.Select(t => $"  \u2192 {t.Label} ({tgtProfile.Name})"));
+            if (MessageBox.Show($"Copy character settings from {srcCharItem.Label} ({srcProfile.Name}) to {tgtCharItems.Count} character(s):\n{targetList}\n\nContinue?",
                 "Confirm Char Copy", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
 
             int total = 0, ok = 0;
@@ -1511,7 +1511,7 @@ public partial class SettingsWindow
     private string AccountLabel(string accountId)
     {
         if (S.AccountLabels.TryGetValue(accountId, out var manual) && !string.IsNullOrWhiteSpace(manual))
-            return $"{manual} (Acct {accountId})";
+            return manual;
 
         if (S.AccountCharacterMap.TryGetValue(accountId, out var charIds) && charIds.Count > 0)
         {
@@ -1524,10 +1524,10 @@ public partial class SettingsWindow
             {
                 var shown = string.Join(", ", names.Take(3));
                 if (names.Count > 3) shown += $" +{names.Count - 3}";
-                return $"{shown} (Acct {accountId})";
+                return shown;
             }
         }
-        return $"Account {accountId}";
+        return "Unlabelled account";
     }
 
     private void OnAcctSrcProfileChanged(object s, SelectionChangedEventArgs e)
@@ -1622,10 +1622,10 @@ public partial class SettingsWindow
             }
 
             string charName = _charNameMap.TryGetValue(charId, out var n) && !string.IsNullOrEmpty(n)
-                ? n : $"character {charId}";
+                ? n : "Unresolved pilot";
 
             if (MessageBox.Show(
-                    $"Detected: {charName}\non account {userId}.\n\nIs that correct?",
+                    $"Detected: {charName}\non {AccountLabel(userId)}.\n\nIs that correct?",
                     "Detect Account — Confirm", MessageBoxButton.YesNo,
                     MessageBoxImage.Question) == MessageBoxResult.Yes)
             {
@@ -1642,7 +1642,7 @@ public partial class SettingsWindow
                 if (!chars.Contains(charId)) chars.Add(charId);
                 SaveDelayed();
 
-                TxtEveMgrStatus.Text = $"Linked {charName} → account {userId}.";
+                TxtEveMgrStatus.Text = $"Linked {charName} → {AccountLabel(userId)}.";
 
                 // Refresh the account lists so the new label appears.
                 if (CmbAcctSrcProfile.SelectedIndex >= 0) OnAcctSrcProfileChanged(this, null!);
@@ -1681,8 +1681,8 @@ public partial class SettingsWindow
         OnAcctSrcProfileChanged(this, null!);
         OnAcctTgtProfileChanged(this, null!);
         TxtEveMgrStatus.Text = string.IsNullOrEmpty(label)
-            ? $"Cleared label for account {srcAcct.Id}."
-            : $"Account {srcAcct.Id} labelled '{label}'.";
+            ? "Account label cleared."
+            : $"Account labelled '{label}'.";
     }
 
     private void OnAcctSrcSearchChanged(object s, TextChangedEventArgs e)
@@ -1740,7 +1740,7 @@ public partial class SettingsWindow
             if (tgtAccts.Count == 0)
             { MessageBox.Show("No accounts in target profile.", "EVE Manager — Account Copy"); return; }
 
-            if (MessageBox.Show($"Copy ESC settings from account {srcUserId} to ALL {tgtAccts.Count} account(s) in '{tgtProfile.Name}'?",
+            if (MessageBox.Show($"Copy ESC settings from {AccountLabel(srcUserId)} to ALL {tgtAccts.Count} account(s) in '{tgtProfile.Name}'?",
                 "Confirm Account Copy", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
 
             int total = 0;
@@ -1760,7 +1760,7 @@ public partial class SettingsWindow
 
             string tgtUserId = tgtAcctItem.Id;
 
-            if (MessageBox.Show($"Copy account ESC settings:\n  {srcUserId} ({srcProfile.Name})\n→ {tgtUserId} ({tgtProfile.Name})\n\nContinue?",
+            if (MessageBox.Show($"Copy account ESC settings:\n  {AccountLabel(srcUserId)} ({srcProfile.Name})\n→ {AccountLabel(tgtUserId)} ({tgtProfile.Name})\n\nContinue?",
                 "Confirm Account Copy", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
 
             var count = EveManagerService.CopyAccountSettings(srcProfile.Path, srcUserId, tgtProfile.Path, tgtUserId, backupRoot);

@@ -13,7 +13,18 @@
 <TextBlock Text="A saved date applies to pilots sharing this account group." Foreground="#91A4AD" TextWrapping="Wrap"/>
 <Border Height="1" Background="#245058" Margin="0,22"/>
 <TextBlock Text="CLONE DETAILS" Foreground="#9EBFFF" FontWeight="Bold" Margin="0,0,0,12"/>
-<TextBox x:Name="Clones" IsReadOnly="True" TextWrapping="Wrap" Background="#102D31" Foreground="#DDF6F4" BorderThickness="0" MinHeight="120"/>
+<StackPanel>
+ <TextBlock Foreground="#BACED0" x:Name="CloneSummary" TextWrapping="Wrap" Margin="0,8,0,12"/>
+ <TextBlock Foreground="#BACED0" x:Name="CloneEmpty" Text="No jump clones in this snapshot." Margin="0,10"/>
+ <ItemsControl x:Name="CloneCards"><ItemsControl.ItemTemplate><DataTemplate>
+  <Border Background="#0B2328" BorderBrush="#29474D" BorderThickness="1" CornerRadius="8" Padding="14" Margin="0,0,0,8"><StackPanel>
+   <TextBlock Text="{Binding Name}" FontSize="16" FontWeight="SemiBold" Foreground="#E1F1F1"/>
+   <TextBlock Text="{Binding Location}" Foreground="#78CEC6" Margin="0,5,0,8" TextWrapping="Wrap"/>
+   <TextBlock Text="{Binding ImplantSummary}" Foreground="#91ADB3"/>
+   <ItemsControl ItemsSource="{Binding Implants}"><ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate></ItemsControl.ItemsPanel><ItemsControl.ItemTemplate><DataTemplate><Border Background="#132F35" CornerRadius="5" Padding="7" Margin="0,6,8,0"><StackPanel Orientation="Horizontal"><Image Source="{Binding Icon}" Width="28" Height="28" Margin="0,0,8,0"/><TextBlock Foreground="#DDEDEE" Text="{Binding Name}" VerticalAlignment="Center" MaxWidth="360" TextWrapping="Wrap"/></StackPanel></Border></DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+  </StackPanel></Border>
+ </DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+</StackPanel>
 <Button Content="RECONNECT - ALL FEATURES" Click="Link_Click" HorizontalAlignment="Left" Margin="0,16,0,0"/>
 </StackPanel></ScrollViewer></Border></Grid></TabItem>
 <TabItem Header="RENEWAL BUDGET"><Grid Background="#07181B" Margin="0,12,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="2.4*"/><ColumnDefinition Width="16"/><ColumnDefinition Width="*" MinWidth="290"/></Grid.ColumnDefinitions>

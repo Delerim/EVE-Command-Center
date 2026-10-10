@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Text.Json.Serialization;
 
@@ -95,9 +95,7 @@ public sealed class EveCurrentShipView
             : $"{CustomName} | {TypeName}";
 
     public string DetailText =>
-        ShipItemId <= 0
-            ? ""
-            : $"Item {ShipItemId}";
+        "";
 }
 
 public sealed class EveShipModuleView

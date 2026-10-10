@@ -15,7 +15,7 @@ public static class PlanetaryAnalysis
         return JsonSerializer.Deserialize<Catalog>(stream)!;
     }
     public static int Tier(int id) => Types.GetValueOrDefault(id)?.Group switch { 1042 => 1, 1034 => 2, 1040 => 3, 1041 => 4, _ => 0 };
-    internal static PiType Type(int id) => Types.GetValueOrDefault(id) ?? new() { Id = id, Name = "Type " + id };
+    internal static PiType Type(int id) => Types.GetValueOrDefault(id) ?? new() { Id = id, Name = IndustryCatalog.Name(id) };
     internal static double Num(JsonElement p, string name) => p.TryGetProperty(name, out var v) && v.TryGetDouble(out double n) ? n : 0;
     private static DateTimeOffset? Date(JsonElement p, string name) => p.TryGetProperty(name, out var v) && v.TryGetDateTimeOffset(out var d) ? d : null;
     internal static JsonElement[] Array(JsonElement p, string name) => p.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.Array ? v.EnumerateArray().ToArray() : System.Array.Empty<JsonElement>();

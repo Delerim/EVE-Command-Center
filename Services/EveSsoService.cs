@@ -552,7 +552,7 @@ public sealed class EveSsoService
                     Name =
                         string.IsNullOrWhiteSpace(
                             type.Name)
-                            ? $"Type {asset.TypeId}"
+                            ? IndustryCatalog.Name(asset.TypeId)
                             : type.Name,
                     CrystalClass =
                         crystalClass,
@@ -725,7 +725,7 @@ public sealed class EveSsoService
                     typeId,
                     out string? resolved)
                 ? resolved
-                : $"Type {typeId}";
+                : IndustryCatalog.Name(typeId);
         }
 
         EveShipModuleView[] currentModules =
@@ -1152,7 +1152,7 @@ public sealed class EveSsoService
                 typeId,
                 out string? name)
                 ? name
-                : $"Type {typeId}";
+                : IndustryCatalog.Name(typeId);
 
         EveWalletTransactionView[] transactions =
             transactionEntries
@@ -1405,7 +1405,7 @@ public sealed class EveSsoService
                             TypeId = typeId,
                             Name = string.IsNullOrWhiteSpace(
                                 implant.Name)
-                                ? $"Implant {typeId}"
+                                ? IndustryCatalog.Name(typeId)
                                 : implant.Name,
                             BonusText = bonuses.Count > 0
                                 ? string.Join("  ", bonuses)
@@ -1822,6 +1822,22 @@ public sealed class EveSsoService
         return all;
     }
 
+    public async Task<string?> ResolveDisplayLocationAsync(long id, EvePilotProfile pilot, CancellationToken ct)
+    {
+        if (id <= 0) return null;
+        bool station = id >= 60000000 && id < 64000000;
+        if (!station && !pilot.Scopes.Contains("esi-universe.read_structures.v1")) return null;
+        try
+        {
+            var token = station ? null : await GetAccessTokenForAsync(pilot, ct);
+            var row = await GetEsiAsync<JsonElement>($"/universe/{(station ? "stations" : "structures")}/{id}/", token, ct);
+            var name = IndustryCatalog.Text(row, "name");
+            return string.IsNullOrWhiteSpace(name) ? null : name;
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
+        catch { return null; }
+    }
+
     public Task<IReadOnlyDictionary<int, string>> ResolveIndustryTypeNamesAsync(IEnumerable<int> typeIds, CancellationToken ct) => GetTypeNamesBatchAsync(typeIds, ct);
 
     private async Task<IReadOnlyDictionary<int, string>>
@@ -1888,7 +1904,7 @@ public sealed class EveSsoService
                 id,
                 out string? name)
                 ? name
-                : $"Type {id}");
+                : IndustryCatalog.Name(id));
     }
 
     private async Task<T> PostPublicAsync<T>(
@@ -3809,7 +3825,7 @@ public sealed class EveSsoService
 
         string name =
             string.IsNullOrWhiteSpace(system.Name)
-                ? $"System {systemId}"
+                ? "System name unavailable"
                 : system.Name;
 
         _systemNames[systemId] = name;
@@ -3834,7 +3850,7 @@ public sealed class EveSsoService
         _typeDetails[typeId] = type;
 
         string name = string.IsNullOrWhiteSpace(type.Name)
-            ? $"Type {typeId}"
+            ? IndustryCatalog.Name(typeId)
             : type.Name;
 
         _typeNames[typeId] = name;
@@ -3856,7 +3872,7 @@ public sealed class EveSsoService
                 cancellationToken);
 
         return string.IsNullOrWhiteSpace(type.Name)
-            ? $"Type {typeId}"
+            ? IndustryCatalog.Name(typeId)
             : type.Name;
     }
 

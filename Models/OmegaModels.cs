@@ -15,6 +15,8 @@ public sealed class OmegaPilot
     public string Remaining=>Expiry.HasValue?Math.Max(0,(Expiry.Value-DateTimeOffset.UtcNow).TotalDays).ToString("N1")+" days":"Unknown";
     public string Expires=>Expiry?.ToLocalTime().ToString("dd MMM yyyy HH:mm")??"Not recorded";
     public string Color=>Services.OmegaPlanning.Color(Expiry,DateTimeOffset.UtcNow);
-    public string Home=>Clones.ValueKind==JsonValueKind.Object&&Clones.TryGetProperty("home_location",out var h)?Services.IndustryCatalog.Text(h,"location_type")+" "+Services.IndustryCatalog.Num(h,"location_id"):"Unknown";
+    public Dictionary<long,string> LocationNames { get; set; } = new();
+    public Dictionary<int,string> ImplantNames { get; set; } = new();
+    public string Home=>Clones.ValueKind==JsonValueKind.Object&&Clones.TryGetProperty("home_location",out var h)?LocationNames.GetValueOrDefault(Services.IndustryCatalog.Num(h,"location_id"), "Location name unavailable"):"Unknown";
     public string JumpCount=>Clones.ValueKind==JsonValueKind.Object&&Clones.TryGetProperty("jump_clones",out var c)?c.GetArrayLength().ToString():"Unknown";
 }

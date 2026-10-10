@@ -60,6 +60,24 @@ public sealed class OmegaService
                     req.Headers.TryAddWithoutValidation("X-Compatibility-Date","2026-08-25");req.Headers.UserAgent.ParseAdd("EVE-Command-Center/3.2.0");
                     using var response=await _http.SendAsync(req,timeout.Token);response.EnsureSuccessStatusCode();
                     using var doc=JsonDocument.Parse(await response.Content.ReadAsStringAsync(timeout.Token));row.Clones=doc.RootElement.Clone();row.Updated=DateTimeOffset.UtcNow;row.Error="";
+                    try
+                    {
+                        var locations = new HashSet<long>(); var implants = new HashSet<int>();
+                        if (row.Clones.TryGetProperty("home_location", out var home)) locations.Add(IndustryCatalog.Num(home, "location_id"));
+                        if (row.Clones.TryGetProperty("jump_clones", out var clones))
+                            foreach (var clone in clones.EnumerateArray())
+                            {
+                                locations.Add(IndustryCatalog.Num(clone, "location_id"));
+                                if (clone.TryGetProperty("implants", out var items)) foreach (var item in items.EnumerateArray()) implants.Add(item.GetInt32());
+                            }
+                        foreach (var pair in await _sso.ResolveIndustryTypeNamesAsync(implants, timeout.Token))
+                            if (!pair.Value.StartsWith("Type ") && pair.Value != "Item name unavailable") row.ImplantNames[pair.Key] = pair.Value;
+                        foreach (long location in locations)
+                            if (await _sso.ResolveDisplayLocationAsync(location, p, timeout.Token) is {} name) row.LocationNames[location] = name;
+                    }
+                    catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
+                    catch (Exception ex) { EsiDiagnostics.Write("Clone names deferred: " + ex.GetType().Name); }
+
                 }
                 catch(OperationCanceledException)when(ct.IsCancellationRequested){throw;}
                 catch(Exception ex){row.Error="Clone refresh deferred: "+ex.GetType().Name;}

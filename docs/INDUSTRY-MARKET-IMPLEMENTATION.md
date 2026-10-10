@@ -106,3 +106,16 @@ The full brief still requires corporation/division inventory with scope-specific
 ### Validation
 
 Existing suite plus component-flow regressions cover blueprint ME recalculation, stable IDs, actual-job matching and restart, wrong/stale/duplicate evidence, preservation of linked work, transfer intent, structure vs missing-container ancestry, rename-safe reservations and atomic deletion with audit retention. Render fixtures cover 1,920x1,020 and 1,280x850 window sizes, inputs, job association, library and stock. The WPF selected-row template is checked at actual arranged width. Live desktop mouse automation was unavailable in this session; screenshots and WPF control-level checks are not presented as an end-user desktop test.
+
+
+## v3.6.42: project navigation, readable inventory and layout preferences
+
+Production Queue starts at a project gallery. New project opens a dedicated owned-blueprint creation page; component work remains embedded in Industry. Jobs owns its activity filters, and the recipe planner no longer inherits those filters. The component tree remains on the left. Inputs and consolidated materials use available height; stock and reservations share a resizable vertical region. Blueprint/job/role table heights, navigation width, column widths and order persist separately in `industry-layout.json`. Corrupt preferences fall back to defaults without affecting plans.
+
+Material projections retain separate totals: verified observed owned stock, free stock after reservations across all projects, all reservations, and reservations contributing to current active-build demand. Unverified or blocked sources are labelled, not represented as confirmed zero availability. Icons and resolved names are display-only. Canonical reservation paths and IDs remain unchanged.
+
+Readiness badges distinguish a usable owned BPC/BPO, insufficient runs or busy copies, missing recipe skills, and unknown/stale/unauthorized snapshots. Unassigned nodes can show an available fleet copy but cannot claim trained skills. These are recipe checks, not facility readiness or permission to submit an EVE job.
+
+Clone metadata now resolves station/structure and implant names using the existing SSO client. Market location/type names and planetary container locations use the same resolver. A failed optional lookup does not invalidate a successful inventory/order/clone observation. Raw source and historical audit data are retained; UI projections omit keys and technical evidence dumps. Structure names still require scope and ACL access. No new SSO flow or independent ESI transport was added.
+
+WPF render fixtures cover the gallery, creation library, component inputs, jobs, stock and materials at wide and compact sizes. Checks exercise persisted layout dimensions/order, corrupt preference recovery, new-project navigation, missing versus unknown readiness, clone station names, and readable history. Live desktop mouse automation is unavailable; control-level checks and renders do not claim a live end-user mouse test. The remaining brief requirements listed above are unchanged.
