@@ -161,7 +161,8 @@ internal static partial class Program
                 Render(shell, Path.ChangeExtension(renderPath, ".materials.png"));
                 ((Expander)view.FindName("ShoppingExpander")).IsExpanded = false;
                 ((TabControl)view.FindName("WorkspaceTabs")).SelectedItem = view.FindName("ProjectDetailTab");
-                ((ScrollViewer)view.FindName("EditorScroll")).ScrollToVerticalOffset(550);
+                ((TabControl)view.FindName("ComponentTabs")).SelectedIndex = 2;
+                ((ScrollViewer)view.FindName("EditorScroll")).ScrollToTop();
                 Render(shell, Path.ChangeExtension(renderPath, ".stock.png")); shell.Close();
             }
             string path = Path.Combine(folder, "industry-workspace.json");

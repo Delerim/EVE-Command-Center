@@ -19,6 +19,11 @@ public sealed class IndustryPilot
     public string Name { get; set; } = "";
     public List<JsonElement> Jobs { get; set; } = new();
     public List<JsonElement> Blueprints { get; set; } = new();
+    public Dictionary<int,string> TypeNames { get; set; } = new();
+    public Dictionary<long,string> AssetNames { get; set; } = new();
+    public Dictionary<long,string> LocationNames { get; set; } = new();
+    public HashSet<long> VerifiedStructures { get; set; } = new();
+    public DateTimeOffset NamesUpdated { get; set; }
     public List<EveAssetItem> Assets { get; set; } = new();
     public Dictionary<int,int> Skills { get; set; } = new();
     public DateTimeOffset Updated { get; set; }

@@ -16,6 +16,13 @@ public partial class IndustryWorkspaceView : System.Windows.Controls.UserControl
     private bool _loading;
     private IReadOnlyList<IndustryBlueprintLibrary.Blueprint> _blueprints = Array.Empty<IndustryBlueprintLibrary.Blueprint>();
     private bool _initialized;
+    private readonly Dictionary<(long Owner, long Location), string> _displayPaths = new();
+    private string DisplayPath(long owner, long location)
+    {
+        if (!_displayPaths.TryGetValue((owner, location), out var path))
+            _displayPaths[(owner, location)] = path = IndustryDisplayNames.Path(_inventory().FirstOrDefault(p => p.Id == owner), location);
+        return path;
+    }
     private Func<Task<List<EvePilotProfile>>>? _loadLinked;
     private HashSet<long> LinkedIds => _linked.Select(p => p.CharacterId).ToHashSet();
     private IReadOnlyList<IndustryStockSource> ReadStock() => IndustryWorkspaceInventory.Read(_inventory(), DateTimeOffset.UtcNow,
@@ -40,9 +47,10 @@ public partial class IndustryWorkspaceView : System.Windows.Controls.UserControl
     { _store = store; _inventory = inventory; _linked = linked; _initialized = true; RefreshAll(); }
     private void Action(Action action, string message)
     {
-        try { action(); RefreshAll(); Message.Text = message; }
-        catch (Exception ex) { Message.Text = "Not saved: " + ex.Message; }
+        try { action(); RefreshAll(); Message.Text = message; Message.Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(118, 215, 203)); }
+        catch (Exception ex) { Message.Text = "Not saved: " + ex.Message; Message.Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(255, 174, 159)); }
     }
+    private string ProductName(int typeId, string fallback) => _inventory().Select(p => p.TypeNames.GetValueOrDefault(typeId)).FirstOrDefault(n => !string.IsNullOrWhiteSpace(n)) ?? fallback;
     private string Pilot(long? id) => !id.HasValue ? "Unassigned" : _linked.FirstOrDefault(p => p.CharacterId == id)?.CharacterName ?? $"Unlinked character {id}";
     private List<PilotOption> Options()
     {
@@ -57,6 +65,7 @@ public partial class IndustryWorkspaceView : System.Windows.Controls.UserControl
         _loading = true;
         try
         {
+            _displayPaths.Clear();
             _state = _store.Snapshot(); _stock = ReadStock();
             long? blueprintOwner = Choice(BlueprintOwner);
             BlueprintOwner.ItemsSource = _linked.Select(p => new PilotOption(p.CharacterId, p.CharacterName)).ToArray();
@@ -85,15 +94,22 @@ public partial class IndustryWorkspaceView : System.Windows.Controls.UserControl
     {
         var project = _state.Projects.FirstOrDefault(p => p.Id == _projectId);
         ProjectEditor.Visibility = project == null ? Visibility.Collapsed : Visibility.Visible;
+        WorkspaceEmpty.Visibility = project == null ? Visibility.Visible : Visibility.Collapsed;
         if (project == null) { Nodes.ItemsSource = null; return; }
-        ConfirmDelete.IsChecked = false;
+        ConfirmDelete.IsChecked = false; DeletePrompt.Visibility = Visibility.Collapsed;
+        DeleteSummary.Text = $"Delete {project.Name}? This releases {_state.Reservations.Count(r => r.ProjectId == project.Id)} reservations and removes the local plan. Audit history is retained. EVE jobs and assets are unchanged.";
         ProjectIdentity.Text = project.Name; ProjectIdentity.ToolTip = project.Id.ToString(); ProjectName.Text = project.Name; ProjectNotes.Text = project.Notes;
         Select(ProjectLead, project.LeadId); Select(ProjectBuyer, project.BuyerId); Select(ProjectSeller, project.SellerId);
         Paused.IsChecked = project.Paused; Archived.IsChecked = project.Archived;
         if (!project.Nodes.Any(n => n.Id == _nodeId)) _nodeId = project.Nodes.Single(n => n.ParentId == null).Id;
-        NodeRow Row(IndustryProjectNode n) => new(n.Id, $"{n.Name} [type {n.TypeId}] x {n.Quantity:N0}",
-            $"{n.Strategy} | Executor: {Pilot(n.ExecutorId)} | Reserved {_state.Reservations.Where(r => r.NodeId == n.Id).Sum(r => (decimal)r.Quantity):N0}{(n.PlannedJobId.HasValue ? " | JOB PLANNED" : "")}",
-            project.Nodes.Where(child => child.ParentId == n.Id).Select(Row).ToList(), n.TypeId, n.Strategy, n.CalculationNote, n.Id == _nodeId);
+        var expanded = new HashSet<Guid>();
+        void Remember(NodeRow row) { if (row.Expanded) expanded.Add(row.Id); foreach (var child in row.Children) Remember(child); }
+        foreach (var row in Nodes.Items.OfType<NodeRow>()) Remember(row);
+        var cursor = project.Nodes.FirstOrDefault(n => n.Id == _nodeId);
+        while (cursor != null) { expanded.Add(cursor.Id); cursor = project.Nodes.FirstOrDefault(n => n.Id == cursor.ParentId); }
+        NodeRow Row(IndustryProjectNode n) => new(n.Id, $"{ProductName(n.TypeId, n.Name)} x {n.Quantity:N0}",
+            $"{n.Strategy} | {Pilot(n.ExecutorId)}{(n.ActualJob != null ? " | EVE job linked" : n.PlannedJobId.HasValue ? " | Planned" : "")}",
+            project.Nodes.Where(child => child.ParentId == n.Id).Select(Row).ToList(), n.TypeId, n.Strategy, n.CalculationNote, n.Id == _nodeId) { Expanded = n.ParentId == null || expanded.Contains(n.Id) };
         Nodes.ItemsSource = project.Nodes.Where(n => n.ParentId == null).Select(Row).ToList();
 
         Audit.Text = string.Join(Environment.NewLine, _state.Events.Where(e => e.ProjectId == project.Id || e.ProjectId == null).OrderByDescending(e => e.TimeUtc).Take(100).Select(e => $"{e.TimeUtc:u} {e.Description}"));
@@ -105,7 +121,9 @@ public partial class IndustryWorkspaceView : System.Windows.Controls.UserControl
     private void ShowNode()
     {
         var node = Node; NodeEditor.Visibility = node == null ? Visibility.Collapsed : Visibility.Visible; if (node == null) return;
-        NodeTitle.Text = $"EDIT: {node.Name}"; NodeTitle.ToolTip = node.Id.ToString(); NodeQuantity.Text = node.Quantity.ToString(); NodeNotes.Text = node.Notes;
+        NodeTitle.Text = ProductName(node.TypeId, node.Name);
+        NodeIcon.Source = new System.Windows.Media.Imaging.BitmapImage(new Uri($"https://images.evetech.net/types/{node.TypeId}/icon?size=64"));
+        NodeSummary.Text = $"{node.Quantity:N0} required  |  {node.Strategy}  |  {Pilot(node.ExecutorId)}"; NodeTitle.ToolTip = node.Id.ToString(); NodeQuantity.Text = node.Quantity.ToString(); NodeNotes.Text = node.Notes;
         Select(Executor, node.ExecutorId); Strategy.SelectedItem = node.Strategy;
         NodeQuantity.IsReadOnly = node.CalculationSource.Length > 0;
         Eligibility.Text = node.CalculationSource.Length == 0
@@ -114,23 +132,110 @@ public partial class IndustryWorkspaceView : System.Windows.Controls.UserControl
         if (node.ExecutorId.HasValue && !LinkedIds.Contains(node.ExecutorId.Value)) Eligibility.Text = "Assigned toon is no longer linked; assignment retained for review. " + Eligibility.Text;
         ManualChildControls.Visibility = node.CalculationSource.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
         PlannedJobPanel.Visibility = node.Strategy == "Make" && node.PlannedRuns > 0 ? Visibility.Visible : Visibility.Collapsed;
+        var facilities = new[] { new LocationOption(null, "Unassigned location") }.Concat(_inventory().SelectMany(p => p.LocationNames).GroupBy(k => k.Key).Select(g => new LocationOption(g.Key, g.First().Value)).OrderBy(x => x.Name)).ToList();
+        if (node.PlannedJobFacilityId is {} savedFacility && !facilities.Any(f => f.Id == savedFacility)) facilities.Add(new(savedFacility, "Saved location (name unavailable)"));
+        JobFacilityPicker.ItemsSource = facilities;
+        JobFacilityPicker.SelectedItem = JobFacilityPicker.Items.Cast<LocationOption>().FirstOrDefault(x => x.Id == node.PlannedJobFacilityId) ?? JobFacilityPicker.Items[0];
         JobFacility.Text = node.PlannedJobFacilityId?.ToString() ?? "";
         PlannedJobStatus.ToolTip = node.PlannedJobId?.ToString();
         PlannedJobStatus.Text = node.PlannedJobId.HasValue
             ? $"PLANNED | {Pilot(node.ExecutorId)} | {node.PlannedRuns:N0} runs | {node.PlannedOutput:N0} output units"
             : "No planned job assigned. Select an executing toon, then create the plan.";
+        RefreshComponentDetails(node);
+        StockOwner.ItemsSource = new[] { new PilotOption(null, "All personal stock owners") }.Concat(_stock.Where(s => s.TypeId == node.TypeId).GroupBy(s => s.OwnerId).Select(g => new PilotOption(g.Key, g.First().Owner))).ToArray();
+        StockOwner.SelectedIndex = 0; RefreshStockLocations();
         RefreshStock();
         Reservations.ItemsSource = _state.Reservations.Where(r => r.NodeId == node.Id).Select(r => new ReservationRow(r.Id, r.Quantity,
-            $"{Pilot(r.OwnerId)} / {r.Path} / stack {r.ItemId}", IndustryWorkspaceInventory.Review(r, _state.Reservations, _stock, DateTimeOffset.UtcNow))).ToArray();
+            $"{Pilot(r.OwnerId)} / {DisplayPath(r.OwnerId, r.LocationId)}", IndustryWorkspaceInventory.Review(r, _state.Reservations, _stock, DateTimeOffset.UtcNow))).ToArray();
         decimal reserved = _state.Reservations.Where(r => r.NodeId == node.Id).Sum(r => (decimal)r.Quantity);
         Coverage.Text = $"Required {node.Quantity:N0} | Reserved {reserved:N0} | Unreserved {node.Quantity - reserved:N0}. Orders, purchases, manufactured output, delivery and consumption are not reconciled in this increment.";
+    }
+    private IReadOnlyList<IndustryJobLink> ReadJobs() => IndustryJobMatching.Read(_inventory(), _linked.Where(p => p.Scopes.Contains("esi-industry.read_character_jobs.v1")).Select(p => p.CharacterId).ToHashSet());
+    private void RefreshComponentDetails(IndustryProjectNode node)
+    {
+        var project = _state.Projects.Single(p => p.Id == _projectId);
+        var children = project.Nodes.Where(n => n.ParentId == node.Id).ToArray();
+        ComponentInputs.ItemsSource = children.Select(n => new InputRow(n.Id, ProductName(n.TypeId, n.Name), n.TypeId, n.Quantity, n.Strategy,
+            _state.Reservations.Where(r => r.NodeId == n.Id).Sum(r => (decimal)r.Quantity),
+            _stock.Any(s => s.TypeId == n.TypeId && s.Verified) ? _stock.Where(s => s.TypeId == n.TypeId && s.Verified).Sum(s => Math.Max(0, s.Quantity - _state.Reservations.Where(r => r.OwnerId == s.OwnerId && r.ItemId == s.ItemId).Sum(r => (decimal)r.Quantity))).ToString("N0") : "Unverified")).ToArray();
+        InputsHint.Text = children.Length == 0 ? "No expanded manufacturing inputs. Choose stock or procurement for this item." : node.Strategy == "Make" ? "Select an input to inspect its own blueprint, stock and assignment. Free stock is shared across every project." : "These inputs are inactive while this component is sourced through " + node.Strategy + ".";
+        ComponentBlueprintOwner.ItemsSource = new[] { new PilotOption(null, "All authorized owners") }.Concat(_linked.Select(p => new PilotOption(p.CharacterId, p.CharacterName))).ToArray();
+        ComponentBlueprintOwner.SelectedIndex = 0;
+        RefreshComponentBlueprintLocations();
+        ComponentBlueprintHint.Text = node.BlueprintItemId.HasValue ? $"Selected instance | {Pilot(node.BlueprintOwnerId)} | ME {node.MaterialEfficiency}%" : "Select an owned instance to apply its ME and runs. Location and availability remain visible per copy.";
+        var jobs = ReadJobs().Where(j => j.ProductTypeId == node.TypeId && j.BlueprintTypeId == node.BlueprintTypeId).OrderByDescending(j => j.StartUtc).ToArray();
+        ExistingJobs.ItemsSource = jobs.Select(j => new JobRow(j, Pilot(j.InstallerId), FacilityName(j.OwnerId, j.FacilityId))).ToArray();
+        ActualJobPanel.Visibility = node.Strategy == "Make" && node.BlueprintTypeId.HasValue ? Visibility.Visible : Visibility.Collapsed;
+        ActualJobStatus.Text = node.ActualJob == null ? (jobs.Length == 0 ? "No matching jobs in the current authorized snapshots. Refresh Industry after starting the job in EVE." : "Candidates share this product and blueprint type. Inspect the evidence, then explicitly link your job.") :
+            jobs.FirstOrDefault(j => j.JobId == node.ActualJob.JobId) is {} current && IndustryWorkspaceInventory.Recent(current.SnapshotUtc, DateTimeOffset.UtcNow) ? $"Linked | {Pilot(current.InstallerId)} | {IndustryJobMatching.Describe(current)}" : "Link retained | current job observation unavailable or stale. Completion and delivery are unverified.";
+        JobEvidence.Text = "Select a row to review the blueprint, installer, facility and timing.";
+        MatchJobButton.IsEnabled = false;
+        TransferNeeded.IsChecked = node.TransferNeeded; TransferNote.Text = node.TransferNote;
+    }
+    private string FacilityName(long owner, long id) => _inventory().FirstOrDefault(p => p.Id == owner)?.LocationNames.GetValueOrDefault(id) ?? "Location name unavailable";
+    private void Input_Selected(object sender, SelectionChangedEventArgs e)
+    {
+        if (ComponentInputs.SelectedItem is not InputRow input) return;
+        _nodeId = input.Id; ShowProject(); EditorScroll.ScrollToTop();
+    }
+    private void Facility_Changed(object sender, SelectionChangedEventArgs e)
+    { if (JobFacility != null) JobFacility.Text = (JobFacilityPicker.SelectedItem as LocationOption)?.Id?.ToString() ?? ""; }
+    private void ComponentBlueprintOwner_Changed(object sender, SelectionChangedEventArgs e) => RefreshComponentBlueprintLocations();
+    private void RefreshComponentBlueprintLocations()
+    {
+        if (ComponentBlueprintLocation == null || Node is not {} node) return;
+        ComponentBlueprintLocation.ItemsSource = new[] { new LocationOption(null, "All locations / containers") }.Concat(_blueprints.Where(b => b.TypeId == node.BlueprintTypeId && (Choice(ComponentBlueprintOwner) == null || b.OwnerId == Choice(ComponentBlueprintOwner))).GroupBy(b => b.LocationId).Select(g => new LocationOption(g.Key, g.First().Location))).ToArray();
+        ComponentBlueprintLocation.SelectedIndex = 0; FilterComponentBlueprints();
+    }
+    private void ComponentBlueprintLocation_Changed(object sender, SelectionChangedEventArgs e) => FilterComponentBlueprints();
+    private void FilterComponentBlueprints()
+    {
+        if (ComponentBlueprints == null || Node is not {} node) return;
+        var location = (ComponentBlueprintLocation.SelectedItem as LocationOption)?.Id;
+        ComponentBlueprints.ItemsSource = _blueprints.Where(b => b.TypeId == node.BlueprintTypeId && (Choice(ComponentBlueprintOwner) == null || b.OwnerId == Choice(ComponentBlueprintOwner)) && (location == null || b.LocationId == location)).ToArray();
+    }
+    private void SelectComponentBlueprint_Click(object sender, RoutedEventArgs e) => Action(() =>
+    {
+        if (_projectId is not {} id || Node is not {} node || ComponentBlueprints.SelectedItem is not IndustryBlueprintLibrary.Blueprint bp)
+            throw new InvalidOperationException("Select an owned blueprint instance first.");
+        var current = IndustryBlueprintLibrary.Read(_inventory(), _linked.Where(p => p.Scopes.Contains("esi-characters.read_blueprints.v1")).Select(p => p.CharacterId).ToHashSet(), DateTimeOffset.UtcNow).FirstOrDefault(b => b.OwnerId == bp.OwnerId && b.ItemId == bp.ItemId);
+        if (current == null || current != bp) throw new InvalidOperationException("Blueprint snapshot changed. Reload before choosing it.");
+        _store.SelectBlueprint(id, node.Id, current);
+    }, "Blueprint selected; component inputs recalculated. Existing project identity retained.");
+    private void Job_Selected(object sender, SelectionChangedEventArgs e)
+    {
+        if (ExistingJobs.SelectedItem is not JobRow row) { MatchJobButton.IsEnabled = false; return; }
+        var j = row.Link;
+        JobEvidence.Text = $"{IndustryCatalog.Name(j.BlueprintTypeId)} | instance {j.BlueprintItemId}\nInstaller: {row.Owner} | {row.Facility} (facility {j.FacilityId})\n{j.StartUtc.UtcDateTime:dd MMM HH:mm} to {j.EndUtc.UtcDateTime:dd MMM HH:mm} EVE | {j.Runs:N0} runs | job {j.JobId}\nObserved {j.SnapshotUtc.UtcDateTime:dd MMM HH:mm} EVE. Partial batches and surplus do not change reserved or delivered stock.";
+        MatchJobButton.IsEnabled = IndustryWorkspaceInventory.Recent(j.SnapshotUtc, DateTimeOffset.UtcNow);
+    }
+    private void MatchJob_Click(object sender, RoutedEventArgs e) => Action(() =>
+    {
+        if (_projectId is not {} id || Node is not {} node || ExistingJobs.SelectedItem is not JobRow row) throw new InvalidOperationException("Select an EVE job first.");
+        var latest = ReadJobs().FirstOrDefault(j => j.OwnerId == row.Link.OwnerId && j.JobId == row.Link.JobId);
+        if (latest == null || latest != row.Link) throw new InvalidOperationException("Job evidence changed. Reload and review it before linking.");
+        _store.MatchJob(id, node.Id, latest, LinkedIds, DateTimeOffset.UtcNow);
+    }, "EVE job linked explicitly. Stock, consumption and delivery remain separate.");
+    private void UnmatchJob_Click(object sender, RoutedEventArgs e) => Action(() => { if (_projectId is {} id && Node is {} node) _store.UnmatchJob(id, node.Id); }, "EVE job unlinked; history retained.");
+    private void Transfer_Click(object sender, RoutedEventArgs e) => Action(() => { if (_projectId is {} id && Node is {} node) _store.MarkTransfer(id, node.Id, TransferNeeded.IsChecked == true, TransferNote.Text); }, "Transfer requirement saved; no delivery inferred.");
+    private sealed record InputRow(Guid Id, string Name, int TypeId, long Quantity, string Strategy, decimal Reserved, string Free)
+    { public string Icon => $"https://images.evetech.net/types/{TypeId}/icon?size=32"; }
+    private sealed record JobRow(IndustryJobLink Link, string Owner, string Facility)
+    { public string Status => IndustryJobMatching.Describe(Link); public string End => Link.EndUtc.UtcDateTime.ToString("dd MMM HH:mm"); }
+    private void StockOwner_Changed(object sender, SelectionChangedEventArgs e) => RefreshStockLocations();
+    private void StockLocation_Changed(object sender, SelectionChangedEventArgs e) { if (_initialized) RefreshStock(); }
+    private void RefreshStockLocations()
+    {
+        if (!_initialized || StockLocation == null || Node is not {} node) return;
+        StockLocation.ItemsSource = new[] { new LocationOption(null, "All stations / containers") }.Concat(_stock.Where(s => s.TypeId == node.TypeId && (Choice(StockOwner) == null || s.OwnerId == Choice(StockOwner))).GroupBy(s => s.LocationId).Select(g => new LocationOption(g.Key, DisplayPath(g.First().OwnerId, g.Key)))).ToArray();
+        StockLocation.SelectedIndex = 0; RefreshStock();
     }
     private void RefreshStock()
     {
         if (Node is not {} node) return;
         string search = StockSearch.Text.Trim();
-        Stock.ItemsSource = _stock.Where(s => s.TypeId == node.TypeId && (search.Length == 0 || (s.Owner + " " + s.Path + " " + s.ItemId).Contains(search, StringComparison.OrdinalIgnoreCase)))
-            .Select(s => new StockRow(s, Math.Max(0, s.Quantity - _state.Reservations.Where(r => r.OwnerId == s.OwnerId && r.ItemId == s.ItemId).Sum(r => (decimal)r.Quantity)))).ToArray();
+        Stock.ItemsSource = _stock.Where(s => s.TypeId == node.TypeId && (Choice(StockOwner) == null || s.OwnerId == Choice(StockOwner)) && ((StockLocation.SelectedItem as LocationOption)?.Id == null || s.LocationId == ((LocationOption)StockLocation.SelectedItem).Id) && (search.Length == 0 || (s.Owner + " " + DisplayPath(s.OwnerId, s.LocationId) + " " + s.Path + " " + s.ItemId).Contains(search, StringComparison.OrdinalIgnoreCase)))
+            .Select(s => new StockRow(s, DisplayPath(s.OwnerId, s.LocationId), Math.Max(0, s.Quantity - _state.Reservations.Where(r => r.OwnerId == s.OwnerId && r.ItemId == s.ItemId).Sum(r => (decimal)r.Quantity)))).ToArray();
     }
     private void StockSearch_Changed(object sender, TextChangedEventArgs e) { if (_initialized) RefreshStock(); }
     private async void Reload_Click(object sender, RoutedEventArgs e)
@@ -188,10 +293,10 @@ public partial class IndustryWorkspaceView : System.Windows.Controls.UserControl
     private void RefreshBlueprintLocations()
     {
         if (!_initialized) return;
-        string? previous = BlueprintLocation.SelectedItem as string;
+        long? previous = (BlueprintLocation.SelectedItem as LocationOption)?.Id;
         _loading = true;
-        BlueprintLocation.ItemsSource = new[] { "All locations / containers" }.Concat(_blueprints.Where(b => b.OwnerId == Choice(BlueprintOwner)).Select(b => b.Location).Distinct().OrderBy(s => s)).ToArray();
-        BlueprintLocation.SelectedItem = BlueprintLocation.Items.Contains(previous) ? previous : "All locations / containers";
+        BlueprintLocation.ItemsSource = new[] { new LocationOption(null, "All locations / containers") }.Concat(_blueprints.Where(b => b.OwnerId == Choice(BlueprintOwner)).GroupBy(b => b.LocationId).Select(g => new LocationOption(g.Key, g.First().Location)).OrderBy(x => x.Name)).ToArray();
+        BlueprintLocation.SelectedItem = BlueprintLocation.Items.Cast<LocationOption>().FirstOrDefault(x => x.Id == previous) ?? BlueprintLocation.Items[0];
         _loading = false;
         RefreshBlueprints();
     }
@@ -199,12 +304,12 @@ public partial class IndustryWorkspaceView : System.Windows.Controls.UserControl
     {
         if (!_initialized || _loading) return;
         string query = BlueprintSearch.Text.Trim();
-        string? location = BlueprintLocation.SelectedItem as string;
+        long? location = (BlueprintLocation.SelectedItem as LocationOption)?.Id;
         var owned = _blueprints.Where(b => b.OwnerId == Choice(BlueprintOwner));
-        var rows = owned.Where(b => (location == null || location == "All locations / containers" || b.Location == location) &&
+        var rows = owned.Where(b => (location == null || b.LocationId == location) &&
             (query.Length == 0 || b.Name.Contains(query, StringComparison.OrdinalIgnoreCase) || b.ItemId.ToString() == query)).ToArray();
         Blueprints.ItemsSource = rows;
-        BlueprintSummary.Text = $"{rows.Length:N0} of {owned.Count():N0} blueprint instances | Personal cached blueprints; container/station IDs identify sources where names are unavailable.";
+        BlueprintSummary.Text = $"{rows.Length:N0} of {owned.Count():N0} blueprint instances | Personal blueprint snapshots | source filters use stable location IDs.";
         if (!owned.Any()) BlueprintSummary.Text += " Refresh Industry with blueprint access for this toon; missing data is not confirmed empty inventory.";
     }
     private void BlueprintOwner_Changed(object sender, SelectionChangedEventArgs e) { if (!_loading) RefreshBlueprintLocations(); }
@@ -225,10 +330,12 @@ public partial class IndustryWorkspaceView : System.Windows.Controls.UserControl
         var root = _state.Projects.Single(p => p.Id == id).Nodes.Single(n => n.ParentId == null);
         _store.ExpandDraft(id, IndustryDependencyPlanner.Build(root.TypeId, root.Quantity));
     }, "Draft expanded at ME 0 with product and input quantities. Project identity retained; review blueprint assumptions.");
+    private void ShowDelete_Click(object sender, RoutedEventArgs e)
+    { DeletePrompt.Visibility = Visibility.Visible; DeletePrompt.IsExpanded = true; }
     private void DeleteProject_Click(object sender, RoutedEventArgs e) => Action(() =>
     {
         if (_projectId is not {} id || ConfirmDelete.IsChecked != true) throw new InvalidOperationException("Tick Confirm deletion for the selected project first.");
-        _store.DeleteProject(id); _projectId = null; _nodeId = null;
+        _store.DeleteProject(id, releaseReservations: true); _projectId = null; _nodeId = null;
     }, "Project deleted. Audit history retained; no in-game assets or jobs changed.");
     private void PlanJob_Click(object sender, RoutedEventArgs e) => Action(() =>
     {
@@ -258,19 +365,21 @@ public partial class IndustryWorkspaceView : System.Windows.Controls.UserControl
     private void Release_Click(object sender, RoutedEventArgs e) => Action(() =>
     { if (Reservations.SelectedItem is not ReservationRow r) throw new InvalidOperationException("Select a reservation to release."); _store.Release(r.Id); }, "Reservation released; audit history retained.");
 
+    private sealed record LocationOption(long? Id, string Name) { public override string ToString() => Name; }
     private sealed record PilotOption(long? Id, string Name) { public override string ToString() => Name; }
     private sealed record ProjectRow(Guid Id, string Name, string Detail);
     private sealed record NodeRow(Guid Id, string Title, string Detail, List<NodeRow> Children, int TypeId, string Strategy, string Calculation, bool Selected)
     {
+        public bool Expanded { get; set; }
         public string Icon => $"https://images.evetech.net/types/{TypeId}/icon?size=32";
         public string Color => Strategy == "Make" ? "#74D6C9" : Strategy == "Buy" ? "#80BFFF" : "#FFD166";
     }
     private sealed record ReservationRow(Guid Id, long Quantity, string Source, string Review);
-    private sealed record StockRow(IndustryStockSource Source, decimal Available)
+    private sealed record StockRow(IndustryStockSource Source, string DisplayPath, decimal Available)
     {
         public string Free => Source.Verified ? Available.ToString("N0") : "Unverified";
         public string Owner => Source.Owner;
-        public string Path => Source.Path;
+        public string Path => DisplayPath;
         public long ItemId => Source.ItemId;
         public long Quantity => Source.Quantity;
         public string Detail => Source.Detail + " | " + (Source.SnapshotUtc == default ? "No snapshot" : Source.SnapshotUtc.ToString("u"));

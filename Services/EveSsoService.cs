@@ -1822,6 +1822,8 @@ public sealed class EveSsoService
         return all;
     }
 
+    public Task<IReadOnlyDictionary<int, string>> ResolveIndustryTypeNamesAsync(IEnumerable<int> typeIds, CancellationToken ct) => GetTypeNamesBatchAsync(typeIds, ct);
+
     private async Task<IReadOnlyDictionary<int, string>>
         GetTypeNamesBatchAsync(
             IEnumerable<int> typeIds,

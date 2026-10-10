@@ -10,6 +10,7 @@ internal static partial class Program
 {
     private static void CheckIndustryPlanning(string folder, string? renderPath)
     {
+        CheckIndustryComponents(folder);
         bool Reject(Action action) { try { action(); return false; } catch (InvalidOperationException) { return true; } }
         var recipes = new List<IndustryRecipe>
         {
@@ -74,20 +75,24 @@ internal static partial class Program
         {
             new() { ItemId = 901, TypeId = 3293, IsSingleton = true, LocationId = 60003760, LocationType = "station", LocationFlag = "Hangar" }
         } };
+        pilot.AssetNames[901] = "Capital blueprints"; pilot.LocationNames[60003760] = "Jita IV - Moon 4";
         pilot.Blueprints = Enumerable.Range(1, 2100).Select(i => JsonSerializer.SerializeToElement(new
         { item_id = (long)i + 10000, type_id = obelisk.Blueprint, location_id = i % 2 == 0 ? 901L : 60003760L, quantity = -2, runs = 2, material_efficiency = 10, time_efficiency = 20 })).ToList();
         var library = IndustryBlueprintLibrary.Read(new[] { pilot }, linked, now);
-        Check(library.Count == 2100 && library.Count(b => b.Location.Contains("container 901")) == 1050,
+        Check(library.Count == 2100 && library.Count(b => b.Location.Contains("Capital blueprints")) == 1050,
             "Blueprint library retains over 2000 instances and resolves specific container paths");
         Check(IndustryBlueprintLibrary.Read(new[] { pilot }, new HashSet<long>(), now).All(b => !b.Available),
             "Blueprint library does not claim availability without blueprint scope");
         pilot.Jobs.Add(JsonSerializer.SerializeToElement(new { blueprint_id = 10001L, status = "active" }));
         Check(!IndustryBlueprintLibrary.Read(new[] { pilot }, linked, now).Single(b => b.ItemId == 10001).Available,
             "Blueprints in active industry jobs are unavailable for new planning");
+        var componentForJob = full.First(n => n.ParentId == full[0].Id);
+        pilot.Jobs.Add(JsonSerializer.SerializeToElement(new { activity_id = 1, job_id = 987654, installer_id = 42, product_type_id = componentForJob.TypeId,
+            blueprint_type_id = componentForJob.BlueprintTypeId, blueprint_id = 76543, facility_id = 60003760, runs = 4, status = "active", start_date = now.AddHours(-1), end_date = now.AddHours(2) }));
         var view = new IndustryWorkspaceView();
-        view.Initialize(store, () => new[] { pilot }, new() { new() { CharacterId = 42, CharacterName = "Blueprint owner", Scopes = new[] { "esi-characters.read_blueprints.v1", "esi-assets.read_assets.v1" } } });
+        view.Initialize(store, () => new[] { pilot }, new() { new() { CharacterId = 42, CharacterName = "Blueprint owner", Scopes = new[] { "esi-characters.read_blueprints.v1", "esi-assets.read_assets.v1", "esi-industry.read_character_jobs.v1" } } });
         var locations = (System.Windows.Controls.ComboBox)view.FindName("BlueprintLocation");
-        locations.SelectedItem = locations.Items.Cast<string>().Single(s => s.Contains("container 901"));
+        locations.SelectedItem = locations.Items.Cast<object>().Single(s => s.ToString()!.Contains("Capital blueprints"));
         var grid = (DataGrid)view.FindName("Blueprints");
         Check(grid.Items.Count == 1050, "Selecting a blueprint container filters the real embedded library table");
         grid.SelectedIndex = 0;
@@ -108,14 +113,37 @@ internal static partial class Program
             "Component tree is independent of the right-hand project editor");
         if (renderPath != null)
         {
-            var shell = new IndustryWindow { Width = 1480, Height = 960 };
+            var shell = new IndustryWindow { Width = 1920, Height = 1020 };
             BackgroundOperations.Stop();
+            ((ListBox)shell.FindName("Pilots")).ItemsSource = new[] { pilot };
+            ((TextBlock)shell.FindName("Dashboard")).Text = "Blueprint owner | 1 active job | 2,100 blueprints";
+            ((TextBlock)shell.FindName("Snapshot")).Text = "Fixture snapshot - visual verification";
+            ((TextBlock)shell.FindName("ManufacturingStat")).Text = "1";
+            ((TextBlock)shell.FindName("ResearchStat")).Text = "0";
+            ((TextBlock)shell.FindName("InventionStat")).Text = "0";
+            ((TextBlock)shell.FindName("ReadyStat")).Text = "0";
             ((TabItem)shell.FindName("ProductionTab")).Content = view;
             ((TabControl)view.FindName("WorkspaceTabs")).SelectedItem = view.FindName("LibraryTab");
             Render(shell, Path.ChangeExtension(renderPath, ".library.png"));
             ((TabControl)view.FindName("WorkspaceTabs")).SelectedItem = view.FindName("ProjectDetailTab");
             ((ScrollViewer)view.FindName("EditorScroll")).ScrollToTop();
             Render(shell, Path.ChangeExtension(renderPath, ".tree.png"));
+            var treeRoot = (TreeViewItem)componentTree.ItemContainerGenerator.ContainerFromIndex(0);
+            var treeChild = (TreeViewItem)treeRoot.ItemContainerGenerator.ContainerFromIndex(0);
+            var rowBorder = (System.Windows.Controls.Border)treeChild.Template.FindName("Row", treeChild);
+            Check(treeChild.IsSelected && rowBorder.Background.ToString() == "#FF245950" && rowBorder.ActualWidth > componentTree.ActualWidth - 65,
+                "Selected component receives a visible full-width highlight in the rendered WPF control");
+            ((TabControl)view.FindName("ComponentTabs")).SelectedIndex = 1;
+            var actualJobs = (DataGrid)view.FindName("ExistingJobs"); actualJobs.SelectedIndex = 0;
+            Check(((System.Windows.Controls.Button)view.FindName("MatchJobButton")).IsEnabled, "Selecting an EVE candidate exposes its evidence and enables explicit matching");
+            typeof(IndustryWorkspaceView).GetMethod("MatchJob_Click", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.Invoke(view, new object[] { view, new RoutedEventArgs() });
+            Check(store.Snapshot().Projects.Last().Nodes.Any(n => n.ActualJob?.JobId == 987654), "Component inspector explicitly matches an existing EVE job and preserves the consolidated project");
+            ((ScrollViewer)view.FindName("EditorScroll")).ScrollToTop();
+            Render(shell, Path.ChangeExtension(renderPath, ".jobs.png"));
+            shell.Width = 1280; shell.Height = 850;
+            ((TabControl)view.FindName("ComponentTabs")).SelectedIndex = 0;
+            ((ScrollViewer)view.FindName("EditorScroll")).ScrollToTop();
+            Render(shell, Path.ChangeExtension(renderPath, ".compact.png"));
             shell.Close();
         }
         var delete = typeof(IndustryWorkspaceView).GetMethod("DeleteProject_Click", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!;

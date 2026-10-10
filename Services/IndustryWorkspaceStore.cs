@@ -161,6 +161,7 @@ public sealed class IndustryWorkspaceStore
             Require(node.CalculationSource.Length == 0 || node.Quantity == quantity,
                 "Calculated quantities are linked to the material tree. Create a new blueprint plan for a different batch quantity.");
             Require(!node.PlannedJobId.HasValue || (strategy == "Make" && executor.HasValue), "Remove the planned job before changing sourcing or clearing its executor.");
+            Require(node.ActualJob == null || (strategy == "Make" && executor == node.ActualJob.InstallerId), "Unlink the EVE job before changing its executor or sourcing.");
             node.Quantity = quantity; node.ExecutorId = executor; node.Strategy = strategy; node.Notes = notes;
         }, $"Edited component {nodeId}: planned quantity {quantity}, executor {executor}, strategy {strategy}.", projectId);
     }
@@ -174,6 +175,7 @@ public sealed class IndustryWorkspaceStore
             Require(node.Strategy == "Make" && node.BlueprintTypeId.HasValue && node.PlannedRuns > 0,
                 "Select a calculated Make component with a manufacturing recipe.");
             Require(facility == null || facility > 0, "Enter a positive facility ID or leave it blank.");
+            Require(node.ActualJob == null || node.ActualJob.InstallerId == executor, "Unlink the EVE job before changing its executor.");
             node.ExecutorId = executor; node.PlannedJobId ??= Guid.NewGuid();
             node.PlannedJobFacilityId = facility; node.PlannedJobAssignedUtc = DateTimeOffset.UtcNow;
         }, $"Assigned local manufacturing plan for component {nodeId} to {executor}; facility {facility}. No EVE job submitted.", projectId);
@@ -183,6 +185,51 @@ public sealed class IndustryWorkspaceStore
         var node = Project(s, projectId).Nodes.Single(n => n.Id == nodeId);
         node.PlannedJobId = null; node.PlannedJobFacilityId = null; node.PlannedJobAssignedUtc = null;
     }, $"Removed local job assignment for component {nodeId}; history retained.", projectId);
+    public void SelectBlueprint(Guid projectId, Guid nodeId, IndustryBlueprintLibrary.Blueprint blueprint)
+    {
+        Change(s =>
+        {
+            var p = Project(s, projectId); var node = p.Nodes.Single(n => n.Id == nodeId);
+            Require(!p.Archived && !p.Paused && node.Strategy == "Make", "Select an active Make component.");
+            Require(node.BlueprintTypeId == blueprint.TypeId, "Select a blueprint for this component.");
+            var affected = new HashSet<Guid> { nodeId };
+            bool added; do { added = false; foreach (var n in p.Nodes.Where(n => n.ParentId.HasValue && affected.Contains(n.ParentId.Value))) added |= affected.Add(n.Id); } while (added);
+            Require(!s.Reservations.Any(r => affected.Contains(r.NodeId)) && !p.Nodes.Any(n => affected.Contains(n.Id) && (n.ActualJob != null || n.PlannedJobId != null)),
+                "Release reservations and job associations for this component's subtree before recalculating. Existing work is preserved.");
+            Require(!p.Nodes.Any(n => n.Id != nodeId && affected.Contains(n.Id) && (n.ExecutorId != null || n.Notes.Length > 0 || n.TransferNeeded || n.TransferNote.Length > 0 || n.BlueprintItemId != null || n.Strategy != (n.BlueprintTypeId.HasValue ? "Make" : "Buy"))),
+                "This subtree has configured child work. Preserve it by creating a separate batch instead of replacing its inputs.");
+            var replacement = IndustryDependencyPlanner.Build(node.TypeId, node.Quantity, blueprint);
+            var root = replacement.Single(n => n.ParentId == null); var generatedId = root.Id;
+            root.Id = node.Id; root.ParentId = node.ParentId; root.Notes = node.Notes; root.TransferNeeded = node.TransferNeeded; root.TransferNote = node.TransferNote;
+            foreach (var child in replacement.Where(n => n.ParentId == generatedId)) child.ParentId = root.Id;
+            int index = p.Nodes.IndexOf(node); p.Nodes.RemoveAll(n => affected.Contains(n.Id)); p.Nodes.InsertRange(index, replacement);
+        }, $"Selected blueprint {blueprint.ItemId} owned by {blueprint.Owner}; recalculated component inputs at ME {blueprint.ME}%.", projectId);
+    }
+    public void MatchJob(Guid projectId, Guid nodeId, IndustryJobLink job, ISet<long> linked, DateTimeOffset now)
+    {
+        Linked(job.OwnerId, linked);
+        Change(s =>
+        {
+            var p = Project(s, projectId); var node = p.Nodes.Single(n => n.Id == nodeId);
+            Require(!p.Archived && !p.Paused, "Resume the project before matching jobs.");
+            Require(node.Strategy == "Make" && node.TypeId == job.ProductTypeId && node.BlueprintTypeId == job.BlueprintTypeId,
+                "The manufacturing job must match this product and blueprint type.");
+            Require(IndustryJobMatching.Valid(job) && IndustryWorkspaceInventory.Recent(job.SnapshotUtc, now), "A recent complete job observation is required.");
+            Require(node.ExecutorId == null || node.ExecutorId == job.InstallerId, "Choose the job's executing character before matching.");
+            Require(node.BlueprintItemId == null || node.BlueprintItemId == job.BlueprintItemId, "This job used a different blueprint instance.");
+            Require(!s.Projects.SelectMany(x => x.Nodes).Any(n => n.Id != nodeId && n.ActualJob?.JobId == job.JobId),
+                "This EVE job is already linked to another component. Unlink it there first.");
+            node.ActualJob = job; node.ExecutorId = job.InstallerId;
+        }, $"Manually matched EVE job {job.JobId} to component {nodeId}; no stock, consumption or transfer inferred. Evidence: {JsonSerializer.Serialize(job)}", projectId);
+    }
+    public void UnmatchJob(Guid projectId, Guid nodeId) => Change(s =>
+        Project(s, projectId).Nodes.Single(n => n.Id == nodeId).ActualJob = null,
+        "Removed EVE job association; previous matching evidence remains in event history.", projectId);
+    public void MarkTransfer(Guid projectId, Guid nodeId, bool needed, string note) => Change(s =>
+    {
+        var p = Project(s, projectId); Require(!p.Archived, "Reopen the project before editing.");
+        var n = p.Nodes.Single(n => n.Id == nodeId); n.TransferNeeded = needed; n.TransferNote = note.Trim();
+    }, $"Transfer requirement for component {nodeId}: {needed}. {note}", projectId);
     public void Reserve(Guid projectId, Guid nodeId, IndustryStockSource source, long quantity, DateTimeOffset now, IReadOnlyList<IndustryStockSource> currentStock)
     {
         Change(s =>
@@ -202,12 +249,14 @@ public sealed class IndustryWorkspaceStore
                 LocationId = source.LocationId, LocationFlag = source.LocationFlag, Path = source.Path, Quantity = quantity, SnapshotUtc = source.SnapshotUtc });
         }, $"Reserved {quantity} of type {source.TypeId}, owner {source.OwnerId}, item {source.ItemId} at {source.Path}; delivery unverified.", projectId);
     }
-    public void DeleteProject(Guid projectId)
+    public void DeleteProject(Guid projectId, bool releaseReservations = false)
     {
         Change(s =>
         {
             var project = Project(s, projectId);
-            Require(!s.Reservations.Any(r => r.ProjectId == projectId), "Release this project's stock reservations before deleting it.");
+            Require(releaseReservations || !s.Reservations.Any(r => r.ProjectId == projectId), "Release this project's stock reservations before deleting it.");
+            s.Events.Add(new() { ProjectId = projectId, Description = "Deleted project snapshot: " + JsonSerializer.Serialize(project) + "; released reservations: " + JsonSerializer.Serialize(s.Reservations.Where(r => r.ProjectId == projectId).ToArray()) });
+            s.Reservations.RemoveAll(r => r.ProjectId == projectId);
             s.Projects.Remove(project);
         }, "Deleted project and its component plan; audit history retained.", projectId);
     }
@@ -224,6 +273,10 @@ public sealed class IndustryWorkspaceStore
         Require(state.Projects.Select(p => p.Id).Distinct().Count() == state.Projects.Count, "Duplicate project IDs.");
         var allNodes = state.Projects.SelectMany(p => p.Nodes).ToArray();
         Require(allNodes.Select(n => n.Id).Distinct().Count() == allNodes.Length, "Duplicate node IDs.");
+        var actualJobs = allNodes.Where(n => n.ActualJob != null).ToArray();
+        Require(actualJobs.Select(n => n.ActualJob!.JobId).Distinct().Count() == actualJobs.Length, "Duplicate EVE job links.");
+        Require(actualJobs.All(n => IndustryJobMatching.Valid(n.ActualJob!) && n.TypeId == n.ActualJob!.ProductTypeId &&
+            n.BlueprintTypeId == n.ActualJob.BlueprintTypeId && n.ExecutorId == n.ActualJob.InstallerId && n.Strategy == "Make"), "Invalid EVE job association.");
         var plannedJobs = allNodes.Where(n => n.PlannedJobId.HasValue).ToArray();
         Require(plannedJobs.Select(n => n.PlannedJobId).Distinct().Count() == plannedJobs.Length,
             "Duplicate planned job IDs.");

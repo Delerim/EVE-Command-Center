@@ -57,6 +57,9 @@ public sealed class IndustryService
                     data.Assets=(await _sso.GetAssetsForPlanningAsync(p,timeout.Token)).ToList();
                     data.Skills=(await Read($"/characters/{p.CharacterId}/skills/",token,timeout.Token)).ToDictionary(j=>(int)IndustryCatalog.Num(j,"skill_id"),j=>(int)IndustryCatalog.Num(j,"active_skill_level"));
                     data.Updated=DateTimeOffset.UtcNow;data.Error="";
+                    try { await ResolveNamesAsync(data, p, token, timeout.Token); }
+                    catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
+                    catch (Exception ex) { EsiDiagnostics.Write("Industry display names deferred: " + ex.GetType().Name); }
                 }
                 catch(OperationCanceledException)when(ct.IsCancellationRequested){throw;}
                 catch(Exception ex){data.Error="Refresh delayed: "+ex.GetType().Name;EsiDiagnostics.Write(data.Error);}
@@ -68,6 +71,51 @@ public sealed class IndustryService
         catch(OperationCanceledException){}
         catch(Exception ex){Status="Industry refresh deferred: "+ex.GetType().Name;}
         finally{Busy=false;Save();Changed?.Invoke();}
+    }
+    private async Task ResolveNamesAsync(IndustryPilot data, EvePilotProfile pilot, string token, CancellationToken ct)
+    {
+        if (data.NamesUpdated > DateTimeOffset.UtcNow.AddHours(-1)) return;
+        // Display metadata only; failures must not invalidate the assets/jobs snapshot.
+        var typeIds = data.Assets.Select(a => a.TypeId).Concat(data.Blueprints.Select(b => (int)IndustryCatalog.Num(b, "type_id")))
+            .Concat(data.Jobs.SelectMany(j => new[] { (int)IndustryCatalog.Num(j, "product_type_id"), (int)IndustryCatalog.Num(j, "blueprint_type_id") }))
+            .Where(id => id > 0 && IndustryCatalog.Name(id).StartsWith("Type ") && !data.TypeNames.ContainsKey(id)).Distinct();
+        foreach (var pair in await _sso.ResolveIndustryTypeNamesAsync(typeIds, ct))
+            if (!pair.Value.StartsWith("Type ")) data.TypeNames[pair.Key] = pair.Value;
+        var ids = data.Assets.Select(a => a.ItemId).ToHashSet();
+        var parents = data.Assets.Select(a => a.LocationId).ToHashSet();
+        var containers = data.Assets.Where(a => a.IsSingleton && parents.Contains(a.ItemId)).Select(a => a.ItemId).Distinct().ToArray();
+        foreach (var batch in containers.Chunk(1000))
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Post, $"https://esi.evetech.net/latest/characters/{pilot.CharacterId}/assets/names/");
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            request.Headers.TryAddWithoutValidation("X-Compatibility-Date", "2026-08-25");
+            request.Content = new StringContent(JsonSerializer.Serialize(batch), System.Text.Encoding.UTF8, "application/json");
+            using var response = await _http.SendAsync(request, ct);
+            if (!response.IsSuccessStatusCode) continue;
+            using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync(ct));
+            foreach (var row in json.RootElement.EnumerateArray())
+            {
+                string name = IndustryCatalog.Text(row, "name");
+                if (!string.IsNullOrWhiteSpace(name) && name != "None") data.AssetNames[IndustryCatalog.Num(row, "item_id")] = name;
+            }
+        }
+        var locations = data.Assets.Where(a => !ids.Contains(a.LocationId) && a.LocationFlag == "Hangar").Select(a => a.LocationId)
+            .Concat(data.Jobs.Select(j => IndustryCatalog.Num(j, "facility_id"))).Where(id => id > 0).Distinct()
+            .OrderBy(id => data.LocationNames.ContainsKey(id)).Take(64);
+        foreach (long id in locations)
+        {
+            bool station = id >= 60000000 && id < 64000000;
+            if (!station && !pilot.Scopes.Contains("esi-universe.read_structures.v1")) continue;
+            using var request = new HttpRequestMessage(HttpMethod.Get, $"https://esi.evetech.net/latest/universe/{(station ? "stations" : "structures")}/{id}/");
+            if (!station) request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            request.Headers.TryAddWithoutValidation("X-Compatibility-Date", "2026-08-25");
+            using var response = await _http.SendAsync(request, ct);
+            if (!response.IsSuccessStatusCode) { if (!station) data.VerifiedStructures.Remove(id); continue; }
+            using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync(ct));
+            string name = IndustryCatalog.Text(json.RootElement, "name");
+            if (!string.IsNullOrWhiteSpace(name)) { data.LocationNames[id] = name; if (!station) data.VerifiedStructures.Add(id); }
+        }
+        data.NamesUpdated = DateTimeOffset.UtcNow;
     }
     public void CheckAlerts()
     {

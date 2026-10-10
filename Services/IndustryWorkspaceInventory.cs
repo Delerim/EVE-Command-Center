@@ -30,7 +30,7 @@ public static class IndustryWorkspaceInventory
                         current = parent;
                         continue;
                     }
-                    if (current.LocationType is not ("station" or "other") || current.LocationFlag != "Hangar")
+                    if ((current.LocationType is not ("station" or "other") && !pilot.VerifiedStructures.Contains(current.LocationId)) || current.LocationFlag != "Hangar")
                     { valid = false; path.Add($"Unverified parent {current.LocationId}"); }
                     else path.Add($"Location {current.LocationId} / Hangar");
                     break;

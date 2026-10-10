@@ -47,6 +47,9 @@ public sealed class IndustryProjectNode
     public long? BlueprintOwnerId { get; set; }
     public long? BlueprintLocationId { get; set; }
     public long? BlueprintRunsAvailable { get; set; }
+    public IndustryJobLink? ActualJob { get; set; }
+    public bool TransferNeeded { get; set; }
+    public string TransferNote { get; set; } = "";
     public Guid? PlannedJobId { get; set; }
     public long? PlannedJobFacilityId { get; set; }
     public DateTimeOffset? PlannedJobAssignedUtc { get; set; }
@@ -86,3 +89,8 @@ public sealed class IndustryPlanningEvent
 public sealed record IndustryStockSource(long OwnerId, string Owner, long ItemId, int TypeId,
     long LocationId, string LocationFlag, string Path, long Quantity, DateTimeOffset SnapshotUtc,
     bool Verified, string Detail);
+
+// A manual association retains the evidence seen at linking time, independently of ESI retention.
+public sealed record IndustryJobLink(long OwnerId, long JobId, long InstallerId, int ProductTypeId,
+    int BlueprintTypeId, long BlueprintItemId, long FacilityId, long Runs, string Status,
+    DateTimeOffset StartUtc, DateTimeOffset EndUtc, DateTimeOffset SnapshotUtc);
