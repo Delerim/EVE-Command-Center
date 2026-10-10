@@ -9,12 +9,13 @@ public sealed class IndustryWorkspaceStore
 {
     private readonly object _gate = new();
     private readonly string _path;
+    private IndustryLedger Ledger => new(Path.GetDirectoryName(_path)!);
     private IndustryWorkspace _state = new();
     public string Error { get; private set; } = "";
     public IndustryWorkspaceStore(string? directory = null)
     {
         _path = Path.Combine(directory ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "EVE Command Center"), "industry-workspace.json");
-        try { if (File.Exists(_path)) _state = Read(_path); else if (File.Exists(_path + ".bak")) throw new InvalidDataException("Planning file missing; a backup is available for recovery."); }
+        try { if (Ledger.Exists) { _state = Ledger.ReadWorkspace(); Validate(_state); } else if (File.Exists(_path)) _state = Read(_path); else if (File.Exists(_path + ".bak")) throw new InvalidDataException("Planning file missing; a backup is available for recovery."); }
         catch (Exception ex) { Error = "Planning file could not be loaded; changes are blocked and the file is preserved. " + ex.Message; }
     }
     public IndustryWorkspace Snapshot() { lock (_gate) return Clone(_state); }
@@ -35,7 +36,7 @@ public sealed class IndustryWorkspaceStore
             Require(Error.Length == 0, Error);
             Directory.CreateDirectory(Path.GetDirectoryName(_path)!);
             using var lease = new FileStream(_path + ".lock", FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None);
-            Require(!File.Exists(_path) || Read(_path).Revision == _state.Revision, "Workspace changed in another instance. Reopen the application before editing.");
+            Require(Ledger.Exists ? Ledger.ReadWorkspace().Revision == _state.Revision : !File.Exists(_path) || Read(_path).Revision == _state.Revision, "Workspace changed in another instance. Reopen the application before editing.");
             var next = Clone(_state);
             change(next);
             next.Revision = checked(next.Revision + 1);
@@ -47,6 +48,7 @@ public sealed class IndustryWorkspaceStore
     }
     private void Write(IndustryWorkspace next, bool keepPrevious = true)
     {
+        if (Ledger.Exists) { Ledger.SaveWorkspace(next, _state.Revision); return; }
         string temp = _path + ".tmp";
         try
         {
@@ -61,6 +63,7 @@ public sealed class IndustryWorkspaceStore
     {
         lock (_gate)
         {
+            Require(!Ledger.Exists, "The ledger is authoritative; legacy JSON recovery cannot overwrite it.");
             Require(Error.Length > 0, "Backup recovery is only available after a load failure.");
             using var lease = new FileStream(_path + ".lock", FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None);
             if (File.Exists(_path))

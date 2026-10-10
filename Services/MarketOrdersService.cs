@@ -6,7 +6,7 @@ using EveCommandCenter.Models;
 
 namespace EveCommandCenter.Services;
 
-// Latest observations, including orders no longer returned. Not a fill/history or financial ledger.
+// Replaceable open-order observations plus explicit confirmed-history imports into the shared ledger.
 public sealed class MarketOrdersService
 {
     public const string Scope = "esi-markets.read_character_orders.v1";
@@ -18,6 +18,9 @@ public sealed class MarketOrdersService
     public MarketOrdersState State { get; private set; } = new();
     public string Error { get; private set; } = "";
     public bool Busy { get; private set; }
+    private IndustryLedger Ledger => new(Path.GetDirectoryName(_path)!);
+    public List<HistoricalOrderRecord> History { get; private set; } = new();
+    public string HistoryStatus { get; private set; } = "History has not been refreshed.";
     public MarketOrdersService(EveSsoService sso, string? directory = null, HttpClient? http = null,
         Func<EvePilotProfile, CancellationToken, Task<string>>? token = null)
     {
@@ -40,6 +43,76 @@ public sealed class MarketOrdersService
             }
         }
         catch (Exception ex) { Error = "Market cache preserved; loading failed: " + ex.GetType().Name; }
+        try { if (Ledger.Exists) { History = Ledger.History(); HistoryStatus = "Saved confirmed history loaded."; } }
+        catch (Exception ex) { HistoryStatus = "History could not be loaded; data preserved: " + ex.GetType().Name; }
+    }
+    public async Task RefreshHistoryAsync(IReadOnlyList<EvePilotProfile> linked, CancellationToken ct)
+    {
+        if (Busy || Error.Length > 0) return;
+        Busy = true; var messages = new List<string>();
+        try
+        {
+            // Migration and complete-page commits run off the dispatcher. No partial-page checkpoint is committed.
+            foreach (long id in State.SelectedCharacters.ToArray())
+            {
+                ct.ThrowIfCancellationRequested();
+                var pilot = linked.FirstOrDefault(p => p.CharacterId == id);
+                if (pilot == null || !pilot.Scopes.Contains(Scope))
+                { messages.Add((pilot?.CharacterName ?? "Unlinked character") + ": market permission required; history retained."); continue; }
+                try
+                {
+                    await Task.Run(() => Ledger.Ensure(), ct);
+                    var due = Ledger.NextHistory(id);
+                    if (DateTimeOffset.UtcNow < due) { messages.Add($"{pilot.CharacterName}: history cached until {due:HH:mm} UTC."); continue; }
+                    var token = await _token(pilot, ct);
+                    var orders = new List<HistoricalMarketOrder>();
+                    int pages = 1; DateTimeOffset observed = DateTimeOffset.UtcNow;
+                    DateTimeOffset next = observed;
+                    for (int page = 1; page <= pages; page++)
+                    {
+                        using var request = new HttpRequestMessage(HttpMethod.Get, $"https://esi.evetech.net/characters/{id}/orders/history?page={page}");
+                        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+                        request.Headers.TryAddWithoutValidation("X-Compatibility-Date", "2026-08-25");
+                        using var response = await _http.SendAsync(request, ct); response.EnsureSuccessStatusCode();
+                        if (!response.Headers.TryGetValues("X-Pages", out var values) || !int.TryParse(values.Single(), out int count) || count < 1 || count > 10000)
+                            throw new InvalidDataException("Missing or invalid history page count.");
+                        if (page > 1 && count != pages) throw new InvalidDataException("History changed during pagination; retry later.");
+                        pages = count;
+                        var rows = JsonSerializer.Deserialize<List<HistoricalMarketOrder>>(await response.Content.ReadAsStringAsync(ct)) ?? throw new InvalidDataException("Empty history response.");
+                        orders.AddRange(rows);
+                        var ttl = (response.Headers.CacheControl?.MaxAge ?? TimeSpan.FromHours(1)) - (response.Headers.Age ?? TimeSpan.Zero);
+                        var pageDue = DateTimeOffset.UtcNow.Add(ttl > TimeSpan.Zero ? ttl : TimeSpan.FromMinutes(1));
+                        if (pageDue > next) next = pageDue;
+                    }
+                    Validate(orders.Cast<MarketOrder>().ToList());
+                    if (orders.Any(o => o.State is not ("cancelled" or "expired"))) throw new InvalidDataException("Unsupported order state.");
+                    var cached = State.Characters.SelectMany(c => c.Orders.Concat(c.Unobserved.Select(u => u.Order))).Concat(History.Select(h => (MarketOrder)h.Order)).ToArray();
+                    foreach (var row in orders)
+                    { row.ResolvedName = cached.FirstOrDefault(o => o.TypeId == row.TypeId)?.ResolvedName; row.ResolvedLocation = cached.FirstOrDefault(o => o.LocationId == row.LocationId)?.ResolvedLocation; }
+                    if (_resolveNames)
+                    {
+                        try
+                        {
+                            var names = await _sso.ResolveIndustryTypeNamesAsync(orders.Select(o => o.TypeId), ct);
+                            foreach (var row in orders)
+                                if (names.GetValueOrDefault(row.TypeId) is {} name && !name.StartsWith("Type ") && name != "Item name unavailable") row.ResolvedName = name;
+                            foreach (var location in orders.Select(o => o.LocationId).Distinct())
+                                if (await _sso.ResolveDisplayLocationAsync(location, pilot, ct) is {} name)
+                                    foreach (var row in orders.Where(o => o.LocationId == location)) row.ResolvedLocation = name;
+                        }
+                        catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
+                        catch (Exception ex) { EsiDiagnostics.Write("Market history names deferred: " + ex.GetType().Name); }
+                    }
+                    ct.ThrowIfCancellationRequested();
+                    await Task.Run(() => Ledger.ImportHistory(id, orders, observed, next), ct);
+                    messages.Add($"{pilot.CharacterName}: {orders.Count(o => !o.Corporation):N0} confirmed history records refreshed.");
+                }
+                catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
+                catch (Exception ex) { messages.Add($"{pilot.CharacterName}: history refresh failed ({ex.GetType().Name}); previous history retained."); }
+            }
+            if (Ledger.Exists) History = await Task.Run(() => Ledger.History(), ct);
+        }
+        finally { HistoryStatus = string.Join("\n", messages); Busy = false; }
     }
     private void Persist(MarketOrdersState next)
     {

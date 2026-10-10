@@ -2,7 +2,7 @@ using System.Text.Json.Serialization;
 
 namespace EveCommandCenter.Models;
 
-public sealed class MarketOrder
+public class MarketOrder
 {
     [JsonPropertyName("order_id"), JsonRequired] public long OrderId { get; set; }
     [JsonPropertyName("type_id"), JsonRequired] public int TypeId { get; set; }
@@ -13,6 +13,9 @@ public sealed class MarketOrder
     [JsonPropertyName("volume_remain"), JsonRequired] public long Remaining { get; set; }
     [JsonPropertyName("issued"), JsonRequired] public DateTimeOffset Issued { get; set; }
     [JsonPropertyName("duration"), JsonRequired] public int Duration { get; set; }
+    [JsonPropertyName("escrow")] public decimal? Escrow { get; set; }
+    [JsonPropertyName("min_volume")] public long? MinimumVolume { get; set; }
+    [JsonPropertyName("range")] public string? Range { get; set; }
     [JsonPropertyName("is_buy_order")] public bool Buy { get; set; }
     [JsonPropertyName("is_corporation"), JsonRequired] public bool Corporation { get; set; }
     [JsonIgnore] public decimal RemainingValue => checked(Price * Remaining);
@@ -50,3 +53,9 @@ public sealed class MarketOrdersState
     public HashSet<long> SelectedCharacters { get; set; } = new();
     public List<MarketCharacterSnapshot> Characters { get; set; } = new();
 }
+
+public sealed class HistoricalMarketOrder : MarketOrder
+{
+    [JsonPropertyName("state"), JsonRequired] public string State { get; set; } = "";
+}
+public sealed record HistoricalOrderRecord(long OwnerId, DateTimeOffset Observed, HistoricalMarketOrder Order);

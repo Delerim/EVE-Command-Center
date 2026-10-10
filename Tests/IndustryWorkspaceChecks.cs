@@ -19,6 +19,7 @@ internal static partial class Program
             CheckIndustryPlanning(folder, renderPath);
             if (renderPath != null) RenderCloneNames(renderPath);
             CheckMarketOrders(folder, renderPath);
+            CheckIndustryLedger(folder, renderPath);
             bool Reject(Action action) { try { action(); return false; } catch (InvalidOperationException) { return true; } }
             var material = new IndustryProjectNode { TypeId = 34, Quantity = 80, Strategy = "Buy" };
             var assembly = new IndustryProjectNode { TypeId = 19744, Quantity = 1 };
@@ -161,6 +162,11 @@ internal static partial class Program
                 Render(shell, renderPath);
                 ((TabControl)view.FindName("WorkspaceTabs")).SelectedItem = view.FindName("MaterialsTab");
                 Render(shell, Path.ChangeExtension(renderPath, ".materials.png"));
+                var materials = (DataGrid)view.FindName("Shopping");
+                var numeric = materials.Columns.Single(c => c.Header.ToString() == "Missing stock");
+                typeof(DataGrid).GetMethod("OnSorting", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
+                    .Invoke(materials, new object[] { new DataGridSortingEventArgs(numeric) });
+                Render(shell, Path.ChangeExtension(renderPath, ".materials-sorted.png"));
                 ((TabControl)view.FindName("WorkspaceTabs")).SelectedItem = view.FindName("ProjectDetailTab");
                 ((TabControl)view.FindName("ComponentTabs")).SelectedIndex = 2;
                 ((ScrollViewer)view.FindName("EditorScroll")).ScrollToTop();

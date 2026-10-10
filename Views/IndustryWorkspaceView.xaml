@@ -121,7 +121,7 @@
                                 </DataTemplate>
                               </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
-                            <DataGridTextColumn Header="Available" SortMemberPath="SortAvailable" Binding="{Binding Free}" Width="100" MinWidth="85">
+                            <DataGridTextColumn HeaderStyle="{StaticResource QuantityHeader}" Header="Available" SortMemberPath="SortAvailable" Binding="{Binding Free}" Width="100" MinWidth="85">
                               <DataGridTextColumn.ElementStyle>
                                 <Style TargetType="TextBlock">
                                   <Setter Property="HorizontalAlignment" Value="Right" />
@@ -129,8 +129,8 @@
                                 </Style>
                               </DataGridTextColumn.ElementStyle>
                             </DataGridTextColumn>
-                            <DataGridTemplateColumn Header="Missing stock" SortMemberPath="SortMissing" Width="115" MinWidth="110"><DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding MissingLabel}" Foreground="{Binding StockColor}" FontWeight="SemiBold" HorizontalAlignment="Right" /></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
-<DataGridTextColumn Header="Required" Binding="{Binding Quantity, StringFormat=N0}" Width="100" MinWidth="85">
+                            <DataGridTemplateColumn HeaderStyle="{StaticResource QuantityHeader}" Header="Missing stock" SortMemberPath="SortMissing" Width="115" MinWidth="110"><DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding MissingLabel}" Foreground="{Binding StockColor}" FontWeight="SemiBold" HorizontalAlignment="Right" /></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
+<DataGridTextColumn HeaderStyle="{StaticResource QuantityHeader}" Header="Required" Binding="{Binding Quantity, StringFormat=N0}" Width="100" MinWidth="85">
                               <DataGridTextColumn.ElementStyle>
                                 <Style TargetType="TextBlock">
                                   <Setter Property="HorizontalAlignment" Value="Right" />
@@ -138,7 +138,7 @@
                                 </Style>
                               </DataGridTextColumn.ElementStyle>
                             </DataGridTextColumn>
-                            <DataGridTextColumn Header="Reserved" Binding="{Binding Reserved, StringFormat=N0}" Width="100" MinWidth="85">
+                            <DataGridTextColumn HeaderStyle="{StaticResource QuantityHeader}" Header="Reserved" Binding="{Binding Reserved, StringFormat=N0}" Width="100" MinWidth="85">
                               <DataGridTextColumn.ElementStyle>
                                 <Style TargetType="TextBlock">
                                   <Setter Property="HorizontalAlignment" Value="Right" />
@@ -181,7 +181,7 @@
                                     </DataGridTemplateColumn>
                                     <DataGridTextColumn Header="Owner" Binding="{Binding Owner}" Width="*" />
                                     <DataGridTextColumn Header="ME / TE" SortMemberPath="ME" Binding="{Binding Efficiency}" Width="*" />
-                                    <DataGridTextColumn Header="Runs" SortMemberPath="Runs" Binding="{Binding RunText}" Width="70" />
+                                    <DataGridTextColumn HeaderStyle="{StaticResource QuantityHeader}" Header="Runs" SortMemberPath="Runs" Binding="{Binding RunText}" Width="70"  ElementStyle="{StaticResource QuantityText}"/>
                                     <DataGridTextColumn Header="Location" Binding="{Binding Location}" Width="2*" />
                                     <DataGridTextColumn Header="Availability" Binding="{Binding Status}" Width="*" />
                                   </DataGrid.Columns>
@@ -226,7 +226,7 @@
                                 <DataGrid x:Name="ExistingJobs" MinHeight="45" SelectionChanged="Job_Selected">
                                   <DataGrid.Columns>
                                     <DataGridTextColumn Header="Toon" Binding="{Binding Owner}" Width="*" />
-                                    <DataGridTextColumn Header="Runs" Binding="{Binding Link.Runs}" Width="60" />
+                                    <DataGridTextColumn HeaderStyle="{StaticResource QuantityHeader}" Header="Runs" Binding="{Binding Link.Runs}" Width="60"  ElementStyle="{StaticResource QuantityText}"/>
                                     <DataGridTextColumn Header="Facility" Binding="{Binding Facility}" Width="2*" />
                                     <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="2*" />
                                     <DataGridTextColumn Header="Ends (EVE)" SortMemberPath="Link.EndUtc" Binding="{Binding End}" Width="135" />
@@ -287,7 +287,7 @@
                                   </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                               </DataGridTemplateColumn>
-                              <DataGridTextColumn Header="Free" SortMemberPath="SortFree" Binding="{Binding Free}" Width="115" MinWidth="90">
+                              <DataGridTextColumn HeaderStyle="{StaticResource QuantityHeader}" Header="Free" SortMemberPath="SortFree" Binding="{Binding Free}" Width="115" MinWidth="90">
                                 <DataGridTextColumn.ElementStyle>
                                   <Style TargetType="TextBlock">
                                     <Setter Property="HorizontalAlignment" Value="Right" />
@@ -295,7 +295,7 @@
                                   </Style>
                                 </DataGridTextColumn.ElementStyle>
                               </DataGridTextColumn>
-                              <DataGridTextColumn Header="Observed" Binding="{Binding Quantity, StringFormat=N0}" Width="115" MinWidth="90">
+                              <DataGridTextColumn HeaderStyle="{StaticResource QuantityHeader}" Header="Observed" Binding="{Binding Quantity, StringFormat=N0}" Width="115" MinWidth="90">
                                 <DataGridTextColumn.ElementStyle>
                                   <Style TargetType="TextBlock">
                                     <Setter Property="HorizontalAlignment" Value="Right" />
@@ -303,7 +303,7 @@
                                   </Style>
                                 </DataGridTextColumn.ElementStyle>
                               </DataGridTextColumn>
-                              <DataGridTextColumn Header="Reserved" Binding="{Binding Reserved, StringFormat=N0}" Width="100" />
+                              <DataGridTextColumn HeaderStyle="{StaticResource QuantityHeader}" Header="Reserved" Binding="{Binding Reserved, StringFormat=N0}" Width="100"  ElementStyle="{StaticResource QuantityText}"/>
                               <DataGridTextColumn Header="Owner" Binding="{Binding Owner}" Width="145" />
                               <DataGridTextColumn Header="Station / container" Binding="{Binding Path}" Width="*" MinWidth="210" />
                               <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="90" />
@@ -316,7 +316,7 @@
                           </DataGrid>
                           <DataGrid x:Name="Reservations" MinHeight="45" Grid.Row="2">
                             <DataGrid.Columns>
-                              <DataGridTextColumn Header="Units" Binding="{Binding Quantity}" Width="70" />
+                              <DataGridTextColumn HeaderStyle="{StaticResource QuantityHeader}" Header="Units" Binding="{Binding Quantity}" Width="70"  ElementStyle="{StaticResource QuantityText}"/>
                               <DataGridTextColumn Header="Reserved source" Binding="{Binding Source}" Width="2*" />
                               <DataGridTextColumn Header="Review" Binding="{Binding Review}" Width="2*" />
                             </DataGrid.Columns>
@@ -412,7 +412,7 @@
                     </DataTemplate>
                   </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
-                <DataGridTextColumn Header="Available" SortMemberPath="SortAvailable" Binding="{Binding FreeLabel}" Width="100" MinWidth="85">
+                <DataGridTextColumn HeaderStyle="{StaticResource QuantityHeader}" Header="Available" SortMemberPath="SortAvailable" Binding="{Binding FreeLabel}" Width="100" MinWidth="85">
                   <DataGridTextColumn.ElementStyle>
                     <Style TargetType="TextBlock">
                       <Setter Property="HorizontalAlignment" Value="Right" />
@@ -420,8 +420,8 @@
                     </Style>
                   </DataGridTextColumn.ElementStyle>
                 </DataGridTextColumn>
-                <DataGridTemplateColumn Header="Missing stock" SortMemberPath="SortMissing" Width="115" MinWidth="110"><DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding MissingLabel}" Foreground="{Binding StockColor}" FontWeight="SemiBold" HorizontalAlignment="Right" /></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
-<DataGridTextColumn Header="Required" Binding="{Binding Required, StringFormat=N0}" Width="100" MinWidth="85">
+                <DataGridTemplateColumn HeaderStyle="{StaticResource QuantityHeader}" Header="Missing stock" SortMemberPath="SortMissing" Width="115" MinWidth="110"><DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding MissingLabel}" Foreground="{Binding StockColor}" FontWeight="SemiBold" HorizontalAlignment="Right" /></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
+<DataGridTextColumn HeaderStyle="{StaticResource QuantityHeader}" Header="Required" Binding="{Binding Required, StringFormat=N0}" Width="100" MinWidth="85">
                   <DataGridTextColumn.ElementStyle>
                     <Style TargetType="TextBlock">
                       <Setter Property="HorizontalAlignment" Value="Right" />
@@ -429,7 +429,7 @@
                     </Style>
                   </DataGridTextColumn.ElementStyle>
                 </DataGridTextColumn>
-                <DataGridTextColumn Header="Reserved here" Binding="{Binding Reserved, StringFormat=N0}" Width="115" MinWidth="115">
+                <DataGridTextColumn HeaderStyle="{StaticResource QuantityHeader}" Header="Reserved here" Binding="{Binding Reserved, StringFormat=N0}" Width="115" MinWidth="115">
                   <DataGridTextColumn.ElementStyle>
                     <Style TargetType="TextBlock">
                       <Setter Property="HorizontalAlignment" Value="Right" />
@@ -437,9 +437,9 @@
                     </Style>
                   </DataGridTextColumn.ElementStyle>
                 </DataGridTextColumn>
-                <DataGridTemplateColumn Header="Stock check" SortMemberPath="StockStatus" Width="155" MinWidth="145"><DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding StockStatus}" Foreground="{Binding StockColor}" /></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn><DataGridTextColumn Header="Owned" SortMemberPath="SortOwned" Binding="{Binding OwnedLabel}" Width="100" MinWidth="85" />
-                <DataGridTextColumn Header="All reserved" Binding="{Binding TotalReserved, StringFormat=N0}" Width="100" MinWidth="85" />
-                <DataGridTextColumn Header="To reserve" Binding="{Binding Unreserved, StringFormat=N0}" Width="100" MinWidth="85">
+                <DataGridTemplateColumn Header="Stock check" SortMemberPath="StockStatus" Width="155" MinWidth="145"><DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding StockStatus}" Foreground="{Binding StockColor}" /></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn><DataGridTextColumn HeaderStyle="{StaticResource QuantityHeader}" Header="Owned" SortMemberPath="SortOwned" Binding="{Binding OwnedLabel}" Width="100" MinWidth="85"  ElementStyle="{StaticResource QuantityText}"/>
+                <DataGridTextColumn HeaderStyle="{StaticResource QuantityHeader}" Header="All reserved" Binding="{Binding TotalReserved, StringFormat=N0}" Width="100" MinWidth="85"  ElementStyle="{StaticResource QuantityText}"/>
+                <DataGridTextColumn HeaderStyle="{StaticResource QuantityHeader}" Header="To reserve" Binding="{Binding Unreserved, StringFormat=N0}" Width="100" MinWidth="85">
                   <DataGridTextColumn.ElementStyle>
                     <Style TargetType="TextBlock">
                       <Setter Property="HorizontalAlignment" Value="Right" />
@@ -474,7 +474,7 @@
             <DataGrid x:Name="ProjectSkills"><DataGrid.Columns>
               <DataGridTemplateColumn Header="Skill" SortMemberPath="Name" Width="2*"><DataGridTemplateColumn.CellTemplate><DataTemplate><StackPanel Orientation="Horizontal"><Image Source="{Binding Icon}" Width="24" Height="24" Margin="0,0,8,0"/><TextBlock Text="{Binding Name}" VerticalAlignment="Center"/></StackPanel></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
               <DataGridTextColumn Header="Trained" Binding="{Binding Trained}" Width="80"/>
-              <DataGridTextColumn Header="Required" Binding="{Binding Required}" Width="80"/>
+              <DataGridTextColumn HeaderStyle="{StaticResource QuantityHeader}" Header="Required" Binding="{Binding Required}" Width="80" ElementStyle="{StaticResource QuantityText}"/>
               <DataGridTemplateColumn Header="Training needed" SortMemberPath="Training" Width="150"><DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding Training}" Foreground="{Binding Color}"/></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
               <DataGridTemplateColumn Header="Used by" SortMemberPath="Products" Width="3*"><DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding Products}" TextWrapping="Wrap" ToolTip="{Binding Products}" Margin="0,4"/></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
             </DataGrid.Columns></DataGrid>

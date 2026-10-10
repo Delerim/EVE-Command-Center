@@ -15,7 +15,7 @@
     <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
     <AssemblyName>EVE Command Center</AssemblyName>
     <RootNamespace>EveCommandCenter</RootNamespace>
-    <Version>3.6.45</Version>
+    <Version>3.6.46</Version>
     <Title>EVE Command Center</Title>
     <Product>EVE Command Center</Product>
     <Description>EVE Online command center for multi-client preview, mining and pilot intelligence</Description>
@@ -43,6 +43,7 @@
 
   <ItemGroup>
     <EmbeddedResource Include="Icon.ico" />
+    <EmbeddedResource Include="NOTICE.md" />
     <EmbeddedResource Include="Icon-Suspend.ico" />
     <Resource Include="Resources\CommandCenterIcon.png" />
     <EmbeddedResource Include="Resources\alert_patterns.json" />
@@ -51,4 +52,5 @@
     <EmbeddedResource Include="Resources\skill-planner.json" />
   </ItemGroup>
 
+  <ItemGroup><PackageReference Include="Microsoft.Data.Sqlite" Version="8.0.31" /></ItemGroup>
 </Project>

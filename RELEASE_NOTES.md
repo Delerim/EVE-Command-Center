@@ -1,8 +1,7 @@
-# EVE Command Center v3.6.45
+# EVE Command Center v3.6.46
 
-- Production tables now sort by clicking headings, including item names and numeric shortfalls. Unknown stock sorts after known quantities in either direction, and the current sort is reapplied when the visible table reloads.
-- Added a subtle 1.5% hover lift to project, pilot and component cards. It uses rendering transforms so neighboring rows do not move and honors Windows animation preferences.
-- Continued Phase C Market work with Open, No longer observed and All observations filters. An order absent from a successful complete open-order refresh retains its last price, quantities and observation time; disappearance never implies a fill, sale or cancellation.
-- Reappearing orders return to the open view without duplicates. Failed, malformed and unauthorized refreshes preserve prior observations. Selected pilots and retained observations survive restart in the existing cache.
-- Market tables reuse the polished Industry controls, named item icons, subtle state colors, sortable quantities and dates, and a selected-order explanation. Open-order totals exclude absent orders.
-- This is an order-observation increment. Confirmed order history, wallet transactions, attribution and financial accounting remain pending and will use the planned shared ledger rather than treating these observations as financial evidence.
+- Aligned quantity headings and values consistently in materials, inputs, stock, reservations and market tables. Available, missing, required and reserved quantities now share the same right edge within each column; sorting and saved widths remain available.
+- Continued Phase C with a Confirmed history view in Market. Choose pilots and use Refresh confirmed history to import ESI-confirmed cancelled and expired personal orders. Imports respect the hourly history cache and retain records beyond the API's 90-day retrieval window.
+- History imports commit only after every page succeeds. Failed pages, unsupported states and missing permissions preserve previous records. Repeated refreshes do not duplicate orders; corporation orders are excluded.
+- The first history refresh migrates existing project planning into the shared transactional industry ledger, retaining stable project identities and an exact JSON backup. Projects continue saving in that ledger alongside history. Changes made to the old planning file by an older app are detected rather than silently discarded.
+- Confirmed history takes precedence over stale open-order observations. Missing orders without history remain unresolved; disappearance never implies a fill. Wallet transactions, project attribution and financial accounting are still pending.
