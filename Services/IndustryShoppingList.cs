@@ -8,9 +8,10 @@ public static class IndustryShoppingList
     public sealed record Row(int TypeId, decimal Required, decimal Reserved, decimal Unreserved,
         decimal FreeStock, string Projects, string Review)
     {
+        public bool ConfirmedEmpty { get; init; }
         public bool HasVerifiedStock { get; init; }
-        public string OwnedLabel => HasVerifiedStock ? Owned.ToString("N0") : "Unverified";
-        public string FreeLabel => Review.StartsWith("Reservation/source") ? "Review" : HasVerifiedStock ? FreeStock.ToString("N0") : "Unverified";
+        public string OwnedLabel => HasVerifiedStock ? Owned.ToString("N0") : ConfirmedEmpty ? "N/A" : "Unknown";
+        public string FreeLabel => Review.StartsWith("Reservation/source") ? "Review" : HasVerifiedStock ? FreeStock.ToString("N0") : ConfirmedEmpty ? "N/A" : "Unknown";
         public decimal Owned { get; init; }
         public decimal TotalReserved { get; init; }
         public string Icon => $"https://images.evetech.net/types/{TypeId}/icon?size=32";
@@ -18,7 +19,7 @@ public static class IndustryShoppingList
         public string Name => ResolvedName ?? IndustryCatalog.Name(TypeId);
     }
 
-    public static IReadOnlyList<Row> Build(IndustryWorkspace state, IReadOnlyList<IndustryStockSource> stock, DateTimeOffset now)
+    public static IReadOnlyList<Row> Build(IndustryWorkspace state, IReadOnlyList<IndustryStockSource> stock, DateTimeOffset now, bool inventoryComplete = false)
     {
         var demand = new List<(IndustryProject Project, IndustryProjectNode Node)>();
         foreach (var project in state.Projects.Where(p => !p.Paused && !p.Archived))
@@ -48,7 +49,7 @@ public static class IndustryShoppingList
             if (group.Any(d => d.Project.Nodes.Any(n => n.Strategy == "Make" && d.Project.Nodes.Any(c => c.ParentId == n.Id) && state.Reservations.Any(r => r.NodeId == n.Id))))
                 notes += "; parent stock reserved: child demand not reduced; review sourcing strategy";
             return new Row(group.Key, required, reserved, Math.Max(0, required - reserved), review ? 0 : free,
-                string.Join(" | ", group.Select(d => d.Project.Name).Distinct()), notes) { HasVerifiedStock = stock.Any(s => s.TypeId == group.Key && s.Verified && IndustryWorkspaceInventory.Recent(s.SnapshotUtc, now)), Owned = stock.Where(s => s.TypeId == group.Key && s.Verified && IndustryWorkspaceInventory.Recent(s.SnapshotUtc, now)).GroupBy(s => (s.OwnerId, s.ItemId)).Sum(g => (decimal)g.First().Quantity), TotalReserved = state.Reservations.Where(r => r.TypeId == group.Key).Sum(r => (decimal)r.Quantity) };
+                string.Join(" | ", group.Select(d => d.Project.Name).Distinct()), notes) { ConfirmedEmpty = inventoryComplete && !stock.Any(s => s.TypeId == group.Key), HasVerifiedStock = stock.Any(s => s.TypeId == group.Key && s.Verified && IndustryWorkspaceInventory.Recent(s.SnapshotUtc, now)), Owned = stock.Where(s => s.TypeId == group.Key && s.Verified && IndustryWorkspaceInventory.Recent(s.SnapshotUtc, now)).GroupBy(s => (s.OwnerId, s.ItemId)).Sum(g => (decimal)g.First().Quantity), TotalReserved = state.Reservations.Where(r => r.TypeId == group.Key).Sum(r => (decimal)r.Quantity) };
         }).OrderBy(r => r.Name).ToArray();
     }
 }

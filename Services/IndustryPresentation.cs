@@ -6,28 +6,21 @@ public static class IndustryPresentation
 {
     public sealed record ReadinessState(string Summary, string Detail);
     public static ReadinessState Readiness(IndustryProjectNode node, IReadOnlyList<IndustryPilot> pilots,
-        IReadOnlyList<EvePilotProfile> linked, IReadOnlyList<IndustryBlueprintLibrary.Blueprint> blueprints, DateTimeOffset now)
+        IReadOnlyList<EvePilotProfile> linked, IReadOnlyList<IndustryBlueprintLibrary.Blueprint> blueprints, DateTimeOffset now, long? projectOwnerId = null)
     {
         if (node.Strategy != "Make") return new("", "Purchased or supplied from stock; manufacturing checks do not apply.");
-        var pilot = pilots.FirstOrDefault(p => p.Id == node.ExecutorId);
-        var auth = linked.FirstOrDefault(p => p.CharacterId == node.ExecutorId);
+        var pilot = pilots.FirstOrDefault(p => p.Id == (node.ExecutorId ?? projectOwnerId));
+        var auth = linked.FirstOrDefault(p => p.CharacterId == (node.ExecutorId ?? projectOwnerId));
+        var owner = pilots.FirstOrDefault(p => p.Id == projectOwnerId);
+        var ownerAuth = linked.FirstOrDefault(p => p.CharacterId == projectOwnerId);
         bool fresh = pilot != null && string.IsNullOrWhiteSpace(pilot.Error) && IndustryWorkspaceInventory.Recent(pilot.Updated, now);
-        var owned = blueprints.Where(b => b.TypeId == node.BlueprintTypeId && b.OwnerId == node.ExecutorId).ToArray();
-        string bp = "? Blueprint", detail = "Assign a pilot to check their blueprint and skills.";
-        if (fresh && auth?.Scopes.Contains("esi-characters.read_blueprints.v1") == true)
+        var owned = blueprints.Where(b => b.TypeId == node.BlueprintTypeId && b.OwnerId == projectOwnerId).ToArray();
+        string bp = "? Blueprint", detail = "Choose a project owner and refresh their blueprint inventory.";
+        if (owner != null && string.IsNullOrWhiteSpace(owner.Error) && IndustryWorkspaceInventory.Recent(owner.Updated, now) && ownerAuth?.Scopes.Contains("esi-characters.read_blueprints.v1") == true)
         {
             var usable = owned.FirstOrDefault(b => b.Available && (!b.Copy || b.Runs >= node.PlannedRuns));
             bp = usable != null ? "\u2713 " + (usable.Copy ? "BPC" : "BPO") : owned.Length > 0 ? "! Blueprint" : "\u00d7 Blueprint";
-            detail = usable != null ? $"{pilot!.Name}: {(usable.Copy ? "copy" : "original")} available for the planned runs. {usable.Location}." : owned.Length > 0 ? "Owned blueprint is busy, lacks runs, or needs review." : $"No matching blueprint in {pilot!.Name}'s current inventory.";
-        }
-        if (node.ExecutorId == null)
-        {
-            var fleetCopy = blueprints.FirstOrDefault(b => b.TypeId == node.BlueprintTypeId && b.Available && (!b.Copy || b.Runs >= node.PlannedRuns));
-            if (fleetCopy != null)
-            {
-                bp = "\u2713 " + (fleetCopy.Copy ? "BPC" : "BPO") + " (fleet)";
-                detail = $"{fleetCopy.Owner} has an available {(fleetCopy.Copy ? "copy" : "original")} at {fleetCopy.Location}. Assign a pilot to check their skills; access or hauling may be needed.";
-            }
+            detail = usable != null ? $"{owner!.Name}: {(usable.Copy ? "copy" : "original")} available for the planned runs. {usable.Location}." : owned.Length > 0 ? "Owned blueprint is busy, lacks runs, or needs review." : $"No matching blueprint in {owner!.Name}'s current inventory.";
         }
         var recipe = IndustryCatalog.Recipes.FirstOrDefault(r => r.Blueprint == node.BlueprintTypeId && r.Activity == "manufacturing");
         string skills = "? Skills";
@@ -35,6 +28,7 @@ public static class IndustryPresentation
         {
             var missing = recipe.Skills.Where(s => pilot!.Skills.GetValueOrDefault(s.Key) < s.Value).ToArray();
             skills = missing.Length == 0 ? "\u2713 Skills" : "\u00d7 Skills";
+            detail += $" Skills checked for {pilot!.Name}.";
             detail += missing.Length == 0 ? " Required recipe skills trained." : " Missing: " + string.Join(", ", missing.Select(s => IndustryDisplayNames.Type(pilot, s.Key) + " level " + s.Value)) + ".";
         }
         else detail += " Skills unverified: assign a pilot and refresh with skill access.";

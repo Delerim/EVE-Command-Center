@@ -43,10 +43,22 @@ public partial class OmegaWindow:Window
             {
                 string name = IndustryCatalog.Text(c, "name");
                 var implants = c.TryGetProperty("implants", out var items) ? items.EnumerateArray().Select(i => new ImplantRow(i.GetInt32(), p.ImplantNames.GetValueOrDefault(i.GetInt32(), IndustryCatalog.Name(i.GetInt32())))).ToArray() : Array.Empty<ImplantRow>();
-                rows.Add(new(string.IsNullOrWhiteSpace(name) ? "Unnamed jump clone" : name, p.LocationNames.GetValueOrDefault(IndustryCatalog.Num(c, "location_id"), "Location name unavailable"), implants));
+                rows.Add(new(string.IsNullOrWhiteSpace(name) ? "Clone name unavailable" : name, p.LocationNames.GetValueOrDefault(IndustryCatalog.Num(c, "location_id"), "Location name unavailable"), implants));
             }
         CloneCards.ItemsSource = rows;
         CloneEmpty.Visibility = rows.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+    }
+    private async void RefreshClones_Click(object sender, RoutedEventArgs e)
+    {
+        RefreshClonesButton.IsEnabled = false;
+        try
+        {
+            _service.Due();
+            await _service.RefreshAsync(_life.Token);
+            Update();
+            StatusText.Text = "Clone refresh requested. Names are shown when supplied by EVE; refresh errors appear above.";
+        }
+        finally { RefreshClonesButton.IsEnabled = true; }
     }
     private sealed record ImplantRow(int TypeId, string Name) { public string Icon => $"https://images.evetech.net/types/{TypeId}/icon?size=32"; }
     private sealed record CloneRow(string Name, string Location, ImplantRow[] Implants)

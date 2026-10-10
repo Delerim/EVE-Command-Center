@@ -119,3 +119,12 @@ Readiness badges distinguish a usable owned BPC/BPO, insufficient runs or busy c
 Clone metadata now resolves station/structure and implant names using the existing SSO client. Market location/type names and planetary container locations use the same resolver. A failed optional lookup does not invalidate a successful inventory/order/clone observation. Raw source and historical audit data are retained; UI projections omit keys and technical evidence dumps. Structure names still require scope and ACL access. No new SSO flow or independent ESI transport was added.
 
 WPF render fixtures cover the gallery, creation library, component inputs, jobs, stock and materials at wide and compact sizes. Checks exercise persisted layout dimensions/order, corrupt preference recovery, new-project navigation, missing versus unknown readiness, clone station names, and readable history. Live desktop mouse automation is unavailable; control-level checks and renders do not claim a live end-user mouse test. The remaining brief requirements listed above are unchanged.
+
+
+## v3.6.43 - Owner readiness and project skill comparison
+
+Blueprint badges are scoped to LeadId; skills use ExecutorId when explicitly assigned, otherwise LeadId. The Required skills tab aggregates the maximum direct recipe skill levels across the active Make tree, names each contributing product, and compares linked pilots without changing plans. Missing recipes, missing authorization and stale snapshots are distinct from missing training. Facility eligibility and prerequisite training plans remain separate.
+
+Stock absence is only N/A when every linked personal inventory has a current successful authorized snapshot and no matching source exists. Unknown never means zero. Allocation and canonical source identities are unchanged.
+
+Omega preserves supplied clone names and offers explicit refresh. ESI's optional name field was absent in the reported cached character response; the UI cannot infer custom names from implants or clone location.

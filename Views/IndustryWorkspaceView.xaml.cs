@@ -73,7 +73,7 @@ public partial class IndustryWorkspaceView : System.Windows.Controls.UserControl
             Select(BlueprintOwner, blueprintOwner ?? _state.DefaultLeadId);
             if (BlueprintOwner.SelectedItem == null && BlueprintOwner.Items.Count > 0) BlueprintOwner.SelectedIndex = 0;
             _blueprints = IndustryBlueprintLibrary.Read(_inventory(), _linked.Where(p => p.Scopes.Contains("esi-characters.read_blueprints.v1")).Select(p => p.CharacterId).ToHashSet(), DateTimeOffset.UtcNow);
-            Shopping.ItemsSource = IndustryShoppingList.Build(_state, _stock, DateTimeOffset.UtcNow).Select(r => r with { ResolvedName = ProductName(r.TypeId, r.Name) }).ToArray();
+            Shopping.ItemsSource = IndustryShoppingList.Build(_state, _stock, DateTimeOffset.UtcNow, InventoryComplete).Select(r => r with { ResolvedName = ProductName(r.TypeId, r.Name) }).ToArray();
             RecoverButton.Visibility = _store.Error.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
             Message.Text = _store.Error.Length > 0 ? _store.Error : "Draft planning only. Refresh Industry to update source snapshots, then reload here. No purchases, jobs or deliveries are inferred.";
             foreach (var box in new[] { DefaultLead, DefaultBuyer, DefaultSeller, ProjectLead, ProjectBuyer, ProjectSeller, Executor }) box.ItemsSource = Options();
@@ -136,6 +136,7 @@ public partial class IndustryWorkspaceView : System.Windows.Controls.UserControl
         Nodes.ItemsSource = project.Nodes.Where(n => n.ParentId == null).Select(Row).ToList();
 
         Audit.Text = string.Join(Environment.NewLine, _state.Events.Where(e => e.ProjectId == project.Id || e.ProjectId == null).OrderByDescending(e => e.TimeUtc).Take(100).Select(e => $"{e.TimeUtc:u} {IndustryPresentation.History(e.Description)}"));
+        RefreshProjectSkills(project);
         ShowNode();
     }
     private void Node_Selected(object sender, RoutedPropertyChangedEventArgs<object> e)
@@ -174,7 +175,7 @@ public partial class IndustryWorkspaceView : System.Windows.Controls.UserControl
         Coverage.Text = $"Reserved for this build: {reserved:N0} / {node.Quantity:N0}  |  Still needed: {node.Quantity - reserved:N0}  |  Reservation does not confirm delivery.";
     }
     private IndustryPresentation.ReadinessState Readiness(IndustryProjectNode node) =>
-        IndustryPresentation.Readiness(node, _inventory().ToArray(), _linked, _blueprints, DateTimeOffset.UtcNow);
+        IndustryPresentation.Readiness(node, _inventory().ToArray(), _linked, _blueprints, DateTimeOffset.UtcNow, _state.Projects.FirstOrDefault(p => p.Id == _projectId)?.LeadId);
     private IReadOnlyList<IndustryJobLink> ReadJobs() => IndustryJobMatching.Read(_inventory(), _linked.Where(p => p.Scopes.Contains("esi-industry.read_character_jobs.v1")).Select(p => p.CharacterId).ToHashSet());
     private void RefreshComponentDetails(IndustryProjectNode node)
     {
@@ -182,7 +183,7 @@ public partial class IndustryWorkspaceView : System.Windows.Controls.UserControl
         var children = project.Nodes.Where(n => n.ParentId == node.Id).ToArray();
         ComponentInputs.ItemsSource = children.Select(n => new InputRow(n.Id, ProductName(n.TypeId, n.Name), n.TypeId, n.Quantity, n.Strategy,
             _state.Reservations.Where(r => r.NodeId == n.Id).Sum(r => (decimal)r.Quantity),
-            _stock.Any(s => s.TypeId == n.TypeId && s.Verified) ? _stock.Where(s => s.TypeId == n.TypeId && s.Verified).Sum(s => Math.Max(0, s.Quantity - _state.Reservations.Where(r => r.OwnerId == s.OwnerId && r.ItemId == s.ItemId).Sum(r => (decimal)r.Quantity))).ToString("N0") : "Unverified")).ToArray();
+            _stock.Any(s => s.TypeId == n.TypeId && s.Verified) ? _stock.Where(s => s.TypeId == n.TypeId && s.Verified).Sum(s => Math.Max(0, s.Quantity - _state.Reservations.Where(r => r.OwnerId == s.OwnerId && r.ItemId == s.ItemId).Sum(r => (decimal)r.Quantity))).ToString("N0") : InventoryComplete && !_stock.Any(s => s.TypeId == n.TypeId) ? "N/A" : "Unknown")).ToArray();
         InputsHint.Text = children.Length == 0 ? "No expanded manufacturing inputs. Choose stock or procurement for this item." : node.Strategy == "Make" ? "Select an input to inspect its own blueprint, stock and assignment. Free stock is shared across every project." : "These inputs are inactive while this component is sourced through " + node.Strategy + ".";
         ComponentBlueprintOwner.ItemsSource = new[] { new PilotOption(null, "All authorized owners") }.Concat(_linked.Select(p => new PilotOption(p.CharacterId, p.CharacterName))).ToArray();
         ComponentBlueprintOwner.SelectedIndex = 0;
@@ -284,7 +285,7 @@ public partial class IndustryWorkspaceView : System.Windows.Controls.UserControl
         {
             var rows = Shopping.Items.Cast<IndustryShoppingList.Row>();
             System.Windows.Clipboard.SetText("Material\tRequired\tReserved\tUnreserved\tFree observed\tProjects\tReview" + Environment.NewLine +
-                string.Join(Environment.NewLine, rows.Select(r => $"{r.Name}\t{r.Required}\t{r.Reserved}\t{r.Unreserved}\t{r.FreeStock}\t{r.Projects}\t{r.Review}")));
+                string.Join(Environment.NewLine, rows.Select(r => $"{r.Name}\t{r.Required}\t{r.Reserved}\t{r.Unreserved}\t{r.FreeLabel}\t{r.Projects}\t{r.Review}")));
             Message.Text = "Copied consolidated planned materials. Free stock still needs explicit reservation.";
         }
         catch (Exception ex) { Message.Text = "Could not copy materials: " + ex.Message; }
@@ -407,7 +408,7 @@ public partial class IndustryWorkspaceView : System.Windows.Controls.UserControl
         public string Name => ResolvedName;
         public string Icon => $"https://images.evetech.net/types/{Source.TypeId}/icon?size=32";
         public decimal Reserved => Math.Max(0, Source.Quantity - Available);
-        public string Free => Source.Verified ? Available.ToString("N0") : "Unverified";
+        public string Free => Source.Verified ? Available.ToString("N0") : "Unknown";
         public string Owner => Source.Owner;
         public string Path => DisplayPath;
         public long ItemId => Source.ItemId;

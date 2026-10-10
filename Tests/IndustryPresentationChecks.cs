@@ -20,6 +20,8 @@ internal static partial class Program
         ((DataGrid)window.FindName("Pilots")).ItemsSource = new[] { pilot };
         ((DataGrid)window.FindName("Pilots")).SelectedItem = pilot;
         Check(((ItemsControl)window.FindName("CloneCards")).Items.Count == 2 && ((TextBlock)window.FindName("CloneSummary")).Text.Contains("Jita"), "Clone inspector renders named stations and individual clone cards");
+        var cards = ((ItemsControl)window.FindName("CloneCards")).Items.Cast<object>().ToArray();
+        Check((string?)cards[0].GetType().GetProperty("Name")!.GetValue(cards[0]) == "Mining clone", "Supplied custom clone names are preserved");
         Render(window, Path.ChangeExtension(renderPath, ".clones.png"));
         window.Close();
     }
@@ -31,7 +33,7 @@ internal static partial class Program
         var pilot = new IndustryPilot { Id = 42, Name = "Builder", Error = "", Updated = now, Skills = new(recipe.Skills) };
         var auth = new EvePilotProfile { CharacterId = 42, CharacterName = "Builder", Scopes = new[] { "esi-characters.read_blueprints.v1", "esi-skills.read_skills.v1" } };
         var copy = new IndustryBlueprintLibrary.Blueprint(42, "Builder", 123, recipe.Blueprint, 60003760, "Jita IV - Moon 4", 10, 20, 5, true, true, "Available");
-        IndustryPresentation.ReadinessState State() => IndustryPresentation.Readiness(node, new[] { pilot }, new[] { auth }, new[] { copy }, now);
+        IndustryPresentation.ReadinessState State() => IndustryPresentation.Readiness(node, new[] { pilot }, new[] { auth }, new[] { copy }, now, 42);
         Check(State().Summary == "\u2713 BPC   \u2713 Skills", "Readiness confirms a usable copy and trained recipe skills for the assigned pilot");
         pilot.Skills.Clear();
         Check(State().Summary.Contains("\u00d7 Skills") && State().Detail.Contains("Missing:"), "Known missing skills are distinct from unknown data and list their names");
@@ -40,7 +42,26 @@ internal static partial class Program
         pilot.Updated = now; copy = copy with { Runs = 2 };
         Check(State().Summary.Contains("! Blueprint"), "A copy with insufficient runs is not marked available for this build");
         copy = copy with { Runs = 5 }; node.ExecutorId = null;
-        Check(State().Summary.Contains("BPC (fleet)") && State().Summary.Contains("? Skills"), "Unassigned components show an available fleet copy without claiming unassigned skills");
+        pilot.Skills = new(recipe.Skills);
+        Check(State().Summary == "\u2713 BPC   \u2713 Skills", "Unassigned components check project owner blueprint and skills");
+        node.ExecutorId = 99;
+        Check(State().Summary.Contains("\u2713 BPC") && State().Summary.Contains("? Skills"), "Changing executor leaves owner blueprint check intact and checks new executor skills");
+        node.ExecutorId = null;
+        Check(IndustryPresentation.Readiness(node, new[] { pilot }, new[] { auth }, new[] { copy with { OwnerId = 99 } }, now, 42).Summary.Contains("\u00d7 Blueprint"), "Another pilot blueprint cannot satisfy owner availability");
+        var project = new IndustryProject { LeadId = 42, Nodes = new() { node } };
+        var requirements = IndustryProjectSkills.Read(project);
+        Check(requirements.Requirements.Count == recipe.Skills.Count && requirements.MissingRecipes == 0, "Project aggregates root recipe skills");
+        var child = new IndustryProjectNode { ParentId = node.Id, BlueprintTypeId = recipe.Blueprint, Strategy = "Make", Name = "Component" };
+        project.Nodes.Add(child);
+        Check(IndustryProjectSkills.Read(project).Requirements.Count == recipe.Skills.Count, "Repeated skill requirements are deduplicated");
+        child.BlueprintTypeId = int.MaxValue;
+        Check(IndustryProjectSkills.Read(project).MissingRecipes == 1, "Missing component recipes prevent false complete readiness");
+        child.Strategy = "Buy";
+        Check(IndustryProjectSkills.Read(project).MissingRecipes == 0, "Bought component skills are excluded");
+        var workspace = new IndustryWorkspace { Projects = new() { project } };
+        var absent = IndustryShoppingList.Build(workspace, Array.Empty<IndustryStockSource>(), now, true);
+        Check(absent.All(r => r.OwnedLabel == "N/A"), "Complete inventories with no matching stock show N/A");
+        Check(IndustryShoppingList.Build(workspace, Array.Empty<IndustryStockSource>(), now).All(r => r.OwnedLabel == "Unknown"), "Incomplete inventories never claim absence");
         Check(!IndustryPresentation.History("Assigned local manufacturing plan for component 12345678-1234-1234-1234-123456789abc to 999999; facility 60003760.").Contains("999999"), "History presentation hides internal keys while retaining the original evidence");
         var omega = new OmegaPilot { Clones = JsonSerializer.SerializeToElement(new { home_location = new { location_id = 60003760, location_type = "station" } }), LocationNames = new() { [60003760] = "Jita IV - Moon 4 - Caldari Navy Assembly Plant" } };
         Check(omega.Home.StartsWith("Jita") && !omega.Home.Contains("60003760"), "Clone home resolves to a station name");

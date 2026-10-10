@@ -89,8 +89,9 @@ internal static partial class Program
         var componentForJob = full.First(n => n.ParentId == full[0].Id);
         pilot.Jobs.Add(JsonSerializer.SerializeToElement(new { activity_id = 1, job_id = 987654, installer_id = 42, product_type_id = componentForJob.TypeId,
             blueprint_type_id = componentForJob.BlueprintTypeId, blueprint_id = 76543, facility_id = 60003760, runs = 4, status = "active", start_date = now.AddHours(-1), end_date = now.AddHours(2) }));
+        pilot.Skills = IndustryCatalog.Recipes.Where(r => r.Activity == "manufacturing").SelectMany(r => r.Skills).GroupBy(s => s.Key).ToDictionary(g => g.Key, g => g.Max(s => s.Value));
         var view = new IndustryWorkspaceView();
-        view.Initialize(store, () => new[] { pilot }, new() { new() { CharacterId = 42, CharacterName = "Blueprint owner", Scopes = new[] { "esi-characters.read_blueprints.v1", "esi-assets.read_assets.v1", "esi-industry.read_character_jobs.v1" } } });
+        view.Initialize(store, () => new[] { pilot }, new() { new() { CharacterId = 42, CharacterName = "Blueprint owner", Scopes = new[] { "esi-characters.read_blueprints.v1", "esi-assets.read_assets.v1", "esi-industry.read_character_jobs.v1", "esi-skills.read_skills.v1" } } });
         Check(((FrameworkElement)view.FindName("ProjectGallery")).Visibility == Visibility.Visible && ((ListBox)view.FindName("Projects")).SelectedItem == null,
             "Production Queue opens on selectable project cards, including the first project");
         var locations = (System.Windows.Controls.ComboBox)view.FindName("BlueprintLocation");
@@ -130,6 +131,10 @@ internal static partial class Program
             typeof(IndustryWorkspaceView).GetMethod("OpenProject", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.Invoke(view, null);
             ((ScrollViewer)view.FindName("EditorScroll")).ScrollToTop();
             Render(shell, Path.ChangeExtension(renderPath, ".tree.png"));
+            ((TabControl)view.FindName("WorkspaceTabs")).SelectedItem = view.FindName("SkillsTab");
+            Check(((ListBox)view.FindName("SkillPilots")).Items.Count == 1 && ((DataGrid)view.FindName("ProjectSkills")).Items.Count > 0, "Project skills tab offers pilot comparison and recipe requirements");
+            Render(shell, Path.ChangeExtension(renderPath, ".skills.png"));
+            ((TabControl)view.FindName("WorkspaceTabs")).SelectedItem = view.FindName("ProjectDetailTab");
             var treeRoot = (TreeViewItem)componentTree.ItemContainerGenerator.ContainerFromIndex(0);
             var treeChild = (TreeViewItem)treeRoot.ItemContainerGenerator.ContainerFromIndex(0);
             var rowBorder = (System.Windows.Controls.Border)treeChild.Template.FindName("Row", treeChild);

@@ -12,7 +12,7 @@
 <WrapPanel Margin="0,16,0,12"><Button Content="SAVE DATE" Click="Save_Click" Margin="0,0,8,0"/><Button Content="CLEAR DATE" Click="Clear_Click"/></WrapPanel>
 <TextBlock Text="A saved date applies to pilots sharing this account group." Foreground="#91A4AD" TextWrapping="Wrap"/>
 <Border Height="1" Background="#245058" Margin="0,22"/>
-<TextBlock Text="CLONE DETAILS" Foreground="#9EBFFF" FontWeight="Bold" Margin="0,0,0,12"/>
+<DockPanel Margin="0,0,0,12"><Button x:Name="RefreshClonesButton" Content="Refresh clones" DockPanel.Dock="Right" HorizontalAlignment="Right" Click="RefreshClones_Click"/><TextBlock Text="CLONE DETAILS" Foreground="#9EBFFF" FontWeight="Bold" VerticalAlignment="Center"/></DockPanel>
 <StackPanel>
  <TextBlock Foreground="#BACED0" x:Name="CloneSummary" TextWrapping="Wrap" Margin="0,8,0,12"/>
  <TextBlock Foreground="#BACED0" x:Name="CloneEmpty" Text="No jump clones in this snapshot." Margin="0,10"/>

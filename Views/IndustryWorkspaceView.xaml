@@ -395,7 +395,7 @@
      </TabItem>
         <TabItem x:Name="MaterialsTab" Header="All project materials">
           <DockPanel Margin="12">
-            <TextBlock Text="Saved quantities across all active projects. Buy / Use Stock replaces child input demand; Make uses its planned children. Free stock is shown once per material, not automatically allocated. Paused projects retain reservations. Orders and purchases are not yet imported." TextWrapping="Wrap" Margin="3,8" DockPanel.Dock="Top" />
+            <TextBlock Text="N/A means no stock in complete, current inventories. Unknown means inventory could not be confirmed. Saved quantities across all active projects. Buy / Use Stock replaces child input demand; Make uses its planned children. Free stock is shown once per material, not automatically allocated. Paused projects retain reservations. Orders and purchases are not yet imported." TextWrapping="Wrap" Margin="3,8" DockPanel.Dock="Top" />
             <Button Content="COPY MATERIALS LIST" Click="CopyShopping_Click" HorizontalAlignment="Left" DockPanel.Dock="Bottom" />
             <DataGrid x:Name="Shopping">
               <DataGrid.Columns>
@@ -451,6 +451,29 @@
                 </Style>
               </DataGrid.RowStyle>
             </DataGrid>
+          </DockPanel>
+        </TabItem>
+        <TabItem x:Name="SkillsTab" Header="Required skills">
+          <DockPanel Margin="14">
+            <StackPanel DockPanel.Dock="Top">
+              <TextBlock Text="Who can build this project?" FontSize="20" Foreground="#E1F3F2" Margin="0,0,0,8"/>
+              <TextBlock x:Name="SkillsScope" TextWrapping="Wrap" Margin="0,0,0,12"/>
+              <ListBox x:Name="SkillPilots" SelectionChanged="SkillPilot_Selected" Background="Transparent" BorderThickness="0" ScrollViewer.HorizontalScrollBarVisibility="Disabled" MaxHeight="240">
+                <ListBox.ItemsPanel><ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate></ListBox.ItemsPanel>
+                <ListBox.ItemTemplate><DataTemplate><StackPanel Orientation="Horizontal" Width="168" Margin="6">
+                  <Image Source="{Binding Portrait}" Width="36" Height="36" Margin="0,0,8,0"/>
+                  <StackPanel VerticalAlignment="Center"><TextBlock Text="{Binding Name}" Foreground="#E1F3F2"/><TextBlock Text="{Binding Status}" Foreground="{Binding Color}" FontSize="11" Margin="0,4,0,0"/></StackPanel>
+                </StackPanel></DataTemplate></ListBox.ItemTemplate>
+              </ListBox>
+              <TextBlock x:Name="SkillsStatus" TextWrapping="Wrap" Margin="0,12"/>
+            </StackPanel>
+            <DataGrid x:Name="ProjectSkills"><DataGrid.Columns>
+              <DataGridTemplateColumn Header="Skill" Width="2*"><DataGridTemplateColumn.CellTemplate><DataTemplate><StackPanel Orientation="Horizontal"><Image Source="{Binding Icon}" Width="24" Height="24" Margin="0,0,8,0"/><TextBlock Text="{Binding Name}" VerticalAlignment="Center"/></StackPanel></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
+              <DataGridTextColumn Header="Trained" Binding="{Binding Trained}" Width="80"/>
+              <DataGridTextColumn Header="Required" Binding="{Binding Required}" Width="80"/>
+              <DataGridTemplateColumn Header="Training needed" Width="150"><DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding Training}" Foreground="{Binding Color}"/></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
+              <DataGridTemplateColumn Header="Used by" Width="3*"><DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding Products}" TextWrapping="Wrap" ToolTip="{Binding Products}" Margin="0,4"/></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
+            </DataGrid.Columns></DataGrid>
           </DockPanel>
         </TabItem>
         <TabItem Header="Setup">

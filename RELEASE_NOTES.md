@@ -1,10 +1,7 @@
-# EVE Command Center v3.6.42
+# EVE Command Center v3.6.43
 
-- Production Queue now opens on project cards with item icons. Open a build to work with its component tree, or choose New project to browse owned blueprints by pilot and container. The blueprint library is no longer a permanent component tab.
-- Moved activity filters inside Jobs. Manufacturing, research and other job filters no longer affect Production Queue or the blueprint planner.
-- Rebuilt the component inspector around full-height input and material tables. Stock and reservations have a draggable divider; blueprint and job tables have height handles. Pane widths, table heights, column sizes and column order are remembered.
-- Added material icons, grouped quantities and subtle stock colors. Consolidated materials show owned, free and all reserved stock first, separately from reservations for active builds. Unknown inventory is labelled unverified rather than presented as zero.
-- Added component blueprint and skill indicators. Available fleet copies are identified before assignment; assigned-pilot checks distinguish trained skills, missing requirements, insufficient blueprint runs and stale or missing data. Facility access and hauling remain separate checks.
-- Replaced exposed identifiers in project history, job evidence, blueprint tables, market locations, clone details and settings labels with readable names or an explicit unavailable state. Internal identities and original audit evidence are preserved.
-- Omega clone cards now show station names and named implant icons. Market and planetary containers also resolve location names through the existing ESI infrastructure; inaccessible names retain the last known value where available.
-- Verified project creation, selection, deletion, job linking, layout persistence and compact layouts. This release refines the current planning workflow; later reconciliation and financial phases remain pending.
+- Added Required skills inside each production project, with compact pilot portraits, training status, current and required skill levels, and the components that require each skill. Comparison never changes assignments. Bought or stock-supplied subtrees are excluded; missing recipes and stale skill data cannot claim readiness.
+- Blueprint readiness now checks the project owner only. Component skills use the project owner until another executing pilot is assigned.
+- Consolidated stock and component inputs distinguish N/A (no matching stock in complete current inventories) from Unknown (inventory not confirmed). Reservations and free-stock calculations are unchanged.
+- Added Refresh clones to Omega. Custom clone names supplied by EVE remain visible; missing names now say Clone name unavailable instead of incorrectly claiming the clone is unnamed. Implant icons and names remain available.
+- Required skills table column sizes and order are remembered with the existing workspace layout preferences.
