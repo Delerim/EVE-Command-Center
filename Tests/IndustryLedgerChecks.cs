@@ -39,7 +39,7 @@ internal static partial class Program
             handler.FailSecond = false;
             await service.RefreshHistoryAsync(new[] { pilot }, CancellationToken.None);
             Check(service.History.Count == 2 && service.History.Select(h => h.Order.State).Distinct().Count() == 2,
-                "All history pages commit together with authoritative cancelled and expired states");
+                "All history pages commit together including valid zero-day immediate orders");
             Check(service.History[0].Order.Price == 123456789.123456789m && ledger.NextHistory(42) > DateTimeOffset.UtcNow,
                 "History preserves decimal prices exactly and persists the API cache checkpoint");
             int calls = handler.Calls; await service.RefreshHistoryAsync(new[] { pilot }, CancellationToken.None);
@@ -83,7 +83,7 @@ internal static partial class Program
             Calls++; bool second = request.RequestUri!.Query == "?page=2";
             if (second && FailSecond) return Task.FromResult(new HttpResponseMessage(HttpStatusCode.ServiceUnavailable));
             var order = new HistoricalMarketOrder { OrderId = second ? 912 : 911, TypeId = second ? 35 : 34, LocationId = 60003760, RegionId = 10000002,
-                Price = 123456789.123456789m, Total = 100, Remaining = 30, Issued = DateTimeOffset.UtcNow.AddDays(-35), Duration = 30, Buy = true,
+                Price = 123456789.123456789m, Total = 100, Remaining = 30, Issued = DateTimeOffset.UtcNow.AddDays(-35), Duration = 0, Buy = true,
                 State = UnknownState ? "filled" : second ? "expired" : "cancelled", ResolvedLocation = "Jita IV - Moon 4 - Caldari Navy Assembly Plant" };
             var response = new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(JsonSerializer.Serialize(new[] { order })) };
             response.Headers.TryAddWithoutValidation("X-Pages", "2"); response.Headers.CacheControl = new() { MaxAge = TimeSpan.FromHours(1) };

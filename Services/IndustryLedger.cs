@@ -7,7 +7,7 @@ using Microsoft.Data.Sqlite;
 namespace EveCommandCenter.Services;
 
 // One durable store for planning and imported history. The old JSON is an immutable migration backup.
-internal sealed class IndustryLedger(string directory)
+internal sealed partial class IndustryLedger(string directory)
 {
     internal string PathName => Path.Combine(directory, "industry-ledger.db");
     private string Legacy => Path.Combine(directory, "industry-workspace.json");
@@ -32,9 +32,11 @@ internal sealed class IndustryLedger(string directory)
         try
         {
             using var version = Command(c, "PRAGMA user_version");
-            if (Convert.ToInt32(version.ExecuteScalar()) != 1) throw new InvalidDataException("Unsupported industry ledger version; data preserved.");
+            int schema = Convert.ToInt32(version.ExecuteScalar());
+            if (schema is not (1 or 2)) throw new InvalidDataException("Unsupported industry ledger version; data preserved.");
             using var hash = Command(c, "SELECT legacy_hash FROM workspace WHERE id=1");
             if ((string?)hash.ExecuteScalar() != Fingerprint(Legacy)) throw new InvalidDataException("The preserved planning file changed after migration. Reopen with a compatible version; data preserved.");
+            if (schema == 1) UpgradeTransactions(c);
             return c;
         }
         catch { c.Dispose(); throw; }

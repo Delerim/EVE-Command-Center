@@ -1561,13 +1561,23 @@ public sealed class EveSsoService
     {
         return GetAccessTokenAsync(pilot, cancellationToken);
     }
+    internal static bool CachedTokenCoversProfile(string token, EvePilotProfile pilot)
+    {
+        try
+        {
+            var identity = DecodeJwtIdentity(token);
+            return identity.CharacterID == pilot.CharacterId && pilot.Scopes.All(s => identity.Scopes.Contains(s, StringComparer.Ordinal));
+        }
+        catch { return false; }
+    }
     private async Task<string> GetAccessTokenAsync(
         EvePilotProfile pilot,
         CancellationToken cancellationToken)
     {
         if (_accessTokens.TryGetValue(
                 pilot.CharacterId, out TokenCache? cached) &&
-            cached.ExpiresAt > DateTimeOffset.UtcNow.AddMinutes(1))
+            cached.ExpiresAt > DateTimeOffset.UtcNow.AddMinutes(1) &&
+            CachedTokenCoversProfile(cached.AccessToken, pilot))
             return cached.AccessToken;
 
         string? refreshToken =

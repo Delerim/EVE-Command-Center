@@ -6,18 +6,19 @@
  <DockPanel Margin="18">
   <StackPanel DockPanel.Dock="Top">
    <TextBlock Text="MARKET COMMAND CENTER" FontSize="26" Foreground="#55D7D2" FontWeight="Bold"/>
-   <TextBlock Text="Personal order tracking • cached observations, not a spending or profit ledger" Margin="0,6,0,12"/>
+   <TextBlock Text="Personal orders and confirmed purchases / sales" Margin="0,6,0,12"/>
    <Expander Header="CHOOSE MARKET CHARACTERS" Foreground="#74D6C9" IsExpanded="True">
     <StackPanel><ItemsControl x:Name="Characters"><ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate></ItemsControl.ItemsPanel><ItemsControl.ItemTemplate><DataTemplate><CheckBox Content="{Binding Name}" IsChecked="{Binding Selected, Mode=TwoWay}" Foreground="#DDF6F4" Margin="4,8,16,8"/></DataTemplate></ItemsControl.ItemTemplate></ItemsControl></StackPanel>
    </Expander>
-   <WrapPanel Margin="0,10"><Button x:Name="RefreshButton" Content="SAVE SELECTION / REFRESH WHEN DUE" Click="Refresh_Click"/><Button x:Name="HistoryButton" Content="Refresh confirmed history" Click="History_Click"/><ComboBox x:Name="Observation" SelectedIndex="0" SelectionChanged="Observation_Changed" MinWidth="170" Margin="10,0"><ComboBoxItem Content="Open orders" Tag="open"/><ComboBoxItem Content="No longer observed" Tag="missing"/><ComboBoxItem Content="All observations" Tag="all"/><ComboBoxItem Content="Confirmed history" Tag="history"/></ComboBox><TextBox x:Name="Search" Width="230" Margin="12,0" TextChanged="Search_Changed" ToolTip="Search item or pilot name"/></WrapPanel>
+   <WrapPanel Margin="0,10"><Button x:Name="RefreshButton" Content="Refresh orders" Click="Refresh_Click"/><Button x:Name="HistoryButton" Content="Refresh confirmed history" Click="History_Click"/><Button x:Name="TransactionsButton" Content="Refresh transactions" Click="Transactions_Click"/><ComboBox x:Name="Observation" SelectedIndex="0" SelectionChanged="Observation_Changed" MinWidth="170" Margin="10,0"><ComboBoxItem Content="Open orders" Tag="open"/><ComboBoxItem Content="No longer observed" Tag="missing"/><ComboBoxItem Content="All observations" Tag="all"/><ComboBoxItem Content="Confirmed history" Tag="history"/><ComboBoxItem Content="Transactions" Tag="transactions"/></ComboBox><TextBox x:Name="Search" Width="230" Margin="12,0" TextChanged="Search_Changed" ToolTip="Search item or pilot name"/></WrapPanel>
    <Border Background="#102D31" BorderBrush="#74D6C9" BorderThickness="0,2,0,0" Padding="12"><TextBlock x:Name="Totals" FontSize="16" TextWrapping="Wrap"/></Border>
    <TextBlock x:Name="HistoryStatus" TextWrapping="Wrap" Margin="0,6"/><TextBlock x:Name="Status" TextWrapping="Wrap" Foreground="#FFD166" Margin="0,10"/>
    <TabControl x:Name="SideTabs" SelectionChanged="Side_Changed" Background="#07181B" BorderBrush="#245058"><TabItem Header="Buy orders" Tag="buy"/><TabItem Header="Sell orders" Tag="sell"/></TabControl>
    <TextBlock x:Name="ObservationSummary" TextWrapping="Wrap" Margin="0,10"/>
   </StackPanel>
-  <TextBlock DockPanel.Dock="Bottom" Text="Open orders refresh about every 20 minutes; confirmed history about hourly. ESI returns cancelled / expired orders from the past 90 days; imported history is retained locally. Filled orders require wallet transactions, which are not imported yet. Corporation orders are excluded." TextWrapping="Wrap" Margin="0,10"/>
+  <TextBlock DockPanel.Dock="Bottom" Text="Open orders refresh about every 20 minutes; confirmed history about hourly. ESI returns cancelled / expired orders from the past 90 days; imported history is retained locally. Transactions refresh about hourly and show confirmed purchases / sales. Gross totals exclude fees and do not represent profit. Corporation records are excluded." TextWrapping="Wrap" Margin="0,10"/>
   <Border DockPanel.Dock="Bottom" Style="{StaticResource Card}"><TextBlock x:Name="OrderDetail" Text="Select an order to inspect its last observation." TextWrapping="Wrap"/></Border>
+  <Grid>
   <DataGrid x:Name="Orders" SelectionChanged="Order_Selected" ScrollViewer.HorizontalScrollBarVisibility="Auto" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" EnableRowVirtualization="True" MinRowHeight="42" Background="#07181B" RowBackground="#0C2529" AlternatingRowBackground="#102D31" Foreground="#DDF6F4" BorderBrush="#245058" HeadersVisibility="Column">
    <DataGrid.Columns>
     <DataGridTemplateColumn Header="ITEM" Width="260" MinWidth="180" SortMemberPath="Order.Name"><DataGridTemplateColumn.CellTemplate><DataTemplate><StackPanel Orientation="Horizontal"><Image Source="{Binding Order.Icon}" Width="28" Height="28" Margin="0,0,8,0"/><TextBlock Text="{Binding Order.Name}" VerticalAlignment="Center"/></StackPanel></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
@@ -33,5 +34,17 @@
     <DataGridTextColumn Header="SNAPSHOT" Binding="{Binding Freshness}" Width="180"/>
    </DataGrid.Columns>
   </DataGrid>
+  <DataGrid x:Name="TransactionsGrid" Visibility="Collapsed" SelectionChanged="Transaction_Selected" ScrollViewer.HorizontalScrollBarVisibility="Auto">
+   <DataGrid.Columns>
+    <DataGridTextColumn Header="When (UTC)" Binding="{Binding Transaction.Date, StringFormat={}{0:dd MMM yyyy HH:mm}}" Width="155"/>
+    <DataGridTemplateColumn Header="Item" SortMemberPath="Transaction.Name" Width="250" MinWidth="180"><DataGridTemplateColumn.CellTemplate><DataTemplate><StackPanel Orientation="Horizontal"><Image Source="{Binding Transaction.Icon}" Width="28" Height="28" Margin="0,0,8,0"/><TextBlock Text="{Binding Transaction.Name}" VerticalAlignment="Center" ToolTip="{Binding Transaction.Name}"/></StackPanel></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
+    <DataGridTextColumn Header="Pilot" Binding="{Binding Owner}" Width="160"/>
+    <DataGridTextColumn Header="Quantity" Binding="{Binding Transaction.Quantity, StringFormat=N0}" HeaderStyle="{StaticResource QuantityHeader}" ElementStyle="{StaticResource QuantityText}" Width="105"/>
+    <DataGridTextColumn Header="Price / unit" Binding="{Binding Transaction.UnitPrice, StringFormat=N2}" HeaderStyle="{StaticResource QuantityHeader}" ElementStyle="{StaticResource QuantityText}" Width="135"/>
+    <DataGridTemplateColumn Header="Total ISK" SortMemberPath="Transaction.Total" HeaderStyle="{StaticResource QuantityHeader}" Width="155"><DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding Transaction.Total, StringFormat=N2}" Foreground="{Binding Color}" HorizontalAlignment="Right"/></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
+    <DataGridTextColumn Header="Station" Binding="{Binding Transaction.Location}" Width="*" MinWidth="260"/>
+   </DataGrid.Columns>
+  </DataGrid>
+  </Grid>
  </DockPanel>
 </Window>

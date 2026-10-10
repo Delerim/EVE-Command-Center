@@ -1417,7 +1417,7 @@ public partial class CommandCenterWindow : Window
                     "\uE716"
                 ),
             "omega" => ("OMEGA", "Subscription dates, renewal planning and clone details", "\uE787"),
-            "market" => ("MARKET", "Personal buy and sell orders", "\uE8D4"),
+            "market" => ("MARKET", "Orders, purchases and sales", "\uE8D4"),
             "industry" =>
                 (
                     "INDUSTRY",

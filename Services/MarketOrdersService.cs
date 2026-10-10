@@ -7,7 +7,7 @@ using EveCommandCenter.Models;
 namespace EveCommandCenter.Services;
 
 // Replaceable open-order observations plus explicit confirmed-history imports into the shared ledger.
-public sealed class MarketOrdersService
+public sealed partial class MarketOrdersService
 {
     public const string Scope = "esi-markets.read_character_orders.v1";
     private readonly string _path;
@@ -43,7 +43,7 @@ public sealed class MarketOrdersService
             }
         }
         catch (Exception ex) { Error = "Market cache preserved; loading failed: " + ex.GetType().Name; }
-        try { if (Ledger.Exists) { History = Ledger.History(); HistoryStatus = "Saved confirmed history loaded."; } }
+        try { if (Ledger.Exists) { History = Ledger.History(); HistoryStatus = "Saved confirmed history loaded."; Transactions = Ledger.Transactions(); TransactionStatus = "Saved personal transactions loaded."; } }
         catch (Exception ex) { HistoryStatus = "History could not be loaded; data preserved: " + ex.GetType().Name; }
     }
     public async Task RefreshHistoryAsync(IReadOnlyList<EvePilotProfile> linked, CancellationToken ct)
@@ -80,8 +80,7 @@ public sealed class MarketOrdersService
                         pages = count;
                         var rows = JsonSerializer.Deserialize<List<HistoricalMarketOrder>>(await response.Content.ReadAsStringAsync(ct)) ?? throw new InvalidDataException("Empty history response.");
                         orders.AddRange(rows);
-                        var ttl = (response.Headers.CacheControl?.MaxAge ?? TimeSpan.FromHours(1)) - (response.Headers.Age ?? TimeSpan.Zero);
-                        var pageDue = DateTimeOffset.UtcNow.Add(ttl > TimeSpan.Zero ? ttl : TimeSpan.FromMinutes(1));
+                        var pageDue = RefreshDue(response, DateTimeOffset.UtcNow, TimeSpan.FromHours(1));
                         if (pageDue > next) next = pageDue;
                     }
                     Validate(orders.Cast<MarketOrder>().ToList());
@@ -108,11 +107,28 @@ public sealed class MarketOrdersService
                     messages.Add($"{pilot.CharacterName}: {orders.Count(o => !o.Corporation):N0} confirmed history records refreshed.");
                 }
                 catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
-                catch (Exception ex) { messages.Add($"{pilot.CharacterName}: history refresh failed ({ex.GetType().Name}); previous history retained."); }
+                catch (Exception ex) { messages.Add($"{pilot.CharacterName}: {Failure(ex)} History retained."); }
             }
             if (Ledger.Exists) History = await Task.Run(() => Ledger.History(), ct);
         }
         finally { HistoryStatus = string.Join("\n", messages); Busy = false; }
+    }
+    internal static string Failure(Exception ex) => ex switch
+    {
+        HttpRequestException { StatusCode: System.Net.HttpStatusCode.Unauthorized } => "EVE rejected the session (401). Refresh again; reconnect the pilot if it persists.",
+        HttpRequestException { StatusCode: System.Net.HttpStatusCode.Forbidden } => "EVE denied access (403). Reconnect this pilot with the required permission, then refresh.",
+        HttpRequestException { StatusCode: (System.Net.HttpStatusCode)420 or System.Net.HttpStatusCode.TooManyRequests } => "EVE is limiting requests. Wait for the retry window.",
+        HttpRequestException h when h.StatusCode.HasValue => $"EVE request failed (HTTP {(int)h.StatusCode.Value}). Try again shortly.",
+        HttpRequestException => "Could not reach EVE. Check the connection and try again.",
+        OperationCanceledException => "The request timed out. Try again shortly.",
+        InvalidDataException or JsonException => "EVE returned incomplete or unexpected data. Try again shortly.",
+        _ => "Refresh could not finish. Saved data has been preserved."
+    };
+    internal static DateTimeOffset RefreshDue(HttpResponseMessage response, DateTimeOffset now, TimeSpan fallback)
+    {
+        if (response.Content.Headers.Expires is {} expires) return expires > now ? expires : now.AddMinutes(1);
+        var ttl = (response.Headers.CacheControl?.MaxAge ?? fallback) - (response.Headers.Age ?? TimeSpan.Zero);
+        return now.Add(ttl > TimeSpan.Zero ? ttl : TimeSpan.FromMinutes(1));
     }
     private void Persist(MarketOrdersState next)
     {
@@ -133,7 +149,7 @@ public sealed class MarketOrdersService
     internal static void Validate(List<MarketOrder> rows)
     {
         if (rows.Select(r => r.OrderId).Distinct().Count() != rows.Count || rows.Any(r => r.OrderId <= 0 || r.TypeId <= 0 || r.LocationId <= 0 ||
-            r.Price < 0 || r.Total <= 0 || r.Remaining < 0 || r.Remaining > r.Total || r.Duration < 1 || r.Duration > 365 || r.Issued == default))
+            r.Price < 0 || r.Total <= 0 || r.Remaining < 0 || r.Remaining > r.Total || r.Duration < 0 || r.Duration > 365 || r.Issued == default))
             throw new InvalidDataException("Invalid order snapshot");
         foreach (var row in rows) { _ = row.RemainingValue; _ = row.Expiry; }
     }
@@ -192,13 +208,11 @@ public sealed class MarketOrdersService
                     foreach (var old in data.Orders.Where(o => !o.Corporation && !returned.Contains(o.OrderId)))
                         if (retained.Add(old.OrderId)) data.Unobserved.Add(new() { Order = old, LastSeen = data.Updated, MissingSince = observedAt });
                     data.Orders = rows; data.Updated = observedAt; data.Error = "";
-                    var ttl = response.Headers.CacheControl?.MaxAge ?? TimeSpan.FromMinutes(20);
-                    var age = response.Headers.Age ?? TimeSpan.Zero;
-                    data.NextRefresh = data.Updated.Add(ttl > age ? ttl - age : TimeSpan.FromMinutes(1));
+                    data.NextRefresh = RefreshDue(response, data.Updated, TimeSpan.FromMinutes(20));
                 }
                 catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
                 catch (Exception ex)
-                { data.Error = "Refresh failed: " + ex.GetType().Name + "; cached orders retained"; data.NextRefresh = DateTimeOffset.UtcNow.AddMinutes(1); }
+                { data.Error = "Refresh failed: " + Failure(ex) + "; cached orders retained"; data.NextRefresh = DateTimeOffset.UtcNow.AddMinutes(1); }
                 Persist(next);
             }
         }

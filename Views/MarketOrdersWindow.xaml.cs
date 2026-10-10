@@ -14,7 +14,7 @@ public partial class MarketOrdersWindow : Window
     public MarketOrdersWindow()
     {
         InitializeComponent();
-        TableSorting.Attach(Orders);
+        TableSorting.Attach(Orders); TableSorting.Attach(TransactionsGrid);
         Loaded += async (_, _) =>
         {
             if (_service != null) return;
@@ -46,7 +46,7 @@ public partial class MarketOrdersWindow : Window
             _service.Select(selectedIds);
             Status.Text = "Refreshing selected characters through the shared ESI queue...";
             await _service.RefreshAsync(_pilots, _life.Token);
-            if (!_life.IsCancellationRequested) RenderOrders();
+            if (!_life.IsCancellationRequested) { if (Observation.SelectedIndex == 4) Observation.SelectedIndex = 0; RenderOrders(); }
         }
         catch (OperationCanceledException) { }
         catch (Exception ex) { if (!_life.IsCancellationRequested) Status.Text = "Market refresh unavailable: " + ex.Message; }
@@ -68,6 +68,44 @@ public partial class MarketOrdersWindow : Window
         catch (Exception ex) { if (!_life.IsCancellationRequested) HistoryStatus.Text = "History unavailable: " + ex.Message; }
         finally { if (!_life.IsCancellationRequested) HistoryButton.IsEnabled = RefreshButton.IsEnabled = true; }
     }
+    private async void Transactions_Click(object sender, RoutedEventArgs e)
+    {
+        if (_service == null || _service.Busy) return;
+        TransactionsButton.IsEnabled = HistoryButton.IsEnabled = RefreshButton.IsEnabled = false;
+        try
+        {
+            _pilots = (await BackgroundOperations.Current.Sso.LoadPilotsAsync()).ToArray();
+            _service.Select(_choices.Where(c => c.Selected).Select(c => c.Id));
+            HistoryStatus.Text = "Refreshing personal transactions...";
+            await _service.RefreshTransactionsAsync(_pilots, _life.Token);
+            if (!_life.IsCancellationRequested) { Observation.SelectedIndex = 4; RenderOrders(); }
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception ex) { if (!_life.IsCancellationRequested) HistoryStatus.Text = MarketOrdersService.Failure(ex); }
+        finally { if (!_life.IsCancellationRequested) TransactionsButton.IsEnabled = HistoryButton.IsEnabled = RefreshButton.IsEnabled = true; }
+    }
+    private void Transaction_Selected(object sender, SelectionChangedEventArgs e)
+    { if (OrderDetail != null) OrderDetail.Text = (TransactionsGrid.SelectedItem as TransactionRow)?.Detail ?? "Select a transaction to inspect its confirmed purchase or sale."; }
+    private void RenderTransactions(bool buy, string query)
+    {
+        if (_service == null) return;
+        var rows = _service.Transactions.Where(r => _service.State.SelectedCharacters.Contains(r.OwnerId))
+            .Select(r => new TransactionRow(r.Transaction, _pilots.FirstOrDefault(p => p.CharacterId == r.OwnerId)?.CharacterName ?? "Unlinked pilot", r.Observed))
+            .Where(r => query.Length == 0 || (r.Transaction.Name + " " + r.Owner + " " + r.Transaction.Location).Contains(query, StringComparison.OrdinalIgnoreCase)).ToArray();
+        var selection = TransactionsGrid.SelectedItem as TransactionRow;
+        TransactionsGrid.ItemsSource = rows.Where(r => r.Transaction.Buy == buy).ToArray();
+        if (selection != null) TransactionsGrid.SelectedItem = TransactionsGrid.Items.Cast<TransactionRow>().FirstOrDefault(r => r.Owner == selection.Owner && r.Transaction.Id == selection.Transaction.Id);
+        Totals.Text = $"IMPORTED TRANSACTIONS | Purchases {rows.Where(r => r.Transaction.Buy).Sum(r => r.Transaction.Total):N2} ISK | Sales {rows.Where(r => !r.Transaction.Buy).Sum(r => r.Transaction.Total):N2} ISK | Gross amounts, not profit";
+        HistoryStatus.Text = _service.TransactionStatus;
+        Status.Text = _service.Error;
+        ObservationSummary.Text = $"{TransactionsGrid.Items.Count:N0} {(buy ? "purchases" : "sales")} shown | Selected pilots and search applied. Imported history may be incomplete; fees and project allocations are not included.";
+        OrderDetail.Text = (TransactionsGrid.SelectedItem as TransactionRow)?.Detail ?? "Select a transaction to inspect its confirmed purchase or sale.";
+    }
+    private sealed record TransactionRow(MarketTransaction Transaction, string Owner, DateTimeOffset Observed)
+    {
+        public string Color => Transaction.Buy ? "#EDAD83" : "#76D7CB";
+        public string Detail => $"{Transaction.Side}: {Transaction.Quantity:N0} {Transaction.Name}, {Transaction.Total:N2} ISK at {Transaction.Location}. Confirmed by the wallet feed, imported {Observed:dd MMM HH:mm} UTC. Project and order matching have not been assigned.";
+    }
     private void Side_Changed(object sender, SelectionChangedEventArgs e) { if (e.Source == SideTabs) RenderOrders(); }
     private void Order_Selected(object sender, SelectionChangedEventArgs e)
     { if (OrderDetail != null) OrderDetail.Text = (Orders.SelectedItem as OrderRow)?.Detail ?? "Select an order to inspect its last observation."; }
@@ -88,6 +126,12 @@ public partial class MarketOrdersWindow : Window
         var all = snapshots.SelectMany(c => c.Orders.Where(o => !o.Corporation && !Historical(c.CharacterId, o.OrderId)).Select(o => new OrderRow(o, c.Name, Fresh(c), "Open (last snapshot)", c.Updated, null))).ToArray();
         var missing = snapshots.SelectMany(c => c.Unobserved.Where(o => !Historical(c.CharacterId, o.Order.OrderId)).Select(o => new OrderRow(o.Order, c.Name, Fresh(c), "Not observed", o.LastSeen, o.MissingSince))).ToArray();
         string mode = (Observation.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? "open";
+        bool transactions = mode == "transactions";
+        TransactionsGrid.Visibility = transactions ? Visibility.Visible : Visibility.Collapsed;
+        Orders.Visibility = transactions ? Visibility.Collapsed : Visibility.Visible;
+        ((TabItem)SideTabs.Items[0]).Header = transactions ? "Purchases" : "Buy orders";
+        ((TabItem)SideTabs.Items[1]).Header = transactions ? "Sales" : "Sell orders";
+        if (transactions) { RenderTransactions(buy, query); return; }
         var shown = mode == "history" ? confirmed : mode == "missing" ? missing : mode == "all" ? all.Concat(missing).Concat(confirmed).ToArray() : all;
         var selection = Orders.SelectedItem as OrderRow;
         Orders.ItemsSource = shown.Where(r => r.Order.Buy == buy && (query.Length == 0 || (r.Order.Name + " " + r.Owner + " " + r.Order.Location).Contains(query, StringComparison.OrdinalIgnoreCase))).ToArray();
