@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media.Imaging;
+using System.Windows.Media;
 using EveCommandCenter.Models;
 
 namespace EveCommandCenter.Views;
@@ -16,7 +17,7 @@ public partial class MarketOrdersWindow
         get => AllocationWidth.ActualWidth > 0 ? AllocationWidth.ActualWidth : _allocationPanelWidth;
         set => _allocationPanelWidth = double.IsFinite(value) ? Math.Clamp(value, 340, 800) : 440;
     }
-    private sealed record AllocationDestination(string Purpose, Guid? ProjectId, string Name)
+    private sealed record AllocationDestination(string Purpose, Guid? ProjectId, string Name, string Detail = "", string? Icon = null, string Symbol = "")
     { public override string ToString() => Name; }
     private void HidePurchaseAllocation()
     {
@@ -39,17 +40,27 @@ public partial class MarketOrdersWindow
             AllocationIcon.Source = new BitmapImage(new Uri(purchase.Transaction.Icon)); AllocationItem.Text = purchase.Transaction.Name;
             long free = purchase.Transaction.Quantity - _allocation.Splits.Sum(a => a.Quantity);
             AllocationSummary.Text = $"{purchase.Owner} bought {purchase.Transaction.Quantity:N0} for {purchase.Transaction.Total:N2} ISK.\n{free:N0} units still unallocated.";
-            var destinations = new List<AllocationDestination> { new("Stock", null, "General stock"), new("Unrelated", null, "Unrelated activity") };
-            destinations.AddRange(_service.AllocationProjects(purchase.Transaction.TypeId).OrderBy(p => p.Name).Select(p => new AllocationDestination("Project", p.Id, p.Name)));
+            AllocationAssigned.Text = $"{purchase.Transaction.Quantity - free:N0}";
+            AllocationRemaining.Text = $"{free:N0}";
+            AllocationProgress.Value = purchase.Transaction.Quantity > 0 ? (double)((decimal)(purchase.Transaction.Quantity - free) / purchase.Transaction.Quantity * 100) : 0;
+            AllocationEmpty.Visibility = _allocation.Splits.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+            AllocationSplits.Visibility = _allocation.Splits.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
+            var destinations = new List<AllocationDestination> { new("Stock", null, "General stock", "Keep for future use", Symbol: "\u25A6"), new("Unrelated", null, "Unrelated activity", "Personal use or another purpose", Symbol: "\u25CB") };
+            var projects = _service.AllocationProjects(purchase.Transaction.TypeId).OrderBy(p => p.Name).ToList();
+            destinations.AddRange(projects.Select(p => new AllocationDestination("Project", p.Id, p.Name, p.Paused ? "Matching project - paused" : "Project contains this item", $"https://images.evetech.net/types/{p.Nodes.FirstOrDefault(n => n.ParentId == null)?.TypeId ?? purchase.Transaction.TypeId}/icon?size=32")));
+            AllocationMatches.Text = projects.Count == 0
+                ? "No active projects contain this item. You can assign it to general stock or unrelated activity."
+                : $"{projects.Count:N0} matching project{(projects.Count == 1 ? "" : "s")} in the list. Choose one to assign this purchase.";
             foreach (var historical in _allocation.Splits.Where(a => a.Purpose == "Project" && !destinations.Any(d => d.ProjectId == a.ProjectId)))
-                destinations.Add(new("Project", historical.ProjectId, historical.ProjectName + " (historical)"));
+                destinations.Add(new("Project", historical.ProjectId, historical.ProjectName, "Historical allocation - keep or remove", Symbol: "\u25C7"));
             AllocationTarget.ItemsSource = destinations; AllocationSplits.ItemsSource = _allocation.Splits;
             AllocationAudit.Text = string.Join("\n\n", _service.PurchaseHistory(purchase.OwnerId, purchase.Transaction.Id).Select(h => $"{h.TimeUtc:dd MMM yyyy HH:mm} UTC\n{Describe(h.Before)} -> {Describe(h.After)}"));
-            AllocationMessage.Text = "Choose a destination explicitly. Matching projects are suggestions, not confirmed intent.";
-            ResetSplit(); SaveAllocation.IsEnabled = true;
+            AllocationMessage.Text = ""; AllocationMessage.Foreground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(145, 185, 187));
+            if (AllocationAudit.Text.Length == 0) AllocationAudit.Text = "History appears after your first saved allocation.";
+            ResetSplit(); UpdateAllocationForm();
         }
-        catch (Exception ex) { AllocationMessage.Text = ex.Message; }
-        finally { _allocationLoading = false; }
+        catch (Exception ex) { AllocationMessage.Text = ex.Message; AllocationMessage.Foreground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(237, 173, 131)); }
+        finally { _allocationLoading = false; UpdateAllocationForm(); }
     }
     private static string Describe(IEnumerable<PurchaseAllocation> splits) => splits.Any() ? string.Join("; ", splits.Select(s => $"{s.Quantity:N0} to {s.ProjectName}" + (s.Note.Length > 0 ? " - " + s.Note : ""))) : "No assigned quantities";
     private void ResetSplit()
@@ -57,6 +68,7 @@ public partial class MarketOrdersWindow
         AllocationSplits.SelectedIndex = -1; AllocationTarget.SelectedIndex = -1; AllocationNote.Text = ""; AllocationNoteSection.IsExpanded = false;
         AllocationQuantity.Text = Math.Max(0, (_allocationPurchase?.Transaction.Quantity ?? 0) - (_allocation?.Splits.Sum(s => s.Quantity) ?? 0)).ToString(CultureInfo.CurrentCulture);
         RemoveAllocation.IsEnabled = false;
+        UpdateAllocationForm();
     }
     private void NewAllocation_Click(object sender, RoutedEventArgs e) { _allocationLoading = true; ResetSplit(); _allocationLoading = false; }
     private void AllocationSplit_Selected(object sender, SelectionChangedEventArgs e)
@@ -64,6 +76,19 @@ public partial class MarketOrdersWindow
         if (_allocationLoading || AllocationSplits.SelectedItem is not PurchaseAllocation split) return;
         AllocationTarget.SelectedItem = AllocationTarget.Items.Cast<AllocationDestination>().FirstOrDefault(d => d.Purpose == split.Purpose && d.ProjectId == split.ProjectId);
         AllocationQuantity.Text = split.Quantity.ToString(CultureInfo.CurrentCulture); AllocationNote.Text = split.Note; AllocationNoteSection.IsExpanded = split.Note.Length > 0; RemoveAllocation.IsEnabled = true;
+        UpdateAllocationForm();
+    }
+    private void AllocationForm_Changed(object sender, RoutedEventArgs e) => UpdateAllocationForm();
+    private void UpdateAllocationForm()
+    {
+        if (AllocationPrompt == null || SaveAllocation == null || AllocationCostPreview == null) return;
+        AllocationPrompt.Visibility = AllocationTarget.SelectedItem == null ? Visibility.Visible : Visibility.Collapsed;
+        var selected = AllocationSplits.SelectedItem as PurchaseAllocation;
+        SaveAllocation.Content = selected == null ? "Assign purchase" : "Save changes";
+        long remaining = (_allocationPurchase?.Transaction.Quantity ?? 0) - (_allocation?.Splits.Sum(s => s.Quantity) ?? 0) + (selected?.Quantity ?? 0);
+        bool valid = long.TryParse(AllocationQuantity.Text, NumberStyles.Integer | NumberStyles.AllowThousands, CultureInfo.CurrentCulture, out long quantity) && quantity > 0 && quantity <= remaining;
+        SaveAllocation.IsEnabled = valid && _allocation != null && AllocationTarget.SelectedItem is AllocationDestination;
+        AllocationCostPreview.Text = valid && _allocationPurchase != null ? $"{quantity * _allocationPurchase.Transaction.UnitPrice:N2} ISK" : $"Up to {remaining:N0} units";
     }
     private void SaveAllocation_Click(object sender, RoutedEventArgs e)
     {
@@ -78,7 +103,7 @@ public partial class MarketOrdersWindow
             _service.SavePurchaseAllocation(_allocation.OwnerId, _allocation.TransactionId, _allocation.Revision, rows);
             RenderOrders(); Status.Text = "Purchase allocation saved."; AllocationMessage.Text = "Saved. Purchase cost assigned; physical stock is unchanged.";
         }
-        catch (Exception ex) { AllocationMessage.Text = ex.Message; }
+        catch (Exception ex) { AllocationMessage.Text = ex.Message; AllocationMessage.Foreground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(237, 173, 131)); }
     }
     private void RemoveAllocation_Click(object sender, RoutedEventArgs e)
     {
@@ -88,11 +113,11 @@ public partial class MarketOrdersWindow
             _service.SavePurchaseAllocation(_allocation.OwnerId, _allocation.TransactionId, _allocation.Revision, _allocation.Splits.Where(s => s.Id != selected.Id).ToArray());
             RenderOrders(); Status.Text = "Purchase split removed; history retained."; AllocationMessage.Text = "Split removed. Its previous assignment remains in history.";
         }
-        catch (Exception ex) { AllocationMessage.Text = ex.Message; }
+        catch (Exception ex) { AllocationMessage.Text = ex.Message; AllocationMessage.Foreground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(237, 173, 131)); }
     }
     private void ReloadAllocation_Click(object sender, RoutedEventArgs e)
     {
         try { _service?.ReloadAllocations(); RenderOrders(); ShowPurchaseAllocation(); }
-        catch (Exception ex) { AllocationMessage.Text = ex.Message; }
+        catch (Exception ex) { AllocationMessage.Text = ex.Message; AllocationMessage.Foreground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(237, 173, 131)); }
     }
 }

@@ -483,17 +483,43 @@
 
         <TabItem x:Name="ProjectPurchasesTab" Header="Purchases">
          <DockPanel Margin="14">
-          <StackPanel DockPanel.Dock="Top"><TextBlock Text="Purchases for this project" FontSize="20" Foreground="#E1F3F2"/><TextBlock x:Name="ProjectPurchaseSummary" Margin="0,12" FontSize="16" Foreground="#76D7CB" TextWrapping="Wrap"/><TextBlock Text="Purchase cost attributed in Market. Fees, existing stock value and manufacturing costs are separate. Purchased does not mean delivered or reserved." TextWrapping="Wrap" Margin="0,0,0,12"/><Button Content="Reload purchases" Click="ReloadProjectPurchases_Click" HorizontalAlignment="Left" Margin="0,0,0,12"/></StackPanel>
+          <StackPanel DockPanel.Dock="Top">
+           <DockPanel><Button DockPanel.Dock="Right" VerticalAlignment="Top" Content="Reload purchases" Click="ReloadProjectPurchases_Click"/><StackPanel><TextBlock Text="Purchase costs" FontSize="22" FontWeight="SemiBold" Foreground="#E1F3F2"/><TextBlock Text="What you paid for this project's materials and components" Foreground="#91B9BB" Margin="0,5,0,16"/></StackPanel></DockPanel>
+           <UniformGrid Columns="3" Margin="0,0,0,16">
+            <Border Background="#112D31" CornerRadius="8" Padding="16" Margin="0,0,8,0" BorderBrush="#76D7CB" BorderThickness="0,2,0,0"><StackPanel><TextBlock Text="ATTRIBUTED PURCHASE COST" FontSize="10" Foreground="#91B9BB"/><TextBlock x:Name="ProjectPurchaseSummary" Margin="0,8,0,0" FontSize="20" Foreground="#76D7CB" TextWrapping="Wrap"/></StackPanel></Border>
+            <Border Background="#11282E" CornerRadius="8" Padding="16" Margin="0,0,8,0"><StackPanel><TextBlock Text="ITEMS PURCHASED" FontSize="10" Foreground="#91B9BB"/><TextBlock x:Name="ProjectPurchaseItems" FontSize="20" Foreground="#DEEDF0" Margin="0,8,0,0"/></StackPanel></Border>
+            <Border Background="#11282E" CornerRadius="8" Padding="16"><StackPanel><TextBlock Text="PURCHASES" FontSize="10" Foreground="#91B9BB"/><TextBlock x:Name="ProjectPurchaseCount" FontSize="20" Foreground="#DEEDF0" Margin="0,8,0,0"/></StackPanel></Border>
+           </UniformGrid>
+           <TextBlock Text="Costs cover assigned purchases only. Fees, manufacturing costs and previously owned stock are separate. Purchased does not mean delivered or reserved." TextWrapping="Wrap" Foreground="#91B9BB" Margin="0,0,0,14"/>
+           <TextBlock x:Name="ProjectPurchaseEmpty" TextWrapping="Wrap" Margin="12,20"/>
+          </StackPanel>
+          <TabControl x:Name="ProjectCostViews" Background="Transparent" BorderThickness="0">
+           <TabItem Header="By item"><DockPanel Margin="0,12,0,0">
+            <DockPanel DockPanel.Dock="Top" Margin="0,0,0,12"><Button x:Name="InspectItemPurchases" DockPanel.Dock="Right" Content="View selected item's purchases" IsEnabled="False" Click="InspectItemPurchases_Click"/><TextBlock Text="Average price = assigned cost / assigned quantity. Select an item to inspect its purchases." TextWrapping="Wrap" VerticalAlignment="Center" Foreground="#91B9BB"/></DockPanel>
+            <DataGrid x:Name="ProjectItemCosts" SelectionChanged="ProjectCost_Selected" ScrollViewer.HorizontalScrollBarVisibility="Auto"><DataGrid.Columns>
+             <DataGridTemplateColumn Header="Item" SortMemberPath="Name" Width="2*" MinWidth="200"><DataGridTemplateColumn.CellTemplate><DataTemplate><StackPanel Orientation="Horizontal"><Image Source="{Binding Icon}" Width="28" Height="28" Margin="0,0,10,0"/><TextBlock Text="{Binding Name}" VerticalAlignment="Center" ToolTip="{Binding Name}"/></StackPanel></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
+             <DataGridTextColumn Header="Quantity bought" Binding="{Binding Quantity, StringFormat=N0}" Width="135" MinWidth="135" HeaderStyle="{StaticResource QuantityHeader}" ElementStyle="{StaticResource QuantityText}"/>
+             <DataGridTextColumn Header="Average price" Binding="{Binding AveragePrice, StringFormat=N4}" Width="145" MinWidth="145" HeaderStyle="{StaticResource QuantityHeader}" ElementStyle="{StaticResource QuantityText}"/>
+             <DataGridTextColumn Header="Total paid (ISK)" Binding="{Binding Cost, StringFormat=N2}" Width="160" MinWidth="160" HeaderStyle="{StaticResource QuantityHeader}" ElementStyle="{StaticResource QuantityText}"/>
+             <DataGridTextColumn Header="Lowest price" Binding="{Binding LowestPrice, StringFormat=N4}" Width="130" MinWidth="130" HeaderStyle="{StaticResource QuantityHeader}" ElementStyle="{StaticResource QuantityText}"/>
+             <DataGridTextColumn Header="Highest price" Binding="{Binding HighestPrice, StringFormat=N4}" Width="130" MinWidth="130" HeaderStyle="{StaticResource QuantityHeader}" ElementStyle="{StaticResource QuantityText}"/>
+             <DataGridTextColumn Header="Purchases" Binding="{Binding Purchases, StringFormat=N0}" Width="100" MinWidth="100" HeaderStyle="{StaticResource QuantityHeader}" ElementStyle="{StaticResource QuantityText}"/>
+             <DataGridTextColumn Header="Last bought (UTC)" Binding="{Binding LastBought, StringFormat={}{0:dd MMM yyyy HH:mm}}" Width="160" MinWidth="160"/>
+            </DataGrid.Columns></DataGrid>
+           </DockPanel></TabItem>
+           <TabItem Header="Purchases"><DockPanel Margin="0,12,0,0"><DockPanel DockPanel.Dock="Top" Margin="0,0,0,12"><Button x:Name="ClearPurchaseFilter" DockPanel.Dock="Right" Content="Show all items" Click="ClearPurchaseFilter_Click" Visibility="Collapsed"/><TextBlock x:Name="ProjectPurchaseFilter" VerticalAlignment="Center" Foreground="#91B9BB"/></DockPanel>
           <DataGrid x:Name="ProjectPurchases" ScrollViewer.HorizontalScrollBarVisibility="Auto"><DataGrid.Columns>
-           <DataGridTextColumn Header="Bought (UTC)" Binding="{Binding Purchase.Date, StringFormat={}{0:dd MMM yyyy HH:mm}}" Width="155"/>
+           <DataGridTextColumn Header="Bought (UTC)" Binding="{Binding Purchase.Date, StringFormat={}{0:dd MMM yyyy HH:mm}}" Width="155" MinWidth="155"/>
            <DataGridTemplateColumn Header="Item" SortMemberPath="Purchase.Name" Width="2*" MinWidth="160"><DataGridTemplateColumn.CellTemplate><DataTemplate><StackPanel Orientation="Horizontal"><Image Source="{Binding Purchase.Icon}" Width="28" Height="28" Margin="0,0,8,0"/><TextBlock Text="{Binding Purchase.Name}" VerticalAlignment="Center"/></StackPanel></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
-           <DataGridTextColumn Header="Buyer" Binding="{Binding Buyer}" Width="145"/>
-           <DataGridTextColumn Header="Quantity" Binding="{Binding Allocation.Quantity, StringFormat=N0}" Width="100" HeaderStyle="{StaticResource QuantityHeader}" ElementStyle="{StaticResource QuantityText}"/>
-           <DataGridTextColumn Header="Unit price" Binding="{Binding Purchase.UnitPrice, StringFormat=N2}" Width="120" HeaderStyle="{StaticResource QuantityHeader}" ElementStyle="{StaticResource QuantityText}"/>
-           <DataGridTextColumn Header="Attributed cost" Binding="{Binding Cost, StringFormat=N2}" Width="150" HeaderStyle="{StaticResource QuantityHeader}" ElementStyle="{StaticResource QuantityText}"/>
+           <DataGridTextColumn Header="Buyer" Binding="{Binding Buyer}" Width="145" MinWidth="145"/>
+           <DataGridTextColumn Header="Quantity" Binding="{Binding Allocation.Quantity, StringFormat=N0}" Width="100" MinWidth="100" HeaderStyle="{StaticResource QuantityHeader}" ElementStyle="{StaticResource QuantityText}"/>
+           <DataGridTextColumn Header="Unit price" Binding="{Binding Purchase.UnitPrice, StringFormat=N4}" Width="120" MinWidth="120" HeaderStyle="{StaticResource QuantityHeader}" ElementStyle="{StaticResource QuantityText}"/>
+           <DataGridTextColumn Header="Attributed cost" Binding="{Binding Cost, StringFormat=N2}" Width="150" MinWidth="150" HeaderStyle="{StaticResource QuantityHeader}" ElementStyle="{StaticResource QuantityText}"/>
            <DataGridTextColumn Header="Bought at" Binding="{Binding Purchase.Location}" Width="2*" MinWidth="190"/>
-           <DataGridTextColumn Header="Why" Binding="{Binding Allocation.Note}" Width="180"/>
+           <DataGridTextColumn Header="Why" Binding="{Binding Allocation.Note}" Width="180" MinWidth="180"/>
           </DataGrid.Columns></DataGrid>
+           </DockPanel></TabItem>
+          </TabControl>
          </DockPanel>
         </TabItem>
 

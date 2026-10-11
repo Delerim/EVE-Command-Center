@@ -10,6 +10,7 @@ internal static partial class Program
 {
     private static void CheckPurchaseAllocations(string root, string? renderPath)
     {
+        CheckAcquisitionCosts();
         string folder = Path.Combine(root, "allocations");
         var store = new IndustryWorkspaceStore(folder); var linked = new HashSet<long> { 42, 43 };
         var a = store.Create("Obelisk materials", 34, 100, null, linked);
@@ -72,13 +73,30 @@ internal static partial class Program
         var trades = (DataGrid)view.FindName("TransactionsGrid"); trades.SelectedIndex = 0;
         Check(((Border)view.FindName("AllocationPanel")).Visibility == Visibility.Visible && ((TextBlock)view.FindName("AllocationSummary")).Text.Contains("70"), "Selecting a purchase opens its named allocation inspector and remaining quantity");
         var target = (ComboBox)view.FindName("AllocationTarget");
+        Check(((TextBlock)view.FindName("AllocationPrompt")).Visibility == Visibility.Visible && !((Button)view.FindName("SaveAllocation")).IsEnabled && ((TextBlock)view.FindName("AllocationMatches")).Text.Contains("1 matching project"), "Purchase assignment starts with an explicit prompt and explains matching projects");
         Check(target.SelectedIndex == -1 && target.Items.Cast<object>().Any(p => p.ToString() == "Pacifier materials"), "Matching project suggestions require an explicit destination choice");
         target.SelectedIndex = 0; ((TextBox)view.FindName("AllocationQuantity")).Text = "20";
+        Check(((TextBlock)view.FindName("AllocationPrompt")).Visibility == Visibility.Collapsed && ((Button)view.FindName("SaveAllocation")).IsEnabled && ((TextBlock)view.FindName("AllocationCostPreview")).Text.Contains((20 * purchase.UnitPrice).ToString("N2")), "Destination and quantity preview the exact assigned cost before save");
+        ((TextBox)view.FindName("AllocationQuantity")).Text = "71";
+        Check(!((Button)view.FindName("SaveAllocation")).IsEnabled, "Assignment UI disables save when the quantity exceeds unallocated units");
+        ((TextBox)view.FindName("AllocationQuantity")).Text = "20";
         ((Button)view.FindName("SaveAllocation")).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
         Check(reopened.PurchaseAllocation(42, 1).Splits.Sum(s => s.Quantity) == 50 && ((TextBlock)view.FindName("AllocationAudit")).Text.Contains("General stock"), "Saving a purchase split refreshes remaining quantity and human-readable history");
         if (renderPath != null) Render(view, Path.ChangeExtension(renderPath, ".allocations.png"));
+        Check(((TextBlock)view.FindName("AllocationAssigned")).Text == "50" && ((TextBlock)view.FindName("AllocationRemaining")).Text == "50" && ((ProgressBar)view.FindName("AllocationProgress")).Value == 50, "Allocation summary and progress reflect saved quantities");
         ((TextBox)view.FindName("Search")).Text = "Pacifier";
         Check(trades.Items.Count == 1, "Purchase search can find the project explaining why an item was bought");
+
+        var unmatched = new MarketTransaction { Id = 3, TypeId = 19549, ResolvedName = "Mid-grade Ascendancy Gamma", Quantity = 1, UnitPrice = 128000000m, LocationId = 60003760, ClientId = 77, JournalRefId = 103, Date = purchase.Date, Buy = true, Personal = true };
+        ledger.ImportTransactions(42, new() { unmatched }, purchase.Date, purchase.Date.AddHours(1));
+        var unmatchedService = new MarketOrdersService(new EveSsoService(), folder, http);
+        var unmatchedView = new MarketOrdersWindow { Width = 1800, Height = 1080 }; unmatchedView.Initialize(unmatchedService, pilots);
+        ((TabControl)unmatchedView.FindName("MarketTabs")).SelectedIndex = 4;
+        ((TextBox)unmatchedView.FindName("Search")).Text = "Ascendancy";
+        ((DataGrid)unmatchedView.FindName("TransactionsGrid")).SelectedIndex = 0;
+        Check(((ComboBox)unmatchedView.FindName("AllocationTarget")).Items.Count == 2 && ((TextBlock)unmatchedView.FindName("AllocationMatches")).Text.StartsWith("No active projects contain") && ((TextBlock)unmatchedView.FindName("AllocationEmpty")).Visibility == Visibility.Visible, "Unrelated purchases explain why projects are absent and offer stock or unrelated destinations");
+        if (renderPath != null) { Render(unmatchedView, Path.ChangeExtension(renderPath, ".allocation-empty.png")); unmatchedView.Height = 1500; Render(unmatchedView, Path.ChangeExtension(renderPath, ".allocation-tall.png")); }
+        unmatchedView.Close();
         view.Close();
         var layout = new MarketOrdersWindow(); layout.AllocationPanelSize = 510;
         ((DataGrid)layout.FindName("TransactionsGrid")).Columns[0].Width = new DataGridLength(220);
@@ -90,6 +108,33 @@ internal static partial class Program
         ((ListBox)workspace.FindName("Projects")).SelectedIndex = 0;
         ((TabControl)workspace.FindName("WorkspaceTabs")).SelectedItem = workspace.FindName("ProjectPurchasesTab");
         Check(((DataGrid)workspace.FindName("ProjectPurchases")).Items.Count == 1 && ((TextBlock)workspace.FindName("ProjectPurchaseSummary")).Text.Contains((30 * purchase.UnitPrice).ToString("N2")), "Project purchases show only their attributed quantities and exact cost");
+        Check(((DataGrid)workspace.FindName("ProjectItemCosts")).Items.Count == 1 && ((TextBlock)workspace.FindName("ProjectPurchaseItems")).Text == "1", "Project purchase cost overview groups attributed items without valuing unrelated stock");
+        ((DataGrid)workspace.FindName("ProjectItemCosts")).SelectedIndex = 0;
+        ((Button)workspace.FindName("InspectItemPurchases")).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        Check(((TabControl)workspace.FindName("ProjectCostViews")).SelectedIndex == 1 && ((TextBlock)workspace.FindName("ProjectPurchaseFilter")).Text.Contains("Tritanium"), "An item cost drills into its named supporting purchases");
+        ((Button)workspace.FindName("ClearPurchaseFilter")).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        Check(((Button)workspace.FindName("ClearPurchaseFilter")).Visibility == Visibility.Collapsed, "Clearing the cost drill-down restores all project purchases");
+        ((TabControl)workspace.FindName("ProjectCostViews")).SelectedIndex = 0;
         if (renderPath != null) { var shell = new Window { Content = workspace, Width = 1750, Height = 1000 }; workspace.Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.ApplicationIdle, new Action(() => ((TabControl)workspace.FindName("WorkspaceTabs")).SelectedItem = workspace.FindName("ProjectPurchasesTab"))); Render(shell, Path.ChangeExtension(renderPath, ".project-purchases.png")); shell.Close(); }
     }
+    private static void CheckAcquisitionCosts()
+    {
+        var project = Guid.NewGuid();
+        AttributedPurchase Row(long owner, long transaction, int type, long quantity, decimal price) => new(owner,
+            new MarketTransaction { Id = transaction, TypeId = type, Quantity = quantity, UnitPrice = price, Buy = true, Personal = true, Date = DateTimeOffset.UtcNow },
+            new PurchaseAllocation(Guid.NewGuid(), "Project", project, "Build", quantity, ""));
+        var a = Row(42, 1, 34, 10, 2m); var b = Row(43, 1, 34, 30, 4m);
+        var costs = ProjectAcquisitionCosts.Calculate(new[] { a, b });
+        Check(costs.Single().Quantity == 40 && costs.Single().Cost == 140m && costs.Single().AveragePrice == 3.5m, "Acquisition average weights each confirmed purchase by its assigned quantity");
+        Check(costs.Single().Purchases == 2 && costs.Single().LowestPrice == 2m && costs.Single().HighestPrice == 4m, "Acquisition costs preserve mixed prices and owner-scoped purchase identities");
+        var split = b with { Allocation = b.Allocation with { Id = Guid.NewGuid(), Quantity = 5 } };
+        var firstSplit = b with { Allocation = b.Allocation with { Quantity = 25 } };
+        costs = ProjectAcquisitionCosts.Calculate(new[] { a, firstSplit, split, Row(42, 2, 35, 7, 0.12345678m) });
+        Check(costs.Count == 2 && costs.First(p => p.TypeId == 34).Purchases == 2 && costs.Sum(p => p.Cost) == 140.86419746m, "Multiple splits of one purchase count once and retain full decimal acquisition cost");
+        Check(ProjectAcquisitionCosts.Calculate(new[] { Row(42, 3, 34, 2, 0m) }).Single().AveragePrice == 0m && ProjectAcquisitionCosts.Calculate(Array.Empty<AttributedPurchase>()).Count == 0, "A confirmed zero-price purchase is distinct from no purchase evidence");
+        bool overflow = false;
+        try { ProjectAcquisitionCosts.Calculate(new[] { Row(42, 4, 34, long.MaxValue, 0), Row(42, 5, 34, 1, 0) }); } catch (OverflowException) { overflow = true; }
+        Check(overflow, "Acquisition quantity overflow fails rather than wrapping into misleading totals");
+    }
+
 }

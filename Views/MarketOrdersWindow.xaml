@@ -82,23 +82,38 @@
   </Grid>
   <GridSplitter x:Name="AllocationDivider" Grid.Column="1" Visibility="Collapsed" Width="6" HorizontalAlignment="Stretch" Background="#245058" ResizeDirection="Columns" ResizeBehavior="PreviousAndNext"/>
   <Border x:Name="AllocationPanel" Grid.Column="2" Visibility="Collapsed" Background="#102428" BorderBrush="#28454A" BorderThickness="1" CornerRadius="9" Margin="8,0,0,0" Padding="16">
-   <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"><StackPanel>
-    <TextBlock Text="Why did I buy this?" FontSize="18" FontWeight="SemiBold" Foreground="#E5F1F2"/>
-    <StackPanel Orientation="Horizontal" Margin="0,16,0,12"><Image x:Name="AllocationIcon" Width="34" Height="34" Margin="0,0,10,0"/><TextBlock x:Name="AllocationItem" FontSize="15" FontWeight="SemiBold" VerticalAlignment="Center" TextWrapping="Wrap"/></StackPanel>
+   <DockPanel>
+    <Border DockPanel.Dock="Bottom" BorderBrush="#28454A" BorderThickness="0,1,0,0" Padding="0,10,0,0" Margin="0,10,0,0"><WrapPanel><Button x:Name="SaveAllocation" Content="Assign purchase" Click="SaveAllocation_Click"/><Button Content="New split" Click="NewAllocation_Click"/><Button x:Name="RemoveAllocation" Content="Remove" Click="RemoveAllocation_Click" IsEnabled="False"/></WrapPanel></Border>
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"><StackPanel>
+    <TextBlock Text="Why did I buy this?" FontSize="20" FontWeight="SemiBold" Foreground="#E5F1F2"/>
+    <Grid Margin="0,12,0,10"><Grid.ColumnDefinitions><ColumnDefinition Width="48"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions><Border Background="#1B373D" CornerRadius="10" Width="42" Height="42"><Image x:Name="AllocationIcon" Width="32" Height="32"/></Border><StackPanel Grid.Column="1" Margin="10,0,0,0" VerticalAlignment="Center"><TextBlock x:Name="AllocationItem" FontSize="16" FontWeight="SemiBold" TextWrapping="Wrap"/></StackPanel></Grid>
     <TextBlock x:Name="AllocationSummary" TextWrapping="Wrap" Margin="0,0,0,12"/>
-    <TextBlock Text="Assign the purchase cost. Stock still needs a separate reservation and delivery check." TextWrapping="Wrap" Foreground="#91B9BB" Margin="0,0,0,12"/>
-    <Grid Margin="0,0,0,8"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="105"/></Grid.ColumnDefinitions><StackPanel Margin="0,0,8,0"><TextBlock Text="Destination" Margin="0,0,0,4"/><ComboBox x:Name="AllocationTarget" MinHeight="34" ToolTip="Matching projects are suggestions; choose a destination explicitly"/></StackPanel><StackPanel Grid.Column="1"><TextBlock Text="Quantity" Margin="0,0,0,4"/><TextBox x:Name="AllocationQuantity"/></StackPanel></Grid>
+    <Border Background="#0B2024" BorderBrush="#28454A" BorderThickness="1" CornerRadius="8" Padding="10" Margin="0,0,0,12"><StackPanel>
+     <Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/></Grid.ColumnDefinitions><StackPanel><TextBlock Text="ASSIGNED" FontSize="10" Foreground="#91B9BB"/><TextBlock x:Name="AllocationAssigned" FontSize="16" Foreground="#76D7CB" Margin="0,3"/></StackPanel><StackPanel Grid.Column="1" HorizontalAlignment="Right"><TextBlock Text="LEFT TO ASSIGN" FontSize="10" Foreground="#91B9BB"/><TextBlock x:Name="AllocationRemaining" FontSize="16" Foreground="#EDAD83" HorizontalAlignment="Right" Margin="0,3"/></StackPanel></Grid>
+     <ProgressBar x:Name="AllocationProgress" Height="4" Minimum="0" Maximum="100" Foreground="#76D7CB" Background="#203B40" BorderThickness="0" Margin="0,7,0,0"/>
+    </StackPanel></Border>
+    <TextBlock Text="Bought for" FontWeight="SemiBold" Foreground="#E5F1F2" Margin="0,0,0,6"/>
+    <Grid><ComboBox x:Name="AllocationTarget" MinHeight="54" MaxDropDownHeight="360" SelectionChanged="AllocationForm_Changed" ToolTip="Choose a project, general stock or unrelated activity" TextSearch.TextPath="Name"><ComboBox.ItemTemplate><DataTemplate><Grid Margin="0,5"><Grid.ColumnDefinitions><ColumnDefinition Width="32"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions><Grid VerticalAlignment="Center"><Image Source="{Binding Icon}" Width="26" Height="26"/><TextBlock Text="{Binding Symbol}" FontSize="22" Foreground="#76D7CB" HorizontalAlignment="Center"/></Grid><StackPanel Grid.Column="1" Margin="9,0,0,0"><TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" ToolTip="{Binding Name}"/><TextBlock Text="{Binding Detail}" FontSize="10" Foreground="#91B9BB" Margin="0,3,0,0" TextTrimming="CharacterEllipsis"/></StackPanel></Grid></DataTemplate></ComboBox.ItemTemplate></ComboBox>
+     <TextBlock x:Name="AllocationPrompt" Text="Choose where this purchase belongs" IsHitTestVisible="False" VerticalAlignment="Center" Margin="12,0,32,0" Foreground="#91B9BB" TextTrimming="CharacterEllipsis"/>
+    </Grid>
+    <TextBlock x:Name="AllocationMatches" TextWrapping="Wrap" Foreground="#91B9BB" FontSize="11" Margin="2,7,2,14"/>
+    <Grid Margin="0,0,0,10"><Grid.ColumnDefinitions><ColumnDefinition Width="110"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions><StackPanel><TextBlock Text="Quantity" Margin="0,0,0,4"/><TextBox x:Name="AllocationQuantity" TextChanged="AllocationForm_Changed"/></StackPanel><StackPanel Grid.Column="1" Margin="14,0,0,0" VerticalAlignment="Bottom"><TextBlock Text="Cost assigned" FontSize="10" Foreground="#91B9BB"/><TextBlock x:Name="AllocationCostPreview" Margin="0,4,0,8" Foreground="#76D7CB" FontWeight="SemiBold"/></StackPanel></Grid>
     <Expander x:Name="AllocationNoteSection" Header="Add a note (optional)"><TextBox x:Name="AllocationNote" TextWrapping="Wrap" AcceptsReturn="True" MinHeight="54" MaxLength="2000"/></Expander>
-    <WrapPanel Margin="0,6,0,12"><Button x:Name="SaveAllocation" Content="Save split" Click="SaveAllocation_Click"/><Button Content="New split" Click="NewAllocation_Click"/><Button x:Name="RemoveAllocation" Content="Remove split" Click="RemoveAllocation_Click" IsEnabled="False"/></WrapPanel>
-    <TextBlock Text="Saved splits - select one to edit" Style="{StaticResource SectionTitle}"/>
-    <DataGrid x:Name="AllocationSplits" MinHeight="65" MaxHeight="180" SelectionChanged="AllocationSplit_Selected" ScrollViewer.HorizontalScrollBarVisibility="Auto"><DataGrid.Columns>
-     <DataGridTextColumn Header="Bought for" Binding="{Binding ProjectName}" Width="*" MinWidth="155"/>
-     <DataGridTextColumn Header="Quantity" Binding="{Binding Quantity, StringFormat=N0}" HeaderStyle="{StaticResource QuantityHeader}" ElementStyle="{StaticResource QuantityText}" Width="105" MinWidth="100"/>
-    </DataGrid.Columns></DataGrid>
-    <TextBlock x:Name="AllocationMessage" TextWrapping="Wrap" Foreground="#EDAD83"/>
-    <Button Content="Reload allocations" Click="ReloadAllocation_Click" HorizontalAlignment="Left" Margin="0,12"/>
-    <Expander Header="Allocation history" Margin="0,8"><TextBlock x:Name="AllocationAudit" TextWrapping="Wrap"/></Expander>
+
+    <TextBlock x:Name="AllocationMessage" TextWrapping="Wrap" Foreground="#91B9BB" Margin="0,0,0,12"/>
+    <Border BorderBrush="#28454A" BorderThickness="0,1,0,0" Padding="0,14,0,0"><StackPanel>
+     <TextBlock Text="Saved allocations" FontSize="14" FontWeight="SemiBold" Foreground="#E5F1F2" Margin="0,0,0,8"/>
+     <TextBlock x:Name="AllocationEmpty" Text="Nothing assigned yet. Choose a destination above to get started." TextWrapping="Wrap" Foreground="#91B9BB" Margin="0,4,0,12"/>
+     <DataGrid x:Name="AllocationSplits" MinHeight="65" MaxHeight="220" SelectionChanged="AllocationSplit_Selected" ScrollViewer.HorizontalScrollBarVisibility="Auto" ToolTip="Select an allocation to edit it"><DataGrid.Columns>
+      <DataGridTextColumn Header="Bought for" Binding="{Binding ProjectName}" Width="*" MinWidth="155"/>
+      <DataGridTextColumn Header="Quantity" Binding="{Binding Quantity, StringFormat=N0}" HeaderStyle="{StaticResource QuantityHeader}" ElementStyle="{StaticResource QuantityText}" Width="105" MinWidth="100"/>
+     </DataGrid.Columns></DataGrid>
+    </StackPanel></Border>
+    <Expander Header="Allocation history" Margin="0,10"><TextBlock x:Name="AllocationAudit" TextWrapping="Wrap"/></Expander>
+    <TextBlock Text="Assigning a purchase records its cost. Reserve and check delivery separately in your project." TextWrapping="Wrap" Foreground="#91B9BB" FontSize="11" Margin="0,10"/>
+    <Button Content="Reload allocations" Click="ReloadAllocation_Click" HorizontalAlignment="Left"/>
    </StackPanel></ScrollViewer>
+   </DockPanel>
   </Border>
   </Grid>
  </DockPanel>
