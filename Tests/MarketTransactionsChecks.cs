@@ -65,11 +65,11 @@ internal static partial class Program
         restart.Select(new long[] { 42 });
         foreach (var record in restart.Transactions) record.Transaction.ResolvedLocation = "Jita IV - Moon 4 - Caldari Navy Assembly Plant";
         var view = new MarketOrdersWindow(); view.Initialize(restart, new[] { pilot });
-        ((ComboBox)view.FindName("Observation")).SelectedIndex = 4;
+        ((TabControl)view.FindName("MarketTabs")).SelectedIndex = 4;
         var grid = (DataGrid)view.FindName("TransactionsGrid");
         Check(grid.Items.Count == 1 && ((TextBlock)view.FindName("Totals")).Text.Contains("not profit"), "Transaction UI separates gross purchases from profit and respects purchase filtering");
         if (renderPath != null) { grid.SelectedIndex = 0; Render(view, Path.ChangeExtension(renderPath, ".transactions.png")); Check(((TextBlock)view.FindName("OrderDetail")).Text.Contains("Confirmed by"), "Selected transaction details remain visible after rendering and source refresh"); }
-        ((TabControl)view.FindName("SideTabs")).SelectedIndex = 1;
+        ((TabControl)view.FindName("MarketTabs")).SelectedIndex = 5;
         Check(grid.Items.Count == 1 && ((TextBlock)view.FindName("ObservationSummary")).Text.Contains("sales"), "Sales tab shows confirmed sales independently of purchases");
         view.Close();
     }

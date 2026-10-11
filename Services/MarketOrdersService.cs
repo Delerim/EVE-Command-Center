@@ -44,7 +44,7 @@ public sealed partial class MarketOrdersService
             }
         }
         catch (Exception ex) { Error = "Market cache preserved; loading failed: " + ex.GetType().Name; }
-        try { if (Ledger.Exists) { History = Ledger.History(); HistoryStatus = "Saved confirmed history loaded."; Transactions = Ledger.Transactions(); TransactionStatus = "Saved personal transactions loaded."; } }
+        try { if (Ledger.Exists) { History = Ledger.History(); HistoryStatus = "Saved confirmed history loaded."; Transactions = Ledger.Transactions(); TransactionStatus = "Saved personal transactions loaded."; Journal = Ledger.Journal(); JournalStatus = "Saved wallet activity loaded."; } }
         catch (Exception ex) { HistoryStatus = "History could not be loaded; data preserved: " + ex.GetType().Name; }
     }
     public async Task RefreshHistoryAsync(IReadOnlyList<EvePilotProfile> linked, CancellationToken ct)

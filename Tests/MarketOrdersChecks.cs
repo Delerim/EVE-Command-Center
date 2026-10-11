@@ -66,14 +66,14 @@ internal static partial class Program
             "Market character selection and last successful orders survive restart");
         var view = new MarketOrdersWindow(); view.Initialize(restored, new[] { pilot });
         Check(((DataGrid)view.FindName("Orders")).Items.Count == 1, "Embedded market buy tab displays only personal buy orders");
-        ((TabControl)view.FindName("SideTabs")).SelectedIndex = 1;
+        ((TabControl)view.FindName("MarketTabs")).SelectedIndex = 2;
         Check(((DataGrid)view.FindName("Orders")).Items.Count == 1, "Embedded market sell tab switches to personal sell orders");
         if (renderPath != null)
         {
             restored.State.Characters.Single().Unobserved.Add(new() { Order = new MarketOrder { OrderId = 900, TypeId = 35, LocationId = 60003760, ResolvedLocation = "Jita IV - Moon 4", Price = 5.5m, Total = 200, Remaining = 80, Duration = 30, Issued = DateTimeOffset.UtcNow.AddDays(-2) }, LastSeen = DateTimeOffset.UtcNow.AddHours(-2), MissingSince = DateTimeOffset.UtcNow.AddHours(-1) });
-            ((System.Windows.Controls.ComboBox)view.FindName("Observation")).SelectedIndex = 1;
+            ((TabControl)view.FindName("MarketTabs")).SelectedIndex = 7;
             Check(((DataGrid)view.FindName("Orders")).Items.Count == 1, "Market observation filter shows absent orders separately from open orders");
-            ((System.Windows.Controls.ComboBox)view.FindName("Observation")).SelectedIndex = 2;
+            ((TabControl)view.FindName("MarketTabs")).SelectedIndex = 2;
             ((DataGrid)view.FindName("Orders")).SelectedIndex = 1;
             Render(view, Path.ChangeExtension(renderPath, ".market.png"));
         }
@@ -96,7 +96,7 @@ internal static partial class Program
         var previousContext = SynchronizationContext.Current;
         SynchronizationContext.SetSynchronizationContext(new System.Windows.Threading.DispatcherSynchronizationContext(waitingView.Dispatcher));
         var refresh = waitingView.RefreshMarket(0, new[] { pilot });
-        ((ComboBox)waitingView.FindName("Observation")).SelectedIndex = 2;
+        ((TabControl)waitingView.FindName("MarketTabs")).SelectedIndex = 2;
         Check(((TextBlock)waitingView.FindName("Status")).Text.Contains("waiting for open orders") && !((Button)waitingView.FindName("RefreshButton")).IsEnabled,
             "Changing market views preserves current refresh progress instead of restoring an old failure");
         if (renderPath != null) Render(waitingView, Path.ChangeExtension(renderPath, ".market-refresh.png"));
@@ -105,7 +105,7 @@ internal static partial class Program
         _ = refresh.ContinueWith(_ => waitingView.Dispatcher.BeginInvoke(new Action(() => frame.Continue = false)));
         System.Windows.Threading.Dispatcher.PushFrame(frame);
         refresh.GetAwaiter().GetResult();
-        Check(!service.Busy && ((Button)waitingView.FindName("RefreshButton")).IsEnabled && ((Button)waitingView.FindName("HistoryButton")).IsEnabled && ((Button)waitingView.FindName("TransactionsButton")).IsEnabled,
+        Check(!service.Busy && ((Button)waitingView.FindName("RefreshButton")).IsEnabled && ((ItemsControl)waitingView.FindName("Characters")).IsEnabled,
             "Cancelling a waiting market request restores every refresh button");
         Check(service.State.Characters.Single().Orders.Count == 3 && ((TextBlock)waitingView.FindName("Status")).Text.Contains("cancelled"), "Cancellation preserves cached orders and displays a clear result");
         waitingView.Close();

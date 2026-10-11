@@ -63,7 +63,7 @@ internal static partial class Program
         var restart = new MarketOrdersService(new EveSsoService(), folder, http);
         Check(restart.History.Count == 2 && new IndustryWorkspaceStore(folder).Snapshot().Projects.Count == 3, "Planning and confirmed order history survive restart in the same ledger");
         var view = new MarketOrdersWindow(); view.Initialize(restart, new[] { pilot });
-        ((ComboBox)view.FindName("Observation")).SelectedIndex = 3;
+        ((TabControl)view.FindName("MarketTabs")).SelectedIndex = 1;
         var grid = (DataGrid)view.FindName("Orders");
         Check(grid.Items.Count == 2, "Confirmed history has an independent named, sortable UI filter");
         if (renderPath != null) { grid.SelectedIndex = 0; Render(view, Path.ChangeExtension(renderPath, ".history.png")); }

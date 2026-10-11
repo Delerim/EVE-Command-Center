@@ -82,6 +82,14 @@ public sealed class EveSkillQueueEntry
 
 public sealed class EveWalletJournalEntry
 {
+    [JsonPropertyName("description")] public string? Description { get; set; }
+    [JsonPropertyName("context_id")] public long? ContextId { get; set; }
+    [JsonPropertyName("context_id_type")] public string? ContextType { get; set; }
+    [JsonPropertyName("first_party_id")] public long? FirstPartyId { get; set; }
+    [JsonPropertyName("second_party_id")] public long? SecondPartyId { get; set; }
+    [JsonPropertyName("tax")] public decimal? Tax { get; set; }
+    [JsonPropertyName("tax_receiver_id")] public long? TaxReceiverId { get; set; }
+
     [JsonPropertyName("id")]
     public long Id { get; set; }
 
