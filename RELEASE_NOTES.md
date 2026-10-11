@@ -1,9 +1,9 @@
-# EVE Command Center v3.6.52
+# EVE Command Center v3.6.53
 
-- Market is now Market & Wallet. Clicking a pilot portrait opens only that pilot's orders, trades and wallet; the selection is remembered.
-- Moved wallet balance, journal, cash flow and PLEX history out of Pilots into Market & Wallet. Pilot refreshes no longer fetch wallet data independently. Views reuse the shared imports and respect refresh caching.
-- Added Wallet overview with balance and today/seven-day cash flow, plus a dedicated PLEX view. Journal entries include balance after the entry and their description or reason. Failed refreshes retain saved data and explain the problem.
-- Continued Phase D with explicit sales attribution. Split confirmed sales between eligible projects, general stock or unrelated activity, with quantity limits, previews and editable history. Project attribution requires confirmation that the sold units came from that project.
-- Projects now have a Sales tab showing attributed units and gross receipts. These receipts do not imply completed production, delivery or profit; costs and fees remain separate.
-- Ledger schema 5 creates a backup before adding sale allocations and their audit trail. Existing purchases, projects and imported trades are retained.
-- Validated with 663 regression checks, including single-pilot isolation, wallet cache reuse and failure recovery, sale quantity limits, stale edits, transactional rollback, restart and populated-ledger migration.
+- Added a Finances tab inside each production project, bringing assigned purchase spending and sales receipts into one view.
+- Summary cards show spending, receipts and their cash difference. Every figure follows the selected pilot and period; all project pilots remain available regardless of who owns the project.
+- Added a dated activity table with item icons, pilot names, assigned units and separate paid/received columns. Columns sort, resize and remember their layout.
+- Select an activity and open its exact supporting purchase or sale allocation. Source prices, locations and notes remain visible without raw IDs.
+- Figures read the existing ledger in one snapshot. Viewing or filtering finances does not create another ledger, make ESI requests, alter reservations or mark production complete.
+- Cash difference is explicitly not profit. Fees, manufacturing costs and consumed-stock valuation are not yet included; missing linked history is shown separately from confirmed zero-priced trades.
+- Validated with 678 regression checks covering decimal totals, split provenance, owner-scoped counts, pilot/date filters, empty evidence, overflow, restart and source navigation.

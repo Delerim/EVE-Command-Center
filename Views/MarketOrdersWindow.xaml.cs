@@ -227,7 +227,7 @@ public partial class MarketOrdersWindow : Window
         public string Activity => CultureInfo.InvariantCulture.TextInfo.ToTitleCase(Entry.RefType.Replace('_', ' '));
         public string Amount => Entry.Amount?.ToString("N2") ?? "Unknown";
         public string Balance => Entry.Balance?.ToString("N2") ?? "Unknown";
-        public string Note => string.IsNullOrWhiteSpace(Entry.Reason) ? Entry.Description : Entry.Reason;
+        public string Note => string.IsNullOrWhiteSpace(Entry.Reason) ? Entry.Description ?? "" : Entry.Reason;
         public string Color => Entry.Amount > 0 ? "#76D7CB" : Entry.Amount < 0 ? "#EDAD83" : "#A5BBC1";
         public string Related => Trades.Length == 0 ? "No linked trade imported" : string.Join(" / ", Trades.Select(t => t.Name).Distinct());
         public string? Icon => Trades.FirstOrDefault()?.Icon;

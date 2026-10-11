@@ -9,7 +9,7 @@ public partial class IndustryWorkspaceView
     private int? _purchaseTypeFilter;
     private Guid? _purchaseProject;
     private void WorkspaceTab_Changed(object sender, SelectionChangedEventArgs e)
-    { if (!_initialized || e.Source != WorkspaceTabs) return; if (WorkspaceTabs.SelectedItem == ProjectPurchasesTab) RefreshProjectPurchases(); else if (WorkspaceTabs.SelectedItem == ProjectSalesTab) RefreshProjectSales(); }
+    { if (!_initialized || e.Source != WorkspaceTabs) return; if (WorkspaceTabs.SelectedItem == ProjectPurchasesTab) RefreshProjectPurchases(); else if (WorkspaceTabs.SelectedItem == ProjectSalesTab) RefreshProjectSales(); else if (WorkspaceTabs.SelectedItem == ProjectFinancesTab) RefreshProjectFinances(); }
     private void ReloadProjectPurchases_Click(object sender, RoutedEventArgs e) => RefreshProjectPurchases();
     private void RefreshProjectPurchases()
     {
@@ -19,7 +19,7 @@ public partial class IndustryWorkspaceView
             if (_purchaseProject != id) { _purchaseTypeFilter = null; _purchaseProject = id; }
             var purchases = _store.ProjectPurchases(id);
             var costs = ProjectAcquisitionCosts.Calculate(purchases);
-            _projectPurchaseRows = purchases.OrderByDescending(p => p.Purchase.Date).Select(p => new ProjectPurchaseRow(p.Purchase, p.Allocation, Pilot(p.OwnerId), p.Cost)).ToArray();
+            _projectPurchaseRows = purchases.OrderByDescending(p => p.Purchase.Date).Select(p => new ProjectPurchaseRow(p.Purchase, p.Allocation, Pilot(p.OwnerId), p.Cost, p.OwnerId)).ToArray();
             ProjectItemCosts.ItemsSource = costs;
             ProjectPurchaseSummary.Text = $"{costs.Sum(p => p.Cost):N2} ISK";
             ProjectPurchaseItems.Text = $"{costs.Count:N0}";
@@ -53,5 +53,5 @@ public partial class IndustryWorkspaceView
         ClearPurchaseFilter.Visibility = _purchaseTypeFilter == null ? Visibility.Collapsed : Visibility.Visible;
         ProjectPurchaseEmpty.Text = "No purchases assigned yet. In Market, select a purchase and choose this project in Bought for.";
     }
-    private sealed record ProjectPurchaseRow(MarketTransaction Purchase, PurchaseAllocation Allocation, string Buyer, decimal Cost);
+    private sealed record ProjectPurchaseRow(MarketTransaction Purchase, PurchaseAllocation Allocation, string Buyer, decimal Cost, long OwnerId);
 }

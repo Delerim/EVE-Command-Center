@@ -145,6 +145,7 @@ public partial class IndustryWorkspaceView : System.Windows.Controls.UserControl
         RefreshProjectSkills(project);
         RefreshProjectPurchases();
         RefreshProjectSales();
+        RefreshProjectFinances();
         ShowNode();
     }
     private void Node_Selected(object sender, RoutedPropertyChangedEventArgs<object> e)

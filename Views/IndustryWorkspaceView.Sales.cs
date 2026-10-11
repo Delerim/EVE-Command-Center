@@ -9,7 +9,7 @@ public partial class IndustryWorkspaceView
         if (!_initialized || _projectId is not {} id) return;
         try
         {
-            var rows = _store.ProjectSales(id).OrderByDescending(p => p.Sale.Date).Select(p => new ProjectSaleRow(p.Sale, p.Allocation, Pilot(p.OwnerId), p.GrossProceeds)).ToArray();
+            var rows = _store.ProjectSales(id).OrderByDescending(p => p.Sale.Date).Select(p => new ProjectSaleRow(p.Sale, p.Allocation, Pilot(p.OwnerId), p.GrossProceeds, p.OwnerId)).ToArray();
             ProjectSales.ItemsSource = rows;
             ProjectSalesSummary.Text = $"{rows.Sum(p => p.GrossProceeds):N2} ISK";
             ProjectSalesQuantity.Text = $"{rows.Sum(p => p.Allocation.Quantity):N0}";
@@ -17,5 +17,5 @@ public partial class IndustryWorkspaceView
         }
         catch (Exception ex) { ProjectSales.ItemsSource = null; ProjectSalesSummary.Text = ProjectSalesQuantity.Text = "Unavailable"; ProjectSalesNote.Text = "Sales could not be loaded: " + ex.Message; }
     }
-    private sealed record ProjectSaleRow(MarketTransaction Sale, PurchaseAllocation Allocation, string Seller, decimal GrossProceeds);
+    private sealed record ProjectSaleRow(MarketTransaction Sale, PurchaseAllocation Allocation, string Seller, decimal GrossProceeds, long OwnerId);
 }

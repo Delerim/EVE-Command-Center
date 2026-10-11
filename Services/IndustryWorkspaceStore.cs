@@ -11,6 +11,7 @@ public sealed class IndustryWorkspaceStore
     private readonly string _path;
     private IndustryLedger Ledger => new(Path.GetDirectoryName(_path)!);
     private IndustryWorkspace _state = new();
+    public List<ProjectCashFlow.Entry> ProjectFinancialEntries(Guid project) => Ledger.Exists ? Ledger.ProjectFinancialEntries(project) : new();
     public string Error { get; private set; } = "";
     public IndustryWorkspaceStore(string? directory = null)
     {

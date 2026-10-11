@@ -66,6 +66,32 @@ internal static partial class Program
         Check(((DataGrid)workspace.FindName("ProjectSales")).Items.Count == 1 && !((TextBlock)workspace.FindName("ProjectSalesNote")).Text.Contains("profit is"), "Project sales expose attributed receipts and provenance without claiming profit");
         if (renderPath != null)
         { var shell = new Window { Content = workspace, Width = 1750, Height = 1000 }; workspace.Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.ApplicationIdle, new Action(() => ((TabControl)workspace.FindName("WorkspaceTabs")).SelectedItem = workspace.FindName("ProjectSalesTab"))); Render(shell, Path.ChangeExtension(renderPath, ".project-sales.png")); shell.Close(); }
+        var purchaseSplit = Split(project, 1);
+        reopened.SavePurchaseAllocation(42, 2, 0, new[] { purchaseSplit });
+        ((TabControl)workspace.FindName("WorkspaceTabs")).SelectedItem = workspace.FindName("ProjectFinancesTab");
+        var financeGrid = (DataGrid)workspace.FindName("ProjectFinanceEntries");
+        Check(financeGrid.Items.Count == 2 && ((TextBlock)workspace.FindName("FinancePaid")).Text.Contains("1,234,567,890.12") && ((TextBlock)workspace.FindName("FinanceReceived")).Text.Contains("2,469,135,780.25"), "Project finances show assigned purchase and sale evidence together");
+        Check(((ComboBox)workspace.FindName("FinancePilotFilter")).SelectedItem.ToString() == "All project pilots", "Finance pilot selection exposes readable names rather than internal objects");
+        var snapshot = store.Snapshot();
+        financeGrid.SelectedIndex = 0;
+        ((Button)workspace.FindName("FinanceOpenSource")).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        Check(((TabControl)workspace.FindName("WorkspaceTabs")).SelectedItem == workspace.FindName("ProjectSalesTab") && ((DataGrid)workspace.FindName("ProjectSales")).SelectedItem != null, "Finance drill-down selects the exact supporting sale allocation");
+        ((TabControl)workspace.FindName("WorkspaceTabs")).SelectedItem = workspace.FindName("ProjectFinancesTab");
+        financeGrid.SelectedIndex = 1;
+        ((Button)workspace.FindName("FinanceOpenSource")).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        Check(((TabControl)workspace.FindName("WorkspaceTabs")).SelectedItem == workspace.FindName("ProjectPurchasesTab") && ((DataGrid)workspace.FindName("ProjectPurchases")).SelectedItem != null, "Finance drill-down selects the exact supporting purchase allocation");
+        Check(store.Snapshot().Revision == snapshot.Revision && store.Snapshot().Reservations.Count == snapshot.Reservations.Count, "Financial views and source navigation never alter project readiness or reservations");
+        Check(new IndustryWorkspaceStore(folder).ProjectFinancialEntries(project).Count == 2, "Combined financial evidence survives restart without a second ledger");
+        if (renderPath != null)
+        {
+            var finances = new IndustryWorkspaceView(); finances.Initialize(store, () => Array.Empty<IndustryPilot>(), pilots);
+            ((ListBox)finances.FindName("Projects")).SelectedIndex = 0;
+            var shell = new Window { Content = finances, Width = 1850, Height = 1050 };
+            finances.Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.ApplicationIdle, new Action(() => ((TabControl)finances.FindName("WorkspaceTabs")).SelectedItem = finances.FindName("ProjectFinancesTab")));
+            Render(shell, Path.ChangeExtension(renderPath, ".project-finances.png"));
+            shell.Width = 1250; shell.Height = 850;
+            Render(shell, Path.ChangeExtension(renderPath, ".project-finances-compact.png")); shell.Close();
+        }
         store.DeleteProject(project);
         Check(reopened.SaleAllocation(42, 1).Splits.Any(s => s.ProjectId == project) && reopened.Transactions.Count == 3, "Deleting a project preserves its past sale links and original transactions");
         Check(Reject(() => reopened.SaveSaleAllocation(42, 1, 1, new[] { a with { Quantity = 3 } }, true)), "Removed projects cannot receive new sold quantities");
