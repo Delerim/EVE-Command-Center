@@ -18,6 +18,7 @@ public sealed partial class MarketOrdersService
     public MarketOrdersState State { get; private set; } = new();
     public string Error { get; private set; } = "";
     public bool Busy { get; private set; }
+    public string Progress { get; private set; } = "";
     private IndustryLedger Ledger => new(Path.GetDirectoryName(_path)!);
     public List<HistoricalOrderRecord> History { get; private set; } = new();
     public string HistoryStatus { get; private set; } = "History has not been refreshed.";
@@ -49,7 +50,7 @@ public sealed partial class MarketOrdersService
     public async Task RefreshHistoryAsync(IReadOnlyList<EvePilotProfile> linked, CancellationToken ct)
     {
         if (Busy || Error.Length > 0) return;
-        Busy = true; var messages = new List<string>();
+        Busy = true; Progress = "Preparing history refresh..."; var messages = new List<string>();
         try
         {
             // Migration and complete-page commits run off the dispatcher. No partial-page checkpoint is committed.
@@ -73,6 +74,7 @@ public sealed partial class MarketOrdersService
                         using var request = new HttpRequestMessage(HttpMethod.Get, $"https://esi.evetech.net/characters/{id}/orders/history?page={page}");
                         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
                         request.Headers.TryAddWithoutValidation("X-Compatibility-Date", "2026-08-25");
+                        Progress = $"{pilot.CharacterName}: waiting for history page {page} through the EVE request queue...";
                         using var response = await _http.SendAsync(request, ct); response.EnsureSuccessStatusCode();
                         if (!response.Headers.TryGetValues("X-Pages", out var values) || !int.TryParse(values.Single(), out int count) || count < 1 || count > 10000)
                             throw new InvalidDataException("Missing or invalid history page count.");
@@ -90,17 +92,16 @@ public sealed partial class MarketOrdersService
                     { row.ResolvedName = cached.FirstOrDefault(o => o.TypeId == row.TypeId)?.ResolvedName; row.ResolvedLocation = cached.FirstOrDefault(o => o.LocationId == row.LocationId)?.ResolvedLocation; }
                     if (_resolveNames)
                     {
-                        try
+                        Progress = "Data received. Looking up item and station names...";
+                        await ResolveOptionalNames(async metadataCt =>
                         {
-                            var names = await _sso.ResolveIndustryTypeNamesAsync(orders.Select(o => o.TypeId), ct);
+                            var names = await _sso.ResolveIndustryTypeNamesAsync(orders.Select(o => o.TypeId), metadataCt);
                             foreach (var row in orders)
                                 if (names.GetValueOrDefault(row.TypeId) is {} name && !name.StartsWith("Type ") && name != "Item name unavailable") row.ResolvedName = name;
                             foreach (var location in orders.Select(o => o.LocationId).Distinct())
-                                if (await _sso.ResolveDisplayLocationAsync(location, pilot, ct) is {} name)
+                                if (await _sso.ResolveDisplayLocationAsync(location, pilot, metadataCt) is {} name)
                                     foreach (var row in orders.Where(o => o.LocationId == location)) row.ResolvedLocation = name;
-                        }
-                        catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
-                        catch (Exception ex) { EsiDiagnostics.Write("Market history names deferred: " + ex.GetType().Name); }
+                        }, ct);
                     }
                     ct.ThrowIfCancellationRequested();
                     await Task.Run(() => Ledger.ImportHistory(id, orders, observed, next), ct);
@@ -113,6 +114,16 @@ public sealed partial class MarketOrdersService
         }
         finally { HistoryStatus = string.Join("\n", messages); Busy = false; }
     }
+    internal static async Task ResolveOptionalNames(Func<CancellationToken, Task> resolve, CancellationToken ct, TimeSpan? budget = null)
+    {
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        timeout.CancelAfter(budget ?? TimeSpan.FromSeconds(15));
+        try { await resolve(timeout.Token); }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
+        catch (Exception ex) { EsiDiagnostics.Write("Optional market names deferred: " + ex.GetType().Name); }
+    }
+    internal static string DisplayError(string error) => error.Contains("HttpRequestException", StringComparison.Ordinal)
+        ? "Previous refresh failed. Refresh orders to try again." : error;
     internal static string Failure(Exception ex) => ex switch
     {
         HttpRequestException { StatusCode: System.Net.HttpStatusCode.Unauthorized } => "EVE rejected the session (401). Refresh again; reconnect the pilot if it persists.",
@@ -156,7 +167,7 @@ public sealed partial class MarketOrdersService
     public async Task RefreshAsync(IReadOnlyList<EvePilotProfile> linked, CancellationToken ct)
     {
         if (Busy || Error.Length > 0) return;
-        Busy = true;
+        Busy = true; Progress = "Preparing open orders...";
         try
         {
             foreach (long id in State.SelectedCharacters.ToArray())
@@ -175,6 +186,7 @@ public sealed partial class MarketOrdersService
                     using var request = new HttpRequestMessage(HttpMethod.Get, $"https://esi.evetech.net/characters/{id}/orders");
                     request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", await _token(pilot, ct));
                     request.Headers.TryAddWithoutValidation("X-Compatibility-Date", "2026-08-25");
+                    Progress = $"{pilot.CharacterName}: waiting for open orders through the EVE request queue...";
                     using var response = await _http.SendAsync(request, ct);
                     response.EnsureSuccessStatusCode();
                     var rows = JsonSerializer.Deserialize<List<MarketOrder>>(await response.Content.ReadAsStringAsync(ct)) ?? throw new InvalidDataException("Empty response");
@@ -186,21 +198,18 @@ public sealed partial class MarketOrdersService
                     }
                     if (_resolveNames)
                     {
-                        try
+                        Progress = "Data received. Looking up item and station names...";
+                        await ResolveOptionalNames(async metadataCt =>
                         {
-                            var names = await _sso.ResolveIndustryTypeNamesAsync(rows.Select(r => r.TypeId), ct);
-                            var locations = new Dictionary<long, string>();
-                            foreach (long location in rows.Select(r => r.LocationId).Distinct())
-                                if (await _sso.ResolveDisplayLocationAsync(location, pilot, ct) is {} name) locations[location] = name;
+                            var names = await _sso.ResolveIndustryTypeNamesAsync(rows.Select(r => r.TypeId), metadataCt);
                             foreach (var row in rows)
-                            {
-                                row.ResolvedName = names.GetValueOrDefault(row.TypeId) is {} name && !name.StartsWith("Type ") && name != "Item name unavailable" ? name : data.Orders.Concat(data.Unobserved.Select(o => o.Order)).FirstOrDefault(o => o.TypeId == row.TypeId)?.ResolvedName;
-                                row.ResolvedLocation = locations.GetValueOrDefault(row.LocationId) ?? data.Orders.Concat(data.Unobserved.Select(o => o.Order)).FirstOrDefault(o => o.LocationId == row.LocationId)?.ResolvedLocation;
-                            }
-                        }
-                        catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
-                        catch (Exception ex) { EsiDiagnostics.Write("Market names deferred: " + ex.GetType().Name); }
+                                if (names.GetValueOrDefault(row.TypeId) is {} name && !name.StartsWith("Type ") && name != "Item name unavailable") row.ResolvedName = name;
+                            foreach (long location in rows.Select(r => r.LocationId).Distinct())
+                                if (await _sso.ResolveDisplayLocationAsync(location, pilot, metadataCt) is {} name)
+                                    foreach (var row in rows.Where(r => r.LocationId == location)) row.ResolvedLocation = name;
+                        }, ct);
                     }
+                    ct.ThrowIfCancellationRequested();
                     var observedAt = DateTimeOffset.UtcNow;
                     var returned = rows.Select(o => o.OrderId).ToHashSet();
                     data.Unobserved.RemoveAll(o => returned.Contains(o.Order.OrderId));

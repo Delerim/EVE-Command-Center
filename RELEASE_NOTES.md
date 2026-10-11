@@ -1,8 +1,7 @@
-# EVE Command Center v3.6.47
+# EVE Command Center v3.6.48
 
-- Fixed stale access-token reuse after adding permissions: a cached token must cover the reconnected pilot's granted scopes before it can be reused. Market errors now explain denied access, expired sessions, network failures and rate limits instead of showing exception names.
-- Fixed confirmed history rejecting valid zero-day immediate orders. Tested the updated importer against live ESI responses.
-- Continued Phase C with Market transactions. Use Refresh transactions to load confirmed personal purchases and sales, with named item icons, station names, search, pilot selection and sortable quantities, prices and gross totals.
-- Transaction history persists in the shared industry ledger. Cursor pagination handles repeated boundary records without duplicate spending, and full imports commit with their refresh checkpoint. Failed pages, malformed responses and conflicting evidence preserve existing records.
-- Added an atomic ledger schema upgrade with a pre-upgrade database backup. Existing projects and order history remain intact. Hiding a pilot does not remove imported transactions.
-- Open orders, history and transactions honor their own API cache windows, including absolute expiry on shared cached responses. Gross purchases and sales are not profit: wallet journal fees, project allocations and financial accounting remain pending.
+- Market refresh now shows its current request or name-lookup progress. Switching tabs or searching keeps that progress visible instead of restoring an old saved error.
+- Added Cancel refresh. Cancelling restores all refresh buttons and retains previously saved market data.
+- Optional item and station lookups have a 15-second cancellation budget per pilot, so slow metadata does not indefinitely delay a successful market import. Names already resolved are retained.
+- Old saved network exceptions are labelled as previous failures. Refresh orders to replace the previous open-order result; history and transactions retain their separate refresh status.
+- Added regression checks for optional lookup cancellation, view changes during refresh, restored controls and preserved orders.

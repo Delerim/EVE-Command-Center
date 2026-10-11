@@ -14,6 +14,7 @@ public partial class MarketOrdersWindow : Window
     public MarketOrdersWindow()
     {
         InitializeComponent();
+        _progressTimer.Tick += (_, _) => ShowProgress();
         TableSorting.Attach(Orders); TableSorting.Attach(TransactionsGrid);
         Loaded += async (_, _) =>
         {
@@ -25,7 +26,7 @@ public partial class MarketOrdersWindow : Window
             }
             catch (Exception ex) { Status.Text = "Market unavailable: " + ex.Message; }
         };
-        Closed += (_, _) => _life.Cancel();
+        Closed += (_, _) => { _life.Cancel(); _progressTimer.Stop(); };
     }
     internal void Initialize(MarketOrdersService service, IReadOnlyList<EvePilotProfile> pilots)
     {
@@ -33,56 +34,50 @@ public partial class MarketOrdersWindow : Window
         _choices = pilots.Select(p => new CharacterChoice { Id = p.CharacterId, Name = p.CharacterName, Selected = service.State.SelectedCharacters.Contains(p.CharacterId) }).ToList();
         Characters.ItemsSource = _choices; RenderOrders();
     }
-    private async void Refresh_Click(object sender, RoutedEventArgs e)
+    private CancellationTokenSource? _refresh;
+    private readonly System.Windows.Threading.DispatcherTimer _progressTimer = new() { Interval = TimeSpan.FromMilliseconds(250) };
+    private async void Refresh_Click(object sender, RoutedEventArgs e) => await RefreshMarket(0);
+    private async void History_Click(object sender, RoutedEventArgs e) => await RefreshMarket(3);
+    private async void Transactions_Click(object sender, RoutedEventArgs e) => await RefreshMarket(4);
+    private void CancelRefresh_Click(object sender, RoutedEventArgs e) => _refresh?.Cancel();
+    private void ShowProgress()
     {
-        if (_service == null || _service.Busy) return;
-        RefreshButton.IsEnabled = false;
-        try
-        {
-            _pilots = (await BackgroundOperations.Current.Sso.LoadPilotsAsync()).ToArray();
-            var selectedIds = _choices.Where(c => c.Selected).Select(c => c.Id).ToHashSet();
-            _choices = _pilots.Select(p => new CharacterChoice { Id = p.CharacterId, Name = p.CharacterName, Selected = selectedIds.Contains(p.CharacterId) }).ToList();
-            Characters.ItemsSource = _choices;
-            _service.Select(selectedIds);
-            Status.Text = "Refreshing selected characters through the shared ESI queue...";
-            await _service.RefreshAsync(_pilots, _life.Token);
-            if (!_life.IsCancellationRequested) { if (Observation.SelectedIndex == 4) Observation.SelectedIndex = 0; RenderOrders(); }
-        }
-        catch (OperationCanceledException) { }
-        catch (Exception ex) { if (!_life.IsCancellationRequested) Status.Text = "Market refresh unavailable: " + ex.Message; }
-        finally { if (!_life.IsCancellationRequested) RefreshButton.IsEnabled = true; }
+        if (_refresh == null) return;
+        Status.Text = _refresh.IsCancellationRequested ? "Cancelling refresh; saved data is retained..." : _service?.Busy == true ? _service.Progress : "Preparing refresh...";
+        HistoryStatus.Text = "Refresh in progress. EVE rate limits may add waiting time.";
     }
-    private async void History_Click(object sender, RoutedEventArgs e)
+    internal async Task RefreshMarket(int mode, IReadOnlyList<EvePilotProfile>? linkedPilots = null)
     {
-        if (_service == null || _service.Busy) return;
-        HistoryButton.IsEnabled = RefreshButton.IsEnabled = false;
-        try
-        {
-            _pilots = (await BackgroundOperations.Current.Sso.LoadPilotsAsync()).ToArray();
-            _service.Select(_choices.Where(c => c.Selected).Select(c => c.Id));
-            HistoryStatus.Text = "Refreshing confirmed history...";
-            await _service.RefreshHistoryAsync(_pilots, _life.Token);
-            if (!_life.IsCancellationRequested) { Observation.SelectedIndex = 3; RenderOrders(); }
-        }
-        catch (OperationCanceledException) { }
-        catch (Exception ex) { if (!_life.IsCancellationRequested) HistoryStatus.Text = "History unavailable: " + ex.Message; }
-        finally { if (!_life.IsCancellationRequested) HistoryButton.IsEnabled = RefreshButton.IsEnabled = true; }
-    }
-    private async void Transactions_Click(object sender, RoutedEventArgs e)
-    {
-        if (_service == null || _service.Busy) return;
+        if (_service == null || _service.Busy || _refresh != null) return;
+        using var request = CancellationTokenSource.CreateLinkedTokenSource(_life.Token);
+        _refresh = request;
+        string? failure = null;
         TransactionsButton.IsEnabled = HistoryButton.IsEnabled = RefreshButton.IsEnabled = false;
+        CancelRefresh.Visibility = Visibility.Visible;
+        _progressTimer.Start();
         try
         {
-            _pilots = (await BackgroundOperations.Current.Sso.LoadPilotsAsync()).ToArray();
-            _service.Select(_choices.Where(c => c.Selected).Select(c => c.Id));
-            HistoryStatus.Text = "Refreshing personal transactions...";
-            await _service.RefreshTransactionsAsync(_pilots, _life.Token);
-            if (!_life.IsCancellationRequested) { Observation.SelectedIndex = 4; RenderOrders(); }
+            ShowProgress();
+            _pilots = linkedPilots ?? (await BackgroundOperations.Current.Sso.LoadPilotsAsync()).ToArray();
+            var ids = _choices.Where(c => c.Selected).Select(c => c.Id).ToHashSet();
+            _choices = _pilots.Select(p => new CharacterChoice { Id = p.CharacterId, Name = p.CharacterName, Selected = ids.Contains(p.CharacterId) }).ToList();
+            Characters.ItemsSource = _choices; _service.Select(ids);
+            if (mode == 3) await _service.RefreshHistoryAsync(_pilots, request.Token);
+            else if (mode == 4) await _service.RefreshTransactionsAsync(_pilots, request.Token);
+            else await _service.RefreshAsync(_pilots, request.Token);
+            Observation.SelectedIndex = mode;
         }
         catch (OperationCanceledException) { }
-        catch (Exception ex) { if (!_life.IsCancellationRequested) HistoryStatus.Text = MarketOrdersService.Failure(ex); }
-        finally { if (!_life.IsCancellationRequested) TransactionsButton.IsEnabled = HistoryButton.IsEnabled = RefreshButton.IsEnabled = true; }
+        catch (Exception ex) { failure = MarketOrdersService.Failure(ex); }
+        finally
+        {
+            _progressTimer.Stop(); _refresh = null;
+            TransactionsButton.IsEnabled = HistoryButton.IsEnabled = RefreshButton.IsEnabled = true;
+            CancelRefresh.Visibility = Visibility.Collapsed;
+            RenderOrders();
+            if (failure != null) Status.Text = failure;
+            else if (request.IsCancellationRequested) Status.Text = "Refresh cancelled. Saved data is retained; you can refresh again.";
+        }
     }
     private void Transaction_Selected(object sender, SelectionChangedEventArgs e)
     { if (OrderDetail != null) OrderDetail.Text = (TransactionsGrid.SelectedItem as TransactionRow)?.Detail ?? "Select a transaction to inspect its confirmed purchase or sale."; }
@@ -131,7 +126,7 @@ public partial class MarketOrdersWindow : Window
         Orders.Visibility = transactions ? Visibility.Collapsed : Visibility.Visible;
         ((TabItem)SideTabs.Items[0]).Header = transactions ? "Purchases" : "Buy orders";
         ((TabItem)SideTabs.Items[1]).Header = transactions ? "Sales" : "Sell orders";
-        if (transactions) { RenderTransactions(buy, query); return; }
+        if (transactions) { RenderTransactions(buy, query); ShowProgress(); return; }
         var shown = mode == "history" ? confirmed : mode == "missing" ? missing : mode == "all" ? all.Concat(missing).Concat(confirmed).ToArray() : all;
         var selection = Orders.SelectedItem as OrderRow;
         Orders.ItemsSource = shown.Where(r => r.Order.Buy == buy && (query.Length == 0 || (r.Order.Name + " " + r.Owner + " " + r.Order.Location).Contains(query, StringComparison.OrdinalIgnoreCase))).ToArray();
@@ -141,7 +136,8 @@ public partial class MarketOrdersWindow : Window
         Totals.Text = _service.State.SelectedCharacters.Count == 0 ? "Choose characters above, then save selection / refresh." :
             $"{(incomplete ? "OPEN ORDERS / PARTIAL CACHE" : "CACHED OPEN ORDERS")} | Buy {all.Count(r => r.Order.Buy):N0}: {all.Where(r => r.Order.Buy).Sum(r => r.Order.RemainingValue):N2} ISK | Sell {all.Count(r => !r.Order.Buy):N0}: {all.Where(r => !r.Order.Buy).Sum(r => r.Order.RemainingValue):N2} ISK";
         Status.Text = _service.Error.Length > 0 ? _service.Error : string.Join("\n", snapshots.Select(c =>
-            $"{c.Name}: {Fresh(c)} | {(c.Error.Length > 0 ? c.Error : $"Next refresh after {c.NextRefresh:HH:mm} UTC")}"));
+            $"{c.Name}: {Fresh(c)} | {(c.Error.Length > 0 ? MarketOrdersService.DisplayError(c.Error) : $"Next refresh after {c.NextRefresh:HH:mm} UTC")}"));
+        ShowProgress();
     }
     private sealed class CharacterChoice { public long Id { get; set; } public string Name { get; set; } = ""; public bool Selected { get; set; } }
     private sealed record OrderRow(MarketOrder Order, string Owner, string Freshness, string State, DateTimeOffset LastSeen, DateTimeOffset? MissingSince)

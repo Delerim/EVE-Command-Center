@@ -168,3 +168,12 @@ Schema 2 adds indexed wallet_transactions and per-owner transaction checkpoints 
 UI: Refresh orders / Refresh confirmed history / Refresh transactions, Transactions view with Purchases and Sales tabs, searchable named item icons, station names and numeric sorting. Totals cover imported records for selected pilots and current search, explicitly gross and potentially incomplete. Fees, journal ingestion, suggested/manual allocations, transfer reconciliation and P&L remain Phase D work.
 
 Validation includes scope-cache eligibility, explanatory errors, absolute expiry, schema backup and stable projects, later-page rollback, decimal precision, idempotency, both exclusive and inclusive cursor responses, conflicting evidence, missing scope, restart, hidden pilots and transaction view filtering. A temporary isolated read-only live import succeeded for open orders, 300 history rows and 105 personal transactions; temporary records were removed afterward. No production planning data was changed by that diagnostic. Render fixtures are separate from live desktop mouse testing.
+
+
+## v3.6.48 - Visible, cancellable market refresh
+
+The saved HttpRequestException can outlive an in-progress transaction refresh. RenderOrders previously overwrote progress when changing views, and optional metadata could delay the primary import through the shared ESI queue. All three actions now share a cancellable refresh lifecycle with a visible request/page stage and restored controls. View changes preserve progress. Old network errors are translated only for display, never treated as successful data or removed from freshness checks.
+
+Optional name resolution receives a linked 15-second cancellation budget per pilot. User cancellation propagates; optional lookup failure or timeout lets validated primary records commit, preserving names already resolved. Existing shared ESI pacing and full-page atomic imports remain intact. Tests cover timeout, user cancellation, view switching, button recovery and preservation of cached orders.
+
+Validation: 569 checks passed. An isolated read-only live import using the normal optional name-resolution path succeeded for open orders, confirmed history and personal transactions with the current pilot permissions. Temporary diagnostic storage was removed; production project and market records were not rewritten.

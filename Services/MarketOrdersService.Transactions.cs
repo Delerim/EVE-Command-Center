@@ -20,7 +20,7 @@ public sealed partial class MarketOrdersService
     public async Task RefreshTransactionsAsync(IReadOnlyList<EvePilotProfile> linked, CancellationToken ct)
     {
         if (Busy || Error.Length > 0) return;
-        Busy = true; var messages = new List<string>();
+        Busy = true; Progress = "Preparing transactions..."; var messages = new List<string>();
         try
         {
             foreach (long id in State.SelectedCharacters.ToArray())
@@ -43,6 +43,7 @@ public sealed partial class MarketOrdersService
                         using var request = new HttpRequestMessage(HttpMethod.Get, $"https://esi.evetech.net/characters/{id}/wallet/transactions" + (cursor.HasValue ? $"?from_id={cursor.Value}" : ""));
                         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
                         request.Headers.TryAddWithoutValidation("X-Compatibility-Date", "2026-08-25");
+                        Progress = $"{pilot.CharacterName}: waiting for transaction page {pages} through the EVE request queue...";
                         using var response = await _http.SendAsync(request, ct); response.EnsureSuccessStatusCode();
                         var page = JsonSerializer.Deserialize<List<MarketTransaction>>(await response.Content.ReadAsStringAsync(ct)) ?? throw new InvalidDataException("Empty transaction response.");
                         ValidateTransactions(page);
@@ -64,17 +65,16 @@ public sealed partial class MarketOrdersService
                     { row.ResolvedName = known.FirstOrDefault(r => r.TypeId == row.TypeId)?.ResolvedName; row.ResolvedLocation = known.FirstOrDefault(r => r.LocationId == row.LocationId)?.ResolvedLocation; }
                     if (_resolveNames)
                     {
-                        try
+                        Progress = "Data received. Looking up item and station names...";
+                        await ResolveOptionalNames(async metadataCt =>
                         {
-                            var names = await _sso.ResolveIndustryTypeNamesAsync(rows.Select(r => r.TypeId), ct);
+                            var names = await _sso.ResolveIndustryTypeNamesAsync(rows.Select(r => r.TypeId), metadataCt);
                             foreach (var row in rows)
                                 if (names.GetValueOrDefault(row.TypeId) is {} name && !name.StartsWith("Type ") && name != "Item name unavailable") row.ResolvedName = name;
                             foreach (var location in rows.Select(r => r.LocationId).Distinct())
-                                if (await _sso.ResolveDisplayLocationAsync(location, pilot, ct) is {} name)
+                                if (await _sso.ResolveDisplayLocationAsync(location, pilot, metadataCt) is {} name)
                                     foreach (var row in rows.Where(r => r.LocationId == location)) row.ResolvedLocation = name;
-                        }
-                        catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
-                        catch (Exception ex) { EsiDiagnostics.Write("Transaction names deferred: " + ex.GetType().Name); }
+                        }, ct);
                     }
                     ct.ThrowIfCancellationRequested();
                     await Task.Run(() => Ledger.ImportTransactions(id, rows, observed, next), ct);

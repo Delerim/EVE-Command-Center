@@ -78,6 +78,38 @@ internal static partial class Program
             Render(view, Path.ChangeExtension(renderPath, ".market.png"));
         }
         view.Close();
+        Task.Run(async () =>
+        {
+            await MarketOrdersService.ResolveOptionalNames(ct => Task.Delay(Timeout.Infinite, ct), CancellationToken.None, TimeSpan.FromMilliseconds(20));
+            Check(true, "Optional market name timeout allows the primary import to continue");
+            using var cancelled = new CancellationTokenSource(); cancelled.Cancel();
+            bool propagated = false;
+            try { await MarketOrdersService.ResolveOptionalNames(ct => Task.Delay(Timeout.Infinite, ct), cancelled.Token); }
+            catch (OperationCanceledException) { propagated = true; }
+            Check(propagated, "User cancellation is not swallowed by optional market metadata lookup");
+        }).GetAwaiter().GetResult();
+        service.State.Characters.Single().NextRefresh = default;
+        service.State.Characters.Single().Error = "Refresh failed: HttpRequestException; cached orders retained";
+        handler.Wait = true;
+        var waitingView = new MarketOrdersWindow(); waitingView.Initialize(service, new[] { pilot });
+        Check(((TextBlock)waitingView.FindName("Status")).Text.Contains("Previous refresh failed"), "Old persisted market exceptions are identified as previous failures");
+        var previousContext = SynchronizationContext.Current;
+        SynchronizationContext.SetSynchronizationContext(new System.Windows.Threading.DispatcherSynchronizationContext(waitingView.Dispatcher));
+        var refresh = waitingView.RefreshMarket(0, new[] { pilot });
+        ((ComboBox)waitingView.FindName("Observation")).SelectedIndex = 2;
+        Check(((TextBlock)waitingView.FindName("Status")).Text.Contains("waiting for open orders") && !((Button)waitingView.FindName("RefreshButton")).IsEnabled,
+            "Changing market views preserves current refresh progress instead of restoring an old failure");
+        if (renderPath != null) Render(waitingView, Path.ChangeExtension(renderPath, ".market-refresh.png"));
+        ((Button)waitingView.FindName("CancelRefresh")).RaiseEvent(new System.Windows.RoutedEventArgs(Button.ClickEvent));
+        var frame = new System.Windows.Threading.DispatcherFrame();
+        _ = refresh.ContinueWith(_ => waitingView.Dispatcher.BeginInvoke(new Action(() => frame.Continue = false)));
+        System.Windows.Threading.Dispatcher.PushFrame(frame);
+        refresh.GetAwaiter().GetResult();
+        Check(!service.Busy && ((Button)waitingView.FindName("RefreshButton")).IsEnabled && ((Button)waitingView.FindName("HistoryButton")).IsEnabled && ((Button)waitingView.FindName("TransactionsButton")).IsEnabled,
+            "Cancelling a waiting market request restores every refresh button");
+        Check(service.State.Characters.Single().Orders.Count == 3 && ((TextBlock)waitingView.FindName("Status")).Text.Contains("cancelled"), "Cancellation preserves cached orders and displays a clear result");
+        waitingView.Close();
+        SynchronizationContext.SetSynchronizationContext(previousContext);
         var cache = Path.Combine(path, "market-orders.json");
         File.WriteAllText(cache, "corrupt-cache");
         var broken = new MarketOrdersService(new EveSsoService(), path, http);
@@ -87,11 +119,12 @@ internal static partial class Program
 
     private sealed class MarketHandler : HttpMessageHandler
     {
-        public int Calls; public bool Fail; public bool Malformed; public bool OmitBuy;
-        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        public int Calls; public bool Wait; public bool Fail; public bool Malformed; public bool OmitBuy;
+        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
             Calls++;
-            if (Fail) return Task.FromResult(new HttpResponseMessage(HttpStatusCode.ServiceUnavailable));
+            if (Wait) await Task.Delay(Timeout.Infinite, cancellationToken);
+            if (Fail) return new HttpResponseMessage(HttpStatusCode.ServiceUnavailable);
             var rows = new[]
             {
                 new MarketOrder { OrderId = 123, TypeId = 34, LocationId = 60003760, RegionId = 10000002, Price = 1.25m, Total = 10, Remaining = 6, Issued = DateTimeOffset.UtcNow, Duration = 90, Buy = true },
@@ -100,7 +133,7 @@ internal static partial class Program
             };
             var response = new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(Malformed ? "[{\"order_id\":123}]" : JsonSerializer.Serialize(rows.Where(r => !OmitBuy || r.OrderId != 123))) };
             response.Headers.CacheControl = new() { MaxAge = TimeSpan.FromMinutes(20) };
-            return Task.FromResult(response);
+            return response;
         }
     }
 }
