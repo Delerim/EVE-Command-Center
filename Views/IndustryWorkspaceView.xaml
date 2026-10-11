@@ -64,7 +64,7 @@
         </TreeView>
       </DockPanel>
       <GridSplitter Grid.Column="1" Width="5" HorizontalAlignment="Stretch" Background="#245058" />
-      <TabControl x:Name="WorkspaceTabs" SelectedIndex="0" Grid.Column="2" Background="#07181B" BorderBrush="#245058">
+      <TabControl SelectionChanged="WorkspaceTab_Changed" x:Name="WorkspaceTabs" SelectedIndex="0" Grid.Column="2" Background="#07181B" BorderBrush="#245058">
         <TabItem x:Name="ProjectDetailTab" Header="Component">
           <ScrollViewer x:Name="EditorScroll" VerticalScrollBarVisibility="Disabled" HorizontalScrollBarVisibility="Disabled">
             <Grid>
@@ -479,6 +479,22 @@
               <DataGridTemplateColumn Header="Used by" SortMemberPath="Products" Width="3*"><DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding Products}" TextWrapping="Wrap" ToolTip="{Binding Products}" Margin="0,4"/></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
             </DataGrid.Columns></DataGrid>
           </DockPanel>
+        </TabItem>
+
+        <TabItem x:Name="ProjectPurchasesTab" Header="Purchases">
+         <DockPanel Margin="14">
+          <StackPanel DockPanel.Dock="Top"><TextBlock Text="Purchases for this project" FontSize="20" Foreground="#E1F3F2"/><TextBlock x:Name="ProjectPurchaseSummary" Margin="0,12" FontSize="16" Foreground="#76D7CB" TextWrapping="Wrap"/><TextBlock Text="Purchase cost attributed in Market. Fees, existing stock value and manufacturing costs are separate. Purchased does not mean delivered or reserved." TextWrapping="Wrap" Margin="0,0,0,12"/><Button Content="Reload purchases" Click="ReloadProjectPurchases_Click" HorizontalAlignment="Left" Margin="0,0,0,12"/></StackPanel>
+          <DataGrid x:Name="ProjectPurchases" ScrollViewer.HorizontalScrollBarVisibility="Auto"><DataGrid.Columns>
+           <DataGridTextColumn Header="Bought (UTC)" Binding="{Binding Purchase.Date, StringFormat={}{0:dd MMM yyyy HH:mm}}" Width="155"/>
+           <DataGridTemplateColumn Header="Item" SortMemberPath="Purchase.Name" Width="2*" MinWidth="160"><DataGridTemplateColumn.CellTemplate><DataTemplate><StackPanel Orientation="Horizontal"><Image Source="{Binding Purchase.Icon}" Width="28" Height="28" Margin="0,0,8,0"/><TextBlock Text="{Binding Purchase.Name}" VerticalAlignment="Center"/></StackPanel></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
+           <DataGridTextColumn Header="Buyer" Binding="{Binding Buyer}" Width="145"/>
+           <DataGridTextColumn Header="Quantity" Binding="{Binding Allocation.Quantity, StringFormat=N0}" Width="100" HeaderStyle="{StaticResource QuantityHeader}" ElementStyle="{StaticResource QuantityText}"/>
+           <DataGridTextColumn Header="Unit price" Binding="{Binding Purchase.UnitPrice, StringFormat=N2}" Width="120" HeaderStyle="{StaticResource QuantityHeader}" ElementStyle="{StaticResource QuantityText}"/>
+           <DataGridTextColumn Header="Attributed cost" Binding="{Binding Cost, StringFormat=N2}" Width="150" HeaderStyle="{StaticResource QuantityHeader}" ElementStyle="{StaticResource QuantityText}"/>
+           <DataGridTextColumn Header="Bought at" Binding="{Binding Purchase.Location}" Width="2*" MinWidth="190"/>
+           <DataGridTextColumn Header="Why" Binding="{Binding Allocation.Note}" Width="180"/>
+          </DataGrid.Columns></DataGrid>
+         </DockPanel>
         </TabItem>
 
       </TabControl>

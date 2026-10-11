@@ -143,6 +143,7 @@ public partial class IndustryWorkspaceView : System.Windows.Controls.UserControl
 
         Audit.Text = string.Join(Environment.NewLine, _state.Events.Where(e => e.ProjectId == project.Id || e.ProjectId == null).OrderByDescending(e => e.TimeUtc).Take(100).Select(e => $"{e.TimeUtc:u} {IndustryPresentation.History(e.Description)}"));
         RefreshProjectSkills(project);
+        RefreshProjectPurchases();
         ShowNode();
     }
     private void Node_Selected(object sender, RoutedPropertyChangedEventArgs<object> e)

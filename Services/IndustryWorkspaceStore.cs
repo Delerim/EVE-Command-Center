@@ -18,6 +18,7 @@ public sealed class IndustryWorkspaceStore
         try { if (Ledger.Exists) { _state = Ledger.ReadWorkspace(); Validate(_state); } else if (File.Exists(_path)) _state = Read(_path); else if (File.Exists(_path + ".bak")) throw new InvalidDataException("Planning file missing; a backup is available for recovery."); }
         catch (Exception ex) { Error = "Planning file could not be loaded; changes are blocked and the file is preserved. " + ex.Message; }
     }
+    public List<AttributedPurchase> ProjectPurchases(Guid project) => Ledger.Exists ? Ledger.ProjectPurchases(project) : new();
     public IndustryWorkspace Snapshot() { lock (_gate) return Clone(_state); }
     private static IndustryWorkspace Clone(IndustryWorkspace state) => JsonSerializer.Deserialize<IndustryWorkspace>(JsonSerializer.Serialize(state))!;
     private static IndustryWorkspace Read(string path)

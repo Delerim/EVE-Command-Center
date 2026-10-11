@@ -39,7 +39,7 @@ internal static class WorkspaceLayout
         stock.Height = new GridLength(double.IsFinite(state.StockRatio) ? Math.Clamp(state.StockRatio, .3, 5) : 2, GridUnitType.Star);
         var frames = new[] { "ComponentBlueprintsFrame", "ExistingJobsFrame", "RolesFrame" }.Select(n => (Grid)view.FindName(n)).ToArray();
         foreach (var frame in frames) if (state.Heights.TryGetValue(frame.Name, out var height) && double.IsFinite(height)) frame.Height = Math.Clamp(height, 100, 900);
-        var grids = new[] { "ProjectSkills", "ComponentInputs", "Stock", "Reservations", "Shopping", "Blueprints", "ComponentBlueprints", "ExistingJobs" }
+        var grids = new[] { "ProjectPurchases", "ProjectSkills", "ComponentInputs", "Stock", "Reservations", "Shopping", "Blueprints", "ComponentBlueprints", "ExistingJobs" }
             .Select(n => (DataGrid)view.FindName(n)).ToArray();
         foreach (var grid in grids)
         {
@@ -70,4 +70,39 @@ internal static class WorkspaceLayout
         foreach (var grid in grids) grid.ColumnReordered += (_, _) => Save();
         view.Unloaded += (_, _) => Save();
     }
+    private sealed class MarketState
+    {
+        public double Inspector { get; set; } = 440;
+        public Dictionary<string, double[]> Columns { get; set; } = new();
+    }
+    public static void AttachMarket(MarketOrdersWindow view)
+    {
+        string path = Path.Combine(Path.GetDirectoryName(PreferencePath)!, "market-layout.json");
+        MarketState state;
+        try { state = JsonSerializer.Deserialize<MarketState>(File.ReadAllText(path)) ?? new(); } catch { state = new(); }
+        state.Columns ??= new(); view.AllocationPanelSize = state.Inspector;
+        var grids = new[] { "Orders", "TransactionsGrid", "JournalGrid", "AllocationSplits" }.Select(n => (DataGrid)view.FindName(n)).ToArray();
+        foreach (var grid in grids)
+        {
+            foreach (var column in grid.Columns)
+                if (state.Columns.TryGetValue(grid.Name + "/" + column.Header, out var saved) && saved is { Length: 3 } && double.IsFinite(saved[0]) && saved[0] > 0)
+                    column.Width = new DataGridLength(saved[2] == (int)DataGridLengthUnitType.Star ? Math.Clamp(saved[0], .1, 10) : Math.Clamp(saved[0], 40, 1600), saved[2] == (int)DataGridLengthUnitType.Star ? DataGridLengthUnitType.Star : DataGridLengthUnitType.Pixel);
+            foreach (var column in grid.Columns)
+                if (state.Columns.TryGetValue(grid.Name + "/" + column.Header, out var saved) && saved is { Length: 3 } && saved[1] >= 0 && saved[1] < grid.Columns.Count)
+                    column.DisplayIndex = (int)saved[1];
+        }
+        void Save()
+        {
+            state.Inspector = view.AllocationPanelSize;
+            foreach (var grid in grids) foreach (var column in grid.Columns)
+                if (column.Width.Value > 0) state.Columns[grid.Name + "/" + column.Header] = new[] { column.Width.Value, (double)column.DisplayIndex, (double)column.Width.UnitType };
+            try { Directory.CreateDirectory(Path.GetDirectoryName(path)!); File.WriteAllText(path + ".tmp", JsonSerializer.Serialize(state)); File.Move(path + ".tmp", path, true); }
+            catch (IOException) { } catch (UnauthorizedAccessException) { }
+        }
+        var body = (Grid)view.FindName("MarketBody");
+        body.AddHandler(Thumb.DragCompletedEvent, new DragCompletedEventHandler((_, _) => Save()));
+        body.Unloaded += (_, _) => Save();
+        foreach (var grid in grids) grid.ColumnReordered += (_, _) => Save();
+    }
+
 }

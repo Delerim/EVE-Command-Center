@@ -19,7 +19,8 @@ public partial class MarketOrdersWindow : Window
     {
         InitializeComponent();
         _progressTimer.Tick += (_, _) => ShowProgress();
-        TableSorting.Attach(Orders); TableSorting.Attach(TransactionsGrid); TableSorting.Attach(JournalGrid);
+        WorkspaceLayout.AttachMarket(this);
+        TableSorting.Attach(Orders); TableSorting.Attach(TransactionsGrid); TableSorting.Attach(JournalGrid); TableSorting.Attach(AllocationSplits);
         Loaded += async (_, _) =>
         {
             if (_service != null) return;
@@ -94,6 +95,7 @@ public partial class MarketOrdersWindow : Window
             else if (mode == 4) await _service.RefreshTransactionsAsync(_pilots, request.Token);
             else if (mode == 5) await _service.RefreshJournalAsync(_pilots, request.Token);
             else await _service.RefreshAsync(_pilots, request.Token);
+            _service.ReloadAllocations();
         }
         catch (OperationCanceledException) { }
         catch (Exception ex) { failure = MarketOrdersService.Failure(ex); }
@@ -112,7 +114,7 @@ public partial class MarketOrdersWindow : Window
     private void Order_Selected(object sender, SelectionChangedEventArgs e)
     { if (OrderDetail != null) OrderDetail.Text = (Orders.SelectedItem as OrderRow)?.Detail ?? "Select an order to inspect its last observation."; }
     private void Transaction_Selected(object sender, SelectionChangedEventArgs e)
-    { if (OrderDetail != null) OrderDetail.Text = (TransactionsGrid.SelectedItem as TransactionRow)?.Detail ?? "Select a purchase or sale for details."; }
+    { if (OrderDetail != null) OrderDetail.Text = (TransactionsGrid.SelectedItem as TransactionRow)?.Detail ?? "Select a purchase or sale for details."; ShowPurchaseAllocation(); }
     private void Journal_Selected(object sender, SelectionChangedEventArgs e)
     { if (OrderDetail != null) OrderDetail.Text = (JournalGrid.SelectedItem as JournalRow)?.Detail ?? "Select wallet activity to inspect its related trade."; }
     private void RenderOrders()
@@ -120,6 +122,9 @@ public partial class MarketOrdersWindow : Window
         if (_service == null || _updating) return;
         int tab = MarketTabs.SelectedIndex; OrderSide.Visibility = tab == 7 ? Visibility.Visible : Visibility.Collapsed; var ids = VisiblePilots(); string query = Search.Text.Trim();
         PilotSummary.Text = $"{ids.Count} in view / {_service.State.SelectedCharacters.Count} tracked";
+        AllocationFilters.Visibility = tab == 4 ? Visibility.Visible : Visibility.Collapsed;
+        AllocatedColumn.Visibility = UnallocatedColumn.Visibility = DestinationsColumn.Visibility = tab == 4 ? Visibility.Visible : Visibility.Collapsed;
+        if (tab != 4) HidePurchaseAllocation();
         Orders.Visibility = tab is 4 or 5 or 6 ? Visibility.Collapsed : Visibility.Visible;
         TransactionsGrid.Visibility = tab is 4 or 5 ? Visibility.Visible : Visibility.Collapsed;
         JournalGrid.Visibility = tab == 6 ? Visibility.Visible : Visibility.Collapsed;
@@ -160,13 +165,14 @@ public partial class MarketOrdersWindow : Window
     {
         var rows = _service!.Transactions.Where(r => ids.Contains(r.OwnerId) && r.Transaction.Date >= Since && r.Transaction.Buy == buy)
             .Select(r => new TransactionRow(r.OwnerId, r.Transaction, PilotName(r.OwnerId), r.Observed,
-                _service.Journal.Any(j => j.OwnerId == r.OwnerId && j.Entry.Id == r.Transaction.JournalRefId)))
-            .Where(r => query.Length == 0 || (r.Transaction.Name + " " + r.Owner + " " + r.Transaction.Location).Contains(query, StringComparison.OrdinalIgnoreCase)).OrderByDescending(r => r.Transaction.Date).ToArray();
+                _service.Journal.Any(j => j.OwnerId == r.OwnerId && j.Entry.Id == r.Transaction.JournalRefId),
+                _service.PurchaseAllocations.FirstOrDefault(a => a.OwnerId == r.OwnerId && a.TransactionId == r.Transaction.Id)?.Splits ?? new()))
+            .Where(r => query.Length == 0 || (r.Transaction.Name + " " + r.Owner + " " + r.Transaction.Location + " " + r.Destinations).Contains(query, StringComparison.OrdinalIgnoreCase)).Where(r => !buy || AllocationFilter.SelectedIndex == 0 || (AllocationFilter.SelectedIndex == 1 ? r.Unallocated > 0 : r.Unallocated == 0)).OrderByDescending(r => r.Transaction.Date).ToArray();
         var selection = TransactionsGrid.SelectedItem as TransactionRow; TransactionsGrid.ItemsSource = rows;
         if (selection != null) TransactionsGrid.SelectedItem = rows.FirstOrDefault(r => r.OwnerId == selection.OwnerId && r.Transaction.Id == selection.Transaction.Id);
         Totals.Text = $"{rows.Length:N0} {(buy ? "purchases" : "sales")} | Gross total {rows.Sum(r => r.Transaction.Total):N2} ISK | Trade value, not profit";
         HistoryStatus.Text = _service.TransactionStatus; Status.Text = _service.Error;
-        ObservationSummary.Text = $"{rows.Length:N0} {(buy ? "purchases" : "sales")} shown | Pilot, search and period applied. Fees and project allocations are separate.";
+        ObservationSummary.Text = $"{rows.Length:N0} {(buy ? "purchases" : "sales")} shown | Pilot, search and period applied. Select a purchase to explain or split its cost. Fees and physical stock are separate.";
         OrderDetail.Text = (TransactionsGrid.SelectedItem as TransactionRow)?.Detail ?? "Select a purchase or sale for details.";
     }
     private void RenderJournal(string query, HashSet<long> ids)
@@ -189,10 +195,14 @@ public partial class MarketOrdersWindow : Window
         public string Portrait => $"https://images.evetech.net/characters/{Id}/portrait?size=64";
     }
     private sealed record PilotChoice(long Id, string Name) { public override string ToString() => Name; }
-    private sealed record TransactionRow(long OwnerId, MarketTransaction Transaction, string Owner, DateTimeOffset Observed, bool JournalMatched)
+    private sealed record TransactionRow(long OwnerId, MarketTransaction Transaction, string Owner, DateTimeOffset Observed, bool JournalMatched, List<PurchaseAllocation> Splits)
     {
+        public long Allocated => Splits.Sum(a => a.Quantity);
+        public long Unallocated => Math.Max(0, Transaction.Quantity - Allocated);
+        public string Destinations => Splits.Count == 0 ? "Unallocated" : string.Join(" / ", Splits.Select(a => a.ProjectName).Distinct());
+        public string AllocationColor => Unallocated == 0 ? "#76D7CB" : "#EDAD83";
         public string Color => Transaction.Buy ? "#EDAD83" : "#76D7CB";
-        public string Detail => $"{Transaction.Side}: {Transaction.Quantity:N0} {Transaction.Name}, {Transaction.Total:N2} ISK at {Transaction.Location}. Confirmed by the wallet feed. Imported {Observed:dd MMM HH:mm} UTC. " + (JournalMatched ? "Related wallet entry found. " : "Related wallet entry not imported yet. ") + "Project and order allocation has not been assigned.";
+        public string Detail => $"{Transaction.Side}: {Transaction.Quantity:N0} {Transaction.Name}, {Transaction.Total:N2} ISK at {Transaction.Location}. Confirmed by the wallet feed. Imported {Observed:dd MMM HH:mm} UTC. " + (JournalMatched ? "Related wallet entry found. " : "Related wallet entry not imported yet. ") + (Transaction.Buy ? $"Bought for: {Destinations}. {Unallocated:N0} units unallocated." : "Sale attribution has not been assigned.");
     }
     private sealed record JournalRow(long OwnerId, EveWalletJournalEntry Entry, string Owner, DateTimeOffset Observed, MarketTransaction[] Trades)
     {
