@@ -16,7 +16,7 @@ public sealed class MarketTransaction
     public string? ResolvedName { get; set; }
     public string? ResolvedLocation { get; set; }
     [JsonIgnore] public decimal Total => checked(Quantity * UnitPrice);
-    [JsonIgnore] public string Name => ResolvedName ?? Services.IndustryCatalog.Name(TypeId);
+    [JsonIgnore] public string Name => ResolvedName ?? (TypeId == 44992 ? "PLEX" : Services.IndustryCatalog.Name(TypeId));
     [JsonIgnore] public string Location => ResolvedLocation ?? "Location name unavailable";
     [JsonIgnore] public string Icon => $"https://images.evetech.net/types/{TypeId}/icon?size=32";
     [JsonIgnore] public string Side => Buy ? "Purchase" : "Sale";

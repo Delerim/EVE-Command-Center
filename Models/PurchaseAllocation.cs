@@ -7,3 +7,8 @@ public sealed record AttributedPurchase(long OwnerId, MarketTransaction Purchase
 {
     public decimal Cost => checked(Purchase.UnitPrice * Allocation.Quantity);
 }
+
+public sealed record AttributedSale(long OwnerId, MarketTransaction Sale, PurchaseAllocation Allocation)
+{
+    public decimal GrossProceeds => checked(Sale.UnitPrice * Allocation.Quantity);
+}

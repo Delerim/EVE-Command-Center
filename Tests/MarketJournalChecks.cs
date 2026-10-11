@@ -68,15 +68,15 @@ internal static partial class Program
         var restarted = new MarketOrdersService(new EveSsoService(), path, http); restarted.Select(new long[] { 42, 43 });
         Check(restarted.Journal.Count == 5, "Wallet evidence survives restart with identical entry identifiers isolated by pilot");
         var view = new MarketOrdersWindow(); view.Initialize(restarted, pilots);
-        Check(((ComboBox)view.FindName("PilotView")).SelectedItem.ToString() == "All selected pilots", "Custom pilot selector displays a readable name instead of internal record fields");
+        Check(((TextBlock)view.FindName("PilotSummary")).Text == "Industrial pilot" && restarted.State.SelectedCharacters.SetEquals(new long[] { 42 }), "Market opens one remembered pilot instead of combining selected characters");
         var tabs = (TabControl)view.FindName("MarketTabs"); tabs.SelectedIndex = 6;
         var grid = (DataGrid)view.FindName("JournalGrid"); var totals = (TextBlock)view.FindName("Totals");
-        Check(grid.Items.Count == 5 && totals.Text.Contains((123456.123456789m + 12.5m).ToString("N2")) && totals.Text.Contains("250.00"), "Wallet cash flow counts journal amounts once, never adding transaction totals or optional tax again");
-        ((ComboBox)view.FindName("PilotView")).SelectedValue = 43L;
-        Check(grid.Items.Count == 1 && restarted.State.SelectedCharacters.Count == 2, "Per-pilot view filters instantly without changing tracked-pilot preferences");
+        Check(grid.Items.Count == 4 && totals.Text.Contains((123456.123456789m + 12.5m).ToString("N2")) && totals.Text.Contains("200.00"), "Wallet cash flow counts journal amounts once, never adding transaction totals or optional tax again");
+        view.SelectPilot(43);
+        Check(grid.Items.Count == 1 && restarted.State.SelectedCharacters.SetEquals(new long[] { 43 }), "Pilot cards switch the entire wallet view without combining balances or activity");
         grid.SelectedIndex = 0;
         Check(!((TextBlock)view.FindName("OrderDetail")).Text.Contains("Linked by"), "Journal references never link a transaction belonging to another pilot");
-        ((ComboBox)view.FindName("PilotView")).SelectedValue = 42L;
+        view.SelectPilot(42);
         grid.SelectedIndex = 0;
         Check(((TextBlock)view.FindName("OrderDetail")).Text.Contains("Tritanium") && ((TextBlock)view.FindName("OrderDetail")).Text.Contains("counted once"), "Wallet detail links a named purchase through the exact pilot and journal reference");
         ((ComboBox)view.FindName("Period")).SelectedIndex = 1;
@@ -87,10 +87,9 @@ internal static partial class Program
         Check(((DataGrid)view.FindName("TransactionsGrid")).Items.Count == 1, "Single-pilot selection applies consistently to purchases as well as wallet activity");
         tabs.SelectedIndex = 5;
         Check(((DataGrid)view.FindName("TransactionsGrid")).Items.Count == 0, "Sales and purchases remain independent tabs");
-        ((Button)view.FindName("ClearPilots")).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-        Check(restarted.State.SelectedCharacters.Count == 0 && restarted.Journal.Count == 5, "Clearing pilot cards saves visibility without deleting financial evidence");
-        ((Button)view.FindName("SelectAll")).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-        Check(new MarketOrdersService(new EveSsoService(), path, http).State.SelectedCharacters.SetEquals(new long[] { 42, 43 }), "Pilot-card selections persist immediately across restart");
+        view.SelectPilot(43);
+        Check(restarted.Journal.Count == 5, "Switching pilot cards never deletes another pilot's imported evidence");
+        Check(new MarketOrdersService(new EveSsoService(), path, http).State.SelectedCharacters.SetEquals(new long[] { 43 }), "The single selected pilot persists across restart");
         view.Close();
     }
     private sealed class JournalHandler : HttpMessageHandler

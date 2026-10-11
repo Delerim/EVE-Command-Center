@@ -19,6 +19,7 @@ public sealed class IndustryWorkspaceStore
         catch (Exception ex) { Error = "Planning file could not be loaded; changes are blocked and the file is preserved. " + ex.Message; }
     }
     public List<AttributedPurchase> ProjectPurchases(Guid project) => Ledger.Exists ? Ledger.ProjectPurchases(project) : new();
+    public List<AttributedSale> ProjectSales(Guid project) => Ledger.Exists ? Ledger.ProjectPurchases(project, true).Select(p => new AttributedSale(p.OwnerId, p.Purchase, p.Allocation)).ToList() : new();
     public IndustryWorkspace Snapshot() { lock (_gate) return Clone(_state); }
     private static IndustryWorkspace Clone(IndustryWorkspace state) => JsonSerializer.Deserialize<IndustryWorkspace>(JsonSerializer.Serialize(state))!;
     private static IndustryWorkspace Read(string path)

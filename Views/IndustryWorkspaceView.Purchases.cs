@@ -9,7 +9,7 @@ public partial class IndustryWorkspaceView
     private int? _purchaseTypeFilter;
     private Guid? _purchaseProject;
     private void WorkspaceTab_Changed(object sender, SelectionChangedEventArgs e)
-    { if (_initialized && e.Source == WorkspaceTabs && WorkspaceTabs.SelectedItem == ProjectPurchasesTab) RefreshProjectPurchases(); }
+    { if (!_initialized || e.Source != WorkspaceTabs) return; if (WorkspaceTabs.SelectedItem == ProjectPurchasesTab) RefreshProjectPurchases(); else if (WorkspaceTabs.SelectedItem == ProjectSalesTab) RefreshProjectSales(); }
     private void ReloadProjectPurchases_Click(object sender, RoutedEventArgs e) => RefreshProjectPurchases();
     private void RefreshProjectPurchases()
     {

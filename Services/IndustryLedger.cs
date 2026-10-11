@@ -33,12 +33,13 @@ internal sealed partial class IndustryLedger(string directory)
         {
             using var version = Command(c, "PRAGMA user_version");
             int schema = Convert.ToInt32(version.ExecuteScalar());
-            if (schema is not (1 or 2 or 3 or 4)) throw new InvalidDataException("Unsupported industry ledger version; data preserved.");
+            if (schema is not (1 or 2 or 3 or 4 or 5)) throw new InvalidDataException("Unsupported industry ledger version; data preserved.");
             using var hash = Command(c, "SELECT legacy_hash FROM workspace WHERE id=1");
             if ((string?)hash.ExecuteScalar() != Fingerprint(Legacy)) throw new InvalidDataException("The preserved planning file changed after migration. Reopen with a compatible version; data preserved.");
             if (schema == 1) UpgradeTransactions(c);
             if (schema <= 2) UpgradeJournal(c);
             if (schema <= 3) UpgradeAllocations(c);
+            if (schema <= 4) UpgradeSales(c);
             return c;
         }
         catch { c.Dispose(); throw; }

@@ -1413,11 +1413,11 @@ public partial class CommandCenterWindow : Window
             "pilots" =>
                 (
                     "PILOTS",
-                    "Characters, skills, training, wallet and assets",
+                    "Characters, skills, training and assets",
                     "\uE716"
                 ),
             "omega" => ("OMEGA", "Subscription dates, renewal planning and clone details", "\uE787"),
-            "market" => ("MARKET", "Orders, purchases and sales", "\uE8D4"),
+            "market" => ("MARKET & WALLET", "Orders, trades, balance and wallet activity", "\uE8D4"),
             "industry" =>
                 (
                     "INDUSTRY",

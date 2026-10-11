@@ -71,7 +71,7 @@ internal static partial class Program
         if (renderPath != null)
         {
             restored.State.Characters.Single().Unobserved.Add(new() { Order = new MarketOrder { OrderId = 900, TypeId = 35, LocationId = 60003760, ResolvedLocation = "Jita IV - Moon 4", Price = 5.5m, Total = 200, Remaining = 80, Duration = 30, Issued = DateTimeOffset.UtcNow.AddDays(-2) }, LastSeen = DateTimeOffset.UtcNow.AddHours(-2), MissingSince = DateTimeOffset.UtcNow.AddHours(-1) });
-            ((TabControl)view.FindName("MarketTabs")).SelectedIndex = 7;
+            ((TabControl)view.FindName("MarketTabs")).SelectedIndex = 9;
             Check(((DataGrid)view.FindName("Orders")).Items.Count == 1, "Market observation filter shows absent orders separately from open orders");
             ((TabControl)view.FindName("MarketTabs")).SelectedIndex = 2;
             ((DataGrid)view.FindName("Orders")).SelectedIndex = 1;

@@ -1,9 +1,9 @@
-# EVE Command Center v3.6.51
+# EVE Command Center v3.6.52
 
-- Polished the purchase allocation inspector with item cards, assigned/remaining quantities, progress, a clear destination prompt and an exact cost preview. Assignment actions stay visible at the bottom of the pane on shorter windows.
-- Project choices include icons and descriptions. When no active project contains the purchased item, the inspector explains why and offers general stock or unrelated activity. It never assigns a project automatically.
-- Added explicit empty states for saved allocations and history, with clearer editing actions. Invalid or excessive quantities disable Save; the existing transactional checks still enforce allocation limits.
-- Continued Phase D with per-project acquisition cost analysis. Project > Purchases > By item shows assigned quantity, total paid, quantity-weighted average unit price, lowest/highest purchase price and last purchase date.
-- Select an item to inspect its supporting purchases. Numeric columns are aligned, sortable, resizable and remembered. Multiple splits of the same source purchase do not inflate the purchase count.
-- Costs use confirmed purchase prices and saved allocations only. They do not value existing stock, add fees, imply delivery or claim project profit. No ledger migration or additional ESI permissions are required.
-- Validated with 632 regression checks, including weighted prices, decimal precision, owner-scoped purchase counts, split aggregation, overflow protection, destination prompts, empty states, cost previews and purchase drill-down.
+- Market is now Market & Wallet. Clicking a pilot portrait opens only that pilot's orders, trades and wallet; the selection is remembered.
+- Moved wallet balance, journal, cash flow and PLEX history out of Pilots into Market & Wallet. Pilot refreshes no longer fetch wallet data independently. Views reuse the shared imports and respect refresh caching.
+- Added Wallet overview with balance and today/seven-day cash flow, plus a dedicated PLEX view. Journal entries include balance after the entry and their description or reason. Failed refreshes retain saved data and explain the problem.
+- Continued Phase D with explicit sales attribution. Split confirmed sales between eligible projects, general stock or unrelated activity, with quantity limits, previews and editable history. Project attribution requires confirmation that the sold units came from that project.
+- Projects now have a Sales tab showing attributed units and gross receipts. These receipts do not imply completed production, delivery or profit; costs and fees remain separate.
+- Ledger schema 5 creates a backup before adding sale allocations and their audit trail. Existing purchases, projects and imported trades are retained.
+- Validated with 663 regression checks, including single-pilot isolation, wallet cache reuse and failure recovery, sale quantity limits, stale edits, transactional rollback, restart and populated-ledger migration.

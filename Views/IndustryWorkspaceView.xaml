@@ -523,6 +523,23 @@
          </DockPanel>
         </TabItem>
 
+        <TabItem x:Name="ProjectSalesTab" Header="Sales"><DockPanel Margin="14">
+         <StackPanel DockPanel.Dock="Top"><DockPanel><Button DockPanel.Dock="Right" VerticalAlignment="Top" Content="Reload sales" Click="ReloadProjectSales_Click"/><StackPanel><TextBlock Text="Sales from this project" FontSize="22" FontWeight="SemiBold" Foreground="#E1F3F2"/><TextBlock Text="Confirmed trades, linked to this project by you" Foreground="#91B9BB" Margin="0,5,0,16"/></StackPanel></DockPanel>
+          <UniformGrid Columns="2" Margin="0,0,0,16"><Border Background="#112D31" CornerRadius="8" Padding="16" Margin="0,0,8,0" BorderBrush="#76D7CB" BorderThickness="0,2,0,0"><StackPanel><TextBlock Text="GROSS RECEIPTS" FontSize="10" Foreground="#91B9BB"/><TextBlock x:Name="ProjectSalesSummary" FontSize="22" Foreground="#76D7CB" Margin="0,8,0,0"/></StackPanel></Border><Border Background="#11282E" CornerRadius="8" Padding="16"><StackPanel><TextBlock Text="UNITS ATTRIBUTED" FontSize="10" Foreground="#91B9BB"/><TextBlock x:Name="ProjectSalesQuantity" FontSize="22" Margin="0,8,0,0"/></StackPanel></Border></UniformGrid>
+          <TextBlock x:Name="ProjectSalesNote" TextWrapping="Wrap" Foreground="#91B9BB" Margin="0,0,0,14"/>
+         </StackPanel>
+         <DataGrid x:Name="ProjectSales" ScrollViewer.HorizontalScrollBarVisibility="Auto"><DataGrid.Columns>
+          <DataGridTextColumn Header="Sold (UTC)" Binding="{Binding Sale.Date, StringFormat={}{0:dd MMM yyyy HH:mm}}" Width="155" MinWidth="155"/>
+          <DataGridTemplateColumn Header="Item" SortMemberPath="Sale.Name" Width="2*" MinWidth="200"><DataGridTemplateColumn.CellTemplate><DataTemplate><StackPanel Orientation="Horizontal"><Image Source="{Binding Sale.Icon}" Width="28" Height="28" Margin="0,0,10,0"/><TextBlock Text="{Binding Sale.Name}" VerticalAlignment="Center" ToolTip="{Binding Sale.Name}"/></StackPanel></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
+          <DataGridTextColumn Header="Seller" Binding="{Binding Seller}" Width="145" MinWidth="145"/>
+          <DataGridTextColumn Header="Quantity" Binding="{Binding Allocation.Quantity, StringFormat=N0}" Width="100" MinWidth="100" HeaderStyle="{StaticResource QuantityHeader}" ElementStyle="{StaticResource QuantityText}"/>
+          <DataGridTextColumn Header="Unit price" Binding="{Binding Sale.UnitPrice, StringFormat=N2}" Width="130" MinWidth="130" HeaderStyle="{StaticResource QuantityHeader}" ElementStyle="{StaticResource QuantityText}"/>
+          <DataGridTextColumn Header="Gross receipts" Binding="{Binding GrossProceeds, StringFormat=N2}" Width="155" MinWidth="155" HeaderStyle="{StaticResource QuantityHeader}" ElementStyle="{StaticResource QuantityText}"/>
+          <DataGridTextColumn Header="Sold at" Binding="{Binding Sale.Location}" Width="2*" MinWidth="190"/>
+          <DataGridTextColumn Header="Note" Binding="{Binding Allocation.Note}" Width="180" MinWidth="180"/>
+         </DataGrid.Columns></DataGrid>
+        </DockPanel></TabItem>
+
       </TabControl>
     </Grid>
     <DockPanel Grid.Row="1" x:Name="SettingsPage" Visibility="Collapsed" Margin="12">

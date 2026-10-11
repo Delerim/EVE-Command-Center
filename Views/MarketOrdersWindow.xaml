@@ -1,17 +1,17 @@
 <Window xmlns:ui="clr-namespace:EveCommandCenter.Views" x:Class="EveCommandCenter.Views.MarketOrdersWindow" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
- Title="EVE Command Center | Market" Width="1480" Height="960" Background="#07181B" Foreground="#DDF6F4">
+ Title="EVE Command Center | Market &amp; Wallet" Width="1480" Height="960" Background="#07181B" Foreground="#DDF6F4">
  <Window.Resources><ResourceDictionary><ResourceDictionary.MergedDictionaries><ResourceDictionary Source="ContractsTheme.xaml"/><ResourceDictionary Source="IndustryWorkspaceTheme.xaml"/></ResourceDictionary.MergedDictionaries>
   <Style TargetType="TextBlock"><Setter Property="Foreground" Value="#B9D8D8"/></Style>
  </ResourceDictionary></Window.Resources>
  <DockPanel Margin="18">
   <StackPanel DockPanel.Dock="Top">
-   <TextBlock Text="MARKET COMMAND CENTER" FontSize="26" Foreground="#55D7D2" FontWeight="Bold"/>
-   <TextBlock Text="Personal orders and confirmed purchases / sales" Margin="0,6,0,12"/>
-   <Expander Header="Tracked pilots" Foreground="#74D6C9" IsExpanded="True">
+   <TextBlock Text="MARKET &amp; WALLET" FontSize="26" Foreground="#55D7D2" FontWeight="Bold"/>
+   <TextBlock Text="Orders, purchases, sales and wallet activity for each pilot" Margin="0,6,0,12"/>
+   <Expander Header="Pilots" Foreground="#74D6C9" IsExpanded="True">
     <StackPanel>
-     <DockPanel Margin="0,0,0,5"><StackPanel DockPanel.Dock="Right" Orientation="Horizontal"><Button x:Name="SelectAll" Content="Select all" Click="SelectAll_Click"/><Button x:Name="ClearPilots" Content="Clear" Click="ClearPilots_Click"/></StackPanel><TextBlock Text="Choose pilots to include. Your selection is saved." VerticalAlignment="Center"/></DockPanel>
+     <TextBlock Text="Choose a pilot to open their market and wallet. Your selection is remembered." Margin="0,0,0,8"/>
      <ItemsControl x:Name="Characters"><ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate></ItemsControl.ItemsPanel><ItemsControl.ItemTemplate><DataTemplate>
-      <ToggleButton IsChecked="{Binding Selected, Mode=TwoWay}" Click="Pilot_Click" ToolTip="{Binding Access}" AutomationProperties.Name="{Binding Name}" Cursor="Hand" Margin="3" Padding="10" Width="190">
+      <ToggleButton IsChecked="{Binding Selected, Mode=OneWay}" Click="Pilot_Click" ToolTip="{Binding Access}" AutomationProperties.Name="{Binding Name}" Cursor="Hand" Margin="3" Padding="10" Width="190">
        <ToggleButton.Template><ControlTemplate TargetType="ToggleButton"><Border ui:HoverMotion.Enabled="True" x:Name="Shell" CornerRadius="8" Background="#10282C" BorderBrush="#29464D" BorderThickness="1" Padding="{TemplateBinding Padding}"><ContentPresenter/></Border><ControlTemplate.Triggers>
         <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Shell" Property="Background" Value="#23464D"/><Setter TargetName="Shell" Property="BorderBrush" Value="#74D6C9"/></Trigger>
         <Trigger Property="IsChecked" Value="True"><Setter TargetName="Shell" Property="Background" Value="#245950"/><Setter TargetName="Shell" Property="BorderBrush" Value="#76D7CB"/></Trigger>
@@ -23,11 +23,11 @@
      </DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
     </StackPanel>
    </Expander>
-   <WrapPanel Margin="0,12,0,10"><TextBlock Text="View" VerticalAlignment="Center" Margin="3,0,8,0"/><ComboBox x:Name="PilotView" DisplayMemberPath="Name" SelectedValuePath="Id" MinWidth="210" SelectionChanged="Filter_Changed"/><TextBlock Text="Search" VerticalAlignment="Center" Margin="18,0,8,0"/><TextBox x:Name="Search" Width="260" TextChanged="Search_Changed" ToolTip="Search item, station or pilot"/><TextBlock x:Name="PilotSummary" VerticalAlignment="Center" Margin="14,0"/></WrapPanel>
+   <DockPanel Margin="0,12,0,10"><StackPanel DockPanel.Dock="Right" HorizontalAlignment="Right" MaxWidth="420" Margin="12,0,0,0"><TextBlock x:Name="WalletBalanceText" FontSize="20" Foreground="#76D7CB" HorizontalAlignment="Right"/><TextBlock x:Name="WalletBalanceStatus" TextWrapping="Wrap" TextAlignment="Right" FontSize="10" Foreground="#91B9BB" HorizontalAlignment="Right"/></StackPanel><WrapPanel VerticalAlignment="Center"><TextBlock Text="Search" VerticalAlignment="Center" Margin="3,0,8,0"/><TextBox x:Name="Search" Width="260" TextChanged="Search_Changed" ToolTip="Search item, station or activity"/><TextBlock x:Name="PilotSummary" VerticalAlignment="Center" Margin="14,0"/></WrapPanel></DockPanel>
    <TabControl x:Name="MarketTabs" SelectionChanged="MarketTab_Changed" Background="#07181B" BorderBrush="#245058">
-    <TabItem Header="Open buy orders"/><TabItem Header="Buy history"/><TabItem Header="Open sell orders"/><TabItem Header="Sell history"/><TabItem Header="Purchases"/><TabItem Header="Sales"/><TabItem Header="Wallet activity"/><TabItem Header="Unconfirmed orders"/>
+    <TabItem Header="Open buy orders"/><TabItem Header="Buy history"/><TabItem Header="Open sell orders"/><TabItem Header="Sell history"/><TabItem Header="Purchases"/><TabItem Header="Sales"/><TabItem Header="Wallet activity"/><TabItem Header="Wallet overview"/><TabItem Header="PLEX"/><TabItem Header="Unconfirmed orders"/>
    </TabControl>
-   <WrapPanel Margin="0,10"><Button x:Name="RefreshButton" Content="Refresh orders" ToolTip="Refresh this feed for all tracked pilots" Click="Refresh_Click"/><Button x:Name="CancelRefresh" Content="Cancel refresh" Visibility="Collapsed" Click="CancelRefresh_Click"/>
+   <WrapPanel Margin="0,10"><Button x:Name="RefreshButton" Content="Refresh orders" ToolTip="Refresh this feed for the selected pilot" Click="Refresh_Click"/><Button x:Name="CancelRefresh" Content="Cancel refresh" Visibility="Collapsed" Click="CancelRefresh_Click"/>
     <StackPanel x:Name="PeriodControls" Orientation="Horizontal" Visibility="Collapsed"><TextBlock Text="Period" VerticalAlignment="Center" Margin="18,0,8,0"/><ComboBox x:Name="Period" Width="155" SelectedIndex="0" SelectionChanged="Filter_Changed"><ComboBoxItem Content="All imported"/><ComboBoxItem Content="Today (UTC)"/><ComboBoxItem Content="Last 7 days"/><ComboBoxItem Content="Last 30 days"/></ComboBox></StackPanel>
     <StackPanel x:Name="AllocationFilters" Visibility="Collapsed" Orientation="Horizontal"><TextBlock Text="Allocation" VerticalAlignment="Center" Margin="18,0,8,0"/><ComboBox x:Name="AllocationFilter" Width="160" SelectedIndex="0" SelectionChanged="Filter_Changed"><ComboBoxItem Content="All purchases"/><ComboBoxItem Content="Needs allocation"/><ComboBoxItem Content="Fully allocated"/></ComboBox></StackPanel>
    </WrapPanel>
@@ -39,6 +39,14 @@
   <Border DockPanel.Dock="Bottom" Style="{StaticResource Card}"><TextBlock x:Name="OrderDetail" Text="Select an order to inspect its last observation." TextWrapping="Wrap"/></Border>
   <Grid x:Name="MarketBody"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition x:Name="AllocationWidth" Width="0" MinWidth="0"/></Grid.ColumnDefinitions>
   <Grid>
+  <ScrollViewer x:Name="WalletOverviewPanel" Visibility="Collapsed" VerticalScrollBarVisibility="Auto"><StackPanel Margin="8,4">
+   <TextBlock Text="Wallet overview" FontSize="22" FontWeight="SemiBold" Foreground="#E5F1F2"/><TextBlock x:Name="WalletOverviewNote" TextWrapping="Wrap" Foreground="#91B9BB" Margin="0,8,0,18"/>
+   <TextBlock Text="Today (UTC)" FontSize="15" FontWeight="SemiBold" Margin="0,0,0,8"/>
+   <UniformGrid Columns="3"><Border Style="{StaticResource Card}" Margin="0,0,8,0"><StackPanel><TextBlock Text="MONEY IN"/><TextBlock x:Name="TodayIn" FontSize="22" Foreground="#76D7CB" Margin="0,8"/></StackPanel></Border><Border Style="{StaticResource Card}" Margin="0,0,8,0"><StackPanel><TextBlock Text="MONEY OUT"/><TextBlock x:Name="TodayOut" FontSize="22" Foreground="#EDAD83" Margin="0,8"/></StackPanel></Border><Border Style="{StaticResource Card}"><StackPanel><TextBlock Text="NET CHANGE"/><TextBlock x:Name="TodayNet" FontSize="22" Margin="0,8"/></StackPanel></Border></UniformGrid>
+   <TextBlock Text="Last 7 days" FontSize="15" FontWeight="SemiBold" Margin="0,18,0,8"/>
+   <UniformGrid Columns="3"><Border Style="{StaticResource Card}" Margin="0,0,8,0"><StackPanel><TextBlock Text="MONEY IN"/><TextBlock x:Name="WeekIn" FontSize="22" Foreground="#76D7CB" Margin="0,8"/></StackPanel></Border><Border Style="{StaticResource Card}" Margin="0,0,8,0"><StackPanel><TextBlock Text="MONEY OUT"/><TextBlock x:Name="WeekOut" FontSize="22" Foreground="#EDAD83" Margin="0,8"/></StackPanel></Border><Border Style="{StaticResource Card}"><StackPanel><TextBlock Text="NET CHANGE"/><TextBlock x:Name="WeekNet" FontSize="22" Margin="0,8"/></StackPanel></Border></UniformGrid>
+   <TextBlock Text="Cash flow uses wallet entries once, including transfers and fees. Purchase and sale values are not added again. These figures are not industry profit." Foreground="#91B9BB" TextWrapping="Wrap" Margin="4,18"/>
+  </StackPanel></ScrollViewer>
   <DataGrid x:Name="Orders" SelectionChanged="Order_Selected" ScrollViewer.HorizontalScrollBarVisibility="Auto" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" EnableRowVirtualization="True" MinRowHeight="42" Background="#07181B" RowBackground="#0C2529" AlternatingRowBackground="#102D31" Foreground="#DDF6F4" BorderBrush="#245058" HeadersVisibility="Column">
    <DataGrid.Columns>
     <DataGridTemplateColumn Header="ITEM" Width="260" MinWidth="180" SortMemberPath="Order.Name"><DataGridTemplateColumn.CellTemplate><DataTemplate><StackPanel Orientation="Horizontal"><Image Source="{Binding Order.Icon}" Width="28" Height="28" Margin="0,0,8,0"/><TextBlock Text="{Binding Order.Name}" VerticalAlignment="Center"/></StackPanel></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
@@ -59,6 +67,7 @@
    <DataGrid.Columns>
     <DataGridTextColumn Header="When (UTC)" Binding="{Binding Transaction.Date, StringFormat={}{0:dd MMM yyyy HH:mm}}" Width="155" MinWidth="155"/>
     <DataGridTemplateColumn Header="Item" SortMemberPath="Transaction.Name" Width="250" MinWidth="180"><DataGridTemplateColumn.CellTemplate><DataTemplate><StackPanel Orientation="Horizontal"><Image Source="{Binding Transaction.Icon}" Width="28" Height="28" Margin="0,0,8,0"/><TextBlock Text="{Binding Transaction.Name}" VerticalAlignment="Center" ToolTip="{Binding Transaction.Name}"/></StackPanel></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
+    <DataGridTextColumn x:Name="TradeSide" Header="Side" Binding="{Binding Transaction.Side}" Width="100" MinWidth="100" Visibility="Collapsed"/>
     <DataGridTextColumn Header="Pilot" Binding="{Binding Owner}" Width="160" MinWidth="160"/>
     <DataGridTextColumn Header="Quantity" Binding="{Binding Transaction.Quantity, StringFormat=N0}" HeaderStyle="{StaticResource QuantityHeader}" ElementStyle="{StaticResource QuantityText}" Width="105" MinWidth="105"/>
     <DataGridTextColumn x:Name="AllocatedColumn" Header="Allocated" Binding="{Binding Allocated, StringFormat=N0}" HeaderStyle="{StaticResource QuantityHeader}" ElementStyle="{StaticResource QuantityText}" Width="105" MinWidth="105"/>
@@ -75,6 +84,8 @@
     <DataGridTextColumn Header="Activity" Binding="{Binding Activity}" Width="210" MinWidth="210"/>
     <DataGridTextColumn Header="Pilot" Binding="{Binding Owner}" Width="170" MinWidth="170"/>
     <DataGridTemplateColumn Header="Wallet change (ISK)" SortMemberPath="Entry.Amount" HeaderStyle="{StaticResource QuantityHeader}" Width="175" MinWidth="175"><DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding Amount}" Foreground="{Binding Color}" HorizontalAlignment="Right"/></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
+    <DataGridTextColumn Header="Balance after (ISK)" Binding="{Binding Balance}" SortMemberPath="Entry.Balance" Width="180" MinWidth="180" HeaderStyle="{StaticResource QuantityHeader}" ElementStyle="{StaticResource QuantityText}"/>
+    <DataGridTextColumn Header="Description / reason" Binding="{Binding Note}" Width="260" MinWidth="180"/>
     <DataGridTemplateColumn Header="Related purchase / sale" SortMemberPath="Related" Width="*" MinWidth="280"><DataGridTemplateColumn.CellTemplate><DataTemplate><StackPanel Orientation="Horizontal"><Image Source="{Binding Icon}" Width="26" Height="26" Margin="0,0,8,0"/><TextBlock Text="{Binding Related}" VerticalAlignment="Center" ToolTip="{Binding Detail}"/></StackPanel></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
    </DataGrid.Columns>
   </DataGrid>
@@ -85,19 +96,20 @@
    <DockPanel>
     <Border DockPanel.Dock="Bottom" BorderBrush="#28454A" BorderThickness="0,1,0,0" Padding="0,10,0,0" Margin="0,10,0,0"><WrapPanel><Button x:Name="SaveAllocation" Content="Assign purchase" Click="SaveAllocation_Click"/><Button Content="New split" Click="NewAllocation_Click"/><Button x:Name="RemoveAllocation" Content="Remove" Click="RemoveAllocation_Click" IsEnabled="False"/></WrapPanel></Border>
     <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"><StackPanel>
-    <TextBlock Text="Why did I buy this?" FontSize="20" FontWeight="SemiBold" Foreground="#E5F1F2"/>
+    <TextBlock x:Name="AllocationTitle" Text="Why did I buy this?" FontSize="20" FontWeight="SemiBold" Foreground="#E5F1F2"/>
     <Grid Margin="0,12,0,10"><Grid.ColumnDefinitions><ColumnDefinition Width="48"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions><Border Background="#1B373D" CornerRadius="10" Width="42" Height="42"><Image x:Name="AllocationIcon" Width="32" Height="32"/></Border><StackPanel Grid.Column="1" Margin="10,0,0,0" VerticalAlignment="Center"><TextBlock x:Name="AllocationItem" FontSize="16" FontWeight="SemiBold" TextWrapping="Wrap"/></StackPanel></Grid>
     <TextBlock x:Name="AllocationSummary" TextWrapping="Wrap" Margin="0,0,0,12"/>
     <Border Background="#0B2024" BorderBrush="#28454A" BorderThickness="1" CornerRadius="8" Padding="10" Margin="0,0,0,12"><StackPanel>
      <Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/></Grid.ColumnDefinitions><StackPanel><TextBlock Text="ASSIGNED" FontSize="10" Foreground="#91B9BB"/><TextBlock x:Name="AllocationAssigned" FontSize="16" Foreground="#76D7CB" Margin="0,3"/></StackPanel><StackPanel Grid.Column="1" HorizontalAlignment="Right"><TextBlock Text="LEFT TO ASSIGN" FontSize="10" Foreground="#91B9BB"/><TextBlock x:Name="AllocationRemaining" FontSize="16" Foreground="#EDAD83" HorizontalAlignment="Right" Margin="0,3"/></StackPanel></Grid>
      <ProgressBar x:Name="AllocationProgress" Height="4" Minimum="0" Maximum="100" Foreground="#76D7CB" Background="#203B40" BorderThickness="0" Margin="0,7,0,0"/>
     </StackPanel></Border>
-    <TextBlock Text="Bought for" FontWeight="SemiBold" Foreground="#E5F1F2" Margin="0,0,0,6"/>
+    <TextBlock x:Name="AllocationDestinationLabel" Text="Bought for" FontWeight="SemiBold" Foreground="#E5F1F2" Margin="0,0,0,6"/>
     <Grid><ComboBox x:Name="AllocationTarget" MinHeight="54" MaxDropDownHeight="360" SelectionChanged="AllocationForm_Changed" ToolTip="Choose a project, general stock or unrelated activity" TextSearch.TextPath="Name"><ComboBox.ItemTemplate><DataTemplate><Grid Margin="0,5"><Grid.ColumnDefinitions><ColumnDefinition Width="32"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions><Grid VerticalAlignment="Center"><Image Source="{Binding Icon}" Width="26" Height="26"/><TextBlock Text="{Binding Symbol}" FontSize="22" Foreground="#76D7CB" HorizontalAlignment="Center"/></Grid><StackPanel Grid.Column="1" Margin="9,0,0,0"><TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" ToolTip="{Binding Name}"/><TextBlock Text="{Binding Detail}" FontSize="10" Foreground="#91B9BB" Margin="0,3,0,0" TextTrimming="CharacterEllipsis"/></StackPanel></Grid></DataTemplate></ComboBox.ItemTemplate></ComboBox>
      <TextBlock x:Name="AllocationPrompt" Text="Choose where this purchase belongs" IsHitTestVisible="False" VerticalAlignment="Center" Margin="12,0,32,0" Foreground="#91B9BB" TextTrimming="CharacterEllipsis"/>
     </Grid>
     <TextBlock x:Name="AllocationMatches" TextWrapping="Wrap" Foreground="#91B9BB" FontSize="11" Margin="2,7,2,14"/>
-    <Grid Margin="0,0,0,10"><Grid.ColumnDefinitions><ColumnDefinition Width="110"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions><StackPanel><TextBlock Text="Quantity" Margin="0,0,0,4"/><TextBox x:Name="AllocationQuantity" TextChanged="AllocationForm_Changed"/></StackPanel><StackPanel Grid.Column="1" Margin="14,0,0,0" VerticalAlignment="Bottom"><TextBlock Text="Cost assigned" FontSize="10" Foreground="#91B9BB"/><TextBlock x:Name="AllocationCostPreview" Margin="0,4,0,8" Foreground="#76D7CB" FontWeight="SemiBold"/></StackPanel></Grid>
+    <CheckBox x:Name="ConfirmSaleProject" Visibility="Collapsed" Checked="AllocationForm_Changed" Unchecked="AllocationForm_Changed"><TextBlock Text="I confirm these sold units came from this project" TextWrapping="Wrap"/></CheckBox>
+    <Grid Margin="0,0,0,10"><Grid.ColumnDefinitions><ColumnDefinition Width="110"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions><StackPanel><TextBlock Text="Quantity" Margin="0,0,0,4"/><TextBox x:Name="AllocationQuantity" TextChanged="AllocationForm_Changed"/></StackPanel><StackPanel Grid.Column="1" Margin="14,0,0,0" VerticalAlignment="Bottom"><TextBlock x:Name="AllocationValueLabel" Text="Cost assigned" FontSize="10" Foreground="#91B9BB"/><TextBlock x:Name="AllocationCostPreview" Margin="0,4,0,8" Foreground="#76D7CB" FontWeight="SemiBold"/></StackPanel></Grid>
     <Expander x:Name="AllocationNoteSection" Header="Add a note (optional)"><TextBox x:Name="AllocationNote" TextWrapping="Wrap" AcceptsReturn="True" MinHeight="54" MaxLength="2000"/></Expander>
 
     <TextBlock x:Name="AllocationMessage" TextWrapping="Wrap" Foreground="#91B9BB" Margin="0,0,0,12"/>
@@ -105,12 +117,12 @@
      <TextBlock Text="Saved allocations" FontSize="14" FontWeight="SemiBold" Foreground="#E5F1F2" Margin="0,0,0,8"/>
      <TextBlock x:Name="AllocationEmpty" Text="Nothing assigned yet. Choose a destination above to get started." TextWrapping="Wrap" Foreground="#91B9BB" Margin="0,4,0,12"/>
      <DataGrid x:Name="AllocationSplits" MinHeight="65" MaxHeight="220" SelectionChanged="AllocationSplit_Selected" ScrollViewer.HorizontalScrollBarVisibility="Auto" ToolTip="Select an allocation to edit it"><DataGrid.Columns>
-      <DataGridTextColumn Header="Bought for" Binding="{Binding ProjectName}" Width="*" MinWidth="155"/>
+      <DataGridTextColumn Header="Assigned to" Binding="{Binding ProjectName}" Width="*" MinWidth="155"/>
       <DataGridTextColumn Header="Quantity" Binding="{Binding Quantity, StringFormat=N0}" HeaderStyle="{StaticResource QuantityHeader}" ElementStyle="{StaticResource QuantityText}" Width="105" MinWidth="100"/>
      </DataGrid.Columns></DataGrid>
     </StackPanel></Border>
     <Expander Header="Allocation history" Margin="0,10"><TextBlock x:Name="AllocationAudit" TextWrapping="Wrap"/></Expander>
-    <TextBlock Text="Assigning a purchase records its cost. Reserve and check delivery separately in your project." TextWrapping="Wrap" Foreground="#91B9BB" FontSize="11" Margin="0,10"/>
+    <TextBlock x:Name="AllocationExplanation" Text="Assigning a purchase records its cost. Reserve and check delivery separately in your project." TextWrapping="Wrap" Foreground="#91B9BB" FontSize="11" Margin="0,10"/>
     <Button Content="Reload allocations" Click="ReloadAllocation_Click" HorizontalAlignment="Left"/>
    </StackPanel></ScrollViewer>
    </DockPanel>

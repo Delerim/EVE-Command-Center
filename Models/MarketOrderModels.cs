@@ -51,6 +51,7 @@ public sealed class MarketOrdersState
 {
     public int SchemaVersion { get; set; } = 1;
     public HashSet<long> SelectedCharacters { get; set; } = new();
+    public Dictionary<long, WalletBalanceSnapshot> Balances { get; set; } = new();
     public List<MarketCharacterSnapshot> Characters { get; set; } = new();
 }
 
@@ -59,3 +60,11 @@ public sealed class HistoricalMarketOrder : MarketOrder
     [JsonPropertyName("state"), JsonRequired] public string State { get; set; } = "";
 }
 public sealed record HistoricalOrderRecord(long OwnerId, DateTimeOffset Observed, HistoricalMarketOrder Order);
+
+public sealed class WalletBalanceSnapshot
+{
+    public decimal? Amount { get; set; }
+    public DateTimeOffset Updated { get; set; }
+    public DateTimeOffset NextRefresh { get; set; }
+    public string Error { get; set; } = "";
+}
