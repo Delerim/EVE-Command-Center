@@ -82,6 +82,7 @@
    <DataGrid.Columns>
     <DataGridTextColumn Header="When (UTC)" Binding="{Binding Entry.Date, StringFormat={}{0:dd MMM yyyy HH:mm}}" Width="155" MinWidth="155"/>
     <DataGridTextColumn Header="Activity" Binding="{Binding Activity}" Width="210" MinWidth="210"/>
+    <DataGridTextColumn Header="Project charge" Binding="{Binding ProjectCharge}" Width="155" MinWidth="155"/>
     <DataGridTextColumn Header="Pilot" Binding="{Binding Owner}" Width="170" MinWidth="170"/>
     <DataGridTemplateColumn Header="Wallet change (ISK)" SortMemberPath="Entry.Amount" HeaderStyle="{StaticResource QuantityHeader}" Width="175" MinWidth="175"><DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding Amount}" Foreground="{Binding Color}" HorizontalAlignment="Right"/></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
     <DataGridTextColumn Header="Balance after (ISK)" Binding="{Binding Balance}" SortMemberPath="Entry.Balance" Width="180" MinWidth="180" HeaderStyle="{StaticResource QuantityHeader}" ElementStyle="{StaticResource QuantityText}"/>
@@ -125,6 +126,28 @@
     <TextBlock x:Name="AllocationExplanation" Text="Assigning a purchase records its cost. Reserve and check delivery separately in your project." TextWrapping="Wrap" Foreground="#91B9BB" FontSize="11" Margin="0,10"/>
     <Button Content="Reload allocations" Click="ReloadAllocation_Click" HorizontalAlignment="Left"/>
    </StackPanel></ScrollViewer>
+   </DockPanel>
+  </Border>
+
+  <Border x:Name="ExpensePanel" Grid.Column="2" Visibility="Collapsed" Background="#102428" BorderBrush="#28454A" BorderThickness="1" CornerRadius="9" Margin="8,0,0,0" Padding="16">
+   <DockPanel>
+    <StackPanel DockPanel.Dock="Bottom" Margin="0,12,0,0"><TextBlock x:Name="ExpenseMessage" TextWrapping="Wrap" Foreground="#EDAD83" Margin="0,0,0,8"/><WrapPanel><Button x:Name="SaveExpense" Content="Assign charge" Click="SaveExpense_Click"/><Button Content="New split" Click="NewExpense_Click"/><Button x:Name="RemoveExpense" Content="Remove" Click="RemoveExpense_Click" IsEnabled="False"/></WrapPanel></StackPanel>
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"><StackPanel>
+     <TextBlock Text="Assign this charge" FontSize="18" FontWeight="SemiBold" TextWrapping="Wrap"/>
+     <TextBlock x:Name="ExpenseTitle" FontSize="16" Foreground="#EDAD83" Margin="0,8,0,4" TextWrapping="Wrap"/>
+     <TextBlock x:Name="ExpenseSource" TextWrapping="Wrap" Foreground="#91B9BB"/>
+     <Border Background="#0C1F23" CornerRadius="8" Padding="10,8" Margin="0,10"><DockPanel><TextBlock Text="Left to assign" VerticalAlignment="Center" Foreground="#91B9BB"/><TextBlock x:Name="ExpenseRemaining" FontSize="16" HorizontalAlignment="Right" Foreground="#76D7CB"/></DockPanel></Border>
+     <StackPanel x:Name="ExpenseSaved" Margin="0,0,0,10">     <TextBlock Text="Saved assignments - select to edit" FontWeight="SemiBold" Margin="0,0,0,8"/>
+     <DataGrid x:Name="ExpenseSplits" SelectionChanged="ExpenseSplit_Selected" MinHeight="90" MaxHeight="250"><DataGrid.Columns><DataGridTextColumn Header="Project" Binding="{Binding ProjectName}" Width="*" MinWidth="150"/><DataGridTextColumn Header="Amount (ISK)" Binding="{Binding Amount, StringFormat=N2}" Width="150" HeaderStyle="{StaticResource QuantityHeader}" ElementStyle="{StaticResource QuantityText}"/></DataGrid.Columns></DataGrid></StackPanel>
+     <TextBlock Text="Project" Margin="0,0,0,5"/>
+     <ComboBox x:Name="ExpenseTarget" MinHeight="48" MaxDropDownHeight="320" SelectionChanged="ExpenseForm_Changed"><ComboBox.ItemTemplate><DataTemplate><StackPanel Orientation="Horizontal" Margin="0,4"><Image Source="{Binding Icon}" Width="28" Height="28" Margin="0,0,10,0"/><TextBlock Text="{Binding Name}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/></StackPanel></DataTemplate></ComboBox.ItemTemplate></ComboBox>
+     <TextBlock Text="Amount (ISK)" Margin="0,12,0,5"/><TextBox x:Name="ExpenseAmount" TextChanged="ExpenseForm_Changed"/>
+     <Expander Header="Note (optional)" Margin="0,12,0,0"><TextBox x:Name="ExpenseNote" TextWrapping="Wrap" AcceptsReturn="True" MinHeight="55" MaxLength="2000"/></Expander>
+
+     <TextBlock Text="Choose the project explicitly. This assigns the wallet charge once; it does not reserve materials or link an EVE job." Foreground="#91B9BB" TextWrapping="Wrap" Margin="0,12"/>
+     <Expander Header="Assignment history"><TextBlock x:Name="ExpenseAudit" TextWrapping="Wrap"/></Expander>
+     <Button Content="Reload assignments" Click="ReloadExpense_Click" HorizontalAlignment="Left" Margin="0,12,0,0"/>
+    </StackPanel></ScrollViewer>
    </DockPanel>
   </Border>
   </Grid>

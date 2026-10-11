@@ -1,4 +1,14 @@
-# Industry, Market & Wallet testing guide - v3.6.54
+# Industry, Market & Wallet testing guide - v3.6.55
+
+## New in v3.6.55: assign confirmed charges
+
+1. Open Market & Wallet, choose a pilot, then Wallet activity. Refresh if needed using the existing wallet permission.
+2. Select a broker fee, sales tax, manufacturing charge or industry job tax with a negative amount. The Project charge column identifies entries that can be assigned.
+3. Choose a production project and enter its share in ISK. Save the charge. Use New split to share the remainder with another project. The total cannot exceed the original charge.
+4. Open that project's Finances tab. Fees & charges shows the assigned amount, and Cash difference subtracts it alongside purchases. The Fees & charges detail tab shows each source date, pilot, charge and note. Pilot and period filters apply to all figures.
+5. Return to Wallet activity, select a saved split, change it or remove it. Reload project finances to verify the change. Assignment history keeps before/after evidence; the wallet entry itself remains unchanged.
+
+Only the four listed debit categories are supported in this increment. Transfers, escrow, trade payments, incoming credits and entries with missing amounts cannot be assigned as expenses. The source amount is used once; the optional tax metadata is not added on top. Every project link is an explicit user attribution, not an inferred match to an order or production batch. Unassigned costs, consumed-stock valuation and finalized profit remain outstanding. Existing ledger data is backed up before schema 6 migration.
 
 ## Start here: sync and dashboard
 
@@ -34,13 +44,13 @@ Remaining: explicit order commitments split across projects, defensible order/fi
 
 ## Phase D - attribution and financials (usable core; still in progress)
 
-Implemented: wallet balance/journal/trades and PLEX history; purchase splits among eligible projects, general stock and unrelated activity; audited edits/removals; item acquisition-cost analysis; explicitly confirmed sale-to-project splits; project Purchases, Sales and Finances tabs with pilot/date filters and supporting-record navigation.
+Implemented: wallet balance/journal/trades and PLEX history; purchase splits among eligible projects, general stock and unrelated activity; audited edits/removals; item acquisition-cost analysis; explicitly confirmed sale-to-project splits; project Purchases, Sales and Finances tabs with pilot/date filters and supporting-record navigation; audited ISK splits for confirmed broker fees, sales taxes and manufacturing charges.
 
 Test: allocate part of a purchase to a project and the rest elsewhere. Its project costs must include only its split. Reassign/remove it and check totals/history. Assign a sale to a project after confirming origin; receipts must use its actual unit price. In Finances, change pilot/period and open a supporting row. Repeat imports and restart: amounts must not double. Wallet journal cash flow must not add transaction values again.
 
-Remaining: fee/tax/manufacturing expense attribution, consumed-stock cost and opportunity-cost valuation, defensible batch costs, forecasts/margins and realized P&L. Cash difference is not profit. Purchased, reserved, delivered and consumed remain distinct.
+Remaining: additional expense/refund categories and automated provenance, consumed-stock cost and opportunity-cost valuation, defensible batch costs, forecasts/margins and realized P&L. Cash difference is not profit. Purchased, reserved, delivered and consumed remain distinct.
 
-## Phase E - dashboard intelligence (started in this patch)
+## Phase E - dashboard intelligence (started in v3.6.54)
 
 Implemented: compact project/market/wallet summaries, links to existing detail modules, independent dashboard visibility, automatic financial sync policy/status and regression coverage.
 

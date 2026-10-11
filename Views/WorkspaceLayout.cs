@@ -39,7 +39,7 @@ internal static class WorkspaceLayout
         stock.Height = new GridLength(double.IsFinite(state.StockRatio) ? Math.Clamp(state.StockRatio, .3, 5) : 2, GridUnitType.Star);
         var frames = new[] { "ComponentBlueprintsFrame", "ExistingJobsFrame", "RolesFrame" }.Select(n => (Grid)view.FindName(n)).ToArray();
         foreach (var frame in frames) if (state.Heights.TryGetValue(frame.Name, out var height) && double.IsFinite(height)) frame.Height = Math.Clamp(height, 100, 900);
-        var grids = new[] { "ProjectFinanceEntries", "ProjectSales", "ProjectItemCosts", "ProjectPurchases", "ProjectSkills", "ComponentInputs", "Stock", "Reservations", "Shopping", "Blueprints", "ComponentBlueprints", "ExistingJobs" }
+        var grids = new[] { "ProjectFinanceEntries", "ProjectExpenseEntries", "ProjectSales", "ProjectItemCosts", "ProjectPurchases", "ProjectSkills", "ComponentInputs", "Stock", "Reservations", "Shopping", "Blueprints", "ComponentBlueprints", "ExistingJobs" }
             .Select(n => (DataGrid)view.FindName(n)).ToArray();
         foreach (var grid in grids)
         {
@@ -81,7 +81,7 @@ internal static class WorkspaceLayout
         MarketState state;
         try { state = JsonSerializer.Deserialize<MarketState>(File.ReadAllText(path)) ?? new(); } catch { state = new(); }
         state.Columns ??= new(); view.AllocationPanelSize = state.Inspector;
-        var grids = new[] { "Orders", "TransactionsGrid", "JournalGrid", "AllocationSplits" }.Select(n => (DataGrid)view.FindName(n)).ToArray();
+        var grids = new[] { "Orders", "TransactionsGrid", "JournalGrid", "AllocationSplits", "ExpenseSplits" }.Select(n => (DataGrid)view.FindName(n)).ToArray();
         foreach (var grid in grids)
         {
             foreach (var column in grid.Columns)

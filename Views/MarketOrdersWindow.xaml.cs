@@ -24,11 +24,11 @@ public partial class MarketOrdersWindow : Window
         WorkspaceLayout.AttachMarket(this);
         _cacheTimer.Tick += (_, _) =>
         {
-            if (_service != null && Characters.IsVisible && _refresh == null && AllocationPanel.Visibility != Visibility.Visible && !_service.Busy && _seenDataVersion != _service.DataVersion)
+            if (_service != null && Characters.IsVisible && _refresh == null && AllocationPanel.Visibility != Visibility.Visible && ExpensePanel.Visibility != Visibility.Visible && !_service.Busy && _seenDataVersion != _service.DataVersion)
             { _seenDataVersion = _service.DataVersion; RenderOrders(); }
         };
         Loaded += (_, _) => _cacheTimer.Start();
-        TableSorting.Attach(Orders); TableSorting.Attach(TransactionsGrid); TableSorting.Attach(JournalGrid); TableSorting.Attach(AllocationSplits);
+        TableSorting.Attach(Orders); TableSorting.Attach(TransactionsGrid); TableSorting.Attach(JournalGrid); TableSorting.Attach(AllocationSplits); TableSorting.Attach(ExpenseSplits);
         Loaded += async (_, _) =>
         {
             if (_service != null) return;
@@ -127,7 +127,7 @@ public partial class MarketOrdersWindow : Window
     private void Transaction_Selected(object sender, SelectionChangedEventArgs e)
     { if (OrderDetail != null) OrderDetail.Text = (TransactionsGrid.SelectedItem as TransactionRow)?.Detail ?? "Select a purchase or sale for details."; ShowPurchaseAllocation(); }
     private void Journal_Selected(object sender, SelectionChangedEventArgs e)
-    { if (OrderDetail != null) OrderDetail.Text = (JournalGrid.SelectedItem as JournalRow)?.Detail ?? "Select wallet activity to inspect its related trade."; }
+    { if (OrderDetail != null) OrderDetail.Text = (JournalGrid.SelectedItem as JournalRow)?.Detail ?? "Select wallet activity to inspect its related trade."; ShowExpenseAllocation(); }
     private void RenderOrders()
     {
         if (_service == null || _updating) return;
@@ -138,6 +138,7 @@ public partial class MarketOrdersWindow : Window
         TradeSide.Visibility = tab == 8 ? Visibility.Visible : Visibility.Collapsed;
         AllocationFilters.Visibility = tab is 4 or 5 ? Visibility.Visible : Visibility.Collapsed;
         AllocatedColumn.Visibility = UnallocatedColumn.Visibility = DestinationsColumn.Visibility = tab is 4 or 5 ? Visibility.Visible : Visibility.Collapsed;
+        if (tab != 6) HideExpenseAllocation();
         if (tab is not (4 or 5)) HidePurchaseAllocation();
         DestinationsColumn.Header = tab == 5 ? "Sold for" : "Bought for";
         ((ComboBoxItem)AllocationFilter.Items[0]).Content = tab == 5 ? "All sales" : "All purchases";
@@ -235,7 +236,8 @@ public partial class MarketOrdersWindow : Window
     }
     private sealed record JournalRow(long OwnerId, EveWalletJournalEntry Entry, string Owner, DateTimeOffset Observed, MarketTransaction[] Trades)
     {
-        public string Activity => CultureInfo.InvariantCulture.TextInfo.ToTitleCase(Entry.RefType.Replace('_', ' '));
+        public string ProjectCharge => ExpenseEvidence.Eligible(Entry) ? "Select to assign" : "Not assignable here";
+        public string Activity => ExpenseEvidence.Eligible(Entry) ? ExpenseEvidence.Name(Entry) : CultureInfo.InvariantCulture.TextInfo.ToTitleCase(Entry.RefType.Replace('_', ' '));
         public string Amount => Entry.Amount?.ToString("N2") ?? "Unknown";
         public string Balance => Entry.Balance?.ToString("N2") ?? "Unknown";
         public string Note => string.IsNullOrWhiteSpace(Entry.Reason) ? Entry.Description ?? "" : Entry.Reason;

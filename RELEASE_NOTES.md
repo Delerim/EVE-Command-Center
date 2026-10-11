@@ -1,9 +1,10 @@
-# EVE Command Center v3.6.54
+# EVE Command Center v3.6.55
 
-- Added Command Center Setup > Sync & dashboard, with saved per-pilot switches for automatic wallet, market, industry, PI, pilot-info and clone sync. Wallet defaults to linked pilots; market selection is independent.
-- Added per-pilot financial sync status, permission guidance and saved timestamps. Turning sync off retains history. Existing endpoint caches and request scheduling are reused.
-- Market & Wallet pilot selection is now independent of background refresh targets. Background cache updates preserve a pilot switch and do not interrupt an open allocation editor.
-- Started Phase E dashboard integration: project counts and names, saved buy/sell commitments, wallet balances, daily trades and 7/30-day journal cash flow. Incomplete or stale data is labelled; cash flow is not profit.
-- Added independent dashboard visibility for market, wallet/trades and industry jobs. Existing moon/contract reader setup and local mining monitoring remain separate.
-- Added a phase-by-phase testing guide in docs/INDUSTRY-MARKET-TESTING.md with delivered behavior and remaining full-brief work.
-- Validated with 695 regression checks, including independent feed routing, cache reuse, restart, disabled sync, corrupt settings, pilot switches during refresh, dashboard coverage and cash-flow deduplication.
+- Added project assignments for confirmed broker fees, sales taxes, manufacturing charges and industry job taxes in Market & Wallet > Wallet activity.
+- Split a charge between projects in ISK, edit or remove saved assignments, and review their history. The editor shows the remaining amount and rejects assignments above the original debit.
+- Project Finances now separates fees and charges from purchases and sales. Cash difference subtracts assigned charges; pilot and period filters apply consistently to every figure.
+- Added a sortable charge-detail table with aligned ISK values, readable project names and remembered column widths. Original wallet entries remain unchanged.
+- Transfers, escrow, trade payments and incoming credits are excluded from expense assignment to avoid double counting. Cash difference is still not profit; unassigned costs and stock valuation remain separate.
+- Added a backed-up ledger migration and regression coverage for decimal splits, stale edits, source eligibility, audit rollback, restart, migration, project removal and UI feedback.
+
+- Validated with 719 regression checks and native WPF render fixtures for the charge editor and project finances.

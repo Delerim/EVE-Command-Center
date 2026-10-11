@@ -28,6 +28,14 @@ internal static partial class Program
     [STAThread]
     private static void Main(string[] args)
     {
+        if (args.FirstOrDefault() == "--audit-expenses")
+        {
+            var appFixture = new System.Windows.Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
+            string folder = Path.Combine(Path.GetTempPath(), "ecc-expense-audit-" + Guid.NewGuid().ToString("N")); Directory.CreateDirectory(folder);
+            try { WorkspaceLayout.PreferencePath = Path.Combine(folder, "ui-layout.json"); CheckExpenseAllocations(folder, args[1]); }
+            finally { Directory.Delete(folder, true); }
+            return;
+        }
         if (args.FirstOrDefault() == "--audit-sync")
         {
             var appFixture = new System.Windows.Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };

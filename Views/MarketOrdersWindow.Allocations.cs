@@ -22,7 +22,7 @@ public partial class MarketOrdersWindow
     { public override string ToString() => Name; }
     private void HidePurchaseAllocation()
     {
-        if (AllocationPanel == null) return;
+        if (AllocationPanel == null || ExpensePanel?.Visibility == Visibility.Visible) return;
         if (AllocationWidth.ActualWidth > 0) _allocationPanelWidth = Math.Max(340, AllocationWidth.ActualWidth);
         AllocationWidth.Width = new GridLength(0); AllocationWidth.MinWidth = 0;
         AllocationPanel.Visibility = AllocationDivider.Visibility = Visibility.Collapsed;
