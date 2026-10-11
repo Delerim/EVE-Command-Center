@@ -6,6 +6,8 @@ using EveCommandCenter.Models;
 namespace EveCommandCenter.Services;
 public sealed class OmegaService
 {
+    public Func<long, bool> ShouldSync { get; set; } = _ => true;
+
     public const string Scope="esi-clones.read_clones.v1";
     private readonly EveSsoService _sso;
     private readonly HttpClient _http=EsiHttp.CreateClient();
@@ -48,7 +50,7 @@ public sealed class OmegaService
         try
         {
             var linked=await _sso.LoadPilotsAsync();
-            foreach(var p in linked)
+            foreach(var p in linked.Where(p => ShouldSync(p.CharacterId)))
             {
                 var row=Pilots.FirstOrDefault(r=>r.Id==p.CharacterId);if(row==null){row=new(){Id=p.CharacterId,Name=p.CharacterName};Pilots.Add(row);}
                 if(!p.Scopes.Contains(Scope)){row.Error="Upgrade this toon in Settings for all features";continue;}

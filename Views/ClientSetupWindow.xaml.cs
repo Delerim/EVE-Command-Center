@@ -32,6 +32,7 @@ public partial class ClientSetupWindow : Window
     {
         long? selectedUpgrade = (UpgradePilot.SelectedItem as LinkChoice)?.Profile.CharacterId;
         _pilots = await _operations.Sso.LoadPilotsAsync();
+        SyncPreferences.Initialize(_operations.SyncSettings, _pilots, _operations.MarketOrders, _operations.ScheduleFinancialSync);
         var choices = _pilots.Select(p => new LinkChoice(p)).ToList();
         UpgradePilot.ItemsSource = choices;
         UpgradePilot.SelectedItem = choices.FirstOrDefault(p => p.Profile.CharacterId == selectedUpgrade)

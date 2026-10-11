@@ -1,4 +1,4 @@
-﻿using System.IO;
+using System.IO;
 using System.Text.Json;
 using EveCommandCenter.Models;
 
@@ -7,6 +7,8 @@ namespace EveCommandCenter.Services;
 /// <summary>App-owned pilot snapshots, independent of open windows.</summary>
 public sealed class BackgroundPilotRefresh
 {
+    public Func<long, bool> ShouldSync { get; set; } = _ => true;
+
     public Dictionary<long, EvePilotSummary> Summaries { get; } = new();
     public Dictionary<long, EveMiningShipIntel> Intel { get; } = new();
     private readonly Dictionary<long, DateTimeOffset> _due = new();
@@ -27,7 +29,7 @@ public sealed class BackgroundPilotRefresh
         try
         {
             var pilots = await sso.LoadPilotsAsync();
-            foreach (var pilot in pilots.OrderBy(p => _due.GetValueOrDefault(p.CharacterId)))
+            foreach (var pilot in pilots.Where(p => ShouldSync(p.CharacterId)).OrderBy(p => _due.GetValueOrDefault(p.CharacterId)))
             {
                 lifetime.ThrowIfCancellationRequested();
                 if (_due.GetValueOrDefault(pilot.CharacterId) > DateTimeOffset.UtcNow) continue;

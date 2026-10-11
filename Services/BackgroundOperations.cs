@@ -8,7 +8,7 @@ using EveCommandCenter.Views;
 namespace EveCommandCenter.Services;
 
 /// <summary>App-owned polling. Views subscribe to data, never own monitoring.</summary>
-public sealed class BackgroundOperations : IDisposable
+public sealed partial class BackgroundOperations : IDisposable
 {
     private static BackgroundOperations? _current;
     public static BackgroundOperations Current => _current ??= new();
@@ -20,6 +20,8 @@ public sealed class BackgroundOperations : IDisposable
     public PlanetaryService Planetary { get; }
     public IndustryService Industry { get; }
     public MarketOrdersService MarketOrders { get; }
+    public PilotSyncSettings SyncSettings { get; } = new();
+    public IReadOnlyList<EvePilotProfile> LinkedPilots { get; private set; } = Array.Empty<EvePilotProfile>();
     public IndustryWorkspaceStore IndustryWorkspace { get; } = new();
     public OmegaService Omega { get; }
     public BackgroundPilotRefresh Pilots { get; }
@@ -48,6 +50,10 @@ public sealed class BackgroundOperations : IDisposable
         Omega.Alert += (title,message) => OperatingToast.Notify(title,message,OpenOmega,"OMEGA RENEWAL");
         Industry.Alert += (title,message) => OperatingToast.Notify(title,message,OpenIndustry,"INDUSTRY READY");
         Pilots = new BackgroundPilotRefresh(Sso);
+        Industry.ShouldSync = id => SyncSettings.Enabled(id, "industry");
+        Planetary.ShouldSync = id => SyncSettings.Enabled(id, "pi");
+        Omega.ShouldSync = id => SyncSettings.Enabled(id, "clones");
+        Pilots.ShouldSync = id => SyncSettings.Enabled(id, "pilot");
         if (!Access.State.SetupCompleted)
         {
             Access.State.MoonCharacterId = Moons.SelectedCharacterId;
@@ -88,13 +94,16 @@ public sealed class BackgroundOperations : IDisposable
                 if(Planetary.State.DesktopAlerts) foreach(var group in alerts.GroupBy(a=>a.Split('|')[0].Trim())) OperatingToast.Notify(group.Key+" | PI",string.Join("\n",group.Take(5)),OpenPlanetary,"PLANETARY INDUSTRY");
                 Planetary.Save();
             }
+            var pilots = await Sso.LoadPilotsAsync();
+            LinkedPilots = pilots;
+            SyncSettings.EnsurePilots(pilots, MarketOrders.State.SelectedCharacters);
+            _ = SyncMarketAndWalletAsync(pilots);
             Omega.CheckAlerts();
             _ = Omega.RefreshMarketAsync(_lifetime.Token);
             _ = Omega.RefreshAsync(_lifetime.Token);
             _ = Industry.RefreshAsync(_lifetime.Token);
             _ = Planetary.RefreshAsync(_lifetime.Token);
             _ = Pilots.RefreshAsync(_lifetime.Token);
-            var pilots = await Sso.LoadPilotsAsync();
             var now = DateTimeOffset.UtcNow;
             if (now >= _nextAccess && !_accessBusy)
             {

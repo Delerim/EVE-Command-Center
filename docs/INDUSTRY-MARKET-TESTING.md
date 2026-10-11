@@ -1,0 +1,53 @@
+# Industry, Market & Wallet testing guide - v3.6.54
+
+## Start here: sync and dashboard
+
+Open Command Center Setup > Sync & dashboard. The Automatic sync table has separate switches for Wallet, Market, Industry, PI, Pilot info and Clones for each linked pilot. Wallet includes balance, journal, purchases and sales. Market includes open orders and confirmed order history. Wallet defaults on for linked pilots; market starts with the previously selected market pilot(s), with no hardcoded names. Enable Market for whichever pilots trade, then Save sync settings.
+
+Select a row and Check sync status to see enabled/disabled feeds, permissions, saved timestamps and the latest financial-sync messages. Missing permission requires reconnecting that pilot; a checkbox does not grant EVE access. A currently running cycle may finish after saving. Financial sync checks every five minutes while the application runs and respects each endpoint's cache expiry; other services retain their existing cadence. Closing a page does not stop app-owned sync. Market & Wallet refresh buttons can still load a disabled feed on request. The other service refreshes honor their pilot switches. Public prices, mining logs and the existing corporation readers are separate.
+
+Dashboard visibility has independent Market orders, Wallet & trades and Industry jobs switches. Hiding a pilot must not stop sync or delete history. Projects remain consolidated across all manufacturers. The dashboard now shows project counts/names, saved buy/sell commitments, balances, imported daily trade amounts and 7/30-day wallet cash flow. Incomplete/stale saved feeds are labelled. This is the first Phase E increment, not the complete dashboard/notification plan.
+
+Market & Wallet itself stays single-pilot: click a portrait to switch views. Viewing a pilot must not change the sync list. Open orders, order history, purchases, sales, wallet activity, wallet overview and PLEX remain separate. Opening tabs reads saved data. Background results update visible tables; an open allocation inspector is left alone to protect unsaved edits.
+
+## Phase A - foundations (delivered core)
+
+Implemented: persistent projects, selectable default owner/buyer/seller, stable project/node identities, per-component executors, shared ledger, backups/migrations, reusable ESI and credentials.
+
+Test: create a project, choose its owner, assign another pilot to a component, close/reopen. The same project must retain its tree, assignments and history. Change defaults: existing projects must stay unchanged. No local assignment submits an EVE job.
+
+## Phase B - manufacturing planner (usable core; incomplete full scope)
+
+Implemented: project gallery/create/delete, owned blueprint library with pilot/location/container selection, manufacturing dependency trees, material breakdown, Make/Buy/Use Stock choices, exact personal-stock reservations, shared material totals, blueprint/skill checks, required-skills pilot grid, local job assignments, explicit existing-job matching and transfer-needed notes.
+
+Test: create two builds sharing a material; reserve a stack for one and verify that free stock drops for the other. Click a component to inspect inputs, owned blueprints, skills, jobs and stock. Select a BPC and confirm its runs/ME affect the plan. Reassign a component without losing the parent build. Delete a project and verify reservations release while financial history remains.
+
+Remaining: complete corporation/division inventory, full invention/reaction and facility/rig mathematics, stronger production/consumption/delivery reconciliation, batch/priority workflows and location-price procurement comparisons. Transfer-needed and job links are not proof of delivery or consumption.
+
+## Phase C - market module (core tracking delivered; incomplete full scope)
+
+Implemented: personal open buy/sell orders, separate confirmed histories, purchases/sales, durable imports, per-pilot views, named items/locations, cache/failure states and independent automatic sync.
+
+Test: choose each trading pilot; only their rows should appear. Refresh twice and verify no duplicate trades or spend. Open-order values are commitments. An order disappearing is unconfirmed until reliable history establishes its outcome; it does not automatically become a sale.
+
+Remaining: explicit order commitments split across projects, defensible order/fill association, corporation orders, price/undercut monitoring and opt-in fill/expiry/large-trade alerts.
+
+## Phase D - attribution and financials (usable core; still in progress)
+
+Implemented: wallet balance/journal/trades and PLEX history; purchase splits among eligible projects, general stock and unrelated activity; audited edits/removals; item acquisition-cost analysis; explicitly confirmed sale-to-project splits; project Purchases, Sales and Finances tabs with pilot/date filters and supporting-record navigation.
+
+Test: allocate part of a purchase to a project and the rest elsewhere. Its project costs must include only its split. Reassign/remove it and check totals/history. Assign a sale to a project after confirming origin; receipts must use its actual unit price. In Finances, change pilot/period and open a supporting row. Repeat imports and restart: amounts must not double. Wallet journal cash flow must not add transaction values again.
+
+Remaining: fee/tax/manufacturing expense attribution, consumed-stock cost and opportunity-cost valuation, defensible batch costs, forecasts/margins and realized P&L. Cash difference is not profit. Purchased, reserved, delivered and consumed remain distinct.
+
+## Phase E - dashboard intelligence (started in this patch)
+
+Implemented: compact project/market/wallet summaries, links to existing detail modules, independent dashboard visibility, automatic financial sync policy/status and regression coverage.
+
+Test: sync Wallet for all pilots and Market for two. Switch the viewed pilot: sync selections must stay unchanged. Hide one pilot from dashboard Wallet totals; their Market & Wallet history must remain. Turn automatic Wallet sync off: saved data must remain visible. Restart and verify all choices persist. Missing permissions/failed refreshes must not masquerade as confirmed zero balances or empty activity.
+
+Remaining: richer readiness/procurement-gap widgets, independent transaction/financial presets, active-only/hide-zero presets, deduplicated cross-module activity feeds and the new market/financial notification categories.
+
+## How much remains?
+
+The brief defines five phases, A through E. All five have now been started; no additional lettered phase follows E. A's core foundations are delivered. B, C and D have usable delivered increments but retain the gaps listed above; E has just begun. Four phases therefore still have outstanding full-brief requirements. Completion will take several further validated patches, especially financial reconciliation; the current app should not claim complete industrial profit accounting.

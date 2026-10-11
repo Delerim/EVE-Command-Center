@@ -5,7 +5,7 @@
  </ResourceDictionary></Window.Resources>
  <DockPanel Margin="18">
   <StackPanel DockPanel.Dock="Top">
-   <TextBlock Text="MARKET &amp; WALLET" FontSize="26" Foreground="#55D7D2" FontWeight="Bold"/>
+   <DockPanel><Button DockPanel.Dock="Right" Content="Sync settings" HorizontalAlignment="Right" Click="SyncSettings_Click"/><TextBlock Text="MARKET &amp; WALLET" FontSize="26" Foreground="#55D7D2" FontWeight="Bold"/></DockPanel>
    <TextBlock Text="Orders, purchases, sales and wallet activity for each pilot" Margin="0,6,0,12"/>
    <Expander Header="Pilots" Foreground="#74D6C9" IsExpanded="True">
     <StackPanel>

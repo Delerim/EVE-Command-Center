@@ -18,9 +18,11 @@ public sealed partial class MarketOrdersService
     public MarketOrdersState State { get; private set; } = new();
     public string Error { get; private set; } = "";
     public bool Busy { get; private set; }
+    public long DataVersion { get; private set; }
     public string Progress { get; private set; } = "";
     private IndustryLedger Ledger => new(Path.GetDirectoryName(_path)!);
     public List<HistoricalOrderRecord> History { get; private set; } = new();
+    public Dictionary<long, string> HistoryReports { get; } = new();
     public string HistoryStatus { get; private set; } = "History has not been refreshed.";
     public MarketOrdersService(EveSsoService sso, string? directory = null, HttpClient? http = null,
         Func<EvePilotProfile, CancellationToken, Task<string>>? token = null)
@@ -47,24 +49,25 @@ public sealed partial class MarketOrdersService
         try { if (Ledger.Exists) { History = Ledger.History(); HistoryStatus = "Saved confirmed history loaded."; Transactions = Ledger.Transactions(); TransactionStatus = "Saved personal transactions loaded."; Journal = Ledger.Journal(); JournalStatus = "Saved wallet activity loaded."; PurchaseAllocations = Ledger.Allocations(); SaleAllocations = Ledger.Allocations(true); } }
         catch (Exception ex) { HistoryStatus = "History could not be loaded; data preserved: " + ex.GetType().Name; }
     }
-    public async Task RefreshHistoryAsync(IReadOnlyList<EvePilotProfile> linked, CancellationToken ct)
+    public async Task RefreshHistoryAsync(IReadOnlyList<EvePilotProfile> linked, CancellationToken ct, IReadOnlyCollection<long>? characterIds = null)
     {
         if (Busy || Error.Length > 0) return;
         Busy = true; Progress = "Preparing history refresh..."; var messages = new List<string>();
+        void Report(long id, string message) { messages.Add(message); HistoryReports[id] = message; }
         try
         {
             // Migration and complete-page commits run off the dispatcher. No partial-page checkpoint is committed.
-            foreach (long id in State.SelectedCharacters.ToArray())
+            foreach (long id in (characterIds ?? State.SelectedCharacters).ToArray())
             {
                 ct.ThrowIfCancellationRequested();
                 var pilot = linked.FirstOrDefault(p => p.CharacterId == id);
                 if (pilot == null || !pilot.Scopes.Contains(Scope))
-                { messages.Add((pilot?.CharacterName ?? "Unlinked character") + ": market permission required; history retained."); continue; }
+                { Report(id, (pilot?.CharacterName ?? "Unlinked character") + ": market permission required; history retained."); continue; }
                 try
                 {
                     await Task.Run(() => Ledger.Ensure(), ct);
                     var due = Ledger.NextHistory(id);
-                    if (DateTimeOffset.UtcNow < due) { messages.Add($"{pilot.CharacterName}: history cached until {due:HH:mm} UTC."); continue; }
+                    if (DateTimeOffset.UtcNow < due) { Report(id, $"{pilot.CharacterName}: history cached until {due:HH:mm} UTC."); continue; }
                     var token = await _token(pilot, ct);
                     var orders = new List<HistoricalMarketOrder>();
                     int pages = 1; DateTimeOffset observed = DateTimeOffset.UtcNow;
@@ -105,14 +108,14 @@ public sealed partial class MarketOrdersService
                     }
                     ct.ThrowIfCancellationRequested();
                     await Task.Run(() => Ledger.ImportHistory(id, orders, observed, next), ct);
-                    messages.Add($"{pilot.CharacterName}: {orders.Count(o => !o.Corporation):N0} confirmed history records refreshed.");
+                    Report(id, $"{pilot.CharacterName}: {orders.Count(o => !o.Corporation):N0} confirmed history records refreshed.");
                 }
                 catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
-                catch (Exception ex) { messages.Add($"{pilot.CharacterName}: {Failure(ex)} History retained."); }
+                catch (Exception ex) { Report(id, $"{pilot.CharacterName}: {Failure(ex)} History retained."); }
             }
             if (Ledger.Exists) History = await Task.Run(() => Ledger.History(), ct);
         }
-        finally { HistoryStatus = string.Join("\n", messages); Busy = false; }
+        finally { HistoryStatus = string.Join("\n", messages); Busy = false; DataVersion++; }
     }
     internal static async Task ResolveOptionalNames(Func<CancellationToken, Task> resolve, CancellationToken ct, TimeSpan? budget = null)
     {
@@ -141,21 +144,21 @@ public sealed partial class MarketOrdersService
         var ttl = (response.Headers.CacheControl?.MaxAge ?? fallback) - (response.Headers.Age ?? TimeSpan.Zero);
         return now.Add(ttl > TimeSpan.Zero ? ttl : TimeSpan.FromMinutes(1));
     }
-    private void Persist(MarketOrdersState next)
+    private void Persist(MarketOrdersState next, bool selection = false)
     {
         if (Error.Length > 0) throw new InvalidOperationException(Error);
+        if (!selection) next.SelectedCharacters = State.SelectedCharacters.ToHashSet();
         Directory.CreateDirectory(Path.GetDirectoryName(_path)!);
         string temp = _path + ".tmp";
         using (var file = new FileStream(temp, FileMode.Create, FileAccess.Write, FileShare.None))
         { JsonSerializer.Serialize(file, next); file.Flush(true); }
         if (File.Exists(_path)) File.Replace(temp, _path, _path + ".bak"); else File.Move(temp, _path);
-        State = next;
+        State = next; DataVersion++;
     }
     private MarketOrdersState Copy() => JsonSerializer.Deserialize<MarketOrdersState>(JsonSerializer.Serialize(State))!;
     public void Select(IEnumerable<long> ids)
     {
-        if (Busy) throw new InvalidOperationException("Wait for the current market refresh.");
-        var next = Copy(); next.SelectedCharacters = ids.Where(id => id > 0).ToHashSet(); Persist(next);
+        var next = Copy(); next.SelectedCharacters = ids.Where(id => id > 0).ToHashSet(); Persist(next, true);
     }
     internal static void Validate(List<MarketOrder> rows)
     {
@@ -164,13 +167,13 @@ public sealed partial class MarketOrdersService
             throw new InvalidDataException("Invalid order snapshot");
         foreach (var row in rows) { _ = row.RemainingValue; _ = row.Expiry; }
     }
-    public async Task RefreshAsync(IReadOnlyList<EvePilotProfile> linked, CancellationToken ct)
+    public async Task RefreshAsync(IReadOnlyList<EvePilotProfile> linked, CancellationToken ct, IReadOnlyCollection<long>? characterIds = null)
     {
         if (Busy || Error.Length > 0) return;
         Busy = true; Progress = "Preparing open orders...";
         try
         {
-            foreach (long id in State.SelectedCharacters.ToArray())
+            foreach (long id in (characterIds ?? State.SelectedCharacters).ToArray())
             {
                 ct.ThrowIfCancellationRequested();
                 var next = Copy();
@@ -225,6 +228,6 @@ public sealed partial class MarketOrdersService
                 Persist(next);
             }
         }
-        finally { Busy = false; }
+        finally { Busy = false; DataVersion++; }
     }
 }

@@ -8,6 +8,7 @@ namespace EveCommandCenter.Services;
 public sealed partial class MarketOrdersService
 {
     public List<MarketJournalRecord> Journal { get; private set; } = new();
+    public Dictionary<long, string> JournalReports { get; } = new();
     public string JournalStatus { get; private set; } = "Wallet activity has not been refreshed.";
     internal static bool SameJournal(EveWalletJournalEntry a, EveWalletJournalEntry b) =>
         a.Id == b.Id && a.Date == b.Date && a.RefType == b.RefType && a.Amount == b.Amount && a.Balance == b.Balance &&
@@ -18,23 +19,24 @@ public sealed partial class MarketOrdersService
         if (rows.Select(r => r.Id).Distinct().Count() != rows.Count || rows.Any(r => r.Id <= 0 || r.Date == default || string.IsNullOrWhiteSpace(r.RefType) || r.Description == null))
             throw new InvalidDataException("Invalid wallet activity response.");
     }
-    public async Task RefreshJournalAsync(IReadOnlyList<EvePilotProfile> linked, CancellationToken ct)
+    public async Task RefreshJournalAsync(IReadOnlyList<EvePilotProfile> linked, CancellationToken ct, IReadOnlyCollection<long>? characterIds = null)
     {
         if (Busy || Error.Length > 0) return;
         Busy = true; Progress = "Preparing wallet activity..."; var messages = new List<string>();
+        void Report(long id, string message) { messages.Add(message); JournalReports[id] = message; }
         try
         {
-            foreach (long id in State.SelectedCharacters.ToArray())
+            foreach (long id in (characterIds ?? State.SelectedCharacters).ToArray())
             {
                 ct.ThrowIfCancellationRequested();
                 var pilot = linked.FirstOrDefault(p => p.CharacterId == id);
                 if (pilot == null || !pilot.Scopes.Contains(WalletScope))
-                { messages.Add((pilot?.CharacterName ?? "Unlinked pilot") + ": wallet permission required; saved entries retained."); continue; }
+                { Report(id, (pilot?.CharacterName ?? "Unlinked pilot") + ": wallet permission required; saved entries retained."); continue; }
                 try
                 {
                     await Task.Run(() => Ledger.Ensure(), ct);
                     var due = Ledger.NextJournal(id);
-                    if (DateTimeOffset.UtcNow < due) { messages.Add($"{pilot.CharacterName}: wallet activity cached until {due:HH:mm} UTC."); continue; }
+                    if (DateTimeOffset.UtcNow < due) { Report(id, $"{pilot.CharacterName}: wallet activity cached until {due:HH:mm} UTC."); continue; }
                     var token = await _token(pilot, ct); var rows = new List<EveWalletJournalEntry>();
                     var observed = DateTimeOffset.UtcNow; var next = observed; int totalPages = 1;
                     for (int page = 1; page <= totalPages; page++)
@@ -53,13 +55,13 @@ public sealed partial class MarketOrdersService
                     }
                     ValidateJournal(rows); ct.ThrowIfCancellationRequested();
                     await Task.Run(() => Ledger.ImportJournal(id, rows, observed, next), ct);
-                    messages.Add($"{pilot.CharacterName}: {rows.Count:N0} wallet entries refreshed at {observed:HH:mm} UTC.");
+                    Report(id, $"{pilot.CharacterName}: {rows.Count:N0} wallet entries refreshed at {observed:HH:mm} UTC.");
                 }
                 catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
-                catch (Exception ex) { messages.Add($"{pilot.CharacterName}: {Failure(ex)} Wallet activity retained."); }
+                catch (Exception ex) { Report(id, $"{pilot.CharacterName}: {Failure(ex)} Wallet activity retained."); }
             }
             if (Ledger.Exists) Journal = await Task.Run(() => Ledger.Journal(), ct);
         }
-        finally { JournalStatus = string.Join("\n", messages); Busy = false; }
+        finally { JournalStatus = string.Join("\n", messages); Busy = false; DataVersion++; }
     }
 }

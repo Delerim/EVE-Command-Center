@@ -13,6 +13,8 @@ public partial class MarketOrdersWindow : Window
     private IReadOnlyList<EvePilotProfile> _pilots = Array.Empty<EvePilotProfile>();
     private List<CharacterChoice> _choices = new();
     private bool _updating;
+    private long _seenDataVersion;
+    private readonly System.Windows.Threading.DispatcherTimer _cacheTimer = new() { Interval = TimeSpan.FromSeconds(2) };
     private CancellationTokenSource? _refresh;
     private readonly System.Windows.Threading.DispatcherTimer _progressTimer = new() { Interval = TimeSpan.FromMilliseconds(250) };
     public MarketOrdersWindow()
@@ -20,6 +22,12 @@ public partial class MarketOrdersWindow : Window
         InitializeComponent();
         _progressTimer.Tick += (_, _) => ShowProgress();
         WorkspaceLayout.AttachMarket(this);
+        _cacheTimer.Tick += (_, _) =>
+        {
+            if (_service != null && Characters.IsVisible && _refresh == null && AllocationPanel.Visibility != Visibility.Visible && !_service.Busy && _seenDataVersion != _service.DataVersion)
+            { _seenDataVersion = _service.DataVersion; RenderOrders(); }
+        };
+        Loaded += (_, _) => _cacheTimer.Start();
         TableSorting.Attach(Orders); TableSorting.Attach(TransactionsGrid); TableSorting.Attach(JournalGrid); TableSorting.Attach(AllocationSplits);
         Loaded += async (_, _) =>
         {
@@ -31,12 +39,13 @@ public partial class MarketOrdersWindow : Window
             }
             catch (Exception ex) { Status.Text = "Market unavailable: " + MarketOrdersService.Failure(ex); }
         };
-        Closed += (_, _) => { _life.Cancel(); _progressTimer.Stop(); };
+        Closed += (_, _) => { _life.Cancel(); _progressTimer.Stop(); _cacheTimer.Stop(); };
     }
     internal void Initialize(MarketOrdersService service, IReadOnlyList<EvePilotProfile> pilots)
     {
         _service = service; _pilots = pilots; RebuildPilots(); RenderOrders();
     }
+    private void SyncSettings_Click(object sender, RoutedEventArgs e) => (System.Windows.Application.Current as App)?.OpenCommandCenterModule("setup");
     private long _activePilot;
     private void RebuildPilots()
     {
@@ -76,7 +85,8 @@ public partial class MarketOrdersWindow : Window
     }
     internal async Task RefreshMarket(int mode, IReadOnlyList<EvePilotProfile>? linkedPilots = null)
     {
-        if (_service == null || _service.Busy || _refresh != null) return;
+        if (_service == null || _refresh != null) return;
+        if (_service.Busy) { Status.Text = "Background sync is running: " + _service.Progress; return; }
         using var request = CancellationTokenSource.CreateLinkedTokenSource(_life.Token);
         _refresh = request; string? failure = null;
         RefreshButton.IsEnabled = Characters.IsEnabled = false;
@@ -156,7 +166,7 @@ public partial class MarketOrdersWindow : Window
             Totals.Text = historyTab ? $"{shown.Length:N0} confirmed {(buy ? "buy" : "sell")} history records | {shown.Count(r => r.State == "Cancelled"):N0} cancelled | {shown.Count(r => r.State == "Expired"):N0} expired"
                 : missingTab ? $"{shown.Length:N0} orders needing review | Final outcome not confirmed"
                 : $"{shown.Length:N0} open {(buy ? "buy" : "sell")} orders | Remaining value {shown.Sum(r => r.Order.RemainingValue):N2} ISK | Last saved observations";
-            HistoryStatus.Text = historyTab ? _service.HistoryStatus : "";
+            HistoryStatus.Text = historyTab ? _service.HistoryReports.GetValueOrDefault(_activePilot, "No history refresh report for this pilot; saved observations shown.") : "";
             Status.Text = _service.Error.Length > 0 ? _service.Error : historyTab ? "" : string.Join("\n", snapshots.Select(c => $"{c.Name}: {Fresh(c)}" + (c.Error.Length > 0 ? " | " + MarketOrdersService.DisplayError(c.Error) : "")));
             ObservationSummary.Text = historyTab ? "Confirmed cancellations and expiries. Actual purchases and sales have their own tabs."
                 : missingTab ? "Absent from a successful refresh. Disappearance does not confirm a fill, cancellation or sale."
@@ -170,6 +180,7 @@ public partial class MarketOrdersWindow : Window
         var focused = _pilots.FirstOrDefault(p => p.CharacterId == _activePilot);
         string neededScope = tab is 4 or 5 or 6 or 7 or 8 ? MarketOrdersService.WalletScope : MarketOrdersService.Scope;
         if (focused != null && !focused.Scopes.Contains(neededScope)) Status.Text = "This pilot needs " + (neededScope == MarketOrdersService.WalletScope ? "wallet" : "market order") + " access. Reconnect the pilot to grant it; saved history is retained.";
+        _seenDataVersion = _service.DataVersion;
         ShowProgress();
     }
     private void RenderTransactions(bool? buy, string query, HashSet<long> ids)
@@ -182,7 +193,7 @@ public partial class MarketOrdersWindow : Window
         var selection = TransactionsGrid.SelectedItem as TransactionRow; TransactionsGrid.ItemsSource = rows;
         if (selection != null) TransactionsGrid.SelectedItem = rows.FirstOrDefault(r => r.OwnerId == selection.OwnerId && r.Transaction.Id == selection.Transaction.Id);
         Totals.Text = $"{rows.Length:N0} {(buy == null ? "PLEX trades" : buy == true ? "purchases" : "sales")} | Gross total {rows.Sum(r => r.Transaction.Total):N2} ISK | Trade value, not profit";
-        HistoryStatus.Text = _service.TransactionStatus; Status.Text = _service.Error;
+        HistoryStatus.Text = _service.TransactionReports.GetValueOrDefault(_activePilot, "Saved personal transactions shown for this pilot."); Status.Text = _service.Error;
         ObservationSummary.Text = $"{rows.Length:N0} {(buy == null ? "PLEX trades" : buy == true ? "purchases" : "sales")} shown | Pilot, search and period applied. Select a trade to assign its project. Fees and physical stock are separate.";
         if (buy == null)
         {
@@ -203,7 +214,7 @@ public partial class MarketOrdersWindow : Window
         if (selected != null) JournalGrid.SelectedItem = rows.FirstOrDefault(r => r.OwnerId == selected.OwnerId && r.Entry.Id == selected.Entry.Id);
         decimal incoming = rows.Where(r => r.Entry.Amount > 0).Sum(r => r.Entry.Amount ?? 0), outgoing = rows.Where(r => r.Entry.Amount < 0).Sum(r => -(r.Entry.Amount ?? 0));
         Totals.Text = $"Money in {incoming:N2} ISK | Money out {outgoing:N2} ISK | Net change {incoming - outgoing:N2} ISK";
-        HistoryStatus.Text = _service.JournalStatus; Status.Text = _service.Error;
+        HistoryStatus.Text = _service.JournalReports.GetValueOrDefault(_activePilot, "Saved wallet activity shown for this pilot."); Status.Text = _service.Error;
         ObservationSummary.Text = $"{rows.Length:N0} wallet entries | Cash flow from the shown entries only; includes transfers, fees and other activity. Not project profit. {rows.Count(r => r.Entry.Amount == null):N0} entries without an amount are excluded from totals.";
         OrderDetail.Text = (JournalGrid.SelectedItem as JournalRow)?.Detail ?? "Select wallet activity to inspect its related trade. Transaction totals are not added again.";
     }

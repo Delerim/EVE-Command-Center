@@ -9,6 +9,8 @@ namespace EveCommandCenter.Services;
 
 public sealed class PlanetaryService
 {
+    public Func<long, bool> ShouldSync { get; set; } = _ => true;
+
     public const string Scope = "esi-planets.manage_planets.v1";
     private readonly EveSsoService _sso;
     private readonly HttpClient _http = EsiHttp.CreateClient();
@@ -56,13 +58,13 @@ public sealed class PlanetaryService
         {
             var pilots = await _sso.LoadPilotsAsync();
             var stockPilot = pilots.FirstOrDefault(p => p.CharacterId == State.StockCharacterId);
-            if (stockPilot != null)
+            if (stockPilot != null && ShouldSync(stockPilot.CharacterId))
             {
                 try { Update("Reading stockpile for " + stockPilot.CharacterName); await LoadStock(stockPilot, ct); }
                 catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
                 catch (Exception ex) { State.StockError = "Stockpile refresh delayed: " + ex.Message; }
             }
-            foreach (var pilot in pilots)
+            foreach (var pilot in pilots.Where(p => ShouldSync(p.CharacterId)))
             {
                 ct.ThrowIfCancellationRequested();
                 if (!pilot.Scopes.Contains(Scope)) { State.PilotStatus[pilot.CharacterId] = "Upgrade this toon once in Settings for all feature permissions"; continue; }

@@ -9,6 +9,7 @@ public sealed partial class MarketOrdersService
 {
     public const string WalletScope = "esi-wallet.read_character_wallet.v1";
     public List<MarketTransactionRecord> Transactions { get; private set; } = new();
+    public Dictionary<long, string> TransactionReports { get; } = new();
     public string TransactionStatus { get; private set; } = "Transactions have not been refreshed.";
     internal static bool SameTransaction(MarketTransaction a, MarketTransaction b) => a.Id == b.Id && a.TypeId == b.TypeId && a.Quantity == b.Quantity && a.UnitPrice == b.UnitPrice && a.Date == b.Date && a.Buy == b.Buy && a.Personal == b.Personal && a.LocationId == b.LocationId && a.ClientId == b.ClientId && a.JournalRefId == b.JournalRefId;
     internal static void ValidateTransactions(List<MarketTransaction> rows)
@@ -17,23 +18,24 @@ public sealed partial class MarketOrdersService
             throw new InvalidDataException("Invalid transaction response.");
         foreach (var row in rows) _ = row.Total;
     }
-    public async Task RefreshTransactionsAsync(IReadOnlyList<EvePilotProfile> linked, CancellationToken ct)
+    public async Task RefreshTransactionsAsync(IReadOnlyList<EvePilotProfile> linked, CancellationToken ct, IReadOnlyCollection<long>? characterIds = null)
     {
         if (Busy || Error.Length > 0) return;
         Busy = true; Progress = "Preparing transactions..."; var messages = new List<string>();
+        void Report(long id, string message) { messages.Add(message); TransactionReports[id] = message; }
         try
         {
-            foreach (long id in State.SelectedCharacters.ToArray())
+            foreach (long id in (characterIds ?? State.SelectedCharacters).ToArray())
             {
                 ct.ThrowIfCancellationRequested();
                 var pilot = linked.FirstOrDefault(p => p.CharacterId == id);
                 if (pilot == null || !pilot.Scopes.Contains(WalletScope))
-                { messages.Add((pilot?.CharacterName ?? "Unlinked pilot") + ": wallet permission required; saved transactions retained."); continue; }
+                { Report(id, (pilot?.CharacterName ?? "Unlinked pilot") + ": wallet permission required; saved transactions retained."); continue; }
                 try
                 {
                     await Task.Run(() => Ledger.Ensure(), ct);
                     var due = Ledger.NextTransactions(id);
-                    if (DateTimeOffset.UtcNow < due) { messages.Add($"{pilot.CharacterName}: transactions cached until {due:HH:mm} UTC."); continue; }
+                    if (DateTimeOffset.UtcNow < due) { Report(id, $"{pilot.CharacterName}: transactions cached until {due:HH:mm} UTC."); continue; }
                     var token = await _token(pilot, ct); var rows = new List<MarketTransaction>();
                     long? cursor = null; int pages = 0;
                     var observed = DateTimeOffset.UtcNow; var next = observed;
@@ -78,13 +80,13 @@ public sealed partial class MarketOrdersService
                     }
                     ct.ThrowIfCancellationRequested();
                     await Task.Run(() => Ledger.ImportTransactions(id, rows, observed, next), ct);
-                    messages.Add($"{pilot.CharacterName}: {rows.Count(r => r.Personal):N0} personal transactions refreshed at {observed:HH:mm} UTC.");
+                    Report(id, $"{pilot.CharacterName}: {rows.Count(r => r.Personal):N0} personal transactions refreshed at {observed:HH:mm} UTC.");
                 }
                 catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
-                catch (Exception ex) { messages.Add($"{pilot.CharacterName}: {Failure(ex)} Transactions retained."); }
+                catch (Exception ex) { Report(id, $"{pilot.CharacterName}: {Failure(ex)} Transactions retained."); }
             }
             if (Ledger.Exists) Transactions = await Task.Run(() => Ledger.Transactions(), ct);
         }
-        finally { TransactionStatus = string.Join("\n", messages); Busy = false; }
+        finally { TransactionStatus = string.Join("\n", messages); Busy = false; DataVersion++; }
     }
 }

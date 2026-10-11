@@ -25,7 +25,7 @@ public partial class MarketOrdersWindow
         Show(today, TodayIn, TodayOut, TodayNet); Show(now.AddDays(-7), WeekIn, WeekOut, WeekNet);
         Totals.Text = _activePilot > 0 ? $"{PilotName(_activePilot)} | Wallet overview" : "Choose a pilot";
         WalletOverviewNote.Text = $"Imported wallet activity only. {entries.Count(e => e.Amount == null):N0} entries without an amount are excluded. Refresh Wallet loads balance, wallet activity and trades through their shared caches.";
-        HistoryStatus.Text = _service.JournalStatus; Status.Text = _service.Error;
+        HistoryStatus.Text = _service.JournalReports.GetValueOrDefault(_activePilot, "Saved wallet activity shown for this pilot."); Status.Text = _service.Error;
         ObservationSummary.Text = "Today's and seven-day figures cover imported entries; missing or failed history can leave them incomplete.";
         OrderDetail.Text = "Use Wallet activity for individual entries, Purchases / Sales for trades, and PLEX for its trading history.";
     }

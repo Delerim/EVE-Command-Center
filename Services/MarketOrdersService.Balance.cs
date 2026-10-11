@@ -5,13 +5,13 @@ using EveCommandCenter.Models;
 namespace EveCommandCenter.Services;
 public sealed partial class MarketOrdersService
 {
-    public async Task RefreshBalanceAsync(IReadOnlyList<EvePilotProfile> linked, CancellationToken ct)
+    public async Task RefreshBalanceAsync(IReadOnlyList<EvePilotProfile> linked, CancellationToken ct, IReadOnlyCollection<long>? characterIds = null)
     {
         if (Busy || Error.Length > 0) return;
         Busy = true;
         try
         {
-            foreach (long id in State.SelectedCharacters.ToArray())
+            foreach (long id in (characterIds ?? State.SelectedCharacters).ToArray())
             {
                 ct.ThrowIfCancellationRequested();
                 var pilot = linked.FirstOrDefault(p => p.CharacterId == id);

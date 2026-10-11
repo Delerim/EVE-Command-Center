@@ -375,6 +375,7 @@ public partial class CommandCenterWindow : Window
             RefreshMining(app);
             RefreshMoons(ops);
             RefreshIndustry(ops);
+            RefreshFinancialDashboard(ops);
             RefreshPi(ops);
             RefreshOmega(ops);
             RefreshContracts(app, ops);
@@ -741,6 +742,7 @@ public partial class CommandCenterWindow : Window
 
         DashboardPilotLine[] rows =
             ops.Industry.State.Pilots
+                .Where(p => ops.SyncSettings.Get(p.Id).ShowIndustry)
                 .OrderBy(pilot =>
                     pilot.Name,
                     StringComparer.OrdinalIgnoreCase)
@@ -1609,6 +1611,7 @@ public partial class CommandCenterWindow : Window
             BackgroundOperations.Current;
 
         ops.ScheduleRefresh();
+        ops.ScheduleFinancialSync();
         ops.Industry.Due();
         ops.Planetary.State.NextRefresh =
             default;

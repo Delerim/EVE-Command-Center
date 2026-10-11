@@ -6,6 +6,8 @@ using EveCommandCenter.Models;
 namespace EveCommandCenter.Services;
 public sealed class IndustryService
 {
+    public Func<long, bool> ShouldSync { get; set; } = _ => true;
+
     public static readonly string[] Scopes = {"esi-industry.read_character_jobs.v1","esi-characters.read_blueprints.v1","esi-assets.read_assets.v1","esi-skills.read_skills.v1"};
     private readonly EveSsoService _sso;
     private readonly HttpClient _http=EsiHttp.CreateClient();
@@ -42,7 +44,7 @@ public sealed class IndustryService
         try
         {
             var pilots=await _sso.LoadPilotsAsync();
-            foreach(var p in pilots)
+            foreach(var p in pilots.Where(p => ShouldSync(p.CharacterId)))
             {
                 var data=State.Pilots.FirstOrDefault(x=>x.Id==p.CharacterId);
                 if(data==null){data=new(){Id=p.CharacterId,Name=p.CharacterName};State.Pilots.Add(data);}
