@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Text.Json.Serialization;
 
@@ -19,6 +19,9 @@ public sealed class MoonReportState
     public bool DesktopNotificationsEnabled { get; set; } = true;
     public long SelectedCharacterId { get; set; }
     public DateTimeOffset? LastRefreshUtc { get; set; }
+    // Per-user opt-in. Existing legacy data is never displayed until an explicit CSV import.
+    public bool MoonCsvImported { get; set; }
+    public List<string> ImportedMoonNames { get; set; } = new();
     public Dictionary<long, MoonProfile> Profiles { get; set; } = new();
     public Dictionary<string, MoonProfile> PendingProfilesByMoonName { get; set; } =
         new(StringComparer.OrdinalIgnoreCase);

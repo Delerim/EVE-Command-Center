@@ -248,13 +248,22 @@ internal static partial class Program
         Check(ContractService.FindNew(persisted, 43, new() { Row(id: 3) }).Count == 0, "Corporation baselines isolated");
         CheckRefreshAsync().GetAwaiter().GetResult();
 
-        var raren18 = LseMoonAuditService.GetProfiles().Single(p => p.MoonName == "Raren VI - Moon 18");
-        Check(raren18.BitumensPercent == 31 && raren18.CoesitePercent == 29 && raren18.SylvitePercent == 9 && raren18.ZeolitesPercent == 31,
-            "Raren VI - Moon 18 bundled composition is complete");
-        var joppaya9 = LseMoonAuditService.GetProfiles().Single(p => p.MoonName == "Joppaya VII - Moon 9");
-        Check(joppaya9.BitumensPercent == 47 && joppaya9.CoesitePercent == 0 && joppaya9.SylvitePercent == 32 && joppaya9.ZeolitesPercent == 21,
-            "Joppaya VII - Moon 9 bundled composition is complete");
-
+        // The public binary must not contain any preloaded corporation moon catalogue.
+        var emptyMoonDirectory = Path.Combine(Path.GetTempPath(), "ecc-private-moon-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(emptyMoonDirectory);
+        try
+        {
+            using var privateMoons = new MoonReportService(new EveSsoService(), emptyMoonDirectory);
+            Check(!privateMoons.HasImportedMoonList && privateMoons.GetSnapshot().Cards.Count == 0 && privateMoons.GetDrillSchedule().Count == 0,
+                "Moon management remains empty until private CSV import");
+            var row = new MoonProfile { MoonName = "Example VI - Moon 4", StructureName = "Example Private Name", SystemName = "Example", ZeolitesPercent = 70, BitumensPercent = 30, ProfileConfigured = true };
+            var imported = privateMoons.ImportProfilesByNameAsync(new[] { row }).GetAwaiter().GetResult();
+            Check(privateMoons.HasImportedMoonList && imported.Total == 1 && privateMoons.ExportProfiles().Count == 1,
+                "Name-only CSV import enables exactly the uploaded moon");
+            Check(privateMoons.GetSnapshot().Cards.Count == 1 && privateMoons.GetSnapshot().Cards[0].MoonName == "Example Private Name",
+                "Imported private nickname appears in moon management");
+        }
+        finally { Directory.Delete(emptyMoonDirectory, true); }
         // Load XAML and render sample data without starting the app or live ESI polling.
         var app = new System.Windows.Application { ShutdownMode=ShutdownMode.OnExplicitShutdown };
         Check(
@@ -415,7 +424,7 @@ internal static partial class Program
         BackgroundOperations.Stop();
         typeof(MoonReportWindow).GetMethod("ApplySnapshot", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!.Invoke(moonWindow, new object[] { moonSnapshot });
         Check(((DataGrid)moonWindow.FindName("OverviewFields")).Items.Count == 4, "Moon overview binds all four active fields");
-        ((ComboBox)moonWindow.FindName("OverviewSystem")).SelectedItem = "Mazitah";
+        ((ComboBox)moonWindow.FindName("OverviewSystem")).SelectedItem = "TestOne";
         Check(((DataGrid)moonWindow.FindName("OverviewFields")).Items.Count == 2, "System selector filters active fields");
         ((ComboBox)moonWindow.FindName("OverviewSystem")).SelectedItem = "All systems";
         if (args.Length > 0) Render(moonWindow, System.IO.Path.ChangeExtension(args[0], ".moons.png"));
@@ -621,10 +630,14 @@ internal static partial class Program
         var directory = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "ecc-moon-checks-" + Guid.NewGuid().ToString("N"));
         System.IO.Directory.CreateDirectory(directory);
         var now = DateTimeOffset.UtcNow;
-        var state = new MoonReportState();
+        var state = new MoonReportState
+        {
+            MoonCsvImported = true,
+            ImportedMoonNames = new() { "testonemoon1", "testonemoon2", "testtwomoon3", "testtwomoon4" }
+        };
         for (int i = 1; i <= 4; i++)
         {
-            string system = i <= 2 ? "Mazitah" : "Joppaya";
+            string system = i <= 2 ? "TestOne" : "TestTwo";
             state.TypePrices[45490] = 1000; state.TypePrices[45491] = 500;
             state.Structures.Add(new EsiCorporationStructure { StructureId=i, TypeId=35835, Name=system+" - Refinery "+i, SystemId=i, FuelExpires=i==4?null:now.AddDays(i==1?12:i==2?65:110), Services=new(){new(){Name="Moon Drilling",State="online"}} });
             state.SystemNames[i]=system;
@@ -636,9 +649,9 @@ internal static partial class Program
             state.Pulls["next" + i] = new MoonPullRecord { Id = "next" + i, MoonId = i, StructureId = i, MoonName = system + " Moon " + i, StructureName = system + " - Refinery " + i, SystemName = system, ExtractionStartUtc = now.AddHours(-12), ChunkArrivalUtc = now.AddDays(50), NaturalDecayUtc = now.AddDays(50).AddHours(3), SeenInLatestExtractionList = true };
         }
         // Two fields must be recovered without any ledger activity. One observed and one formerly misclassified natural fracture.
-        state.Pulls["old3"] = new MoonPullRecord { Id = "old3", MoonId = 3, StructureId = 3, ExtractionStartUtc = now.AddDays(-54), ChunkArrivalUtc = now.AddHours(-14), NaturalDecayUtc = now.AddHours(-11), FracturedUtc = now.AddHours(-12), EstimatedFieldExpiryUtc = now.AddHours(36) };
-        state.Pulls["old4"] = new MoonPullRecord { Id = "old4", MoonId = 4, StructureId = 4, ExtractionStartUtc = now.AddDays(-54), ChunkArrivalUtc = now.AddHours(-15), NaturalDecayUtc = now.AddHours(-12), OutcomeUnobserved = true, ExpiredUtc = now.AddHours(-10) };
-        state.Pulls["anchor"] = new MoonPullRecord { Id="anchor",StructureId=99,MoonId=99,StructureName="Raren - Jean-Luc Peckard",SystemName="Raren",FracturedUtc=now.AddDays(-5),ChunkArrivalUtc=now.AddDays(-5),ExpiredUtc=now.AddDays(-3),OutcomeUnobserved=true };
+        state.Pulls["old3"] = new MoonPullRecord { Id = "old3", MoonId = 3, MoonName = "TestTwo Moon 3", StructureId = 3, ExtractionStartUtc = now.AddDays(-54), ChunkArrivalUtc = now.AddHours(-14), NaturalDecayUtc = now.AddHours(-11), FracturedUtc = now.AddHours(-12), EstimatedFieldExpiryUtc = now.AddHours(36) };
+        state.Pulls["old4"] = new MoonPullRecord { Id = "old4", MoonId = 4, MoonName = "TestTwo Moon 4", StructureId = 4, ExtractionStartUtc = now.AddDays(-54), ChunkArrivalUtc = now.AddHours(-15), NaturalDecayUtc = now.AddHours(-12), OutcomeUnobserved = true, ExpiredUtc = now.AddHours(-10) };
+        state.Pulls["anchor"] = new MoonPullRecord { Id="anchor",StructureId=99,MoonId=99,StructureName="Example Legacy Drill",SystemName="Example",FracturedUtc=now.AddDays(-5),ChunkArrivalUtc=now.AddDays(-5),ExpiredUtc=now.AddDays(-3),OutcomeUnobserved=true };
         var file = System.IO.Path.Combine(directory, "moon-report.json");
         System.IO.File.WriteAllText(file, JsonSerializer.Serialize(state));
         try

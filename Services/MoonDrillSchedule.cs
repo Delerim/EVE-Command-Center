@@ -14,11 +14,9 @@ internal static class MoonDrillSchedule
 {
     internal static IReadOnlyList<MoonDrillRow> Build(MoonReportState state, DateTimeOffset now)
     {
-        var ids = state.Structures.Where(s => s.Services.Any(x => x.Name.Contains("moon", StringComparison.OrdinalIgnoreCase)))
-            .Select(s => s.StructureId)
-            .Concat(state.Profiles.Values.Select(p => p.StructureId))
-            .Concat(state.Pulls.Values.Where(p => p.SeenInLatestExtractionList).Select(p => p.StructureId))
-            .Where(id => id > 0).Distinct();
+        var ids = state.Profiles.Values
+            .Where(p => p.StructureId > 0 && state.ImportedMoonNames.Contains(MoonReportService.NormalizeImportedMoon(p.MoonName)))
+            .Select(p => p.StructureId).Distinct();
         var rows = new List<MoonDrillRow>();
         foreach (long id in ids)
         {
@@ -31,7 +29,7 @@ internal static class MoonDrillSchedule
                 : !state.LastRefreshUtc.HasValue ? "NOT CHECKED" : visibleDrill ? "NOT SET" : "NOT VISIBLE";
             TimeSpan? duration = pull == null ? null : pull.ChunkArrivalUtc - pull.ExtractionStartUtc;
             rows.Add(new(id, profile?.SystemName ?? pull?.SystemName ?? state.SystemNames.GetValueOrDefault(structure?.SystemId ?? 0, "Unknown"),
-                profile?.MoonName ?? pull?.MoonName ?? "Moon pending ESI", structure?.Name ?? profile?.StructureName ?? pull?.StructureName ?? id.ToString(),
+                profile?.StructureName ?? profile?.MoonName ?? pull?.MoonName ?? "Moon pending ESI", structure?.Name ?? pull?.StructureName ?? id.ToString(),
                 status, structure?.Services.FirstOrDefault(x => x.Name.Contains("moon", StringComparison.OrdinalIgnoreCase))?.State ?? "Unknown",
                 pull?.ExtractionStartUtc, pull?.ChunkArrivalUtc, duration is { } d ? Format(d) : "-",
                 pull == null ? "-" : Format((now < pull.ChunkArrivalUtc ? now : pull.ChunkArrivalUtc) - pull.ExtractionStartUtc),

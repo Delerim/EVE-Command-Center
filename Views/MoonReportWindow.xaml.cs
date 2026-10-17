@@ -790,28 +790,41 @@ public partial class MoonReportWindow : Window
 
     private async void Import_Click(object sender, RoutedEventArgs e)
     {
-        var dialog = new Microsoft.Win32.OpenFileDialog { Title = "Import Moon Report setup", Filter = "CSV files (*.csv)|*.csv|All files (*.*)|*.*" };
+        var dialog = new Microsoft.Win32.OpenFileDialog
+        {
+            Title = "Import your private moon mapping CSV", Filter = "CSV files (*.csv)|*.csv|All files (*.*)|*.*"
+        };
         if (dialog.ShowDialog(EmbeddedModuleHost.ResolveOwner(this)) != true) return;
         try
         {
-            string[] lines = await File.ReadAllLinesAsync(dialog.FileName, _lifetime.Token);
+            var lines = await File.ReadAllLinesAsync(dialog.FileName, _lifetime.Token);
+            if (lines.Length < 2 || !lines[0].TrimStart('﻿').StartsWith("MoonId,MoonName,StructureName,SystemName,", StringComparison.OrdinalIgnoreCase))
+                throw new InvalidOperationException("Use DOWNLOAD CSV TEMPLATE to see the required column order and at least one moon row.");
             var profiles = new List<MoonProfile>();
-            foreach (string line in lines.Skip(1))
+            foreach (var line in lines.Skip(1))
             {
                 if (string.IsNullOrWhiteSpace(line)) continue;
-                List<string> v = ParseCsvLine(line);
-                if (v.Count < 8 || !long.TryParse(v[0], out long moonId)) continue;
-                bool modern = v.Count >= 10;
-                profiles.Add(new MoonProfile { MoonId = moonId, MoonName = v[1], StructureName = v[2], SystemName = v[3], ProfileConfigured = true,
-                    ZeolitesPercent = ParseNumber(v[4], 0), SylvitePercent = modern ? ParseNumber(v[5], 0) : 0,
-                    BitumensPercent = ParseNumber(v[modern ? 6 : 5], 0), CoesitePercent = modern ? ParseNumber(v[7], 0) : 0,
-                    FieldLifetimeHours = ParseNumber(v[modern ? 8 : 6], 48), WastePercent = ParseNumber(v[modern ? 9 : 7], 7) });
+                var v = ParseCsvLine(line);
+                if (v.Count < 10 || !long.TryParse(v[0], out long moonId))
+                    throw new InvalidOperationException("Moon CSV row " + (profiles.Count + 2) + " is incomplete or has an invalid MoonId.");
+                long structureId = 0;
+                if (v.Count > 10 && !string.IsNullOrWhiteSpace(v[10]) && !long.TryParse(v[10], out structureId))
+                    throw new InvalidOperationException("StructureId must be a number or 0.");
+                profiles.Add(new MoonProfile
+                {
+                    MoonId = moonId, StructureId = structureId,
+                    MoonName = v[1], StructureName = v[2], SystemName = v[3], ProfileConfigured = true,
+                    ZeolitesPercent = ParseNumber(v[4], 0), SylvitePercent = ParseNumber(v[5], 0),
+                    BitumensPercent = ParseNumber(v[6], 0), CoesitePercent = ParseNumber(v[7], 0),
+                    FieldLifetimeHours = ParseNumber(v[8], 48), WastePercent = ParseNumber(v[9], 7)
+                });
             }
-            await _service.ImportProfilesAsync(profiles); ApplySnapshot(_service.GetSnapshot()); SetStatus($"Imported {profiles.Count:N0} moon profiles.");
+            var result = await _service.ImportProfilesByNameAsync(profiles);
+            ApplySnapshot(_service.GetSnapshot());
+            SetStatus($"Imported {result.Total:N0} private moon mappings; {result.Matched:N0} matched saved ESI moons, {result.Pending:N0} pending resolution. Refresh ESI to match active extractions.");
         }
         catch (Exception ex) { SetStatus("Could not import moon setup: " + ex.Message, true); }
     }
-
     private void AuditExpand_Click(object sender, RoutedEventArgs e)
     {
         if (sender is not System.Windows.Controls.Button button) return;
@@ -820,26 +833,23 @@ public partial class MoonReportWindow : Window
         bool expand = row.DetailsVisibility != Visibility.Visible;
         row.DetailsVisibility = expand ? Visibility.Visible : Visibility.Collapsed;
     }
-    private async void ImportLseAudit_Click(object sender, RoutedEventArgs e)
+    private void Template_Click(object sender, RoutedEventArgs e)
     {
-        try
+        var dialog = new Microsoft.Win32.SaveFileDialog
         {
-            MoonProfileImportResult result =
-                await _service.ImportProfilesByNameAsync(
-                    LseMoonAuditService.GetProfiles());
-            ApplySnapshot(_service.GetSnapshot());
-            SetStatus(
-                $"Loaded {result.Total:N0} LSHI moon profiles from " +
-                $"{LseMoonAuditService.SourceLabel}. " +
-                $"Matched {result.Matched:N0}; {result.Pending:N0} will " +
-                "attach automatically when ESI reveals those moon IDs.");
-        }
-        catch (Exception ex)
-        {
-            SetStatus("Could not load the LSE moon audit: " + ex.Message, true);
-        }
+            Title = "Download a private moon CSV template", FileName = "moon-import-template.csv",
+            DefaultExt = ".csv", Filter = "CSV files (*.csv)|*.csv"
+        };
+        if (dialog.ShowDialog(EmbeddedModuleHost.ResolveOwner(this)) != true) return;
+        const string header = "MoonId,MoonName,StructureName,SystemName,ZeolitesPercent,SylvitePercent,BitumensPercent,CoesitePercent,FieldLifetimeHours,WastePercent,StructureId";
+        const string example = "0,Example System IV - Moon 2,My Example Refinery,Example System,50,25,25,0,48,7,0";
+        File.WriteAllText(dialog.FileName, header + Environment.NewLine + example + Environment.NewLine, new UTF8Encoding(false));
+        System.Windows.MessageBox.Show(EmbeddedModuleHost.ResolveOwner(this),
+            "MoonName is the EVE moon location used for matching. StructureName is your private display nickname. " +
+            "MoonId and StructureId may be 0 when unknown, though StructureId helps identify idle drills. " +
+            "Use one row per moon, keep the header order, and never commit the filled CSV to GitHub.",
+            "Private moon CSV format", MessageBoxButton.OK, MessageBoxImage.Information);
     }
-
     private void Export_Click(object sender, RoutedEventArgs e)
     {
         var dialog = new Microsoft.Win32.SaveFileDialog { Title = "Export Moon Report setup", FileName = "moon-report-setup.csv", DefaultExt = ".csv", Filter = "CSV files (*.csv)|*.csv" };

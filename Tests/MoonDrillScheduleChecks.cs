@@ -16,6 +16,13 @@ internal static partial class Program
         state.Pulls["old"] = new() {StructureId=3,SeenInLatestExtractionList=false,ExtractionStartUtc=now.AddDays(-8),ChunkArrivalUtc=now.AddDays(-1)};
         state.Pulls["future"] = new() {StructureId=4,SeenInLatestExtractionList=true,ExtractionStartUtc=now.AddHours(2),ChunkArrivalUtc=now.AddDays(7)};
         state.Profiles[6] = new() {StructureId=6,MoonId=6,MoonName="Removed drill"};
+        // A public installation must show no moon drills until a private CSV is imported.
+        Check(MoonDrillSchedule.Build(state,now).Count == 0,
+            "Unmapped moon drills are hidden before CSV import");
+        // This fixture represents an explicit import of the six synthetic moons.
+        state.MoonCsvImported = true;
+        foreach (var profile in state.Profiles.Values)
+            state.ImportedMoonNames.Add(MoonReportService.NormalizeImportedMoon(profile.MoonName));
         var rows = MoonDrillSchedule.Build(state,now);
         Check(rows.Count==6 && rows.Count(r=>r.NotSet)==2,"Drill schedule includes idle drills and ignores historical pulls as current schedules");
         var active=rows.Single(r=>r.StructureId==1);

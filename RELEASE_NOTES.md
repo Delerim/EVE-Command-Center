@@ -1,20 +1,20 @@
-# EVE Command Center v3.6.58
+# EVE Command Center v3.6.59
 
-- Restored a single, explicit **Combined / Separate** overview mode switch that persists across restarts and stays unchanged when opening the Home dashboard or choosing a card view.
-- Removed the redundant **Alerts & Discord** item from the Command Center sidebar; Discord webhook configuration remains in **App Settings → Alerts → Configure Discord webhooks and channels**.
-- Hardened legacy thumbnail/stat-overlay visibility so Combined mode hides the old per-client windows without suppressing independent Picture-in-Picture previews.
+- Removed the bundled corporation moon catalogue from the application and replaced automatic loading with a private CSV-only setup.
+- Moon Management, moon schedule and calendar now remain empty until the user imports a moon list.
+- Added DOWNLOAD CSV TEMPLATE, clear import guidance and name-based matching for CSVs without ESI moon IDs.
+- Show uploaded friendly moon/drill nicknames in moon cards and the schedule/calendar instead of generic moon numbers.
 
-## Overview mode: one intentional switch
-- Command Deck now has a prominently labelled **COMBINED / SEPARATE** toggle with its current state visible without hovering. Only that explicit action changes the overview mode; selection is saved to the existing mining dashboard preferences.
-- Startup honours the saved preference rather than forcibly turning Combined on each launch.
-- Clicking **Open Character Overview**, changing card display between Characters/Mining/PvE/PvP, or pressing **Home** no longer changes the Combined / Separate preference.
-- Reapplying settings and changing EVE/Command Center focus cannot resurrect legacy per-client thumbnail/stat windows in Combined mode. Existing individual preview behavior returns when Separate is explicitly selected.
-- The independent PiP system is unchanged and remains separately controlled.
+## Private moon management
+- No preconfigured corporation moons ship with the Windows executable or the new source tree. Existing local moon-report state is not treated as consent to expose a list; an explicit import is required.
+- IMPORT MOON SETUP accepts the documented CSV format, including rows with MoonId=0. A recognized MoonName is matched to the live ESI moon as soon as the extraction becomes identifiable.
+- An optional StructureId column can link an idle drill without waiting for a visible extraction. The app does not automatically add unrelated corporation structures returned by ESI.
+- Imported StructureName is your private label shown on cards and calendar entries; the EVE moon name remains the stable matching key.
+- Re-import replaces the managed list and prevents unrelated legacy entries from reappearing. Private settings continue to be saved locally per user.
+- Downloaded example template uses fictional sample data only; actual private moon CSVs are never embedded in this release, source or GitHub artifacts.
 
-## Settings and Discord
-- Removed the duplicated Alerts & Discord sidebar shortcut. The existing Alerts settings, dedicated Discord webhook dialog, encryption, saved channels, opt-in PI groups, and desktop notification controls remain unchanged.
-- Moon-not-set and PI alert delivery retain their existing deduplication. Discord does not post fracture notifications.
-
-## Compatibility
-- No new account permissions, credential migration or settings reset. The existing encrypted Discord webhooks and overlay positions remain in place.
-- Automated regression checks cover primary-overlay visibility rules; native focus/return-to-app behavior still needs live Windows verification; validation remains mandatory before the official Windows release.
+## Privacy and compatibility
+- Removed the old automatic LSE audit loader and legacy bundled-audit tests. No new ESI scopes are required.
+- Existing saved raw local moon-report history is not published or uploaded. The first CSV import makes a private local backup of the prior moon-report state before applying the whitelist. The app displays no Moon Operations inventory before that import.
+- Previously committed source and historical releases may still contain the old catalogue; removing it in this release does not erase Git history. Clean up history before making the repository public.
+- Includes regression coverage for empty-by-default moon management and name-only private imports. Windows build and regression tests remain mandatory before publishing.
