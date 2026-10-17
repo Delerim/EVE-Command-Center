@@ -407,9 +407,9 @@ public partial class App : Application
             SetupTrayIcon();
             PerfLog($"[Deferred] Tray icon: {deferSw.ElapsedMilliseconds}ms");
 
-            // Restore after tracker/watchdog and tray are ready.
+            // Restore the user's SAVED Combined/Separate mode. Startup and dashboard
+            // navigation must never silently switch preview modes.
             if (_settings.Settings.SetupCompleted) {
-                _miningIdleWatchdog.Preferences.CombinedCharacterOverview = true;
                 OpenMiningFleetOverview(_settings.Settings.AutoLaunchCharacterOverview);
             }
 

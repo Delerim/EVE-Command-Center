@@ -190,6 +190,13 @@ internal static partial class Program
         CheckBuybackPeriods();
         CheckOperationsLedger();
         CheckMoonAlerts();
+        Check(!ThumbnailManager.PrimaryPreviewsAllowed(true, false, false),
+            "Combined mode suppresses legacy previews even when every other visibility setting allows them");
+        Check(ThumbnailManager.PrimaryPreviewsAllowed(false, false, false),
+            "Separate mode restores legacy previews without altering the saved preference");
+        Check(!ThumbnailManager.PrimaryPreviewsAllowed(false, true, false) &&
+              !ThumbnailManager.PrimaryPreviewsAllowed(false, false, true),
+            "Separate mode still respects independently disabled primary previews");
         CheckDiscordPlanetaryAlertRules();
         CheckDiscordWebhooks();
         CheckContractHistory();

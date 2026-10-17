@@ -44,6 +44,25 @@ public partial class MiningFleetOverviewWindow
         RefreshCards();
     }
 
+    private Button? _modeSwitchButton;
+
+    // Explicit hard toggle; all other navigation actions must preserve this preference.
+    private void UpdateDeckModeSwitch()
+    {
+        if (_modeSwitchButton == null) return;
+        bool combined = _prefs.CombinedCharacterOverview;
+        _modeSwitchButton.Content = combined
+            ? "COMBINED ON  |  SWITCH TO SEPARATE"
+            : "SEPARATE ON  |  SWITCH TO COMBINED";
+        _modeSwitchButton.ToolTip = combined
+            ? "Combined ON: individual primary previews hidden. Click to switch to separate previews."
+            : "Separate ON: legacy primary previews allowed. Click to switch to Combined Overview.";
+        _modeSwitchButton.Background = new SolidColorBrush((System.Windows.Media.Color)
+            System.Windows.Media.ColorConverter.ConvertFromString(combined ? "#1A5C51" : "#3F354A"));
+        _modeSwitchButton.BorderBrush = new SolidColorBrush((System.Windows.Media.Color)
+            System.Windows.Media.ColorConverter.ConvertFromString(combined ? "#62D9B3" : "#B7A1DE"));
+    }
+
     private FrameworkElement BuildControlTileContent(Panel oldHeader, Button launch)
     {
         Brush Ink(string color) => (Brush)new BrushConverter().ConvertFromString(color)!;
@@ -86,7 +105,19 @@ public partial class MiningFleetOverviewWindow
         launchRow.Children.Add(launch);
         var dashboard = IconButton("\uE80F","Open Command Center"); dashboard.Click+=OpenCommandCenter_Click; launchRow.Children.Add(dashboard);
         var alarms = IconButton("\uEA8F","Mute all client alarms"); alarms.Tag="icon"; alarms.Click+=ToggleAllAlarms; _allAlarmButtons.Add(alarms); launchRow.Children.Add(alarms);
-        body.Children.Add(Section(launchRow));
+        // The MODE button is the only Command Deck action that changes Combined/Separate.
+        _modeSwitchButton = new Button {
+            FontFamily = new FontFamily("Segoe UI"), FontSize = 10,
+            FontWeight = FontWeights.SemiBold, Foreground = Ink("#FFFFFF"),
+            Height = 32, Padding = new Thickness(4), Margin = new Thickness(0,5,0,0),
+            HorizontalContentAlignment = System.Windows.HorizontalAlignment.Center,
+        };
+        _modeSwitchButton.Click += Combine_Click;
+        var actionsPanel = new StackPanel();
+        actionsPanel.Children.Add(launchRow);
+        actionsPanel.Children.Add(_modeSwitchButton);
+        body.Children.Add(Section(actionsPanel));
+        UpdateDeckModeSwitch();
         var tools = new StackPanel();
         var controlStyle = (Style)System.Windows.Markup.XamlReader.Parse("""
             <Style xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" TargetType="Button">
@@ -118,7 +149,7 @@ public partial class MiningFleetOverviewWindow
             foreach(var child in actions.Children.OfType<Button>().ToArray()) {
                 actions.Children.Remove(child);
                 string label = child.Content?.ToString() ?? "";
-                if(label=="COMMAND CENTER") continue;
+                if(label=="COMMAND CENTER" || label=="COMBINE PREVIEWS" || label=="SEPARATE PREVIEWS") continue;
                 string category = child == HorizontalFitButton || child == CompactFitButton || label=="VERTICAL" ? "LAYOUT" :
                     child == ModeButton || child == LivePreviewButton ? "CARD VIEW" :
                     child == FullMuteButton || child == CompactMuteButton || label=="TOOLS" ? "AUDIO & TOOLS" : "MORE OPTIONS";

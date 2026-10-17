@@ -278,7 +278,6 @@ public partial class CommandCenterWindow : Window
                 (NavMoons, "moons"),
                 (NavContracts, "contracts"),
                 (NavNotifications, "notifications"),
-                (NavAlerts, "alerts"),
                 (NavSettings, "settings")
             };
 
@@ -1589,16 +1588,6 @@ public partial class CommandCenterWindow : Window
         RoutedEventArgs e)
     {
         OpenModule("notifications");
-    }
-
-    private void Alerts_Click(object sender, RoutedEventArgs e)
-    {
-        // Reuse the Settings workspace instead of creating another settings instance.
-        if (OpenModule("settings") is SettingsWindow settings)
-        {
-            settings.OpenAlertsSection();
-            SetNavigationSelection("alerts");
-        }
     }
 
     private void Setup_Click(

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
@@ -32,8 +32,9 @@ public partial class MiningFleetOverviewWindow : Window
         OverviewHeader.Child = null;
         OverviewHeader.Visibility = Visibility.Collapsed;
         VerticalHeader.Visibility = Visibility.Collapsed;
-        var launch = new System.Windows.Controls.Button { Content = "OPEN CHARACTER OVERVIEW", Margin = new Thickness(0,0,0,8), Padding = new Thickness(10,5,10,5) };
-        launch.Click += (_,_) => { _prefs.CombinedCharacterOverview = true; ApplyCombinedMode(); Show(); WindowState = WindowState.Normal; Activate(); MiningDashboardPreferencesStore.Save(_prefs); };
+        var launch = new System.Windows.Controls.Button { Content = "SHOW CHARACTER OVERVIEW", Margin = new Thickness(0,0,0,8), Padding = new Thickness(10,5,10,5) };
+        // Launch restores the EXISTING mode, not an implicit switch to Combined.
+        launch.Click += (_,_) => { Show(); WindowState = WindowState.Normal; Activate(); ApplyCombinedMode(); };
         var tileContent = BuildControlTileContent(controls, launch);
         _controlTile = new Window {
             Title = "EVE Command Center | Controls", Width = Math.Max(210,_prefs.ControlTileWidth),
@@ -1555,6 +1556,7 @@ public partial class MiningFleetOverviewWindow : Window
         if (_controlTile != null || IsLoaded || IsVisible) RunningApp?.OverviewThumbnails?.SetOverviewCombined(combined && (_controlTile != null || (IsVisible && WindowState!=WindowState.Minimized)),IsVisible && OverviewMode=="CHARACTERS"&&!_prefs.CharacterOverviewLivePreview);
         FullActions.Visibility=combined?Visibility.Collapsed:Visibility.Visible;
         CompactActions.Visibility=combined?Visibility.Visible:Visibility.Collapsed;
+        UpdateDeckModeSwitch();
         LiveBadge.Visibility=DayText.Visibility=PlexMarketBorder.Visibility=FleetTodayProfit.Visibility=Visibility.Visible;
         LivePreviewButton.Content = _prefs.CharacterOverviewLivePreview ? "PREVIEW: LIVE" : "PREVIEW: SNAPSHOT";
         LivePreviewButton.ToolTip = _prefs.CharacterOverviewLivePreview
@@ -1571,7 +1573,7 @@ public partial class MiningFleetOverviewWindow : Window
     private void OverviewMode_Click(object sender,RoutedEventArgs e)
     {
         if(sender is not System.Windows.Controls.MenuItem item||item.Tag is not string mode)return;
-        _prefs.CombinedCharacterOverview = true;
+        // Card content selection does not change the user's Combined/Separate preference.
         _prefs.CharacterOverviewMiningMode=mode=="MINING";
         _prefs.CharacterOverviewCombatMode=mode is "PVE" or "PVP"?mode:"";
         ApplyCombinedMode();MiningDashboardPreferencesStore.Save(_prefs);RefreshCards();

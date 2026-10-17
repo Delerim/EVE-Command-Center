@@ -78,20 +78,32 @@ public sealed class ThumbnailManager : IDisposable
     private bool _overviewCapture;
     private bool _disposed;
     private bool PrimarySuppressed => _primaryHidden || _overviewCombined;
+
+    // One source of truth for whether per-character primary previews may be shown.
+    // Independent PiP thumbnails are deliberately NOT governed by this policy.
+    internal static bool PrimaryPreviewsAllowed(bool combined, bool primaryHidden, bool allHidden) =>
+        !combined && !primaryHidden && !allHidden;
+
     internal event Action<IntPtr>? OverviewForegroundChanged;
     internal FrozenFrame? OverviewFrame(IntPtr hwnd) => _frozenFrames?.GetLastFrame(hwnd);
     internal void SetOverviewCombined(bool enabled, bool capture = true)
     {
         if (_disposed) return;
         _overviewCapture=enabled&&capture;
-        if(_overviewCombined==enabled)return;
+        bool modeChanged = _overviewCombined != enabled;
         _overviewCombined=enabled;
-        if(_frozenFrames!=null)_frozenFrames.MaximumFrameWidth=enabled?480:0;
+        if(modeChanged && _frozenFrames!=null) _frozenFrames.MaximumFrameWidth=enabled?480:0;
+        bool mayShowPrimary = PrimaryPreviewsAllowed(_overviewCombined, _primaryHidden, _thumbnailsHidden);
+        // Re-enforce the hard mode even if the requested mode is unchanged: other
+        // settings or focus flows can try to re-show a legacy preview mid-session.
         foreach(var (_,thumb) in _thumbnails) {
-            if(enabled)thumb.HideWithOverlay();
-            else if(!_thumbnailsHidden&&!_primaryHidden&&!IsCharacterUserHidden(thumb.CharacterName))thumb.ShowWithOverlay();
+            if(!mayShowPrimary) { if(thumb.IsVisible) thumb.HideWithOverlay(); }
+            else if(modeChanged && !IsCharacterUserHidden(thumb.CharacterName)) thumb.ShowWithOverlay();
         }
-        foreach(var (_,window) in _statWindows) window.Visibility=enabled||_thumbnailsHidden||_primaryHidden?System.Windows.Visibility.Collapsed:System.Windows.Visibility.Visible;
+        foreach(var (_,window) in _statWindows) {
+            var wanted=mayShowPrimary?System.Windows.Visibility.Visible:System.Windows.Visibility.Collapsed;
+            if(window.Visibility!=wanted) window.Visibility=wanted;
+        }
     }
     private bool _clickThroughActive = false;
     private bool _settingsClickSuppressed = false;  // Force thumbnails click-through while Settings UI is open
@@ -2004,6 +2016,17 @@ public sealed class ThumbnailManager : IDisposable
             }
         }
         _lastHideActiveThumbnailState = hideActiveNow;
+
+        // Combined is a HARD mode: focus transitions or unrelated actions
+        // must not re-display individual primary thumbnails or stat windows.
+        // PiPs remain independent; avoid churn by hiding only visible leaks.
+        if (_overviewCombined)
+        {
+            foreach (var (_, thumb) in _thumbnails)
+                if (thumb.IsVisible) thumb.HideWithOverlay();
+            foreach (var (_, stat) in _statWindows)
+                if (stat.IsVisible) stat.Visibility = Visibility.Collapsed;
+        }
 
         // Re-assert thumbnail z-order on ANY foreground change to an EVE client —
         // BEFORE the cycle-shield / fg-unchanged early-returns below, which would
@@ -3922,7 +3945,10 @@ public sealed class ThumbnailManager : IDisposable
             {
                 if (!string.Equals(thumb.CharacterName, characterName, StringComparison.OrdinalIgnoreCase))
                     continue;
-                if (visible) thumb.ShowWithOverlay();
+                // A visibility preference may be saved while Combined mode is on.
+                // Record that choice, but never bypass the hard mode to display it.
+                if (visible && PrimaryPreviewsAllowed(_overviewCombined, _primaryHidden, _thumbnailsHidden))
+                    thumb.ShowWithOverlay();
                 else thumb.HideWithOverlay();
             }
         }));
