@@ -1,10 +1,9 @@
-# EVE Command Center v3.6.55
+# EVE Command Center v3.6.56
 
-- Added project assignments for confirmed broker fees, sales taxes, manufacturing charges and industry job taxes in Market & Wallet > Wallet activity.
-- Split a charge between projects in ISK, edit or remove saved assignments, and review their history. The editor shows the remaining amount and rejects assignments above the original debit.
-- Project Finances now separates fees and charges from purchases and sales. Cash difference subtracts assigned charges; pilot and period filters apply consistently to every figure.
-- Added a sortable charge-detail table with aligned ISK values, readable project names and remembered column widths. Original wallet entries remain unchanged.
-- Transfers, escrow, trade payments and incoming credits are excluded from expense assignment to avoid double counting. Cash difference is still not profit; unassigned costs and stock valuation remain separate.
-- Added a backed-up ledger migration and regression coverage for decimal splits, stale edits, source eligibility, audit rollback, restart, migration, project removal and UI feedback.
-
-- Validated with 719 regression checks and native WPF render fixtures for the charge editor and project finances.
+- Add optional Discord webhook delivery under Settings > Alerts > Discord webhooks.
+- Support multiple named webhook destinations, each with its own channel label, enable switch and selected alert types. Discord determines the actual destination channel from the webhook URL.
+- Alert choices: moon drill with no extraction scheduled, low structure fuel, new and accepted corporation contracts, industry ready, Omega renewal and glistening ore.
+- Moon fracture, moon-ready and field-active milestones are deliberately NOT sent to Discord.
+- Delivery is asynchronous and independent of desktop alert preferences. Duplicate deliveries are suppressed across restarts, and moon/fuel alerts re-arm when the condition clears.
+- Webhook secrets are encrypted using Windows DPAPI for the current user and stored in local application data; no webhook URLs are added to source, logs or ordinary settings files.
+- Add webhook URL validation and local persistence regression checks.

@@ -47,8 +47,16 @@ public sealed partial class BackgroundOperations : IDisposable
         Industry = new IndustryService(Sso);
         MarketOrders = new MarketOrdersService(Sso);
         Omega = new OmegaService(Sso);
-        Omega.Alert += (title,message) => OperatingToast.Notify(title,message,OpenOmega,"OMEGA RENEWAL");
-        Industry.Alert += (title,message) => OperatingToast.Notify(title,message,OpenIndustry,"INDUSTRY READY");
+        Omega.Alert += (title,message) =>
+        {
+            OperatingToast.Notify(title,message,OpenOmega,"OMEGA RENEWAL");
+            DiscordWebhookService.Current.Publish(DiscordWebhookService.OmegaRenewal, title, message, title);
+        };
+        Industry.Alert += (title,message) =>
+        {
+            OperatingToast.Notify(title,message,OpenIndustry,"INDUSTRY READY");
+            DiscordWebhookService.Current.Publish(DiscordWebhookService.IndustryReady, title, message, title + "|" + message);
+        };
         Pilots = new BackgroundPilotRefresh(Sso);
         Industry.ShouldSync = id => SyncSettings.Enabled(id, "industry");
         Planetary.ShouldSync = id => SyncSettings.Enabled(id, "pi");
@@ -164,6 +172,16 @@ public sealed partial class BackgroundOperations : IDisposable
         _nextMoon = Moons.NextRefreshUtc;
         var prefix = Moons.SelectedCharacterId + ":";
         var keys = Moons.OperatingAlerts.Select(a => prefix + a.Key).ToHashSet();
+        // Opt-in Discord routing is separate from desktop notifications.
+        // Moon fracture, ready and field-active milestones are NOT forwarded.
+        var unset = Moons.OperatingAlerts.Where(a => a.Key.StartsWith("reset:", StringComparison.Ordinal)).ToArray();
+        DiscordWebhookService.Current.ReconcileActive(DiscordWebhookService.MoonNotSet, unset.Select(a => a.Key));
+        foreach (var item in unset)
+            DiscordWebhookService.Current.Publish(DiscordWebhookService.MoonNotSet, item.StructureName, item.Message, item.Key);
+        var lowFuel = Moons.OperatingAlerts.Where(a => a.Key == "fuel:all").ToArray();
+        DiscordWebhookService.Current.ReconcileActive(DiscordWebhookService.LowFuel, lowFuel.Select(a => a.Key));
+        foreach (var item in lowFuel)
+            DiscordWebhookService.Current.Publish(DiscordWebhookService.LowFuel, item.StructureName, item.Message, item.Key);
         foreach (var key in _moonNotified.Keys.Where(k => k.StartsWith(prefix) && !keys.Contains(k)).ToArray()) _moonNotified.Remove(key);
         if (Moons.DesktopNotificationsEnabled)
             foreach (var alert in Moons.OperatingAlerts)
@@ -181,15 +199,24 @@ public sealed partial class BackgroundOperations : IDisposable
     {
         if (!Access.CanReadContracts) return;
         foreach (var row in rows)
+        {
             OperatingToast.Notify(row.Issuer + " - " + row.Location, row.PriceText + " | Click to inspect contents",
                 () => OpenContracts(row), "NEW CONTRACT");
+            DiscordWebhookService.Current.Publish(DiscordWebhookService.NewContract,
+                row.Issuer + " - " + row.Location, row.PriceText, "new:" + row.Contract.Id);
+        }
     }
     private void AcceptedContracts(IReadOnlyList<ContractRow> rows)
     {
         if (!Access.CanReadContracts) return;
         foreach (var row in rows)
+        {
             OperatingToast.Notify(row.Issuer + " | " + row.PriceText, "Accepted by " + row.Acceptor + " | " + row.AcceptedText,
                 () => OpenContracts(row), "CONTRACT ACCEPTED");
+            DiscordWebhookService.Current.Publish(DiscordWebhookService.AcceptedContract,
+                row.Issuer + " | " + row.PriceText, "Accepted by " + row.Acceptor + " | " + row.AcceptedText,
+                "accepted:" + row.Contract.Id);
+        }
     }
     private void PersistAlerts()
     {
@@ -212,6 +239,8 @@ public sealed partial class BackgroundOperations : IDisposable
         if (_moonNotified.TryGetValue(key, out var last) && DateTimeOffset.UtcNow - last < TimeSpan.FromHours(6)) return;
         _moonNotified[key] = DateTimeOffset.UtcNow;
         PersistAlerts();
+        DiscordWebhookService.Current.Publish(DiscordWebhookService.GlisteningOre,
+            pilot + " | " + ore, "Glistening ore detected in a live mining log.", key);
         if (Moons.DesktopNotificationsEnabled)
             OperatingToast.Notify(pilot + " | " + ore, "Glistening ore detected in a live mining log. The corporation ledger will identify the moon when available.",
                 () => { if (Access.CanReadMoons) OpenMoons(); }, "GLISTENING ORE DETECTED");

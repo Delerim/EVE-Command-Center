@@ -237,6 +237,13 @@ public partial class SettingsWindow : Window
             ShowPanel(tag);
     }
 
+    private void OnConfigureDiscord(object sender, RoutedEventArgs e)
+    {
+        var dialog = new DiscordWebhookSettingsWindow();
+        if (IsVisible) dialog.Owner = this;
+        dialog.ShowDialog();
+    }
+
     private void ShowPanel(string name)
     {
         _activePanel = name;

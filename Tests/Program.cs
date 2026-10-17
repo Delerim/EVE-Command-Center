@@ -190,6 +190,7 @@ internal static partial class Program
         CheckBuybackPeriods();
         CheckOperationsLedger();
         CheckMoonAlerts();
+        CheckDiscordWebhooks();
         CheckContractHistory();
         CheckFitStacking();
         CheckSaberlashFit().GetAwaiter().GetResult();
@@ -518,6 +519,38 @@ internal static partial class Program
         seen = JsonSerializer.Deserialize<Dictionary<string, DateTimeOffset>>(JsonSerializer.Serialize(seen))!;
         Check(MoonMilestones.Observe(snapshot, 1, seen, now).Count == 0, "Moon milestone notifications do not repeat after restart");
         Check(MoonMilestones.Observe(snapshot, 2, seen, now).Count == 0, "Another corporation reader establishes its own baseline");
+    }
+
+    private static void CheckDiscordWebhooks()
+    {
+        Check(DiscordWebhookService.IsValidWebhookUrl("https://discord.com/api/webhooks/123456789/secret_TOKEN-abc"),
+            "Discord webhook URL validation accepts an official HTTPS endpoint");
+        Check(!DiscordWebhookService.IsValidWebhookUrl("http://discord.com/api/webhooks/123456789/token"),
+            "Discord webhook rejects insecure HTTP");
+        Check(!DiscordWebhookService.IsValidWebhookUrl("https://discord.com.evil.example/api/webhooks/123456789/token"),
+            "Discord webhook rejects lookalike hosts");
+        Check(!DiscordWebhookService.IsValidWebhookUrl("https://discord.com/api/webhooks/123456789/token?wait=true"),
+            "Discord webhook rejects additional query data");
+        string directory = Path.Combine(Path.GetTempPath(), "ecc-discord-test-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            var service = new DiscordWebhookService(directory);
+            service.SaveDestination("", "moon monitoring", "#moon-alerts",
+                "https://discord.com/api/webhooks/123456789/secret_TOKEN-abc", true,
+                new[] { DiscordWebhookService.MoonNotSet });
+            var saved = service.Destinations().Single();
+            Check(saved.AlertTypes.SequenceEqual(new[] { DiscordWebhookService.MoonNotSet }),
+                "Discord filters are stored per destination");
+            string onDisk = File.ReadAllText(Path.Combine(directory, "discord-webhooks.json"));
+            Check(!onDisk.Contains("secret_TOKEN-abc"), "Discord webhook secret is encrypted at rest");
+            Check(!saved.ProtectedUrl.Contains("secret_TOKEN-abc"), "Discord list never exposes webhook secrets");
+            var reloaded = new DiscordWebhookService(directory);
+            Check(reloaded.Destinations().Single().Channel == "#moon-alerts", "Discord destination survives restart");
+            reloaded.ReconcileActive(DiscordWebhookService.MoonNotSet, Array.Empty<string>());
+            reloaded.RemoveDestination(saved.Id);
+            Check(reloaded.Destinations().Count == 0, "Discord destination can be removed");
+        }
+        finally { if (Directory.Exists(directory)) Directory.Delete(directory, true); }
     }
 
     private static void CheckContractHistory()
