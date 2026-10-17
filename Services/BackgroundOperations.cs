@@ -99,6 +99,8 @@ public sealed partial class BackgroundOperations : IDisposable
             {
                 try { NotificationCenterService.Current.SyncPi(Planetary.State,DateTimeOffset.UtcNow); } catch(Exception ex){EsiDiagnostics.Write("PI notification sync: "+ex.GetType().Name);}
                 var alerts=PlanetaryAlerts.Observe(Planetary.State,DateTimeOffset.UtcNow);
+                // Independent Discord PI filters: group by pilot and trigger only at actionable thresholds.
+                PlanetaryDiscordAlerts.Dispatch(Planetary.State, DateTimeOffset.UtcNow, DiscordWebhookService.Current);
                 if(Planetary.State.DesktopAlerts) foreach(var group in alerts.GroupBy(a=>a.Split('|')[0].Trim())) OperatingToast.Notify(group.Key+" | PI",string.Join("\n",group.Take(5)),OpenPlanetary,"PLANETARY INDUSTRY");
                 Planetary.Save();
             }

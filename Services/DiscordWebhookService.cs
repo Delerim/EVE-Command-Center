@@ -35,6 +35,9 @@ public sealed class DiscordWebhookService
     public const string IndustryReady = "industry_ready";
     public const string OmegaRenewal = "omega_renewal";
     public const string GlisteningOre = "glistening_ore";
+    public const string PiCollection = "pi_collection";
+    public const string PiFactoryRefill = "pi_factory_refill";
+    public const string PiExtractorIdle = "pi_extractor_idle";
 
     public static readonly (string Key, string Label)[] AlertChoices =
     {
@@ -44,7 +47,10 @@ public sealed class DiscordWebhookService
         (AcceptedContract, "Corporation contract accepted"),
         (IndustryReady, "Industry job ready"),
         (OmegaRenewal, "Omega renewal reminder"),
-        (GlisteningOre, "Glistening ore detected")
+        (GlisteningOre, "Glistening ore detected"),
+        (PiCollection, "Planetary: T1 collection at 40,500 / 45,000 m3 (per pilot)"),
+        (PiFactoryRefill, "Planetary: factory-world inputs need refilling (grouped by pilot)"),
+        (PiExtractorIdle, "Planetary: extraction inactive for over 5 hours (grouped by pilot)")
     };
 
     private static readonly HttpClient Http = new(new HttpClientHandler { AllowAutoRedirect = false })
@@ -143,7 +149,8 @@ public sealed class DiscordWebhookService
 
     public void ReconcileActive(string type, IEnumerable<string> activeEventKeys)
     {
-        if (type != MoonNotSet && type != LowFuel) return;
+        if (type != MoonNotSet && type != LowFuel && type != PiCollection &&
+            type != PiFactoryRefill && type != PiExtractorIdle) return;
         var active = activeEventKeys.Select(Hash).ToHashSet(StringComparer.Ordinal);
         lock (_lock)
         {

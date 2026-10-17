@@ -308,6 +308,14 @@
                             <TextBlock Text="NOTIFICATIONS" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Button>
+
+                    <Button x:Name="NavAlerts" Style="{StaticResource NavButton}" Click="Alerts_Click"
+                            ToolTip="Alert rules, desktop notifications and Discord webhook channels">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="&#xE7F4;" Style="{StaticResource IconGlyph}"/>
+                            <TextBlock Text="ALERTS &amp; DISCORD" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
                 </StackPanel>
 
                 <StackPanel DockPanel.Dock="Bottom">

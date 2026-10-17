@@ -190,6 +190,7 @@ internal static partial class Program
         CheckBuybackPeriods();
         CheckOperationsLedger();
         CheckMoonAlerts();
+        CheckDiscordPlanetaryAlertRules();
         CheckDiscordWebhooks();
         CheckContractHistory();
         CheckFitStacking();
@@ -551,6 +552,33 @@ internal static partial class Program
             Check(reloaded.Destinations().Count == 0, "Discord destination can be removed");
         }
         finally { if (Directory.Exists(directory)) Directory.Delete(directory, true); }
+    }
+
+    private static void CheckDiscordPlanetaryAlertRules()
+    {
+        var now = DateTimeOffset.UtcNow;
+        Check(DiscordWebhookService.AlertChoices.Any(x => x.Key == DiscordWebhookService.PiCollection), "Discord collection filter is configurable");
+        Check(DiscordWebhookService.AlertChoices.Any(x => x.Key == DiscordWebhookService.PiFactoryRefill), "Discord factory refill filter is configurable");
+        Check(DiscordWebhookService.AlertChoices.Any(x => x.Key == DiscordWebhookService.PiExtractorIdle), "Discord extractor inactivity filter is configurable");
+        var state = new PiState();
+        var analysis = new PiAnalysis();
+        analysis.Hauls.Add(new PiHaulSummary { CharacterId = 42, Character = "Miner", Volume = 40499 });
+        Check(PlanetaryDiscordAlerts.EvaluateAnalysis(analysis, state, now).Count == 0, "Discord collection remains quiet before 40,500 m3");
+        using var document = JsonDocument.Parse("{\"pins\":[{\"pin_id\":1,\"extractor_details\":{\"cycle_time\":1800},\"expiry_time\":\"" + now.AddHours(-6).ToString("O") + "\"}]}");
+        var colony = new PiColony { CharacterId = 42, Character = "Miner", PlanetId = 101, Planet = "Lava I", Fetched = now, LastUpdate = now.AddHours(-7), Layout = document.RootElement.Clone() };
+        state.Colonies.Add(colony);
+        analysis.Hauls[0].Volume = 40500;
+        var events = PlanetaryDiscordAlerts.EvaluateAnalysis(analysis, state, now);
+        Check(events.Count(e => e.Type == DiscordWebhookService.PiCollection) == 1, "Discord collection aggregates threshold per pilot");
+        Check(events.Count(e => e.Type == DiscordWebhookService.PiExtractorIdle) == 1, "Discord detects extractor inactive beyond five hours");
+        using var factoryJson = JsonDocument.Parse("{\"pins\":[{\"pin_id\":99}]}");
+        var factory = new PiColony { CharacterId = 42, Character = "Miner", PlanetId = 102, Planet = "Factory II", Fetched = now, Layout = factoryJson.RootElement.Clone() };
+        state.Colonies.Add(factory);
+        analysis.Pins.Add(new PiRow { Colony = factory, Name = "Processor", Status = "COLLECT / REFILL (EST.)" });
+        var grouped = PlanetaryDiscordAlerts.EvaluateAnalysis(analysis, state, now);
+        Check(grouped.Count(e => e.Type == DiscordWebhookService.PiFactoryRefill) == 1, "Discord factory refill groups action by pilot");
+        analysis.Hauls[0].Volume = 45000;
+        Check(PlanetaryDiscordAlerts.EvaluateAnalysis(analysis, state, now).Any(e => e.Type == DiscordWebhookService.PiCollection && e.Key.EndsWith(":2")), "Discord collection escalates at 45,000 m3");
     }
 
     private static void CheckContractHistory()

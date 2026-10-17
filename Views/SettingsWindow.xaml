@@ -865,6 +865,8 @@
 
                 <!-- ══ 7. ALERTS ══ -->
                 <StackPanel x:Name="PanelAlerts" Visibility="Collapsed">
+                    <TextBlock Text="GENERAL ALERTS &amp; DISCORD DESTINATIONS" FontWeight="SemiBold" FontSize="11"
+                               Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,10"/>
                     <TextBlock Text="{DynamicResource L.Alerts.Title}" FontSize="18" FontWeight="Bold" Foreground="{StaticResource AccentBrush}" Margin="0,0,0,4"/>
                     <TextBlock Text="{DynamicResource L.Alerts.Subtitle}" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,12"/>
                     <GroupBox Header="Discord webhooks (optional)">

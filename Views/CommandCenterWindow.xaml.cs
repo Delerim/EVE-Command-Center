@@ -264,7 +264,7 @@ public partial class CommandCenterWindow : Window
     private void SetNavigationSelection(
         string key)
     {
-        (System.Windows.Application.Current as App)?.SetSettingsWorkspaceActive(IsActive && key=="settings");
+        (System.Windows.Application.Current as App)?.SetSettingsWorkspaceActive(IsActive && (key=="settings" || key=="alerts"));
         var items =
             new (System.Windows.Controls.Button Button, string Key)[]
             {
@@ -278,6 +278,7 @@ public partial class CommandCenterWindow : Window
                 (NavMoons, "moons"),
                 (NavContracts, "contracts"),
                 (NavNotifications, "notifications"),
+                (NavAlerts, "alerts"),
                 (NavSettings, "settings")
             };
 
@@ -290,6 +291,9 @@ public partial class CommandCenterWindow : Window
                     key,
                     StringComparison.OrdinalIgnoreCase);
 
+            // The active section keeps a persistent left accent even when another
+            // button is hovered. The state never depends on hover alone.
+            button.BorderThickness = active ? new Thickness(4, 1, 1, 1) : new Thickness(1);
             button.Background =
                 new SolidColorBrush(
                     (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(
@@ -1585,6 +1589,16 @@ public partial class CommandCenterWindow : Window
         RoutedEventArgs e)
     {
         OpenModule("notifications");
+    }
+
+    private void Alerts_Click(object sender, RoutedEventArgs e)
+    {
+        // Reuse the Settings workspace instead of creating another settings instance.
+        if (OpenModule("settings") is SettingsWindow settings)
+        {
+            settings.OpenAlertsSection();
+            SetNavigationSelection("alerts");
+        }
     }
 
     private void Setup_Click(

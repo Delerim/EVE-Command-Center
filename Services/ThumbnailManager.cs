@@ -1821,10 +1821,14 @@ public sealed class ThumbnailManager : IDisposable
                                    && !_thumbnailsHidden && !_primaryHidden
                 ? Visibility.Visible
                 : Visibility.Collapsed;
+            // Combined overview owns the per-character stats. The ordinary
+            // focus sweep must not resurrect the legacy stat windows; independent
+            // secondary PiPs still use targetVisibility below.
+            var statsVisibility = PrimarySuppressed ? Visibility.Collapsed : targetVisibility;
             foreach (var (_, sw) in _statWindows)
             {
-                if (sw.Visibility != targetVisibility)
-                    sw.Visibility = targetVisibility;
+                if (sw.Visibility != statsVisibility)
+                    sw.Visibility = statsVisibility;
             }
             foreach (var (_, pip) in _secondaryThumbnails)
             {

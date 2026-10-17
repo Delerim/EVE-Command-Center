@@ -97,7 +97,10 @@ public partial class MiningFleetOverviewWindow
                 <Setter Property="Margin" Value="0,0,6,5"/>
                 <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button">
                     <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="5" Padding="{TemplateBinding Padding}">
-                        <TextBlock Text="{TemplateBinding Tag}" FontFamily="Segoe MDL2 Assets" FontSize="16" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                            <TextBlock Text="{TemplateBinding Tag}" FontFamily="Segoe UI Symbol" FontSize="14" Margin="0,0,5,0" VerticalAlignment="Center"/>
+                            <ContentPresenter Content="{TemplateBinding Content}" TextElement.FontSize="9" VerticalAlignment="Center"/>
+                        </StackPanel>
                     </Border>
                 </ControlTemplate></Setter.Value></Setter>
                 <Style.Triggers>
@@ -126,14 +129,16 @@ public partial class MiningFleetOverviewWindow
                 child.ClearValue(FrameworkElement.HeightProperty); child.ClearValue(FrameworkElement.MarginProperty);
                 child.ClearValue(System.Windows.Controls.Control.FontSizeProperty); child.ClearValue(System.Windows.Controls.Control.PaddingProperty);
                 child.Style=controlStyle;
-                child.Tag = child == HorizontalFitButton || child == CompactFitButton ? "\uE740" :
-                    label=="VERTICAL" ? "\uE7AD" : child==ModeButton ? "\uE8A9" : child==LivePreviewButton ? "\uE714" :
-                    child==FullMuteButton || child==CompactMuteButton ? "\uE767" : label=="TOOLS" ? "\uE713" : "\uE8A7";
+                child.Tag = child == HorizontalFitButton || child == CompactFitButton ? "◇" :
+                    label=="VERTICAL" ? "↕" : child==ModeButton ? "▦" : child==LivePreviewButton ? "◉" :
+                    child==FullMuteButton || child==CompactMuteButton ? "♫" : label=="TOOLS" ? "⚙" : "✦";
                 if(child.ToolTip==null) child.SetBinding(FrameworkElement.ToolTipProperty,new System.Windows.Data.Binding("Content") { Source=child });
 
-                if(label=="VERTICAL") { child.Content="ORIENTATION"; child.ToolTip="Switch character cards between horizontal and vertical layouts"; }
-                if(label=="TOOLS") child.Content="MORE TOOLS";
-                if(label=="SEPARATE PREVIEWS") { child.Content="SEPARATE WINDOWS"; child.ToolTip="Replace combined cards with individual preview windows"; }
+                if(label=="VERTICAL") { child.Content="ORIENT"; child.ToolTip="Switch character cards between horizontal and vertical layouts"; }
+                if(label=="TOOLS") child.Content="TOOLS";
+                if(child==ModeButton) child.Content="CARD MODE";
+                if(child==LivePreviewButton) child.Content="PREVIEW";
+                if(label=="SEPARATE PREVIEWS") { child.Content="SPLIT"; child.ToolTip="Replace combined cards with individual preview windows"; }
                 row.Children.Add(child);
             }
             // Stable grouping regardless of the original toolbar button order.

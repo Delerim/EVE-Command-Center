@@ -244,6 +244,8 @@ public partial class SettingsWindow : Window
         dialog.ShowDialog();
     }
 
+    public void OpenAlertsSection() => ShowPanel("Alerts");
+
     private void ShowPanel(string name)
     {
         _activePanel = name;
