@@ -246,7 +246,7 @@ public sealed class ContractService : IDisposable
         return value;
     }
 
-    public async Task<IReadOnlyList<ContractItem>> ItemsAsync(ContractRow row, EvePilotProfile pilot, CancellationToken token)
+    public async Task<IReadOnlyList<ContractItem>> ItemsAsync(ContractRow row, EvePilotProfile pilot, CancellationToken token, bool notify = true)
     {
         if (_items.TryGetValue((row.CorporationId, row.Contract.Id), out var cached)) return cached;
         string key = BuybackAnalytics.Key(row);
@@ -269,7 +269,7 @@ public sealed class ContractService : IDisposable
         // from contract price or an external appraisal.
         State.CachedContractItems[key] = items.ToList();
         Save();
-        Changed?.Invoke();
+        if (notify) Changed?.Invoke();
         return items;
     }
 

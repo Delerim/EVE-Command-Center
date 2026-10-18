@@ -115,7 +115,10 @@
    </Grid>
    <Border Background="#0C2529" BorderBrush="#245058" BorderThickness="1" CornerRadius="9" Padding="14" Margin="0,0,0,14">
     <StackPanel><DockPanel><StackPanel><TextBlock Text="ORE / ITEM MIX (KNOWN CONTENTS)" Foreground="#55D7D2" FontSize="16" FontWeight="Bold"/><TextBlock Text="Only contracts whose ESI item details have been indexed; unknown contents are excluded, not counted as zero" Foreground="#8FB2B5" Margin="0,4,0,7"/></StackPanel>
-     <Button x:Name="AnalyticsLoadContents" DockPanel.Dock="Right" Content="INDEX NEXT 15 CONTRACTS" Click="AnalyticsIndex_Click" Margin="10,0,0,0" VerticalAlignment="Center"/></DockPanel>
+     <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center" Margin="10,0,0,0">
+      <Button x:Name="AnalyticsLoadContents" Content="INDEX NEXT 5 CONTRACTS" Click="AnalyticsIndex_Click"/>
+      <Button x:Name="AnalyticsCancelButton" Content="CANCEL INDEXING" Click="AnalyticsCancel_Click" IsEnabled="False" Margin="8,0,0,0"/>
+     </StackPanel></DockPanel>
      <TextBlock x:Name="AnalyticsIndexStatus" Foreground="#FFD166" TextWrapping="Wrap" Margin="0,0,0,8"/>
      <ItemsControl x:Name="AnalyticsOres"><ItemsControl.ItemTemplate><DataTemplate><Grid Margin="0,3"><Grid.ColumnDefinitions><ColumnDefinition Width="180"/><ColumnDefinition Width="270"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
       <TextBlock Text="{Binding Label}" Grid.Column="0" Foreground="#EAF7F7" TextTrimming="CharacterEllipsis"/>

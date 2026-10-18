@@ -19,6 +19,7 @@ public partial class ContractsWindow
 {
     private BuybackAnalyticsSnapshot? _analyticsSnapshot;
     private bool _analyticsLoading;
+    private CancellationTokenSource? _analyticsIndexCancel;
 
     private string AnalyticsPeriodName => (AnalyticsPeriod?.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "Month";
 
@@ -68,11 +69,12 @@ public partial class ContractsWindow
         AnalyticsBars.ItemsSource = result.TimeBuckets;
         AnalyticsSuppliers.ItemsSource = result.Suppliers;
         AnalyticsOres.ItemsSource = result.Contents;
-        AnalyticsIndexStatus.Text = result.Count == 0
-            ? "No qualifying accepted buybacks in this period. Older periods may not be covered by ESI history."
-            : result.IndexedContracts == result.Count
-                ? "All qualifying buyback contents indexed for this period."
-                : $"{result.Count - result.IndexedContracts:N0} qualifying contract contents not indexed. Indexing is optional and may be restricted by ESI.";
+        if (!_analyticsLoading)
+            AnalyticsIndexStatus.Text = result.Count == 0
+                ? "No qualifying accepted buybacks in this period. Older periods may not be covered by ESI history."
+                : result.IndexedContracts == result.Count
+                    ? "All qualifying buyback contents indexed for this period."
+                    : $"{result.Count - result.IndexedContracts:N0} qualifying contract contents not indexed. Indexing is optional and may be restricted by ESI.";
         AnalyticsLoadContents.IsEnabled = !_analyticsLoading && result.IndexedContracts < result.Count;
         FilterAnalytics();
     }
@@ -95,9 +97,8 @@ public partial class ContractsWindow
     private async void AnalyticsIndex_Click(object sender, RoutedEventArgs e)
     {
         if (_analyticsLoading || _analyticsSnapshot == null) return;
-        var candidates = _analyticsSnapshot.AcceptedContracts
-            .Where(r => !Service.State.CachedContractItems.ContainsKey(BuybackAnalytics.Key(r)))
-            .Take(15).ToArray();
+        var candidates = BuybackIndexPolicy.Next(
+            _analyticsSnapshot.AcceptedContracts, Service.State.CachedContractItems);
         if (candidates.Length == 0) return;
         var pilot = _pilots.FirstOrDefault(p => p.CharacterId == Service.State.CharacterId);
         if (pilot == null || !ContractService.CanRead(pilot))
@@ -105,36 +106,67 @@ public partial class ContractsWindow
             AnalyticsIndexStatus.Text = "Select and authorize your corporation contract reader before indexing contents.";
             return;
         }
+
+        using var batch = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
+        batch.CancelAfter(BuybackIndexPolicy.BatchTimeout);
+        _analyticsIndexCancel = batch;
         _analyticsLoading = true;
         AnalyticsLoadContents.IsEnabled = false;
-        int loaded = 0, failed = 0;
+        AnalyticsCancelButton.IsEnabled = true;
+        int loaded = 0, failed = 0, timedOut = 0;
+        string? lastFailure = null;
+        bool cancelled = false;
         try
         {
-            foreach (ContractRow contract in candidates)
+            for (int index = 0; index < candidates.Length; index++)
             {
-                _lifetime.Token.ThrowIfCancellationRequested();
-                AnalyticsIndexStatus.Text = $"Indexing contents {loaded + failed + 1} of {candidates.Length}...";
+                if (batch.IsCancellationRequested) break;
+                ContractRow contract = candidates[index];
+                AnalyticsIndexStatus.Text = $"Loading {index + 1}/{candidates.Length}: contract {contract.Contract.Id}. Cancel is available; ESI may rate-limit requests.";
+                // Let WPF render the new progress before beginning each I/O operation.
+                await System.Windows.Threading.Dispatcher.Yield(System.Windows.Threading.DispatcherPriority.Background);
+                if (batch.IsCancellationRequested) break;
+                using var attempt = CancellationTokenSource.CreateLinkedTokenSource(batch.Token);
+                attempt.CancelAfter(BuybackIndexPolicy.ContractTimeout);
                 try
                 {
-                    await Service.ItemsAsync(contract, pilot, _lifetime.Token);
+                    // Indexing must not trigger full dashboard/account-ledger redraws
+                    // for each individual contract; refresh reporting once at the end.
+                    await Service.ItemsAsync(contract, pilot, attempt.Token, notify: false);
                     loaded++;
                 }
-                catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { break; }
-                catch (Exception) { failed++; } // Old contracts may no longer expose items through ESI.
+                catch (OperationCanceledException) when (batch.IsCancellationRequested) { break; }
+                catch (OperationCanceledException) { timedOut++; lastFailure = "ESI request timeout"; }
+                catch (Exception ex) { failed++; lastFailure = ex.GetType().Name + ": " + ex.Message; }
+                if (!_closed)
+                    AnalyticsIndexStatus.Text = $"Indexing: {loaded} saved, {timedOut} timed out, {failed} failed ({index + 1}/{candidates.Length}).";
             }
+            cancelled = batch.IsCancellationRequested;
         }
-        catch (OperationCanceledException) { }
+        catch (OperationCanceledException) { cancelled = true; }
         finally
         {
+            cancelled |= batch.IsCancellationRequested;
             _analyticsLoading = false;
+            _analyticsIndexCancel = null;
             if (!_closed)
             {
+                AnalyticsCancelButton.IsEnabled = false;
                 RenderAnalytics();
-                AnalyticsIndexStatus.Text = $"Indexed {loaded} contracts; {failed} unavailable or failed. Contents are cached locally, not uploaded.";
+                string outcome = cancelled ? "Stopped" : "Finished";
+                AnalyticsIndexStatus.Text = $"{outcome}: {loaded} saved, {timedOut} timed out, {failed} failed. Contents already indexed are kept." +
+                    (lastFailure == null ? "" : " Last issue: " + lastFailure);
             }
         }
     }
 
+    private void AnalyticsCancel_Click(object sender, RoutedEventArgs e)
+    {
+        if (!_analyticsLoading || _analyticsIndexCancel == null) return;
+        AnalyticsCancelButton.IsEnabled = false;
+        AnalyticsIndexStatus.Text = "Stopping indexing; cancelling the current ESI request...";
+        _analyticsIndexCancel.Cancel();
+    }
     private void AnalyticsExport_Click(object sender, RoutedEventArgs e)
     {
         if (_analyticsSnapshot == null) return;
