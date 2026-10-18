@@ -118,25 +118,16 @@ public sealed class MoonReportService : IDisposable
         }
     }
 
-    public IReadOnlyList<MoonDrillRow> GetDrillSchedule() => HasImportedMoonList
-        ? MoonDrillSchedule.Build(_state, DateTimeOffset.UtcNow)
-        : Array.Empty<MoonDrillRow>();
+    public IReadOnlyList<MoonDrillRow> GetDrillSchedule() =>
+        MoonDrillSchedule.Build(_state, DateTimeOffset.UtcNow);
 
-    public MoonReportSnapshot GetSnapshot()
-    {
-        // No CSV means no moon inventory, calendar, fuel, or historical moon report.
-        return HasImportedMoonList ? BuildSnapshot(DateTimeOffset.UtcNow)
-            : new MoonReportSnapshot { GeneratedUtc = DateTimeOffset.UtcNow };
-    }
+    public MoonReportSnapshot GetSnapshot() => BuildSnapshot(DateTimeOffset.UtcNow);
 
     public async Task<MoonReportSnapshot> RefreshAsync(
         EvePilotProfile pilot,
         IProgress<string>? progress = null,
         CancellationToken cancellationToken = default)
     {
-        // Even a linked corporation reader must not populate moon management
-        // before a local CSV has explicitly enabled a private mapping.
-        if (!HasImportedMoonList) return GetSnapshot();
         if (!HasRequiredScopes(pilot))
         {
             throw new InvalidOperationException(
@@ -330,7 +321,7 @@ public sealed class MoonReportService : IDisposable
     }
 
     private StationFuelRow[] BuildFuelRows(DateTimeOffset now) => _state.Structures
-        .Where(s => _state.Profiles.Values.Any(p => p.StructureId == s.StructureId && Imported(p.MoonName)))
+        .Where(s => s.Services.Any(x => x.Name.Contains("moon", StringComparison.OrdinalIgnoreCase)))
         .Select(s => new StationFuelRow
     {
         StructureId = s.StructureId, StructureName = string.IsNullOrWhiteSpace(s.Name) ? $"Structure {s.StructureId}" : s.Name,
@@ -440,16 +431,19 @@ public sealed class MoonReportService : IDisposable
                 var backupName = "moon-report-before-csv-import-" + DateTime.UtcNow.ToString("yyyyMMdd-HHmmss") + ".json";
                 File.Copy(_stateFile, Path.Combine(Path.GetDirectoryName(_stateFile)!, backupName), false);
             }
-            // Preserve matching ESI associations, but do NOT import other moons
-            // from the previous bundled-audit state or the corporation's ESI list.
+            // CSV replaces only private composition/nickname overrides. It never
+            // deletes independently discovered ESI identities or mining history.
             var allowed = keys.ToHashSet(StringComparer.Ordinal);
-            var old = _state.Profiles.Values.Where(p => allowed.Contains(NormalizeMoonName(p.MoonName)))
-                .Select(CloneProfile).ToArray();
-            _state.Profiles.Clear();
-            foreach (var profile in old) _state.Profiles[profile.MoonId] = profile;
+            foreach (MoonProfile profile in _state.Profiles.Values)
+            {
+                if (allowed.Contains(NormalizeMoonName(profile.MoonName))) continue;
+                profile.ProfileConfigured = false;
+                profile.ZeolitesPercent = profile.SylvitePercent = 0;
+                profile.BitumensPercent = profile.CoesitePercent = 0;
+                if (_state.Structures.FirstOrDefault(s => s.StructureId == profile.StructureId) is { } structure)
+                    profile.StructureName = structure.Name;
+            }
             _state.PendingProfilesByMoonName.Clear();
-            foreach (var key in _state.Pulls.Where(x => !allowed.Contains(NormalizeMoonName(x.Value.MoonName))).Select(x => x.Key).ToArray())
-                _state.Pulls.Remove(key);
             _state.ImportedMoonNames = keys.ToList();
             _state.MoonCsvImported = true;
             int matched = 0;
@@ -551,8 +545,9 @@ public sealed class MoonReportService : IDisposable
             pull.SystemName = await GetSystemNameAsync(
                 pull.SystemId, cancellationToken);
 
-            // ESI visibility is not an instruction to add another corporation moon.
-            if (!Imported(pull.MoonName)) { _state.Pulls.Remove(id); continue; }
+            // ESI is the discovery authority; CSV supplies optional personal metadata.
+            _state.EsiKnownMoonIds.Add(extraction.MoonId);
+            _state.EsiKnownStructureIds.Add(extraction.StructureId);
 
             if (!_state.Profiles.TryGetValue(
                     extraction.MoonId, out MoonProfile? profile))
@@ -579,6 +574,15 @@ public sealed class MoonReportService : IDisposable
             profile.StructureId = pull.StructureId;
             profile.MoonName = pull.MoonName;
             profile.StructureName = First(profile.StructureName, pull.StructureName);
+            if (!Imported(pull.MoonName))
+            {
+                // Never resurrect legacy bundled composition/nicknames after
+                // ESI discovers an otherwise-unconfigured moon.
+                profile.ProfileConfigured = false;
+                profile.ZeolitesPercent = profile.SylvitePercent = 0;
+                profile.BitumensPercent = profile.CoesitePercent = 0;
+                profile.StructureName = pull.StructureName;
+            }
             profile.SystemId = pull.SystemId;
             profile.SystemName = pull.SystemName;
 
@@ -641,25 +645,42 @@ public sealed class MoonReportService : IDisposable
         {
             cancellationToken.ThrowIfCancellationRequested();
             bool hasMoonService = structure.Services.Any(service =>
-                service.Name.Contains(
-                    "moon", StringComparison.OrdinalIgnoreCase));
-            if (!hasMoonService &&
-                !activeStructureIds.Contains(structure.StructureId))
+                service.Name.Contains("moon", StringComparison.OrdinalIgnoreCase));
+            if (!hasMoonService && !activeStructureIds.Contains(structure.StructureId))
                 continue;
 
-            MoonProfile? existing = _state.Profiles.Values.FirstOrDefault(
-                profile => profile.StructureId == structure.StructureId && Imported(profile.MoonName));
+            _state.EsiKnownStructureIds.Add(structure.StructureId);
+            string systemName = await GetSystemNameAsync(structure.SystemId, cancellationToken);
+            MoonProfile? existing = _state.Profiles.Values.FirstOrDefault(p =>
+                p.StructureId == structure.StructureId);
             if (existing != null)
             {
                 existing.StructureName = First(existing.StructureName, structure.Name);
+                if (!Imported(existing.MoonName))
+                {
+                    existing.ProfileConfigured = false;
+                    existing.ZeolitesPercent = existing.SylvitePercent = 0;
+                    existing.BitumensPercent = existing.CoesitePercent = 0;
+                    existing.StructureName = structure.Name;
+                }
                 existing.SystemId = structure.SystemId;
-                existing.SystemName = await GetSystemNameAsync(
-                    structure.SystemId, cancellationToken);
+                existing.SystemName = systemName;
                 continue;
             }
 
-            // Unmapped structures are deliberately excluded. To track an idle
-            // drill before its first extraction, specify StructureId in the CSV.
+            // ESI does not identify the moon of an idle drill until an extraction
+            // exists. Use a clearly provisional local placeholder, not an invented moon.
+            long placeholderId = -Math.Abs(structure.StructureId);
+            _state.Profiles[placeholderId] = new MoonProfile
+            {
+                MoonId = placeholderId,
+                StructureId = structure.StructureId,
+                MoonName = "Moon not yet identified by ESI",
+                StructureName = structure.Name,
+                SystemId = structure.SystemId,
+                SystemName = systemName,
+                ProfileConfigured = false
+            };
         }
     }
 
@@ -862,17 +883,8 @@ public sealed class MoonReportService : IDisposable
                 MarkFractured(pull, pull.NaturalDecayUtc, ProfileFor(pull));
             }
         }
-        foreach (var next in _state.Pulls.Values.Where(p => p.SeenInLatestExtractionList && p.ExtractionStartUtc <= now).ToArray())
-        {
-            var hours = ProfileFor(next).FieldLifetimeHours;
-            if (hours <= 0) hours = 48;
-            if (next.ExtractionStartUtc.AddHours(hours) <= now) continue;
-            // A restart is an inference, not a confirmed fracture. Do not duplicate a known prior pull.
-            if (_state.Pulls.Values.Any(p => p.StructureId == next.StructureId && p.Id != next.Id &&
-                p.ChunkArrivalUtc <= next.ExtractionStartUtc &&
-                p.ChunkArrivalUtc >= next.ExtractionStartUtc.AddHours(-hours))) continue;
-            FindOrCreateLedgerPull(next.StructureId, next.ExtractionStartUtc.UtcDateTime.Date);
-        }
+        // An extraction schedule does not prove a previous rock field existed.
+        // Only mining-ledger evidence may reconstruct a previously unseen field.
     }
 
     private void EvaluateExpiredFields(DateTimeOffset now)
@@ -908,7 +920,7 @@ public sealed class MoonReportService : IDisposable
         var cards = new List<MoonCardView>();
         var audit = new List<MoonAuditView>();
 
-        foreach (MoonProfile profile in _state.Profiles.Values.Where(p => Imported(p.MoonName)))
+        foreach (MoonProfile profile in _state.Profiles.Values.Where(VisibleProfile))
         {
             MoonPullRecord? pull = SelectCardPull(profile.MoonId, now);
 
@@ -921,7 +933,7 @@ public sealed class MoonReportService : IDisposable
         }
 
         foreach (MoonPullRecord pull in _state.Pulls.Values
-                     .Where(p => Imported(p.MoonName) && p.ExpiredUtc.HasValue)
+                     .Where(p => VisiblePull(p) && p.ExpiredUtc.HasValue)
                      .OrderByDescending(p => p.ExpiredUtc))
         {
             audit.Add(BuildAudit(pull, ProfileFor(pull)));
@@ -936,7 +948,7 @@ public sealed class MoonReportService : IDisposable
         MoonAuditView[] auditRows = audit.ToArray();
         DateTimeOffset calendarCutoff = now.AddDays(-HistoryRetentionDays);
         MoonCardView[] calendarCards = _state.Pulls.Values
-            .Where(pull => Imported(pull.MoonName) && pull.ChunkArrivalUtc >= calendarCutoff)
+            .Where(pull => VisiblePull(pull) && pull.ChunkArrivalUtc >= calendarCutoff)
             .Select(pull => BuildCard(ProfileFor(pull), pull, now))
             .OrderBy(card => card.ScheduleUtc)
             .ToArray();
@@ -948,7 +960,7 @@ public sealed class MoonReportService : IDisposable
 
         MoonPullRecord[] reliableExpired = _state.Pulls.Values
             .Where(p =>
-                Imported(p.MoonName) && p.ExpiredUtc.HasValue &&
+                VisiblePull(p) && p.ExpiredUtc.HasValue &&
                 !p.OutcomeUnobserved &&
                 ProfileFor(p).ProfileConfigured)
             .ToArray();
@@ -963,8 +975,13 @@ public sealed class MoonReportService : IDisposable
 
         return new MoonReportSnapshot
         {
-            Cycle = MoonCycle.Build(_state, now, p => new[] { "zeolit", "sylvit", "bitumen", "coesite" }.Sum(f => ProfileFor(p).ProfileConfigured ? Remaining(p, ProfileFor(p), f) : 0)),
+            Cycle = MoonCycle.Build(_state, now, p => new[] { "zeolit", "sylvit", "bitumen", "coesite" }.Sum(f => ProfileFor(p).ProfileConfigured ? Remaining(p, ProfileFor(p), f) : 0), VisiblePull),
             Fuel = BuildFuelRows(now),
+            FuelAlignment = StationFuelAlignment.Build(_state.Structures, _state.FuelAssets,
+                _state.TypeNames, _state.FuelAssetsUpdatedUtc, now),
+            FuelAlignmentTargetUtc = _state.Structures.Where(s => s.FuelExpires > now &&
+                s.Services.Any(x => x.Name.Contains("moon", StringComparison.OrdinalIgnoreCase)))
+                .Select(s => s.FuelExpires).Max(),
             FuelStatus = (_state.FuelUpdatedUtc is { } updated ? $"Expiry data: {updated:dd MMM HH:mm} UTC. " : "Refresh ESI to load fuel. ") + _state.FuelQuantityStatus,
             LastRefreshUtc = _state.LastRefreshUtc,
             GeneratedUtc = now,
@@ -974,6 +991,7 @@ public sealed class MoonReportService : IDisposable
             ScheduledCount = calendarCards.Count(c => c.Status == "SCHEDULED"),
             ReadyCount = calendarCards.Count(c => c.Status == "READY"),
             ActiveFieldCount = calendarCards.Count(c => c.Status == "FIELD ACTIVE"),
+            InferredFieldCount = calendarCards.Count(c => c.Status == "FIELD INFERRED"),
             TargetDespawnCount =
                 auditRows.Count(a => a.Outcome == "ORE LEFT"),
             ZeolitesLostM3 = zeoLost,
@@ -1013,7 +1031,9 @@ public sealed class MoonReportService : IDisposable
                 StructureImageUri = StructureIcon(profile.StructureId),
                 MoonId = profile.MoonId,
                 StructureId = profile.StructureId,
-                MoonName = First(profile.StructureName, First(profile.MoonName, $"Moon {profile.MoonId}")),
+                MoonName = Imported(profile.MoonName)
+                    ? First(profile.StructureName, profile.MoonName)
+                    : First(profile.MoonName, $"Moon {profile.MoonId}"),
                 StructureName = profile.StructureName,
                 SystemName = profile.SystemName,
                 Status = "IDLE",
@@ -1049,9 +1069,12 @@ public sealed class MoonReportService : IDisposable
         }
         else if (pull.FracturedUtc.HasValue && !pull.ExpiredUtc.HasValue)
         {
-            status = "FIELD ACTIVE";
-            brush = "#81C784";
-            label = "FIELD EXPIRES";
+            // ESI has no 'field exists' endpoint. Only recent mining supports an
+            // observed field label; all other field estimates remain unconfirmed.
+            bool observed = RecentlyMined(pull, now);
+            status = observed ? "FIELD ACTIVE" : "FIELD INFERRED";
+            brush = observed ? "#81C784" : "#90A4AE";
+            label = "EST. FIELD EXPIRES";
             value = pull.EstimatedFieldExpiryUtc.HasValue
                 ? DateAndRelative(pull.EstimatedFieldExpiryUtc.Value, now)
                 : "Unknown";
@@ -1109,7 +1132,8 @@ public sealed class MoonReportService : IDisposable
             Evidence = pull.Id.StartsWith("ledger-field:") ? "Inferred from extraction restart / ledger" : "Estimated fracture from extraction history | estimated field lifetime",
             MoonId = pull.MoonId,
             StructureId = pull.StructureId,
-            MoonName = First(profile.StructureName, First(pull.MoonName, profile.MoonName)),
+            MoonName = Imported(profile.MoonName) ? First(profile.StructureName, profile.MoonName)
+                : First(pull.MoonName, profile.MoonName),
             StructureName = First(pull.StructureName, profile.StructureName),
             SystemName = First(pull.SystemName, profile.SystemName),
             Status = targetLeft ? "TARGET LEFT" : status,
@@ -1324,7 +1348,8 @@ public sealed class MoonReportService : IDisposable
             TotalMined = FormatM3(Mined(pull, "zeolit") + Mined(pull, "sylvit") + Mined(pull, "bitumen") + Mined(pull, "coesite")),
             TotalLeft = reliable ? FormatM3(zeoLeft + sylviteLeft + bitumensLeft + coesiteLeft) : "Unknown",
 
-            MoonName = First(profile.StructureName, First(pull.MoonName, profile.MoonName)),
+            MoonName = Imported(profile.MoonName) ? First(profile.StructureName, profile.MoonName)
+                : First(pull.MoonName, profile.MoonName),
             StructureName = First(pull.StructureName, profile.StructureName),
             SystemName = First(pull.SystemName, profile.SystemName),
             Fractured = pull.FracturedUtc?.ToLocalTime()
@@ -1854,6 +1879,8 @@ public sealed class MoonReportService : IDisposable
         // Keep older V0.4-V0.6 state files forward-compatible. JSON can contain
         // explicit nulls even though the model properties have initializers.
         _state.ImportedMoonNames ??= new();
+        _state.EsiKnownMoonIds ??= new();
+        _state.EsiKnownStructureIds ??= new();
         _state.Profiles ??= new();
         _state.PendingProfilesByMoonName ??=
             new(StringComparer.OrdinalIgnoreCase);
@@ -1887,6 +1914,15 @@ public sealed class MoonReportService : IDisposable
     internal static string NormalizeImportedMoon(string? value) => NormalizeMoonName(value);
     private bool Imported(string? moonName) => HasImportedMoonList &&
         _state.ImportedMoonNames.Contains(NormalizeMoonName(moonName), StringComparer.Ordinal);
+    private bool VisibleProfile(MoonProfile p) => Imported(p.MoonName) ||
+        (p.MoonId > 0 && _state.EsiKnownMoonIds.Contains(p.MoonId)) ||
+        (p.StructureId > 0 && _state.EsiKnownStructureIds.Contains(p.StructureId));
+    private bool VisiblePull(MoonPullRecord p) => Imported(p.MoonName) ||
+        (p.MoonId > 0 && _state.EsiKnownMoonIds.Contains(p.MoonId)) ||
+        (p.StructureId > 0 && _state.EsiKnownStructureIds.Contains(p.StructureId));
+    private bool RecentlyMined(MoonPullRecord pull, DateTimeOffset now) =>
+        _state.LedgerHistory.Values.Any(r => r.PullId == pull.Id && r.VolumeM3 > 0 &&
+            r.Date >= now.UtcDateTime.Date.AddDays(-1));
     private async Task SaveStateAsync()
     {
         string temp = _stateFile + ".tmp";
@@ -1974,7 +2010,7 @@ public sealed class MoonReportService : IDisposable
     private static string ProfileOreSummary(MoonProfile profile)
     {
         if (!profile.ProfileConfigured)
-            return "ORE PROFILE NEEDED";
+            return "UNCONFIGURED - optional CSV ore profile";
         var parts = new List<string>();
         if (profile.ZeolitesPercent > 0)
             parts.Add($"ZEO {profile.ZeolitesPercent:0.#}%");

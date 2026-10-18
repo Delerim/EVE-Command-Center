@@ -203,6 +203,7 @@ internal static partial class Program
         CheckFitStacking();
         CheckSaberlashFit().GetAwaiter().GetResult();
         CheckCycleAndFuel();
+        CheckFuelAlignment();
         CheckReleaseMonitor().GetAwaiter().GetResult();
         CheckAccessAsync().GetAwaiter().GetResult();
         var moonSnapshot = CheckMoonRecovery();
@@ -423,9 +424,9 @@ internal static partial class Program
         var moonWindow = new MoonReportWindow();
         BackgroundOperations.Stop();
         typeof(MoonReportWindow).GetMethod("ApplySnapshot", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!.Invoke(moonWindow, new object[] { moonSnapshot });
-        Check(((DataGrid)moonWindow.FindName("OverviewFields")).Items.Count == 4, "Moon overview binds all four active fields");
+        Check(((DataGrid)moonWindow.FindName("OverviewFields")).Items.Count == 0, "Moon overview excludes unsupported historical active-field guesses");
         ((ComboBox)moonWindow.FindName("OverviewSystem")).SelectedItem = "TestOne";
-        Check(((DataGrid)moonWindow.FindName("OverviewFields")).Items.Count == 2, "System selector filters active fields");
+        Check(((DataGrid)moonWindow.FindName("OverviewFields")).Items.Count == 0, "System selector keeps unsupported fields out of active view");
         ((ComboBox)moonWindow.FindName("OverviewSystem")).SelectedItem = "All systems";
         if (args.Length > 0) Render(moonWindow, System.IO.Path.ChangeExtension(args[0], ".moons.png"));
         if (args.Length > 0)
@@ -632,8 +633,9 @@ internal static partial class Program
         var now = DateTimeOffset.UtcNow;
         var state = new MoonReportState
         {
-            MoonCsvImported = true,
-            ImportedMoonNames = new() { "testonemoon1", "testonemoon2", "testtwomoon3", "testtwomoon4" }
+            MoonCsvImported = false,
+            EsiKnownMoonIds = new() { 1, 2, 3, 4 },
+            EsiKnownStructureIds = new() { 1, 2, 3, 4 }
         };
         for (int i = 1; i <= 4; i++)
         {
@@ -661,14 +663,13 @@ internal static partial class Program
             Check(snapshot.Fuel.Count==4 && snapshot.Fuel.Single(s=>s.StructureId==2).Quantity.Contains("2,000"), "Fuel snapshot joins bay quantities to the correct structure");
             Check(snapshot.CalendarCards.Where(c=>c.StructureId is >=1 and <=4).All(c=>c.StructureImageUri.Contains("35835")), "Moon icons use actual structure type IDs");
             var fields = snapshot.Cards.Where(c => c.MoonId is >= 1 and <= 4 && c.Status == "FIELD ACTIVE").ToArray();
-            Check(fields.Length == 4, "Four active fields survive new extraction and missing mining activity");
-            Check(fields.All(c => c.RemainingTotalM3 > 0), "Recovered fields retain ore estimates without ledger activity");
-            Check(fields.Count(c => c.Evidence.StartsWith("Inferred")) == 2, "Restart inference is labelled separately from known history");
+            Check(fields.Length == 0, "Extraction schedules alone never invent currently active fields");
+            Check(snapshot.InferredFieldCount >= 1, "Estimated historical fields remain separately labelled, not counted as observed");
             Check(snapshot.CalendarCards.Count(c => c.Status == "SCHEDULED" && c.MoonId <= 4) == 4, "Active fields do not erase upcoming extraction schedules");
             Check(service.GetSnapshot().CalendarCards.Count == snapshot.CalendarCards.Count, "Repeated snapshots do not duplicate recovered fields");
             var expired = (MoonReportSnapshot)typeof(MoonReportService).GetMethod("BuildSnapshot", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!.Invoke(service, new object[] { now.AddDays(3) })!;
             Check(expired.ActiveFieldCount == 0, "Recovered and observed fields expire without mining activity");
-            Check(expired.Audit.Count >= 4, "Expired fields enter the despawn audit");
+            Check(expired.Audit.Count >= 1, "Observed/estimated expired fields remain available for auditing");
             return snapshot;
         }
         finally { System.IO.File.Delete(file); System.IO.Directory.Delete(directory); }

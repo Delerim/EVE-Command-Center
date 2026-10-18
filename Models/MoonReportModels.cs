@@ -22,6 +22,9 @@ public sealed class MoonReportState
     // Per-user opt-in. Existing legacy data is never displayed until an explicit CSV import.
     public bool MoonCsvImported { get; set; }
     public List<string> ImportedMoonNames { get; set; } = new();
+    // ESI-discovered identifiers are per-reader, not bundled moon data.
+    public HashSet<long> EsiKnownMoonIds { get; set; } = new();
+    public HashSet<long> EsiKnownStructureIds { get; set; } = new();
     public Dictionary<long, MoonProfile> Profiles { get; set; } = new();
     public Dictionary<string, MoonProfile> PendingProfilesByMoonName { get; set; } =
         new(StringComparer.OrdinalIgnoreCase);
@@ -103,6 +106,10 @@ public sealed class MoonLedgerRecord
     public DateTimeOffset LastSeenUtc { get; set; }
 }
 
+public sealed record FuelAlignmentRow(
+    long StructureId, string StructureName, string ExpiresText,
+    string BurnPerHour, string FuelToAdd, string DataBasis);
+
 public sealed class MoonReportSnapshot
 {
     public MoonCycleSummary Cycle { get; init; } = new();
@@ -118,6 +125,10 @@ public sealed class MoonReportSnapshot
         Array.Empty<MoonAuditView>();
     public int ScheduledCount { get; init; }
     public int ReadyCount { get; init; }
+    // Active means recent mining-ledger evidence and an unexpired estimated field.
+    public int InferredFieldCount { get; init; }
+    public IReadOnlyList<FuelAlignmentRow> FuelAlignment { get; init; } = Array.Empty<FuelAlignmentRow>();
+    public DateTimeOffset? FuelAlignmentTargetUtc { get; init; }
     public int ActiveFieldCount { get; init; }
     public int TargetDespawnCount { get; init; }
     public double ZeolitesLostM3 { get; init; }

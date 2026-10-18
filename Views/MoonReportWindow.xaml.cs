@@ -217,6 +217,12 @@ public partial class MoonReportWindow : Window
         JackpotText.Text = snapshot.Cycle.Start.HasValue ? snapshot.Cycle.Jackpots.ToString("N0") : "--";
         DespawnText.Text = snapshot.Cycle.Start.HasValue ? snapshot.Cycle.ExpiredWithOre.ToString("N0") : "--";
         FuelGrid.ItemsSource = snapshot.Fuel;
+        FuelAlignmentGrid.ItemsSource = snapshot.FuelAlignment;
+        FuelAlignmentSummary.Text = snapshot.FuelAlignmentTargetUtc is { } target
+            ? "ALIGN FUEL TO " + target.ToLocalTime().ToString("dd MMM yyyy HH:mm") +
+              " (local) | " + snapshot.FuelAlignment.Count(r => r.FuelToAdd.StartsWith("~")) +
+              " stations may need additional blocks"
+            : "FUEL ALIGNMENT | Refresh ESI to choose the latest expiry target";
         FuelSummary.Text = $"{snapshot.Fuel.Count:N0} structures | {snapshot.Fuel.Count(s => s.NeedsFuel):N0} below 80 days | {snapshot.Fuel.Count(s => s.Days == null):N0} unknown";
         FuelStatus.Text = snapshot.FuelStatus;
         AuditGrid.ItemsSource = snapshot.Audit;
@@ -243,6 +249,7 @@ public partial class MoonReportWindow : Window
         }
         bool InSystem(MoonCardView c) => selectedSystem == "All systems" || c.SystemName == selectedSystem;
         var fields = _snapshot.CalendarCards.Where(c => c.Status == "FIELD ACTIVE" && InSystem(c)).OrderBy(c => c.FieldExpiry).ToArray();
+        int inferred = _snapshot.CalendarCards.Count(c => c.Status == "FIELD INFERRED" && InSystem(c));
         var upcoming = _snapshot.CalendarCards.Where(c => c.Status is "SCHEDULED" or "READY").OrderBy(c => c.ScheduleUtc).ToArray();
         var selected = _selectedOverviewCard?.PullId;
         var visibleUpcoming = upcoming.Where(InSystem).Take(20).ToArray();
@@ -253,7 +260,7 @@ public partial class MoonReportWindow : Window
             OverviewUpcoming.SelectedItem = selectedUpcoming;
         else
             OverviewFields.SelectedItem = fields.FirstOrDefault(c => c.PullId == selected) ?? fields.FirstOrDefault();
-        OverviewSummary.Text = $"{fields.Length} active fields   |   {upcoming.Count(c => c.Status == "READY" && InSystem(c))} ready to fracture   |   {MoonReportService.FormatM3(fields.Sum(c => c.RemainingTotalM3))} estimated R4 ore left";
+        OverviewSummary.Text = $"{fields.Length} recently mined fields   |   {inferred} inferred (not counted as active)   |   {upcoming.Count(c => c.Status == "READY" && InSystem(c))} ready to fracture   |   {MoonReportService.FormatM3(fields.Sum(c => c.RemainingTotalM3))} estimated R4 ore left";
         var next = upcoming.FirstOrDefault(InSystem);
         var change = next == null ? null : upcoming.FirstOrDefault(c => c.ScheduleUtc > next.ScheduleUtc && c.SystemName != next.SystemName);
         OverviewNext.Text = next == null ? "No upcoming extraction in this system." : $"Next: {next.StructureName} | {next.ScheduleValue}" +
