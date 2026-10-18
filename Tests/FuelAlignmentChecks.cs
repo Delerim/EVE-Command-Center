@@ -88,5 +88,25 @@ internal static partial class Program
         Check(aligned.Single(r=>r.StructureId==12).FuelToAdd.Contains("+5") &&
               aligned.Single(r=>r.StructureId==12).FuelToAdd.Contains("10,290 total"),
             "Other reference stocks 5 blocks behind are topped up by one tick");
+
+        // A DIFFERENT-RATE structure with a larger fuel bay expires at the
+        // same time as the normal reference. It must never hijack the ~5/h
+        // reference and push Pelkia into time-based estimates again.
+        var crossRateStructures = large.Concat(new[] { Make(15, 2058) }).ToArray();
+        var crossRateFuel = largeFuel.Concat(new[] { Fuel(15, 20580) }).ToArray();
+        var separateGroups = StationFuelAlignment.Build(crossRateStructures,
+            crossRateFuel, types, now, now);
+        Check(separateGroups.Single(r=>r.StructureId==13).FuelToAdd == "+7,940 blocks | 10,290 total" &&
+              separateGroups.Single(r=>r.StructureId==14).FuelToAdd == "+7,845 blocks | 10,290 total",
+            "A fuller, different-rate reference cannot distort the Pelkia stock target");
+        Check(separateGroups.Single(r=>r.StructureId==15).FuelToAdd == "Aligned",
+            "Other-rate reference remains aligned but separate");
+        // If there is no genuinely comparable reference, retain an explicitly
+        // estimated fallback instead of pretending different burn rates match.
+        var withoutComparable = StationFuelAlignment.Build(
+            new[] { Make(15,2058), Make(13,470) },
+            new[] { Fuel(15,20580), Fuel(13,2350) }, types, now, now);
+        Check(withoutComparable.Single(r=>r.StructureId==13).DataBasis.Contains("No comparable-rate reference"),
+            "No matching reference is labelled as an estimate, not exact stock alignment");
     }
 }

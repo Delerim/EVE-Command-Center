@@ -69,20 +69,19 @@ public static class StationFuelAlignment
         bool fresh = assetsUpdatedUtc.HasValue &&
             Math.Abs((now - assetsUpdatedUtc.Value).TotalMinutes) <= 120;
 
-        // The ESI snapshot may contain several stations with the same (or almost
-        // the same) latest expiry, yet stock differs by one five-block fuel tick.
-        // Choose the FULLER station as the stock reference (10,290, not 10,285).
-        FuelReading? reference = null;
-        if (fresh && target.HasValue)
-        {
-            reference = stations.Where(s => s.FuelExpires.HasValue &&
+        // Different moon drills can consume fuel at different rates. A single
+        // globally "fullest" station is NOT a valid reference for every drill.
+        // Keep all valid near-target readings, then choose a compatible-rate
+        // reference separately for each station. For a ~5 blocks/hour drill,
+        // an unrelated ~10 blocks/hour reference must never hijack the target.
+        FuelReading[] referencePool = fresh && target.HasValue
+            ? stations.Where(s => s.FuelExpires.HasValue &&
                     s.FuelExpires <= target &&
                     target.Value - s.FuelExpires.Value <= TimeSpan.FromHours(1.5))
                 .Select(s => GetReading(s, assets, typeNames, now))
-                .Where(r => r != null)
-                .OrderByDescending(r => r!.Blocks)
-                .FirstOrDefault();
-        }
+                .OfType<FuelReading>()
+                .ToArray()
+            : Array.Empty<FuelReading>();
 
         return stations.Select(s =>
         {
@@ -105,11 +104,16 @@ public static class StationFuelAlignment
                 return new FuelAlignmentRow(s.StructureId, station, expires,
                     "Unavailable", "Unknown", "Fuel inventory or implied rate unavailable");
 
+            // Select the fullest *compatible* reference, not the global
+            // largest stock. Rates come from one ESI snapshot and are estimates.
+            FuelReading? reference = referencePool
+                .Where(r => Math.Abs(reading.RatePerHour - r.RatePerHour) <=
+                    Math.Max(reading.RatePerHour, r.RatePerHour) * MatchingRateTolerance)
+                .OrderByDescending(r => r.Blocks)
+                .FirstOrDefault();
             long toAdd;
             string basis;
             bool matchesReference = reference != null &&
-                Math.Abs(reading.RatePerHour - reference.RatePerHour) <=
-                Math.Max(reading.RatePerHour, reference.RatePerHour) * MatchingRateTolerance &&
                 reading.Blocks <= reference.Blocks;
             if (matchesReference)
             {
@@ -127,9 +131,9 @@ public static class StationFuelAlignment
                     return new FuelAlignmentRow(s.StructureId, station, expires,
                         "Unavailable", "Unknown", "Cannot estimate time-based top-up");
                 toAdd = RoundUpToBlocksOfFive(rough.Value);
-                basis = reference == null
+                basis = referencePool.Length == 0
                     ? "No valid stock reference; time-based estimate"
-                    : "Fuel rate differs from reference; time-based estimate";
+                    : "No comparable-rate reference; time-based estimate";
             }
             long finalStock = checked(reading.Blocks + toAdd);
             return new FuelAlignmentRow(s.StructureId, station, expires,
