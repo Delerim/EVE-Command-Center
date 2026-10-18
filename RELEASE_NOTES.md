@@ -1,3 +1,11 @@
+# EVE Command Center v3.6.67
+
+- Restore a clearly labelled **BACKUP** section in App Settings, beside Alerts, making the existing Google Drive backup and recovery tool easy to find.
+- One click opens the original Google Drive Backup window for browser-based Google sign-in, connection status, manual backup, automatic backup interval, and restore/restart.
+- Preserve the established Google OAuth and Windows Credential Manager integration. No additional authentication flow, token exports, or duplicate backup storage is introduced.
+- Clarify that the toolbar **Backup** command handles local layout/profile configuration, not the Google Drive backup.
+- All backup and restore operations remain opt-in and handled by the existing CloudBackupService. Restoration still shows its safety and restart prompts.
+
 # EVE Command Center v3.6.66
 
 - New Moon Operations Intelligence dashboard: recorded weekly/monthly fractures, observed vs inferred fields, structure/unscheduled drill counts, estimated remaining R4 ore by type, despawn loss estimates and fleet fuel health.

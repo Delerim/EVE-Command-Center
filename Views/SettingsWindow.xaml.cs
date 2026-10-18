@@ -229,7 +229,7 @@ public partial class SettingsWindow : Window
     // ══════════════════════════════════════════════════════════════
     //  NAVIGATION
     // ══════════════════════════════════════════════════════════════
-    private readonly string[] _panels = { "General","Thumbnails","Layout","Hotkeys","Colors","Groups","Alerts","Sounds","Visibility","Client","Performance","FPSLimiter","StatsOverlay","EVEManager","About","Debug","Crop" };
+    private readonly string[] _panels = { "General","Thumbnails","Layout","Hotkeys","Colors","Groups","Alerts","Backup","Sounds","Visibility","Client","Performance","FPSLimiter","StatsOverlay","EVEManager","About","Debug","Crop" };
 
     private void NavButton_Click(object sender, RoutedEventArgs e)
     {
@@ -240,6 +240,15 @@ public partial class SettingsWindow : Window
     private void OnConfigureDiscord(object sender, RoutedEventArgs e)
     {
         var dialog = new DiscordWebhookSettingsWindow();
+        if (IsVisible) dialog.Owner = this;
+        dialog.ShowDialog();
+    }
+
+    private void OnOpenCloudBackup(object sender, RoutedEventArgs e)
+    {
+        // Reuse the original Google Drive backup and recovery UI. Do not create
+        // a second OAuth client, backup store, or independent restore flow.
+        var dialog = new CloudBackupWindow();
         if (IsVisible) dialog.Owner = this;
         dialog.ShowDialog();
     }

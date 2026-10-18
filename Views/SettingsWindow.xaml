@@ -282,6 +282,8 @@
                     <Button x:Name="NavColors" Content="{DynamicResource L.Nav.Colors}" Click="NavButton_Click" Tag="Colors" Style="{StaticResource NavBtn}"/>
                     <Button x:Name="NavGroups" Content="{DynamicResource L.Nav.Groups}" Click="NavButton_Click" Tag="Groups" Style="{StaticResource NavBtn}"/>
                     <Button x:Name="NavAlerts" Content="{DynamicResource L.Nav.Alerts}" Click="NavButton_Click" Tag="Alerts" Style="{StaticResource NavBtn}"/>
+                    <Button x:Name="NavBackup" Content="Backup" Click="NavButton_Click" Tag="Backup" Style="{StaticResource NavBtn}"
+                            ToolTip="Google Drive backup, restore and automatic backups"/>
                     <Button x:Name="NavSounds" Content="{DynamicResource L.Nav.Sounds}" Click="NavButton_Click" Tag="Sounds" Style="{StaticResource NavBtn}"/>
                     <Button x:Name="NavVisibility" Content="{DynamicResource L.Nav.Visibility}" Click="NavButton_Click" Tag="Visibility" Style="{StaticResource NavBtn}"/>
                     <Button x:Name="NavClient" Content="{DynamicResource L.Nav.Client}" Click="NavButton_Click" Tag="Client" Style="{StaticResource NavBtn}"/>
@@ -860,6 +862,27 @@
                                         Background="{StaticResource AccentBrush}" Foreground="White" BorderThickness="0"/>
                             </StackPanel>
                         </StackPanel>
+                    </GroupBox>
+                </StackPanel>
+
+                <!-- BACKUP | Access the existing Google Drive cloud recovery tool -->
+                <StackPanel x:Name="PanelBackup" Visibility="Collapsed">
+                    <TextBlock Text="BACKUP &amp; RESTORE" FontSize="18" FontWeight="Bold" Foreground="{StaticResource AccentBrush}" Margin="0,0,0,4"/>
+                    <TextBlock Text="Safeguard your EVE Command Center data using your own Google Drive account."
+                               TextWrapping="Wrap" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,16"/>
+                    <GroupBox Header="Google Drive cloud backup">
+                        <StackPanel>
+                            <TextBlock Text="Connect or reconnect Google, view backup status, back up now, configure automatic backups, or restore an existing backup to this PC."
+                                       TextWrapping="Wrap" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,12"/>
+                            <Button Content="OPEN GOOGLE DRIVE BACKUP / RESTORE" Click="OnOpenCloudBackup"
+                                    HorizontalAlignment="Left" Padding="14,8" FontWeight="SemiBold"/>
+                            <TextBlock Text="Opens the existing backup manager. Google and EVE sign-in secrets remain in Windows Credential Manager and are not stored in Google Drive backups."
+                                       TextWrapping="Wrap" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,12,0,0"/>
+                        </StackPanel>
+                    </GroupBox>
+                    <GroupBox Header="About the top toolbar Backup button" Margin="0,14,0,0">
+                        <TextBlock Text="The Backup button at the top of App Settings saves local layout/profile configuration. It is different from this Google Drive cloud backup."
+                                   TextWrapping="Wrap" Foreground="{StaticResource TextSecondaryBrush}"/>
                     </GroupBox>
                 </StackPanel>
 
