@@ -137,7 +137,7 @@
     <TextBlock x:Name="FuelStatus" DockPanel.Dock="Bottom" Foreground="#8FB2B5" TextWrapping="Wrap" Margin="0,12,0,0"/>
     <StackPanel DockPanel.Dock="Bottom" Margin="0,10,0,6">
       <TextBlock x:Name="FuelAlignmentSummary" Foreground="#55D7D2" FontWeight="SemiBold" FontSize="15"/>
-      <TextBlock Text="Top-ups are estimates based on matching ESI fuel-block quantities and expiry timestamps, not authoritative burn rates. Verify actual service consumption before refuelling." Foreground="#8FB2B5" Margin="0,4,0,8" TextWrapping="Wrap"/>
+      <TextBlock Text="Matching-rate stations use the latest-expiring reference fuel total (five-block steps). Other rates use an estimated time-based top-up. Verify actual service consumption before refuelling." Foreground="#8FB2B5" Margin="0,4,0,8" TextWrapping="Wrap"/>
       <DataGrid x:Name="FuelAlignmentGrid" Height="210" IsReadOnly="True" AutoGenerateColumns="False" AlternationCount="2" EnableRowVirtualization="True">
         <DataGrid.Columns>
           <DataGridTextColumn Header="STATION" Binding="{Binding StructureName}" Width="2*"/>

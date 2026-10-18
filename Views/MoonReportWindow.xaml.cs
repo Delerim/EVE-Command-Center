@@ -220,7 +220,7 @@ public partial class MoonReportWindow : Window
         FuelAlignmentGrid.ItemsSource = snapshot.FuelAlignment;
         FuelAlignmentSummary.Text = snapshot.FuelAlignmentTargetUtc is { } target
             ? "ALIGN FUEL TO " + target.ToLocalTime().ToString("dd MMM yyyy HH:mm") +
-              " (local) | " + snapshot.FuelAlignment.Count(r => r.FuelToAdd.StartsWith("~")) +
+              " (local) | " + snapshot.FuelAlignment.Count(r => r.FuelToAdd.StartsWith("+")) +
               " stations may need additional blocks"
             : "FUEL ALIGNMENT | Refresh ESI to choose the latest expiry target";
         FuelSummary.Text = $"{snapshot.Fuel.Count:N0} structures | {snapshot.Fuel.Count(s => s.NeedsFuel):N0} below 80 days | {snapshot.Fuel.Count(s => s.Days == null):N0} unknown";
