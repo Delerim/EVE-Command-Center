@@ -11,7 +11,7 @@ namespace EveCommandCenter.Services;
 public static class StationFuelAlignment
 {
     private const long BlockStep = 5;
-    private const double MatchingRateTolerance = 0.02; // tolerate ESI timestamp/quantity skew
+    private const double MatchingRateTolerance = 0.05; // tolerate small ESI stock/expiry snapshot timing skew
     private sealed record FuelReading(long Blocks, double RatePerHour);
 
     public static long? BlocksToAlign(DateTimeOffset? expires, DateTimeOffset? target,
@@ -36,11 +36,15 @@ public static class StationFuelAlignment
         DateTimeOffset now)
     {
         if (structure.FuelExpires is not { } expiry || expiry <= now) return null;
+        // A refinery fuel bay can also contain service materials or unrelated items.
+        // Only genuine fuel blocks belong in the expiry alignment calculation.
+        // Reject ambiguous mixes of different fuel block types, not other bay cargo.
         var bay = assets.Where(a => a.LocationId == structure.StructureId &&
-            a.LocationFlag == "StructureFuel").ToArray();
-        if (bay.Length == 0 || bay.Select(a => a.TypeId).Distinct().Count() != 1 ||
-            bay.Any(a => !typeNames.TryGetValue(a.TypeId, out var name) ||
-                !name.Contains("Fuel Block", StringComparison.OrdinalIgnoreCase))) return null;
+            a.LocationFlag == "StructureFuel" &&
+            typeNames.TryGetValue(a.TypeId, out var name) &&
+            name.Contains("Fuel Block", StringComparison.OrdinalIgnoreCase)).ToArray();
+        if (bay.Length == 0 || bay.Select(a => a.TypeId).Distinct().Count() != 1)
+            return null;
 
         long blocks = bay.Sum(a => a.Quantity);
         double hoursRemaining = (expiry - now).TotalHours;
@@ -91,7 +95,7 @@ public static class StationFuelAlignment
                     "Unavailable", "Unknown", "Missing or expired ESI fuel expiry");
             if (s.FuelExpires >= target)
                 return new FuelAlignmentRow(s.StructureId, station, expires,
-                    "Reference", "0 / aligned", "Latest expiry target");
+                    "Reference", "Aligned", "Latest expiry target");
             if (!fresh)
                 return new FuelAlignmentRow(s.StructureId, station, expires,
                     "Unavailable", "Unknown", "Fresh ESI fuel-bay snapshot required");
@@ -125,15 +129,15 @@ public static class StationFuelAlignment
                 toAdd = RoundUpToBlocksOfFive(rough.Value);
                 basis = reference == null
                     ? "No valid stock reference; time-based estimate"
-                    : "Different rate or higher stock; time-based estimate";
+                    : "Fuel rate differs from reference; time-based estimate";
             }
             long finalStock = checked(reading.Blocks + toAdd);
             return new FuelAlignmentRow(s.StructureId, station, expires,
                 $"~{reading.RatePerHour:0.00}/h",
-                toAdd == 0 ? $"0 / aligned ({finalStock:N0} total)"
+                toAdd == 0 ? "Aligned"
                     : $"+{toAdd:N0} blocks | {finalStock:N0} total", basis);
         })
-        .OrderByDescending(r => r.FuelToAdd.StartsWith("0 /", StringComparison.Ordinal))
+        .OrderByDescending(r => r.FuelToAdd == "Aligned")
         .ThenBy(r => r.StructureName)
         .ToArray();
     }

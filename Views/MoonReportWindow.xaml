@@ -143,7 +143,21 @@
           <DataGridTextColumn Header="STATION" Binding="{Binding StructureName}" Width="2*"/>
           <DataGridTextColumn Header="EXPIRES (UTC)" Binding="{Binding ExpiresText}" Width="*"/>
           <DataGridTextColumn Header="IMPLIED BLOCKS/H" Binding="{Binding BurnPerHour}" Width="*"/>
-          <DataGridTextColumn Header="TOP-UP TO TARGET" Binding="{Binding FuelToAdd}" Width="*"/>
+          <DataGridTemplateColumn Header="TOP-UP TO TARGET" Width="*">
+            <DataGridTemplateColumn.CellTemplate><DataTemplate>
+              <TextBlock Text="{Binding FuelToAdd}" VerticalAlignment="Center">
+                <TextBlock.Style><Style TargetType="TextBlock">
+                  <Setter Property="Foreground" Value="#EAF7F7"/>
+                  <Style.Triggers>
+                    <DataTrigger Binding="{Binding FuelToAdd}" Value="Aligned">
+                      <Setter Property="Foreground" Value="#81C784"/>
+                      <Setter Property="FontWeight" Value="SemiBold"/>
+                    </DataTrigger>
+                  </Style.Triggers>
+                </Style></TextBlock.Style>
+              </TextBlock>
+            </DataTemplate></DataGridTemplateColumn.CellTemplate>
+          </DataGridTemplateColumn>
           <DataGridTextColumn Header="RELIABILITY" Binding="{Binding DataBasis}" Width="2*"/>
         </DataGrid.Columns>
       </DataGrid>

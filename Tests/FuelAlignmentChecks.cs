@@ -34,7 +34,7 @@ internal static partial class Program
         var structures = new[] {Make(1,100), Make(2,40), Make(3,50), Make(4,99), Make(5,40), Make(6,40)};
         var fuel = new[] {Fuel(1,500), Fuel(2,200), Fuel(4,495), Fuel(5,400)};
         var result = StationFuelAlignment.Build(structures, fuel, types, now, now);
-        Check(result.Single(r=>r.StructureId==1).FuelToAdd == "0 / aligned",
+        Check(result.Single(r=>r.StructureId==1).FuelToAdd == "Aligned",
             "Latest ESI expiry remains the reference");
         Check(result.Single(r=>r.StructureId==2).FuelToAdd.Contains("+300") &&
               result.Single(r=>r.StructureId==2).FuelToAdd.Contains("500 total"),
@@ -63,6 +63,28 @@ internal static partial class Program
         Check(aligned.Single(r=>r.StructureId==14).FuelToAdd.Contains("+7,845") &&
               aligned.Single(r=>r.StructureId==14).FuelToAdd.Contains("10,290 total"),
             "2,445 fuel blocks align by adding 7,845 to reach 10,290");
+        // A StructureFuel bay may also hold non-fuel materials; they must not
+        // disqualify the 10,290-block reference or change the fuel burn estimate.
+        var mixedReferenceBay = largeFuel.Concat(new[] {
+            new EveAssetItem { LocationId=11, LocationFlag="StructureFuel", TypeId=999,
+                Quantity=40 }
+        }).ToArray();
+        types[999] = "Strontium Clathrates";
+        var stillAligned = StationFuelAlignment.Build(large, mixedReferenceBay, types, now, now);
+        Check(stillAligned.Single(r=>r.StructureId==13).FuelToAdd.Contains("+7,940") &&
+              stillAligned.Single(r=>r.StructureId==13).FuelToAdd.Contains("10,290 total"),
+            "Non-fuel bay stock must not trigger a 7,960-block time-based top-up");
+        Check(stillAligned.Single(r=>r.StructureId==11).FuelToAdd == "Aligned",
+            "Reference station simply displays Aligned");
+        // Different fuel block types are ambiguous and must not be aggregated.
+        var incompatible = largeFuel.Concat(new[] {
+            new EveAssetItem { LocationId=13, LocationFlag="StructureFuel", TypeId=777,
+                Quantity=100 }
+        }).ToArray();
+        types[777] = "Other Fuel Block";
+        Check(StationFuelAlignment.Build(large, incompatible, types, now, now)
+              .Single(r=>r.StructureId==13).FuelToAdd == "Unknown",
+            "Mixed fuel block types cannot produce an invented exact top-up");
         Check(aligned.Single(r=>r.StructureId==12).FuelToAdd.Contains("+5") &&
               aligned.Single(r=>r.StructureId==12).FuelToAdd.Contains("10,290 total"),
             "Other reference stocks 5 blocks behind are topped up by one tick");

@@ -1,15 +1,15 @@
-# EVE Command Center v3.6.61
+# EVE Command Center v3.6.62
 
-- Corrected station-fuel alignment to use the latest-expiring reference station's actual fuel-block total when refinery consumption rates match.
-- Show both **fuel blocks to add** and the **resulting total**, aligned to five-block fuel increments rather than drifting with fractional ESI implied-rate estimates.
-- Keep differing burn rates, missing ESI data, and stale snapshots explicitly labelled as estimates or unavailable.
+- **Station fuel alignment:** Fix false extra fuel-block top-ups when reference fuel bays also contain non-fuel items. Only actual fuel blocks count toward the chosen reference total.
+- **Aligned status:** Replace the confusing `0 / aligned` label with a simple **Aligned** status displayed in green.
+- **Safer totals:** Keep fuel-block types separate, retain the fullest latest-expiring reference target, and show the add quantity and final total without stock-count drift.
 
-## Station fuel alignment correction
-- For a group of similarly consuming refineries, the fullest near-latest-expiring station establishes the stock target (for example, 10,290 fuel blocks rather than 10,285). A station with 2,350 blocks then shows **+7,940 blocks | 10,290 total**, while one with 2,445 shows **+7,845 blocks | 10,290 total**.
-- Reference stations already at the latest expiry remain aligned. Those one five-block tick behind show a five-block top-up where expiry confirms the difference.
-- Stations with materially different implied hourly consumption use their own time-based estimate, rounded up to a five-block step, rather than copying a potentially wrong fuel stock target.
-- Fuel quantities are based on recent, consistent ESI fuel-bay snapshots and are still **estimates**, not authoritative service burn-rate telemetry. Verify in-game before moving fuel.
+## Station fuel accuracy
+- Reference fuel inventory may coexist with other StructureFuel items. Those unrelated items no longer invalidate the reference and force a drifting time-based estimate.
+- For comparable five-block-per-hour moon drills with a 10,290-block reference total, adding 7,940 to a 2,350-block refinery produces 10,290 total; adding 7,845 to a 2,445-block refinery also produces 10,290.
+- The display for stations already at the target expiry simply reads **Aligned** in green. No unnecessary zero or slash.
+- Mixed fuel-block types, missing data and stale ESI fuel snapshots still cannot claim a reliable exact refuel quantity. Different burn rates are expressly labelled estimated rather than copied from another station.
 
-## Quality and compatibility
-- Regression tests now cover matching stock totals, one fuel-tick differences, different burn rates, missing or stale inventory, and the specific 2,350 / 2,445 versus 10,290 scenario.
-- No moon catalogue or private CSV values are included. This update preserves v3.6.60 ESI-first moon discovery, despawn auditing, the privacy-first local CSV overlay, Discord alerts, and existing operating data.
+## Reliability and regression coverage
+- Added checks for non-fuel stock alongside valid fuel blocks in the reference station, mixed fuel types, correctly aligned status, and both known Pelkia top-up scenarios.
+- All existing moon discovery, CSV privacy, despawn audit, Discord alerts and Combined Overview behavior remain unchanged.
