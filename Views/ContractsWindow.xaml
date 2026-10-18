@@ -61,7 +61,85 @@
     <DataGridTemplateColumn Header="JANICE" Width="75"><DataGridTemplateColumn.CellTemplate><DataTemplate><Button Content="VIEW" Click="Janice_Click" Padding="6,3"/></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
     <DataGridTemplateColumn Header="IN GAME" Width="82"><DataGridTemplateColumn.CellTemplate><DataTemplate><Button Content="OPEN" Click="Game_Click" Padding="6,3"/></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
    </DataGrid.Columns></DataGrid>
-  </DockPanel></TabItem><TabItem Header="ACCEPTORS" Background="#12383D" Foreground="#55D7D2"><DataGrid x:Name="AcceptorsGrid" Margin="10" AlternationCount="2"><DataGrid.Columns><DataGridTextColumn Header="ACCEPTOR REPORTED BY ESI" Binding="{Binding Name}" Width="2*"/><DataGridTextColumn Header="CONTRACTS ACCEPTED" Binding="{Binding Count}" Width="*"/><DataGridTextColumn Header="TOTAL PRICE (ISK)" Binding="{Binding Value, StringFormat=N2}" Width="*"/><DataGridTextColumn Header="LAST ACCEPTANCE" Binding="{Binding Last, StringFormat={}{0:dd MMM yyyy HH:mm}}" Width="*"/></DataGrid.Columns></DataGrid></TabItem><TabItem Header="BUYBACK REPORT" Background="#12383D" Foreground="#55D7D2"><Grid Margin="14"><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+  </DockPanel></TabItem><TabItem Header="ACCEPTORS" Background="#12383D" Foreground="#55D7D2"><DataGrid x:Name="AcceptorsGrid" Margin="10" AlternationCount="2"><DataGrid.Columns><DataGridTextColumn Header="ACCEPTOR REPORTED BY ESI" Binding="{Binding Name}" Width="2*"/><DataGridTextColumn Header="CONTRACTS ACCEPTED" Binding="{Binding Count}" Width="*"/><DataGridTextColumn Header="TOTAL PRICE (ISK)" Binding="{Binding Value, StringFormat=N2}" Width="*"/><DataGridTextColumn Header="LAST ACCEPTANCE" Binding="{Binding Last, StringFormat={}{0:dd MMM yyyy HH:mm}}" Width="*"/></DataGrid.Columns></DataGrid></TabItem><TabItem Header="BUYBACK ANALYTICS" Background="#12383D" Foreground="#55D7D2">
+ <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+  <StackPanel Margin="16">
+   <DockPanel Margin="0,0,0,12" LastChildFill="False">
+    <StackPanel DockPanel.Dock="Left"><TextBlock Text="BUYBACK INTELLIGENCE" Foreground="#55D7D2" FontSize="23" FontWeight="Bold"/>
+     <TextBlock Text="Verified ESI contract history, local archive, and indexed contract contents" Foreground="#8FB2B5" Margin="0,4,0,0"/></StackPanel>
+   </DockPanel>
+   <WrapPanel Margin="0,0,0,12">
+    <TextBlock Text="PERIOD" Foreground="#8FB2B5" VerticalAlignment="Center" Margin="0,0,10,0"/>
+    <ComboBox x:Name="AnalyticsPeriod" Width="115" SelectionChanged="AnalyticsChanged"><ComboBoxItem Content="Week"/><ComboBoxItem Content="Month" IsSelected="True"/><ComboBoxItem Content="Year"/><ComboBoxItem Content="Custom"/></ComboBox>
+    <Button Content="◀" Width="42" Margin="10,0,5,0" Click="AnalyticsPrevious_Click" ToolTip="Previous period"/>
+    <DatePicker x:Name="AnalyticsDate" Width="145" Style="{StaticResource CommandDatePicker}" SelectedDateChanged="AnalyticsChanged"/>
+    <Button Content="▶" Width="42" Margin="5,0,8,0" Click="AnalyticsNext_Click" ToolTip="Next period"/>
+    <Button Content="TODAY" Click="AnalyticsToday_Click" Margin="0,0,15,0"/>
+    <StackPanel x:Name="AnalyticsCustomDates" Orientation="Horizontal" Visibility="Collapsed" Margin="0,0,14,0">
+     <TextBlock Text="FROM" VerticalAlignment="Center" Foreground="#8FB2B5" Margin="0,0,5,0"/>
+     <DatePicker x:Name="AnalyticsFrom" Width="136" Style="{StaticResource CommandDatePicker}" SelectedDateChanged="AnalyticsChanged"/>
+     <TextBlock Text="TO" VerticalAlignment="Center" Foreground="#8FB2B5" Margin="10,0,5,0"/>
+     <DatePicker x:Name="AnalyticsTo" Width="136" Style="{StaticResource CommandDatePicker}" SelectedDateChanged="AnalyticsChanged"/>
+    </StackPanel>
+    <Button Content="EXPORT REPORT CSV" Click="AnalyticsExport_Click" Background="#17656A" BorderBrush="#55D7D2"/>
+   </WrapPanel>
+   <TextBlock x:Name="AnalyticsDatesText" Foreground="#8FB2B5" Margin="0,0,0,10"/>
+   <UniformGrid Columns="4" Margin="0,0,0,14">
+    <Border Background="#0D2B30" BorderBrush="#245058" BorderThickness="1" CornerRadius="9" Padding="15" Margin="0,0,6,0">
+     <StackPanel><TextBlock Text="ACCEPTED BUYBACK VALUE" Foreground="#8FB2B5"/><TextBlock x:Name="AnalyticsPaid" Foreground="#74D6C9" FontSize="25" FontWeight="Bold" Margin="0,7,0,5"/>
+      <TextBlock x:Name="AnalyticsChange" Foreground="#B4D9D8" TextWrapping="Wrap"/></StackPanel></Border>
+    <Border Background="#0D2B30" BorderBrush="#245058" BorderThickness="1" CornerRadius="9" Padding="15" Margin="6,0">
+     <StackPanel><TextBlock Text="COMPLETED BUYBACKS" Foreground="#8FB2B5"/><TextBlock x:Name="AnalyticsCount" Foreground="#55D7D2" FontSize="25" FontWeight="Bold" Margin="0,7,0,5"/>
+      <TextBlock x:Name="AnalyticsCountChange" Foreground="#B4D9D8"/></StackPanel></Border>
+    <Border Background="#0D2B30" BorderBrush="#245058" BorderThickness="1" CornerRadius="9" Padding="15" Margin="6,0">
+     <StackPanel><TextBlock Text="KNOWN CONTENT VOLUME" Foreground="#8FB2B5"/><TextBlock x:Name="AnalyticsVolume" Foreground="#EAF7F7" FontSize="25" FontWeight="Bold" Margin="0,7,0,5"/>
+      <TextBlock x:Name="AnalyticsCoverage" Foreground="#FFD166" TextWrapping="Wrap"/></StackPanel></Border>
+    <Border Background="#0D2B30" BorderBrush="#6F5A2C" BorderThickness="1" CornerRadius="9" Padding="15" Margin="6,0,0,0">
+     <StackPanel><TextBlock Text="CONTRACTS NEEDING ACTION" Foreground="#C9B784"/><TextBlock x:Name="AnalyticsPending" Foreground="#FFD166" FontSize="25" FontWeight="Bold" Margin="0,7,0,5"/>
+      <TextBlock x:Name="AnalyticsPendingDetail" Foreground="#B4D9D8" TextWrapping="Wrap"/></StackPanel></Border>
+   </UniformGrid>
+   <Grid Margin="0,0,0,14">
+    <Grid.ColumnDefinitions><ColumnDefinition Width="1.3*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+    <Border Grid.Column="0" Background="#0C2529" BorderBrush="#245058" BorderThickness="1" CornerRadius="9" Padding="14" Margin="0,0,6,0">
+     <StackPanel><TextBlock Text="ISK VALUE OVER TIME" Foreground="#55D7D2" FontWeight="Bold" FontSize="16"/>
+      <TextBlock Text="Bars show accepted contract value; hover for dates, ISK and contract counts" Foreground="#8FB2B5" Margin="0,4,0,10"/>
+      <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+       <ItemsControl x:Name="AnalyticsBars"><ItemsControl.ItemsPanel><ItemsPanelTemplate><StackPanel Orientation="Horizontal"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+        <ItemsControl.ItemTemplate><DataTemplate><StackPanel Width="38" Margin="2,0" ToolTip="{Binding Tooltip}"><Grid Height="160"><Border Width="23" Height="{Binding Height}" Background="#55D7D2" VerticalAlignment="Bottom" CornerRadius="4,4,0,0"/></Grid><TextBlock Text="{Binding Label}" Foreground="#8FB2B5" FontSize="9" TextTrimming="CharacterEllipsis" TextAlignment="Center"/></StackPanel></DataTemplate></ItemsControl.ItemTemplate>
+       </ItemsControl></ScrollViewer></StackPanel></Border>
+    <Border Grid.Column="1" Background="#0C2529" BorderBrush="#245058" BorderThickness="1" CornerRadius="9" Padding="14" Margin="6,0,0,0">
+     <StackPanel><TextBlock Text="TOP SUPPLIERS BY ISK" Foreground="#55D7D2" FontSize="16" FontWeight="Bold"/>
+      <TextBlock Text="From verified accepted incoming contracts" Foreground="#8FB2B5" Margin="0,4,0,8"/>
+      <ItemsControl x:Name="AnalyticsSuppliers"><ItemsControl.ItemTemplate><DataTemplate><StackPanel Margin="0,3"><DockPanel><TextBlock Text="{Binding IskText}" DockPanel.Dock="Right" Foreground="#74D6C9"/><TextBlock Text="{Binding Label}" Foreground="#EAF7F7" TextTrimming="CharacterEllipsis"/></DockPanel><Border Height="5" Width="260" HorizontalAlignment="Left" Background="#173A3F"><Border HorizontalAlignment="Left" Width="{Binding Width}" Background="#55D7D2"/></Border></StackPanel></DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+     </StackPanel></Border>
+   </Grid>
+   <Border Background="#0C2529" BorderBrush="#245058" BorderThickness="1" CornerRadius="9" Padding="14" Margin="0,0,0,14">
+    <StackPanel><DockPanel><StackPanel><TextBlock Text="ORE / ITEM MIX (KNOWN CONTENTS)" Foreground="#55D7D2" FontSize="16" FontWeight="Bold"/><TextBlock Text="Only contracts whose ESI item details have been indexed; unknown contents are excluded, not counted as zero" Foreground="#8FB2B5" Margin="0,4,0,7"/></StackPanel>
+     <Button x:Name="AnalyticsLoadContents" DockPanel.Dock="Right" Content="INDEX NEXT 15 CONTRACTS" Click="AnalyticsIndex_Click" Margin="10,0,0,0" VerticalAlignment="Center"/></DockPanel>
+     <TextBlock x:Name="AnalyticsIndexStatus" Foreground="#FFD166" TextWrapping="Wrap" Margin="0,0,0,8"/>
+     <ItemsControl x:Name="AnalyticsOres"><ItemsControl.ItemTemplate><DataTemplate><Grid Margin="0,3"><Grid.ColumnDefinitions><ColumnDefinition Width="180"/><ColumnDefinition Width="270"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+      <TextBlock Text="{Binding Label}" Grid.Column="0" Foreground="#EAF7F7" TextTrimming="CharacterEllipsis"/>
+      <Border Grid.Column="1" Height="9" Background="#173A3F" VerticalAlignment="Center" Margin="4,0,12,0"><Border Width="{Binding Width}" HorizontalAlignment="Left" Background="#FFD166"/></Border>
+      <TextBlock Grid.Column="2" Text="{Binding VolumeText}" Foreground="#74D6C9"/>
+     </Grid></DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+    </StackPanel></Border>
+   <Border Background="#0C2529" BorderBrush="#245058" BorderThickness="1" CornerRadius="9" Padding="14" Margin="0,0,0,14">
+    <StackPanel><DockPanel Margin="0,0,0,9" LastChildFill="False"><StackPanel><TextBlock Text="ACCEPTED CONTRACTS" Foreground="#55D7D2" FontSize="16" FontWeight="Bold"/><TextBlock Text="Double-click for ESI contents and Janice reference" Foreground="#8FB2B5" Margin="0,4,0,0"/></StackPanel>
+       <TextBox x:Name="AnalyticsSearch" DockPanel.Dock="Right" Width="260" Margin="10,0,0,0" ToolTip="Filter this report's accepted contracts by seller, ID or title" TextChanged="AnalyticsSearch_Changed"/></DockPanel>
+     <DataGrid x:Name="AnalyticsGrid" Height="290" IsReadOnly="True" AutoGenerateColumns="False" CanUserAddRows="False" MouseDoubleClick="AnalyticsRow_DoubleClick" AlternationCount="2" EnableRowVirtualization="True"><DataGrid.Columns>
+       <DataGridTextColumn Header="ACCEPTED" Binding="{Binding AcceptedText}" Width="145"/>
+       <DataGridTextColumn Header="SELLER" Binding="{Binding Issuer}" Width="*"/>
+       <DataGridTextColumn Header="PRICE (ISK)" Binding="{Binding PriceText}" Width="1.2*"/>
+       <DataGridTextColumn Header="STATUS" Binding="{Binding Contract.Status}" Width="115"/>
+       <DataGridTextColumn Header="LOCATION" Binding="{Binding Location}" Width="1.5*"/>
+       <DataGridTextColumn Header="CONTRACT ID" Binding="{Binding Contract.Id}" Width="130"/>
+     </DataGrid.Columns></DataGrid>
+    </StackPanel></Border>
+   <TextBlock Text="Reporting uses accepted ESI contract prices, not verified wallet payments or realized resale profit. The ESI history and local archive may be incomplete. Dates are UTC; contents are cached locally only when loaded. No contract is accepted or modified by reporting." Foreground="#8FB2B5" TextWrapping="Wrap" Margin="0,2,0,12"/>
+  </StackPanel>
+ </ScrollViewer>
+</TabItem>
+<TabItem Header="BUYBACK REPORT" Background="#12383D" Foreground="#55D7D2"><Grid Margin="14"><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
  <WrapPanel><TextBlock Text="PERIOD" Foreground="#8FB2B5" VerticalAlignment="Center" Margin="0,0,8,0"/><ComboBox x:Name="ReportPeriod" Width="105" SelectionChanged="Report_Changed"><ComboBoxItem Content="Week"/><ComboBoxItem Content="Month" IsSelected="True"/><ComboBoxItem Content="Year"/></ComboBox><Button Content="PREVIOUS" Click="ReportPrevious_Click" Margin="12,0,6,0"/><DatePicker x:Name="ReportDate" Width="156" Style="{StaticResource CommandDatePicker}" SelectedDateChanged="Report_Changed"/><Button Content="NEXT" Click="ReportNext_Click" Margin="6,0"/><Button Content="TODAY" Click="ReportToday_Click"/></WrapPanel>
  <StackPanel Grid.Row="1" Margin="0,14"><TextBlock x:Name="ReportTitle" FontSize="20" Foreground="#55D7D2"/><TextBlock x:Name="ReportSummary" Foreground="#74D6C9" Margin="0,6,0,0"/></StackPanel>
  <ScrollViewer Grid.Row="2" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto"><ItemsControl x:Name="ReportBars" VerticalAlignment="Top"><ItemsControl.ItemsPanel><ItemsPanelTemplate><StackPanel Orientation="Horizontal"/></ItemsPanelTemplate></ItemsControl.ItemsPanel><ItemsControl.ItemTemplate><DataTemplate><StackPanel Width="38" ToolTip="{Binding Tooltip}" Margin="1,0"><Grid Height="200"><Border Height="{Binding Height}" Width="25" Background="#55D7D2" VerticalAlignment="Bottom" CornerRadius="4,4,0,0"/></Grid><TextBlock Text="{Binding Label}" HorizontalAlignment="Center" Foreground="#8FB2B5" Margin="0,6"/><TextBlock Text="{Binding Count}" HorizontalAlignment="Center" Foreground="#74D6C9"/></StackPanel></DataTemplate></ItemsControl.ItemTemplate></ItemsControl></ScrollViewer>

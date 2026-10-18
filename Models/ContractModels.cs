@@ -1,4 +1,4 @@
-﻿using System.Text.Json.Serialization;
+using System.Text.Json.Serialization;
 
 namespace EveCommandCenter.Models;
 
@@ -67,6 +67,8 @@ public sealed class ContractState
     public DateTimeOffset NextRefreshUtc { get; set; }
     public Dictionary<long, string> EntityNames { get; set; } = new();
     public List<ContractRow> History { get; set; } = new();
+    // ESI item details are cached locally only when explicitly opened or indexed.
+    public Dictionary<string, List<ContractItem>> CachedContractItems { get; set; } = new();
     public HashSet<long> HistoryBaselines { get; set; } = new();
     public Dictionary<long, HashSet<long>> AcceptedNotified { get; set; } = new();
     public long CharacterId { get; set; }

@@ -49,6 +49,7 @@ public sealed class ContractService : IDisposable
         _file = Path.Combine(dir, "contracts.json");
         try { State = JsonSerializer.Deserialize<ContractState>(File.ReadAllText(_file)) ?? new(); }
         catch { State = new(); }
+        State.CachedContractItems ??= new();
         foreach (var row in State.Rows.Where(r => r.Contract.LocationId >= 1_000_000_000_000 && NormalizeLocation(r.Location).Equals("Mazitah - EagleOne", StringComparison.OrdinalIgnoreCase)))
         {
             if (row.LocationCheck == "WRONG DESTINATION" && row.PriceCheck == "MATCHES TARGET" && row.Reason == "Destination is not one of the three approved locations")
@@ -248,17 +249,30 @@ public sealed class ContractService : IDisposable
     public async Task<IReadOnlyList<ContractItem>> ItemsAsync(ContractRow row, EvePilotProfile pilot, CancellationToken token)
     {
         if (_items.TryGetValue((row.CorporationId, row.Contract.Id), out var cached)) return cached;
+        string key = BuybackAnalytics.Key(row);
+        if (State.CachedContractItems.TryGetValue(key, out var saved))
+        {
+            _items[(row.CorporationId, row.Contract.Id)] = saved;
+            return saved;
+        }
         var access = await _getAccessToken(pilot, token);
         var items = await PagesAsync<ContractItem>($"/corporations/{row.CorporationId}/contracts/{row.Contract.Id}/items/", access, token);
         foreach (var item in items)
         {
+            token.ThrowIfCancellationRequested();
             var type = await GetAsync($"/universe/types/{item.TypeId}/", null, token);
             item.Name = type.GetProperty("name").GetString() ?? IndustryCatalog.Name(item.TypeId);
-            item.UnitVolume = type.TryGetProperty("packaged_volume", out var volume) || type.TryGetProperty("volume", out volume) ? volume.GetDouble() : 0;
+            item.UnitVolume = type.TryGetProperty("volume", out var volume) || type.TryGetProperty("packaged_volume", out volume) ? volume.GetDouble() : 0;
         }
         _items[(row.CorporationId, row.Contract.Id)] = items;
+        // Persist only content we have actually fetched. Never infer missing items
+        // from contract price or an external appraisal.
+        State.CachedContractItems[key] = items.ToList();
+        Save();
+        Changed?.Invoke();
         return items;
     }
+
 
     public async Task OpenInGameAsync(long id, EvePilotProfile pilot, CancellationToken token)
     {

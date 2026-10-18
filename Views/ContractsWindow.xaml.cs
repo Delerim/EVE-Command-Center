@@ -28,6 +28,9 @@ public partial class ContractsWindow : Window
         _ledgerStats=stats; _ledgerSettings=settings; _ledgerRows=rows; _ledgerQuotes=quotes;
         InitializeComponent();
         ReportDate.SelectedDate = DateTime.UtcNow.Date;
+        AnalyticsDate.SelectedDate = DateTime.UtcNow.Date;
+        AnalyticsFrom.SelectedDate = DateTime.UtcNow.Date.AddDays(-30);
+        AnalyticsTo.SelectedDate = DateTime.UtcNow.Date;
         AccountDate.SelectedDate = DateTime.UtcNow.Date;
         RateBox.Text = Service.State.BuyPercent.ToString(CultureInfo.InvariantCulture);
         ToleranceBox.Text = Service.State.TolerancePercent.ToString(CultureInfo.InvariantCulture);
@@ -70,6 +73,7 @@ public partial class ContractsWindow : Window
         else StatusText.Text = state.Rows.Count == 0 ? "No outstanding contracts in the current snapshot. Checks run every 30 minutes, subject to provider cooldown." : "Double-click for contents. Monitoring remains active with this window closed. Checks do not verify item-by-item appraisal contents.";
         ApplyFilter();
         RenderReport();
+        RenderAnalytics();
         _ = RenderAccountLedgerAsync();
     }
     private void ApplyFilter()

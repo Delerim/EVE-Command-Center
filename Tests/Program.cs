@@ -203,6 +203,7 @@ internal static partial class Program
         CheckFitStacking();
         CheckSaberlashFit().GetAwaiter().GetResult();
         CheckCycleAndFuel();
+        CheckBuybackAnalytics();
         CheckFuelAlignment();
         CheckReleaseMonitor().GetAwaiter().GetResult();
         CheckAccessAsync().GetAwaiter().GetResult();
