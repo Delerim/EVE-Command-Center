@@ -204,6 +204,7 @@ internal static partial class Program
         CheckSaberlashFit().GetAwaiter().GetResult();
         CheckCycleAndFuel();
         CheckBuybackAnalytics();
+        CheckMoonIntelligenceReports();
         CheckBuybackIndexPolicy();
         CheckFuelAlignment();
         CheckReleaseMonitor().GetAwaiter().GetResult();

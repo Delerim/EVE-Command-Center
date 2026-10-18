@@ -47,11 +47,12 @@ public partial class MoonReportWindow : Window
     public MoonReportWindow()
     {
         InitializeComponent();
+        LoadIntelligenceSchedule();
         _service = BackgroundOperations.Current.Moons;
         _service.Refreshed += OnBackgroundRefresh;
         _drillTimer.Tick += (_, _) => { if (DrillScheduleTab.IsSelected && !EmbeddedModuleHost.IsInactive(this)) RefreshDrillSchedule(); };
         _drillTimer.Start();
-        MoonTabs.SelectionChanged += (_, _) => { if (DrillScheduleTab.IsSelected) RefreshDrillSchedule(); };
+        MoonTabs.SelectionChanged += (_, _) => { if (DrillScheduleTab.IsSelected) RefreshDrillSchedule(); if (IntelligenceTab.IsSelected) RenderIntelligence(); };
         DesktopAlertsCheck.IsChecked = _service.DesktopNotificationsEnabled;
         Loaded += Window_Loaded;
         Closed += Window_Closed;
@@ -235,6 +236,7 @@ public partial class MoonReportWindow : Window
         LoadLedger();
         LoadReporting();
         RenderOverview();
+        RenderIntelligence();
     }
 
     private void RenderOverview()

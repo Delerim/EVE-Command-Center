@@ -73,7 +73,12 @@ public sealed partial class BackgroundOperations : IDisposable
         Moons.Refreshed += MoonRefreshed;
         Contracts.NewContracts += NewContracts;
         Contracts.AcceptedContracts += AcceptedContracts;
-        _timer.Tick += async (_, _) => { CheckMoonEvents(); await PollAsync(); };
+        _timer.Tick += async (_, _) => {
+            CheckMoonEvents();
+            try { if (Access.CanReadMoons) MoonIntelligenceSchedule.Current.Check(Moons, DateTimeOffset.UtcNow); }
+            catch (Exception ex) { EsiDiagnostics.Write("Moon report scheduling: " + ex.GetType().Name); }
+            await PollAsync();
+        };
         EveSsoService.CharacterLinked += CharacterLinked;
         _timer.Start();
         System.Windows.Application.Current.Dispatcher.BeginInvoke(new Action(async () => await PollAsync()));

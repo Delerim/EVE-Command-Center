@@ -194,6 +194,72 @@
      </DataGrid.Columns>
     </DataGrid>
    </Grid></TabItem>
+   <TabItem x:Name="IntelligenceTab" Header="OPERATIONS REPORT">
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+     <StackPanel Margin="14">
+      <DockPanel Margin="0,0,0,12">
+       <StackPanel DockPanel.Dock="Left">
+        <TextBlock Text="MOON OPERATIONS INTELLIGENCE" Foreground="#55D7D2" FontWeight="Bold" FontSize="23"/>
+        <TextBlock Text="Corporation-wide operational picture from ESI, mapped moon profiles and the local mining ledger" Foreground="#8FB2B5" Margin="0,5,0,0"/>
+       </StackPanel>
+      </DockPanel>
+      <WrapPanel Margin="0,0,0,10">
+       <TextBlock Text="REPORT PERIOD" VerticalAlignment="Center" Foreground="#8FB2B5" Margin="0,0,10,0"/>
+       <ComboBox x:Name="IntelligencePeriod" Width="160" SelectionChanged="IntelligenceChanged">
+        <ComboBoxItem Content="Week" IsSelected="True"/>
+        <ComboBoxItem Content="Month"/>
+        <ComboBoxItem Content="Last month"/>
+       </ComboBox>
+       <Button Content="PREVIEW REPORT" Click="IntelligencePreview_Click" Margin="10,0,0,0"/>
+       <Button Content="CONFIGURE WEBHOOK ROUTES" Click="IntelligenceRoutes_Click" Margin="10,0,0,0"/>
+       <Button Content="SEND NOW TO DISCORD" Background="#185D58" Click="IntelligenceSend_Click" Margin="10,0,0,0"/>
+      </WrapPanel>
+      <TextBlock x:Name="IntelligenceHeadline" Foreground="#EAF7F7" FontSize="18" FontWeight="Bold"/>
+      <TextBlock x:Name="IntelligenceFreshness" Foreground="#8FB2B5" Margin="0,3,0,13"/>
+      <UniformGrid Columns="3" Margin="0,0,0,12">
+       <Border Background="#0D2B30" BorderBrush="#245058" BorderThickness="1" Padding="14" Margin="0,0,6,7" CornerRadius="8"><StackPanel><TextBlock Text="STRUCTURES &amp; DRILLS" Foreground="#8FB2B5"/><TextBlock x:Name="IntelligenceStructures" FontSize="20" FontWeight="Bold" Foreground="#55D7D2"/></StackPanel></Border>
+       <Border Background="#0D2B30" BorderBrush="#245058" BorderThickness="1" Padding="14" Margin="6,0,6,7" CornerRadius="8"><StackPanel><TextBlock Text="FRACTURED IN PERIOD" Foreground="#8FB2B5"/><TextBlock x:Name="IntelligenceFractures" FontSize="22" FontWeight="Bold" Foreground="#EAF7F7"/></StackPanel></Border>
+       <Border Background="#0D2B30" BorderBrush="#245058" BorderThickness="1" Padding="14" Margin="6,0,0,7" CornerRadius="8"><StackPanel><TextBlock Text="ACTIVE / INFERRED FIELDS" Foreground="#8FB2B5"/><TextBlock x:Name="IntelligenceFields" FontSize="19" FontWeight="Bold" Foreground="#74D6C9"/></StackPanel></Border>
+       <Border Background="#0D2B30" BorderBrush="#6F5A2C" BorderThickness="1" Padding="14" Margin="0,6,6,0" CornerRadius="8"><StackPanel><TextBlock Text="EXTRACTIONS NOT SCHEDULED" Foreground="#C9B784"/><TextBlock x:Name="IntelligenceUnscheduled" FontSize="22" FontWeight="Bold" Foreground="#FFD166"/></StackPanel></Border>
+       <Border Background="#0D2B30" BorderBrush="#245058" BorderThickness="1" Padding="14" Margin="6,6,6,0" CornerRadius="8"><StackPanel><TextBlock Text="AVERAGE STATION FUEL" Foreground="#8FB2B5"/><TextBlock x:Name="IntelligenceFuel" FontSize="17" FontWeight="Bold" Foreground="#74D6C9"/><TextBlock x:Name="IntelligenceAttention" FontSize="11" Foreground="#FFD166"/></StackPanel></Border>
+       <Border Background="#0D2B30" BorderBrush="#245058" BorderThickness="1" Padding="14" Margin="6,6,0,0" CornerRadius="8"><StackPanel><TextBlock Text="DESPAWN AUDIT IN PERIOD" Foreground="#8FB2B5"/><TextBlock x:Name="IntelligenceDespawn" FontSize="17" FontWeight="Bold" Foreground="#EAF7F7"/></StackPanel></Border>
+      </UniformGrid>
+      <Grid Margin="0,0,0,12">
+       <Grid.ColumnDefinitions><ColumnDefinition Width="1.4*"/><ColumnDefinition Width="12"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+       <Border Grid.Column="0" Background="#0D2B30" BorderBrush="#245058" BorderThickness="1" CornerRadius="8" Padding="14">
+        <StackPanel><TextBlock Text="RECORDED FRACTURES BY DAY (UTC)" Foreground="#55D7D2" FontWeight="Bold" FontSize="15"/>
+         <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled" Margin="0,12,0,0">
+          <ItemsControl x:Name="IntelligenceTrend"><ItemsControl.ItemsPanel><ItemsPanelTemplate><StackPanel Orientation="Horizontal"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+           <ItemsControl.ItemTemplate><DataTemplate><StackPanel Width="27" Margin="1,0" ToolTip="{Binding Tip}"><Grid Height="110"><Border Background="#55D7D2" Height="{Binding Height}" Width="18" VerticalAlignment="Bottom" CornerRadius="3,3,0,0"/></Grid><TextBlock Text="{Binding Label}" HorizontalAlignment="Center" Foreground="#8FB2B5" FontSize="10"/></StackPanel></DataTemplate></ItemsControl.ItemTemplate>
+          </ItemsControl>
+         </ScrollViewer>
+        </StackPanel>
+       </Border>
+       <Border Grid.Column="2" Background="#0D2B30" BorderBrush="#245058" BorderThickness="1" CornerRadius="8" Padding="14">
+        <StackPanel><TextBlock Text="R4 ORE: ACTIVE REMAINING / PERIOD LOSSES" FontSize="15" FontWeight="Bold" Foreground="#55D7D2" Margin="0,0,0,12"/>
+         <ItemsControl x:Name="IntelligenceOres"><ItemsControl.ItemTemplate><DataTemplate><Grid Margin="0,0,0,9"><Grid.ColumnDefinitions><ColumnDefinition Width="80"/><ColumnDefinition Width="220"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+          <TextBlock Text="{Binding Name}" Foreground="#EAF7F7" VerticalAlignment="Center"/>
+          <StackPanel Grid.Column="1"><Border Background="#173A3F" Height="10" HorizontalAlignment="Stretch"><Border Background="#55D7D2" Width="{Binding Width}" HorizontalAlignment="Left"/></Border><TextBlock Text="{Binding RemainingText}" Foreground="#74D6C9" FontSize="11"/></StackPanel>
+          <TextBlock Grid.Column="2" Text="{Binding LostText}" Foreground="#FFD166" VerticalAlignment="Center" Margin="7,0,0,0"/>
+         </Grid></DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+        </StackPanel>
+       </Border>
+      </Grid>
+      <TextBlock x:Name="IntelligenceCoverage" Foreground="#8FB2B5" TextWrapping="Wrap" Margin="0,0,0,12"/>
+      <Border Background="#0D2B30" BorderBrush="#245058" BorderThickness="1" CornerRadius="8" Padding="14">
+       <StackPanel><TextBlock Text="DISCORD REPORT PREVIEW" Foreground="#55D7D2" FontSize="17" FontWeight="Bold"/>
+        <TextBlock Text="A concise summary is routed to ALL subscribed webhook destinations. Use App Settings → Alerts → Discord webhooks to choose which channel receives each alert and report." Foreground="#8FB2B5" TextWrapping="Wrap" Margin="0,4,0,10"/>
+        <TextBox x:Name="IntelligencePreview" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="125" MaxHeight="250" VerticalScrollBarVisibility="Auto" Foreground="#EAF7F7" Background="#081C20" BorderBrush="#245058" Padding="10"/>
+        <TextBlock Text="AUTOMATIC REPORTS (OPT IN)" Foreground="#55D7D2" FontWeight="Bold" Margin="0,14,0,8"/>
+        <WrapPanel><CheckBox x:Name="IntelligenceDaily" Content="Daily" Foreground="#EAF7F7" Margin="0,0,16,0"/><CheckBox x:Name="IntelligenceWeekly" Content="Monday weekly" Foreground="#EAF7F7" Margin="0,0,16,0"/><CheckBox x:Name="IntelligenceMonthly" Content="1st day monthly (previous month)" Foreground="#EAF7F7" Margin="0,0,16,0"/>
+         <TextBlock Text="UTC hour" Foreground="#8FB2B5" VerticalAlignment="Center" Margin="0,0,6,0"/><TextBox x:Name="IntelligenceHourUtc" Text="9" Width="38" Margin="0,0,10,0"/><Button Content="SAVE REPORT SCHEDULE" Click="IntelligenceSaveSchedule_Click"/></WrapPanel>
+        <TextBlock Text="Automatic sends require the app to be open, fresh ESI data and at least one destination subscribed to each report type. No routes are selected automatically. Repeated sends are deduplicated per destination and period." Foreground="#8FB2B5" TextWrapping="Wrap" Margin="0,10,0,0"/>
+        <TextBlock x:Name="IntelligenceSendStatus" Foreground="#FFD166" TextWrapping="Wrap" Margin="0,8,0,0"/>
+       </StackPanel>
+      </Border>
+     </StackPanel>
+    </ScrollViewer>
+   </TabItem>
   </TabControl>
   <DockPanel Grid.Row="4" Margin="2,9,2,0"><TextBlock x:Name="StatusText" Text="Select a corporation-data toon, then refresh ESI." Foreground="#8FB2B5"/><TextBlock DockPanel.Dock="Right" Text="Moon reader: structures + extractions; Accountant adds ledger access | weeks start Monday" Foreground="#52777B" FontSize="11"/></DockPanel>
  </Grid>

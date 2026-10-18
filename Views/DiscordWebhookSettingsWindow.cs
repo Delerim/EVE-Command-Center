@@ -72,13 +72,13 @@ public sealed class DiscordWebhookSettingsWindow : Window
         var panel = new StackPanel { Background = PanelColor, Margin = new Thickness(0, 0, 4, 0) };
         panel.Children.Add(new TextBlock
         {
-            Text = "DISCORD NOTIFICATIONS", FontWeight = FontWeights.Bold, FontSize = 18,
+            Text = "DISCORD ROUTING | ALERTS & REPORTS", FontWeight = FontWeights.Bold, FontSize = 18,
             Foreground = new SolidColorBrush(Color.FromRgb(85, 215, 210)), Margin = new Thickness(15, 15, 15, 6)
         });
         panel.Children.Add(new TextBlock
         {
             Text = "One webhook per destination/channel. Discord determines the actual channel from the webhook URL. " +
-                   "All alerts are optional. Moon fracture alerts are never sent.",
+                   "Choose one or MANY destinations for each alert and report type. All are opt-in. Moon fracture alerts are never sent.",
             Foreground = Brushes.LightGray, TextWrapping = TextWrapping.Wrap,
             Margin = new Thickness(15, 0, 15, 16)
         });
@@ -110,6 +110,8 @@ public sealed class DiscordWebhookSettingsWindow : Window
         AddLabel(editor, "Send these alerts");
         foreach (var (key, label) in DiscordWebhookService.AlertChoices)
         {
+            if (key == DiscordWebhookService.MoonReportManual)
+                AddLabel(editor, "Send these reports (multiple destinations allowed)");
             var cb = new CheckBox { Content = label, Foreground = ForegroundColor, Margin = new Thickness(0, 4, 0, 4) };
             _types.Add(key, cb);
             editor.Children.Add(cb);

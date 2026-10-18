@@ -123,6 +123,15 @@ public sealed class MoonReportService : IDisposable
 
     public MoonReportSnapshot GetSnapshot() => BuildSnapshot(DateTimeOffset.UtcNow);
 
+    public MoonIntelligenceReport GetIntelligenceReport(string period, DateTimeOffset now, MoonReportSnapshot? existing = null)
+    {
+        var snapshot = existing ?? BuildSnapshot(now);
+        return MoonOperationsIntelligence.Build(_state, snapshot,
+            MoonDrillSchedule.Build(_state, now), now, period,
+            pull => VisiblePull(pull) && !pull.OutcomeUnobserved && ProfileFor(pull).ProfileConfigured,
+            (pull, family) => Remaining(pull, ProfileFor(pull), family));
+    }
+
     public async Task<MoonReportSnapshot> RefreshAsync(
         EvePilotProfile pilot,
         IProgress<string>? progress = null,

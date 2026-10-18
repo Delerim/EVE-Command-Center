@@ -38,6 +38,10 @@ public sealed class DiscordWebhookService
     public const string PiCollection = "pi_collection";
     public const string PiFactoryRefill = "pi_factory_refill";
     public const string PiExtractorIdle = "pi_extractor_idle";
+    public const string MoonReportManual = "moon_report_manual";
+    public const string MoonReportDaily = "moon_report_daily";
+    public const string MoonReportWeekly = "moon_report_weekly";
+    public const string MoonReportMonthly = "moon_report_monthly";
 
     public static readonly (string Key, string Label)[] AlertChoices =
     {
@@ -50,7 +54,11 @@ public sealed class DiscordWebhookService
         (GlisteningOre, "Glistening ore detected"),
         (PiCollection, "Planetary: T1 collection at 40,500 / 45,000 m3 (per pilot)"),
         (PiFactoryRefill, "Planetary: factory-world inputs need refilling (grouped by pilot)"),
-        (PiExtractorIdle, "Planetary: extraction inactive for over 5 hours (grouped by pilot)")
+        (PiExtractorIdle, "Planetary: extraction inactive for over 5 hours (grouped by pilot)"),
+        (MoonReportManual, "Manual moon operations report"),
+        (MoonReportDaily, "Daily moon operations report (yesterday)"),
+        (MoonReportWeekly, "Weekly moon operations report (previous week)"),
+        (MoonReportMonthly, "Monthly moon operations report (previous month)")
     };
 
     private static readonly HttpClient Http = new(new HttpClientHandler { AllowAutoRedirect = false })
@@ -89,6 +97,12 @@ public sealed class DiscordWebhookService
                 Enabled = x.Enabled, AlertTypes = (x.AlertTypes ?? new()).ToList(),
                 ProtectedUrl = "" // Never expose encrypted or plaintext secrets to the view.
             }).ToList();
+    }
+
+    public bool HasRoutes(string type)
+    {
+        lock (_lock) return _destinations.Any(d => d.Enabled &&
+            d.ProtectedUrl.Length > 0 && (d.AlertTypes?.Contains(type, StringComparer.Ordinal) ?? false));
     }
 
     public static bool IsValidWebhookUrl(string raw)
