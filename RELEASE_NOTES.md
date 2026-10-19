@@ -1,3 +1,11 @@
+# EVE Command Center v3.6.70
+
+- Keep Google Drive backup actions accessible at normal window sizes and Windows display scaling. The enlarged encrypted-backup setup panel can scroll independently without hiding **Back Up Now**, **Restore & Restart**, **Refresh Status**, **Export Encrypted Copy**, or **Restore File**.
+- Put restore-point selection and backup actions into a persistent bottom panel, with buttons that wrap at narrower widths. Backup operation status stays visible below the controls.
+- Align the **☁ Backup** icon and label with the other App Settings sidebar entries by removing surplus spacing.
+- Preserve the v3.6.69 encrypted backup format, EVE credentials, optional private moon CSV handling, restore-point retention, Google OAuth configuration, and existing cloud files without changing any backup or restore logic.
+- Add regression checks for the scrolling setup, persistent restore selector, action buttons, status footer and sidebar icon alignment.
+
 # EVE Command Center v3.6.69
 
 - Add the missing cloud icon beside Backup in App Settings, matching the existing sidebar icon spacing.

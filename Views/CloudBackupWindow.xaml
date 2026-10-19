@@ -26,15 +26,22 @@
         </Style>
     </Window.Resources>
 
+    <!-- Fixed recovery actions at the bottom; the taller Google setup scrolls independently. -->
     <Grid Margin="20">
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
+        <ScrollViewer x:Name="BackupSetupScroller" Grid.Row="0"
+                      VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+            <Grid Margin="0,0,8,0">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
 
         <StackPanel Grid.Row="0" Margin="0,0,0,14">
             <TextBlock Text="GOOGLE DRIVE BACKUP" FontSize="27"
@@ -116,17 +123,20 @@
             </Grid>
         </Border>
 
-        <Border Grid.Row="4" Background="#0C2529" BorderBrush="#245058"
-                BorderThickness="1" CornerRadius="7" Padding="14">
+            </Grid>
+        </ScrollViewer>
+
+        <Border Grid.Row="1" Background="#0C2529" BorderBrush="#245058"
+                BorderThickness="1" CornerRadius="7" Padding="14" Margin="0,10,0,0">
             <Grid>
-                <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+                <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
                 <TextBlock Text="BACKUP CONTENTS" FontWeight="Bold" Foreground="#A9DADA"/>
                 <TextBlock Grid.Row="1" Margin="0,7,0,12" TextWrapping="Wrap"
                            Foreground="#789EA1"
                            Text="Encrypted latest plus 7 daily, 4 weekly and 12 monthly restore points. Includes JSON/JSONL history, SQLite databases, logs, supported local data, EVE refresh tokens and your selected private moon CSV. Google credentials and temporary runtime state are excluded."/>
                 <StackPanel Grid.Row="2" Orientation="Vertical" VerticalAlignment="Bottom">
                     <ComboBox x:Name="RestorePointsBox" Width="520" HorizontalAlignment="Left" Margin="0,0,0,8" ToolTip="Choose which snapshot to restore"/>
-                    <StackPanel Orientation="Horizontal">
+                    <WrapPanel Orientation="Horizontal">
                     <Button x:Name="BackupButton" Content="BACK UP NOW" Click="Backup_Click"
                             Background="#17656A" BorderBrush="#55D7D2"/>
                     <Button x:Name="RestoreButton" Content="RESTORE &amp; RESTART"
@@ -135,12 +145,12 @@
                     <Button Content="REFRESH STATUS" Click="RefreshStatus_Click" Margin="8,0,0,0"/>
                     <Button x:Name="ExportEncryptedButton" Content="EXPORT ENCRYPTED COPY" Click="ExportEncrypted_Click" Margin="8,0,0,0"/>
                     <Button x:Name="RestoreLocalButton" Content="RESTORE FILE" Click="RestoreLocal_Click" Margin="8,0,0,0"/>
-                    </StackPanel>
+                    </WrapPanel>
                 </StackPanel>
             </Grid>
         </Border>
 
-        <DockPanel Grid.Row="5" Margin="2,12,2,0">
+        <DockPanel Grid.Row="2" Margin="2,12,2,0">
             <ProgressBar x:Name="BusyBar" Width="160" Height="5"
                          IsIndeterminate="True" Visibility="Collapsed"/>
             <TextBlock x:Name="StatusText" DockPanel.Dock="Right"
