@@ -1,3 +1,21 @@
+# EVE Command Center v3.6.72
+
+- Add **Historical Data & Recovery Audit** to the Google Drive Backup window. Run a read-only local inventory that uses the **same actual file-selection rules as the encrypted backup**, grouped by Mining, Moon Operations, Contracts/Buyback, Industry, PI, Pilots and Other Data. Show included file counts and sizes, rather than inferring coverage from ZIP size.
+- Run read-only SQLite `PRAGMA quick_check(1)` on discovered live SQLite databases and report any database whose integrity could not be verified; ordinary non-SQLite `.db` files are not misclassified.
+- Report **earliest/latest recorded event dates only when real timestamp fields can be found** in JSON/JSONL. The date audit is deliberately partial (maximum 2 MiB per scanned source) and displays **Unknown** otherwise; neither file modification dates nor missing ESI history become fictional operational activity.
+- Detect the separately stored EVE game-log folder beneath Documents as an **excluded source**; show its file count and approximate size. This release identifies missing collection/backup coverage but intentionally does not bulk-upload gigabytes of game logs or change storage retention rules.
+- Add **Verify Local Encrypted Backup** to decrypt a manually selected `.ecc` backup and materialize it only into a temporary isolated directory. Check manifest schema, safe non-duplicated paths, all file sizes, SHA-256 checksums, separately encrypted EVE refresh-token entry, and SQLite `PRAGMA integrity_check` on included SQLite databases. Never write verified files into active Command Center data or Windows Credential Manager.
+- Fail clearly when the audit cannot verify an archive (including wrong recovery password, corrupted ZIP, missing manifest or mismatched hashes). Verification is limited to 512 MiB per backup while the current encryption code uses in-memory buffers. A passing audit is **not** a substitute for full machine-to-machine disaster recovery.
+- Preserve Google OAuth, encryption formats, existing backup scheduling, remote restore points, moon CSV contents, and every existing live restore action unchanged. No existing history is migrated, overwritten or deleted.
+- Add synthetic regression coverage for year-spanning history date extraction, excluded EVE game logs, unknown timestamp handling, encrypted ZIP reconstruction into isolated storage, SQLite integrity, wrong-password rejection and no modification of live source data.
+
+## How to use
+
+1. Open App Settings > Backup > Google Drive Backup.
+2. Choose **HISTORY / RECOVERY AUDIT**. Review the categories, file counts, sizes, timestamp coverage and missing EVE game logs.
+3. Optionally choose **VERIFY LOCAL ENCRYPTED BACKUP**, and select a local `.ecc` file you have exported. This audits an encrypted copy without performing a live restore.
+4. Do not assume year-long reports are complete if the underlying application has not captured every relevant event. A separate durable-collection audit/migration would be needed to fill uncovered operational categories.
+
 # EVE Command Center v3.6.71
 
 - Fix Google cloud backup failing with `sqlite-snapshot-*.db` **being used by another process** on Windows. Dispose both source and destination SQLite connections before reading the snapshot, and disable SQLite connection pooling for these temporary handles.

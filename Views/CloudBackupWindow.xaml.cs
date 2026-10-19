@@ -225,6 +225,12 @@ public partial class CloudBackupWindow : Window
         if (restored) _service.RestartApplication();
     }
 
+    private void HistoryAudit_Click(object sender, RoutedEventArgs e)
+    {
+        var audit = new CloudHistoryAuditWindow(_service) { Owner = this };
+        audit.ShowDialog();
+    }
+
     private async void RefreshStatus_Click(object sender, RoutedEventArgs e) =>
         await RefreshStatusAsync();
 
