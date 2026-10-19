@@ -1,3 +1,11 @@
+# EVE Command Center v3.6.71
+
+- Fix Google cloud backup failing with `sqlite-snapshot-*.db` **being used by another process** on Windows. Dispose both source and destination SQLite connections before reading the snapshot, and disable SQLite connection pooling for these temporary handles.
+- Capture committed data from SQLite databases while Command Center keeps its own database connections open, including WAL-mode databases; keep temporary snapshots isolated and clean them up after all handles close.
+- Differentiate genuine SQLite databases from other `.db` files using the SQLite file signature, and reject invalid `.sqlite` headers. An unreadable or corrupt SQLite database now fails the backup rather than silently falling back to an unsafe copy of a live SQLite file.
+- Add live-database regression coverage with repeated snapshots of an open WAL database, restored-row and `PRAGMA integrity_check` validation, ZIP and encrypted recovery round-trip, and non-SQLite `.db` handling. No real credentials or private moon data enter tests.
+- Preserve the v3.6.69 encrypted backup format, EVE credential inclusion, private moon CSV selection, retention schedule and the legacy v1 backup. No backup configuration or Google OAuth changes.
+
 # EVE Command Center v3.6.70
 
 - Keep Google Drive backup actions accessible at normal window sizes and Windows display scaling. The enlarged encrypted-backup setup panel can scroll independently without hiding **Back Up Now**, **Restore & Restart**, **Refresh Status**, **Export Encrypted Copy**, or **Restore File**.

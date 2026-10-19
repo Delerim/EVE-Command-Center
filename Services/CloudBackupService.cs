@@ -725,32 +725,81 @@ public sealed partial class CloudBackupService : IDisposable
             $"Google Drive could not {operation}: " + Trim(body));
     }
 
-    private static async Task<byte[]> ReadBackupFileAsync(string path, CancellationToken cancellationToken)
+    // Used by the archive builder and the regression suite. SQLite databases must
+    // be copied using SQLite's online backup API while other processes are active.
+    internal static async Task<byte[]> ReadBackupFileAsync(
+        string path, CancellationToken cancellationToken)
     {
-        if (new[] { ".sqlite", ".sqlite3", ".db" }
-            .Contains(Path.GetExtension(path), StringComparer.OrdinalIgnoreCase))
+        cancellationToken.ThrowIfCancellationRequested();
+        string extension = Path.GetExtension(path);
+        if (!new[] { ".sqlite", ".sqlite3", ".db" }
+            .Contains(extension, StringComparer.OrdinalIgnoreCase))
+            return await ReadStableBytesAsync(path, cancellationToken);
+
+        // .db is also used by non-SQLite software. Detect those before trying
+        // SQLite; never treat an error opening a *real* SQLite DB as permission
+        // to copy its live file (which can exclude uncheckpointed WAL writes).
+        bool isSqlite;
+        using (var input = new FileStream(path, FileMode.Open, FileAccess.Read,
+                   FileShare.ReadWrite | FileShare.Delete))
         {
-            string temporary = TempPath("sqlite-snapshot", ".db");
-            try
+            if (input.Length < 16)
             {
-                using var source = new Microsoft.Data.Sqlite.SqliteConnection(
-                    new Microsoft.Data.Sqlite.SqliteConnectionStringBuilder {
-                        DataSource = path, Mode = Microsoft.Data.Sqlite.SqliteOpenMode.ReadOnly }.ToString());
-                using var destination = new Microsoft.Data.Sqlite.SqliteConnection(
-                    new Microsoft.Data.Sqlite.SqliteConnectionStringBuilder {
-                        DataSource = temporary, Mode = Microsoft.Data.Sqlite.SqliteOpenMode.ReadWriteCreate }.ToString());
-                source.Open(); destination.Open();
-                source.BackupDatabase(destination);
-                destination.Close();
-                return await File.ReadAllBytesAsync(temporary, cancellationToken);
+                isSqlite = false;
             }
-            catch (Microsoft.Data.Sqlite.SqliteException)
+            else
             {
-                // An unknown .db isn't necessarily SQLite; copy it normally.
+                byte[] header = new byte[16];
+                await input.ReadExactlyAsync(header, cancellationToken);
+                isSqlite = header.AsSpan().SequenceEqual(
+                    System.Text.Encoding.ASCII.GetBytes("SQLite format 3\0"));
             }
-            finally { TryDelete(temporary); }
         }
-        return await ReadStableBytesAsync(path, cancellationToken);
+        if (!isSqlite)
+        {
+            // A file explicitly named .sqlite or .sqlite3 must not be treated as
+            // a healthy database when its header is absent or damaged.
+            if (extension.Equals(".sqlite", StringComparison.OrdinalIgnoreCase) ||
+                extension.Equals(".sqlite3", StringComparison.OrdinalIgnoreCase))
+                throw new InvalidDataException(
+                    "Cannot safely back up SQLite database with an invalid header: " + path);
+            return await ReadStableBytesAsync(path, cancellationToken);
+        }
+
+        string temporary = TempPath("sqlite-snapshot", ".db");
+        try
+        {
+            // IMPORTANT: SQLite pooling can retain a native handle after Close().
+            // Use non-pooled connections and dispose BOTH before opening the
+            // snapshot as an ordinary file or attempting cleanup on Windows.
+            using (var source = new Microsoft.Data.Sqlite.SqliteConnection(
+                       new Microsoft.Data.Sqlite.SqliteConnectionStringBuilder
+                       {
+                           DataSource = path,
+                           Mode = Microsoft.Data.Sqlite.SqliteOpenMode.ReadOnly,
+                           Pooling = false
+                       }.ToString()))
+            using (var destination = new Microsoft.Data.Sqlite.SqliteConnection(
+                       new Microsoft.Data.Sqlite.SqliteConnectionStringBuilder
+                       {
+                           DataSource = temporary,
+                           Mode = Microsoft.Data.Sqlite.SqliteOpenMode.ReadWriteCreate,
+                           Pooling = false
+                       }.ToString()))
+            {
+                source.Open();
+                destination.Open();
+                cancellationToken.ThrowIfCancellationRequested();
+                source.BackupDatabase(destination);
+            }
+
+            cancellationToken.ThrowIfCancellationRequested();
+            return await File.ReadAllBytesAsync(temporary, cancellationToken);
+        }
+        finally
+        {
+            TryDelete(temporary);
+        }
     }
 
     private static async Task<byte[]> ReadStableBytesAsync(

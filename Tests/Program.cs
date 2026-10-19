@@ -208,6 +208,7 @@ internal static partial class Program
         CheckCloudBackupOAuthCallback();
         CheckCloudBackupLayout();
         CheckCloudBackupPortable();
+        CheckCloudBackupLiveSqlite();
         CheckBuybackIndexPolicy();
         CheckFuelAlignment();
         CheckReleaseMonitor().GetAwaiter().GetResult();
