@@ -55,7 +55,7 @@ public sealed class CloudArchiveVerification
 /// </summary>
 public static class CloudHistoryAuditService
 {
-    private const long MaxRecordScanBytes = 2 * 1024 * 1024;
+    private const long MaxRecordScanBytes = 64 * 1024 * 1024;
     private const long MaxLocalVerificationBytes = 512L * 1024 * 1024;
     private static readonly string[] Categories =
     {
@@ -74,7 +74,7 @@ public static class CloudHistoryAuditService
         string p = logicalPath.Replace('\\', '/').ToLowerInvariant();
         if (p.Contains("moon") || p.Contains("fracture") || p.Contains("extraction") || p.Contains("drill")) return "Moon operations";
         if (p.Contains("contract") || p.Contains("buyback") || p.Contains("appraisal")) return "Contracts / buyback";
-        if (p.Contains("planet") || p.Contains("/pi/") || p.Contains("planetary")) return "Planetary industry";
+        if (p.Contains("planet") || p.Contains("/pi/") || p.Contains("/pihistory/") || p.Contains("planetary")) return "Planetary industry";
         if (p.Contains("industry") || p.Contains("manufactur") || p.Contains("blueprint") || p.Contains("production")) return "Industry";
         if (p.Contains("mining") || p.Contains("miner") || p.Contains("ore_") || p.Contains("session")) return "Mining";
         if (p.Contains("pilot") || p.Contains("character") || p.Contains("account")) return "Pilots";
@@ -152,7 +152,7 @@ public static class CloudHistoryAuditService
             catch (UnauthorizedAccessException) { warnings.Add("Not all external EVE game logs could be enumerated."); }
         }
         if (externalFiles > 0) warnings.Add($"External EVE game logs: {externalFiles:N0} files, {SizeText(externalBytes)} not selected for backup.");
-        warnings.Add("Record date ranges are partial: only timestamp-bearing JSON/JSONL up to 2 MiB per file are inspected. 'Unknown' is not zero history.");
+        warnings.Add("Record date ranges are partial: timestamp-bearing JSON/JSONL up to 64 MiB is inspected; future schedule/expiry dates are excluded. 'Unknown' is not zero history.");
         warnings.Add("This audits saved files, not gaps while ESI or live telemetry were unavailable. It does not create missing historical activity.");
         warnings.Add("EVE SSO refresh tokens are archived separately from these source files and cannot be confirmed by a file inventory alone.");
         return new HistoryAuditReport
@@ -192,7 +192,7 @@ public static class CloudHistoryAuditService
                 string? value = element.GetString();
                 if (value?.Length >= 10 && value.Length <= 40 && value[4] == '-' && value[7] == '-' &&
                     DateTimeOffset.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out DateTimeOffset date) &&
-                    date.Year >= 2003 && date.Year <= DateTimeOffset.UtcNow.Year + 1)
+                    date.Year >= 2003 && date <= DateTimeOffset.UtcNow.AddDays(1))
                 {
                     if (!min.HasValue || date < min) min = date;
                     if (!max.HasValue || date > max) max = date;
@@ -217,14 +217,27 @@ public static class CloudHistoryAuditService
         return (min, max);
     }
 
-    private static bool IsDateProperty(string key) =>
-        key.EndsWith("Utc", StringComparison.OrdinalIgnoreCase) ||
-        key.Contains("timestamp", StringComparison.OrdinalIgnoreCase) ||
-        key.Contains("date", StringComparison.OrdinalIgnoreCase) ||
-        key.Contains("observed", StringComparison.OrdinalIgnoreCase) ||
-        key.Contains("fractured", StringComparison.OrdinalIgnoreCase) ||
-        key.Contains("completed", StringComparison.OrdinalIgnoreCase) ||
-        key.Contains("created", StringComparison.OrdinalIgnoreCase);
+    private static bool IsDateProperty(string key)
+    {
+        if (key.StartsWith("next", StringComparison.OrdinalIgnoreCase) ||
+            key.Contains("expir", StringComparison.OrdinalIgnoreCase) ||
+            key.Contains("deadline", StringComparison.OrdinalIgnoreCase) ||
+            key.Contains("scheduled", StringComparison.OrdinalIgnoreCase)) return false;
+        return key.Equals("Date", StringComparison.OrdinalIgnoreCase) ||
+            key.Equals("DayKey", StringComparison.OrdinalIgnoreCase) ||
+            key.Contains("timestamp", StringComparison.OrdinalIgnoreCase) ||
+            key.Contains("observed", StringComparison.OrdinalIgnoreCase) ||
+            key.Contains("recorded", StringComparison.OrdinalIgnoreCase) ||
+            key.Contains("fetched", StringComparison.OrdinalIgnoreCase) ||
+            key.Contains("completed", StringComparison.OrdinalIgnoreCase) ||
+            key.Contains("issued", StringComparison.OrdinalIgnoreCase) ||
+            key.Contains("accepted", StringComparison.OrdinalIgnoreCase) ||
+            key.Contains("fractured", StringComparison.OrdinalIgnoreCase) ||
+            key.Contains("created", StringComparison.OrdinalIgnoreCase) ||
+            key.Contains("lastupdate", StringComparison.OrdinalIgnoreCase) ||
+            key.Contains("extractionstart", StringComparison.OrdinalIgnoreCase);
+    }
+
 
     public static async Task<CloudArchiveVerification> VerifyEncryptedFileAsync(string path, string password,
         CancellationToken cancellationToken = default)

@@ -12,11 +12,12 @@ using System.Threading.Tasks;
 namespace EveCommandCenter.Services;
 
 /// <summary>
-/// Compact one-year mining-history index.
+/// Durable mining-history index, preserving completed days across years.
 ///
-/// Raw EVE gamelogs are the source of truth. We scan them, then retain only
-/// day + character + ore aggregates. No individual historical mining events
-/// are kept, so a full year remains tiny compared with an event database.
+/// Raw EVE gamelogs provide observations; completed daily aggregates and
+/// JSONL journal files are now retained indefinitely by this service.
+/// The initial backfill remains limited to the latest year to avoid massive
+/// first-run memory use. Earlier days need existing archived data or a later backfill.
 ///
 /// The current mining day is rebuilt synchronously at startup by
 /// ScanCurrentDay(). Completed older days are indexed in the background.
@@ -104,8 +105,8 @@ public sealed class MiningHistoryService : IDisposable
 
     /// <summary>
     /// Start/resume compact indexing of completed mining days in the background.
-    /// First run scans up to one year. Later runs rescan only the last few days so
-    /// sessions crossing boundaries are corrected without rebuilding everything.
+    /// Initial scan covers the most recent year; historical rows never expire.
+    /// Later runs revisit the last few days without deleting unobserved days.
     /// </summary>
     public void StartBackgroundBuild(string gameLogPath)
     {
@@ -205,7 +206,6 @@ public sealed class MiningHistoryService : IDisposable
             };
         }
 
-        string fromKey = MiningDailyStore.GetDayKey(scanFromUtc);
         string currentKey = MiningDailyStore.GetDayKey(DateTime.UtcNow);
 
         var files = CandidateFiles(gameLogPath, scanFromUtc)
@@ -254,16 +254,14 @@ public sealed class MiningHistoryService : IDisposable
 
         lock (_gate)
         {
-            // Replace every archived day touched by this scan, then append the newly
-            // rebuilt compact rows.
-            _archive.Rows.RemoveAll(r =>
-                string.CompareOrdinal(r.DayKey, fromKey) >= 0 &&
-                !string.Equals(r.DayKey, currentKey, StringComparison.Ordinal));
+            // Only overwrite days for which the gamelogs actually produced data.
+            // A missing/locked log must NEVER erase a previously archived day.
+            var rebuiltDays = rebuilt.Select(r => r.DayKey).ToHashSet(StringComparer.Ordinal);
+            _archive.Rows.RemoveAll(r => rebuiltDays.Contains(r.DayKey));
 
             _archive.Rows.AddRange(rebuilt);
 
-            string oldestKey = MiningDailyStore.GetDayKey(absoluteFromUtc);
-            _archive.Rows.RemoveAll(r => string.CompareOrdinal(r.DayKey, oldestKey) < 0);
+            // No age-based pruning: past years must survive the ESI/log retention window.
 
             _archive.Rows = _archive.Rows
                 .GroupBy(
@@ -307,7 +305,7 @@ public sealed class MiningHistoryService : IDisposable
             };
         }
 
-        CleanupOldLiveJsonl(currentKey);
+        // Preserve every completed daily JSONL. It is now part of recovery history.
     }
 
     private static List<string> CandidateFiles(string gameLogPath, DateTime fromUtc)
@@ -577,25 +575,6 @@ public sealed class MiningHistoryService : IDisposable
         }
     }
 
-    private void CleanupOldLiveJsonl(string currentKey)
-    {
-        try
-        {
-            string? dir = Path.GetDirectoryName(_archivePath);
-            if (string.IsNullOrWhiteSpace(dir) || !Directory.Exists(dir))
-                return;
-
-            foreach (var file in Directory.GetFiles(dir, "*.jsonl"))
-            {
-                string key = Path.GetFileNameWithoutExtension(file);
-                if (!string.Equals(key, currentKey, StringComparison.Ordinal))
-                {
-                    try { File.Delete(file); } catch { }
-                }
-            }
-        }
-        catch { }
-    }
 
     private static MiningAggregateRow CloneRow(MiningAggregateRow r) => new()
     {

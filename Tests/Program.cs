@@ -210,6 +210,7 @@ internal static partial class Program
         CheckCloudBackupPortable();
         CheckCloudBackupLiveSqlite();
         CheckCloudHistoryAudit();
+        CheckPermanentHistoricalRetention();
         CheckBuybackIndexPolicy();
         CheckFuelAlignment();
         CheckReleaseMonitor().GetAwaiter().GetResult();
@@ -1175,8 +1176,13 @@ internal static partial class Program
         using var restored = new ContractService(new EveSsoService(), new HttpClient(new FakeEsi()), folder);
         Check(restored.NextCheckUtc == service.NextCheckUtc && restored.State.EntityNames[999] == "Example Miner", "Cooldown and resolved names survive restart");
         Check(restored.State.Rows.Count == 3 && restored.State.SeenByCorporation[42].Count == 3, "Snapshot and deduplication state persist");
-        System.IO.File.Delete(System.IO.Path.Combine(folder, "contracts.json"));
-        System.IO.Directory.Delete(folder);
+        // v3.6.73 journals contract transitions alongside the current snapshot.
+        // Both files must persist through the reload assertions above.
+        string statusHistoryPath = System.IO.Path.Combine(folder, "contract-status-history.jsonl");
+        Check(System.IO.File.Exists(statusHistoryPath) &&
+              System.IO.File.ReadLines(statusHistoryPath).Any(),
+              "Contract refresh writes recoverable status observations");
+        System.IO.Directory.Delete(folder, recursive: true);
     }
     private sealed class FakeEsi : HttpMessageHandler
     {

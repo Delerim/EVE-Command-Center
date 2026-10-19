@@ -1,3 +1,19 @@
+# EVE Command Center v3.6.73
+
+- **Preserve mining history beyond one year.** Remove the destructive 365-day trimming of archived per-character/per-ore totals. Keep historical daily `MiningData/*.jsonl` event journals instead of deleting completed days after indexing. Backups already include these files. Existing aggregates are never replaced when a log scan returns no observations for their day.
+- Continue the bounded one-year **initial** EVE game-log backfill to avoid exhausting RAM on installations with gigabytes of logs. Earlier dates already stored in the Command Center archive remain safe; a future streaming all-time import is required to recover older game logs not yet indexed. Mining totals remain explicitly observed, not inferred when monitoring was offline.
+- **Preserve moon history.** Stop the 365-day pruning of extraction pulls, ESI mining ledger rows and daily mined volume/totals, including when a refresh runs. Remove the one-year filters from the moon calendar and ledger views. Historical observations can now remain for years, subject to storage capacity; snapshots are not proof of periods when ESI was unavailable.
+- **Record contract status transitions.** Add an append-only `Contracts/contract-status-history.jsonl` recording known baseline statuses on first upgrade and new/changed contract statuses at subsequent successful ESI polls. This records observed transitions that today's `contracts.json` (latest per contract) otherwise overwrites. Duplicate unchanged polls are ignored. Does not synthesize history for unseen contracts.
+- **Preserve daily PI colony layouts.** Add an append-only `PiHistory/YYYY-MM-DD.jsonl`, capturing the first real ESI colony layout observed each UTC day for each pilot/planet. Unlike the existing mutable PI state, prior days are retained. These are snapshots, not verified daily production or hauling records.
+- Both new journal types are inside the existing `%LOCALAPPDATA%/EVE Command Center` backup scope and use the `.jsonl` extension already supported by encrypted v2 backups. No EVE or Google OAuth secrets are written to these journals; private moon CSVs remain unbundled.
+- **Improve recovery audit dates.** Inspect timestamped JSON/JSONL sources up to 64 MiB (previously 2 MiB), recognize the new PI history category, and filter scheduled/expiry and future dates so 2027 expiries do not masquerade as recorded 2026 activity. The audit is still partial and does not equate file size to full annual coverage.
+- Add synthetic regression checks for contract baseline and transition journaling, unchanged refreshes, multi-year daily PI snapshots, category recognition and safeguards against reintroducing one-year mining/moon deletion.
+- Existing cloud encryption/restore formats, Google scopes, SSO tokens and local industry SQLite databases are unchanged. Backup archive verification still has a 512 MiB in-memory limit; larger archives require future streaming support. A complete new-PC restore remains a separate end-to-end acceptance test.
+
+## Validation
+
+Run the self-contained `Apply-v3.6.73.ps1` without arguments to stage, restore, build, run regressions and validate these release notes. Only if it prints **STAGED AND VERIFIED**, rerun the same script with `--publish`. The working repository remains unchanged during staging.
+
 # EVE Command Center v3.6.72
 
 - Add **Historical Data & Recovery Audit** to the Google Drive Backup window. Run a read-only local inventory that uses the **same actual file-selection rules as the encrypted backup**, grouped by Mining, Moon Operations, Contracts/Buyback, Industry, PI, Pilots and Other Data. Show included file counts and sizes, rather than inferring coverage from ZIP size.

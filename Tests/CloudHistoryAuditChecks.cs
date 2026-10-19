@@ -21,7 +21,8 @@ internal static partial class Program
             string mining = Path.Combine(root, "mining.jsonl");
             File.WriteAllText(mining,
                 "{\"ObservedUtc\":\"2025-01-07T10:00:00Z\",\"M3\":123}\n" +
-                "{\"ObservedUtc\":\"2026-10-11T10:00:00Z\",\"M3\":456}\n");
+                "{\"ObservedUtc\":\"2026-10-11T10:00:00Z\",\"M3\":456}\n" +
+                "{\"ExpiresUtc\":\"2026-10-18T10:00:00Z\",\"M3\":999}\n");
             string moon = Path.Combine(root, "moon-profiles.csv");
             File.WriteAllText(moon, "moon,ore\nSynthetic moon,Zeolites\n");
             string logs = Path.Combine(root, "EVE", "logs", "Gamelogs");

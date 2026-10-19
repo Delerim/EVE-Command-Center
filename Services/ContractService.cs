@@ -115,6 +115,10 @@ public sealed class ContractService : IDisposable
                 if (contract.AcceptorId > 0) row.Acceptor = EntityName(contract.AcceptorId);
                 history.Add(row);
             }
+            // Journal transitions before replacing current ESI status. Earlier
+            // states cannot be reconstructed once ESI stops returning them.
+            ContractStatusJournal.Capture(_file, corp, history,
+                State.History.Concat(State.Rows), DateTimeOffset.UtcNow);
             var accepted = RecordHistory(State, corp, history);
             var fresh = FindNew(State.SeenByCorporation, corp, rows);
             State.CharacterId = pilot.CharacterId;

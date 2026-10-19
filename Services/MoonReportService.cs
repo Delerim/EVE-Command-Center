@@ -27,7 +27,7 @@ public sealed class MoonReportService : IDisposable
     private const string EsiBase = "https://esi.evetech.net/latest";
     private const double PullM3PerHour = 30000.0;
     private const double AlertFloorM3 = 1000.0;
-    private const int HistoryRetentionDays = 365;
+    // Historical moon pulls, ledger and mined volumes are permanent local records.
 
     private readonly MiningMarketService _market = new();
     private readonly EveSsoService _sso;
@@ -955,7 +955,7 @@ public sealed class MoonReportService : IDisposable
             .ToArray();
 
         MoonAuditView[] auditRows = audit.ToArray();
-        DateTimeOffset calendarCutoff = now.AddDays(-HistoryRetentionDays);
+        DateTimeOffset calendarCutoff = DateTimeOffset.MinValue;
         MoonCardView[] calendarCards = _state.Pulls.Values
             .Where(pull => VisiblePull(pull) && pull.ChunkArrivalUtc >= calendarCutoff)
             .Select(pull => BuildCard(ProfileFor(pull), pull, now))
@@ -1223,7 +1223,7 @@ public sealed class MoonReportService : IDisposable
     private (MoonLedgerMoonView[] Moons, MoonLedgerPullView[] Pulls)
         BuildLedgerViews(DateTimeOffset now)
     {
-        DateTime cutoff = now.UtcDateTime.Date.AddDays(-HistoryRetentionDays);
+        DateTime cutoff = DateTime.MinValue;
         MoonLedgerPullView[] pulls = _state.Pulls.Values
             .Where(pull =>
                 pull.ChunkArrivalUtc.UtcDateTime >= cutoff &&
@@ -1710,30 +1710,10 @@ public sealed class MoonReportService : IDisposable
 
     private void PruneHistory(DateTimeOffset now)
     {
-        DateTime cutoff = now.UtcDateTime.Date.AddDays(-HistoryRetentionDays);
-        foreach (string key in _state.LedgerHistory
-                     .Where(item => item.Value.Date < cutoff)
-                     .Select(item => item.Key)
-                     .ToArray())
-            _state.LedgerHistory.Remove(key);
-
-        foreach (string key in _state.DailyMinedM3.Keys
-                     .Where(key => IsKeyOlderThan(key, cutoff))
-                     .ToArray())
-            _state.DailyMinedM3.Remove(key);
-        foreach (string key in _state.LedgerTotals.Keys
-                     .Where(key => IsKeyOlderThan(key, cutoff))
-                     .ToArray())
-            _state.LedgerTotals.Remove(key);
-
-        foreach (string key in _state.Pulls
-                     .Where(item =>
-                         item.Value.NaturalDecayUtc.UtcDateTime < cutoff &&
-                         !item.Value.SeenInLatestExtractionList)
-                     .Select(item => item.Key)
-                     .ToArray())
-            _state.Pulls.Remove(key);
+        // Intentionally empty. A 365-day sweep used to permanently delete
+        // moon pulls, mined volumes and ESI ledger observations. Never do that.
     }
+
 
     private static bool IsKeyOlderThan(string key, DateTime cutoff)
     {

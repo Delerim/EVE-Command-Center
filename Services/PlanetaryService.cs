@@ -91,7 +91,11 @@ public sealed class PlanetaryService
                                 UpgradeLevel = colony.TryGetProperty("upgrade_level", out var level) ? level.GetInt32() : null, PlanetType = colony.GetProperty("planet_type").GetString() ?? "", LastUpdate = colony.GetProperty("last_update").GetDateTimeOffset(), Fetched = DateTimeOffset.UtcNow, Layout = layout };
                             if (previous != null) State.Colonies.Remove(previous);
                             State.Colonies.Add(next);
-                            Save(); Changed?.Invoke();
+                            Save();
+                            // Persist the day's first full observed layout before
+                            // subsequent ESI refreshes replace current-state data.
+                            PiDailySnapshotJournal.Capture(next);
+                            Changed?.Invoke();
                         }
                         catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
                         catch (Exception ex) { if (previous != null) previous.Error = "Refresh delayed: " + ex.Message; State.PilotStatus[pilot.CharacterId] = "Some colony data unavailable: " + ex.Message; }
