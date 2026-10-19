@@ -15,6 +15,7 @@ public sealed class CloudBackupSettings
     public DateTimeOffset? LastBackupUtc { get; set; }
     public DateTimeOffset? LastRestoreUtc { get; set; }
     public string GoogleAccountHint { get; set; } = "";
+    public string PrivateMoonCsvPath { get; set; } = "";
 }
 
 public sealed class CloudBackupPreferences
@@ -37,6 +38,18 @@ public sealed class CloudBackupManifestFile
     public string LogicalPath { get; set; } = "";
     public long Size { get; set; }
     public string Sha256 { get; set; } = "";
+}
+
+public sealed class CloudRestorePoint
+{
+    public string Id { get; init; } = "";
+    public string Name { get; init; } = "";
+    public DateTimeOffset ModifiedUtc { get; init; }
+    public long Size { get; init; }
+    public bool IsLegacy { get; init; }
+    public string Display => ModifiedUtc.ToLocalTime().ToString("dd MMM yyyy HH:mm") +
+        " - " + Name.Replace("eve-command-center-v2-", "").Replace(".ecc", "") +
+        (IsLegacy ? " (legacy; no EVE tokens)" : "");
 }
 
 public sealed class CloudBackupStatus

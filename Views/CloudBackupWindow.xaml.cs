@@ -1,5 +1,6 @@
 using System;
 using System.Globalization;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
@@ -31,6 +32,9 @@ public partial class CloudBackupWindow : Window
         AutoBackupCheck.IsChecked = _service.Settings.AutoBackupEnabled;
         MinutesBox.Text = _service.Settings.AutoBackupMinutes
             .ToString(CultureInfo.InvariantCulture);
+        RecoveryPasswordStatus.Text = _service.HasRecoveryPassword ? "Configured" : "Not set";
+        PrivateMoonCsvStatus.Text = string.IsNullOrWhiteSpace(_service.Settings.PrivateMoonCsvPath)
+            ? "No external moon CSV selected" : _service.Settings.PrivateMoonCsvPath;
         await RefreshStatusAsync();
     }
 
@@ -69,7 +73,8 @@ public partial class CloudBackupWindow : Window
                     MessageBoxImage.Question) == MessageBoxResult.Yes)
             {
                 var progress = new Progress<string>(SetStatus);
-                await _service.RestoreNowAsync(progress, _lifetime.Token);
+                await _service.RestoreNowAsync(progress, _lifetime.Token,
+                (RestorePointsBox.SelectedItem as CloudRestorePoint)?.Id);
                 restored = true;
             }
         }, refreshAfter: false);
@@ -105,6 +110,70 @@ public partial class CloudBackupWindow : Window
             CloudBackupCoordinator.RefreshSettings();
             SetStatus("Google Drive disconnected on this PC.");
         });
+    }
+
+    private void SaveRecoveryPassword_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            if (!string.Equals(RecoveryPasswordBox.Password, ConfirmRecoveryPasswordBox.Password, StringComparison.Ordinal))
+                throw new InvalidOperationException("Recovery passwords do not match.");
+            if (_service.HasRecoveryPassword && System.Windows.MessageBox.Show(this,
+                "Replacing the recovery password does not re-encrypt older snapshots. Keep the previous password if you may need to restore them. Continue?",
+                "Change Backup Recovery Password", MessageBoxButton.YesNo,
+                MessageBoxImage.Warning) != MessageBoxResult.Yes) return;
+            _service.SetRecoveryPassword(RecoveryPasswordBox.Password);
+            RecoveryPasswordBox.Clear();
+            ConfirmRecoveryPasswordBox.Clear();
+            RecoveryPasswordStatus.Text = "Configured";
+            SetStatus("Recovery password encrypted locally. Keep a copy in your password manager!");
+            UpdateButtonStates();
+        }
+        catch (Exception ex) { SetStatus(ex.Message, true); }
+    }
+
+    private async void ChoosePrivateMoonCsv_Click(object sender, RoutedEventArgs e)
+    {
+        var picker = new Microsoft.Win32.OpenFileDialog {
+            Title = "Select private moon CSV to include in encrypted backups",
+            Filter = "CSV files (*.csv)|*.csv" };
+        if (picker.ShowDialog(this) != true) return;
+        await RunAsync(async () => {
+            await _service.SelectPrivateMoonCsvAsync(picker.FileName);
+            PrivateMoonCsvStatus.Text = picker.FileName;
+            SetStatus("Private moon CSV selected for future encrypted backups.");
+        });
+    }
+
+    private async void ExportEncrypted_Click(object sender, RoutedEventArgs e)
+    {
+        var picker = new Microsoft.Win32.SaveFileDialog {
+            Title = "Export encrypted EVE Command Center backup",
+            FileName = "EVE-Command-Center-" + DateTime.Now.ToString("yyyyMMdd") + ".ecc",
+            Filter = "Encrypted Command Center backup (*.ecc)|*.ecc" };
+        if (picker.ShowDialog(this) != true) return;
+        await RunAsync(async () => {
+            await _service.ExportEncryptedSnapshotAsync(picker.FileName, _lifetime.Token);
+            SetStatus("Encrypted copy saved to your selected location.");
+        });
+    }
+
+    private async void RestoreLocal_Click(object sender, RoutedEventArgs e)
+    {
+        var picker = new Microsoft.Win32.OpenFileDialog {
+            Title = "Restore locally exported encrypted EVE Command Center backup",
+            Filter = "Encrypted Command Center backup (*.ecc)|*.ecc" };
+        if (picker.ShowDialog(this) != true) return;
+        if (System.Windows.MessageBox.Show(this,
+            "Restore this encrypted backup and restart? Existing files are copied into the dated RestoreBackups safety directory.",
+            "Restore Encrypted Backup", MessageBoxButton.YesNo,
+            MessageBoxImage.Warning) != MessageBoxResult.Yes) return;
+        bool restored = false;
+        await RunAsync(async () => {
+            await _service.RestoreLocalEncryptedFileAsync(picker.FileName, _lifetime.Token);
+            restored = true;
+        }, refreshAfter: false);
+        if (restored) _service.RestartApplication();
     }
 
     private async void SaveAutomation_Click(object sender, RoutedEventArgs e)
@@ -149,7 +218,8 @@ public partial class CloudBackupWindow : Window
         await RunAsync(async () =>
         {
             var progress = new Progress<string>(SetStatus);
-            await _service.RestoreNowAsync(progress, _lifetime.Token);
+            await _service.RestoreNowAsync(progress, _lifetime.Token,
+                (RestorePointsBox.SelectedItem as CloudRestorePoint)?.Id);
             restored = true;
         }, refreshAfter: false);
         if (restored) _service.RestartApplication();
@@ -194,6 +264,16 @@ public partial class CloudBackupWindow : Window
                 : FormatDate(status.RemoteModifiedUtc) + " · " +
                   FormatBytes(status.RemoteSize);
             LastBackupText.Text = FormatDate(status.LastBackupUtc);
+            if (status.IsConnected)
+            {
+                string? currentId = (RestorePointsBox.SelectedItem as CloudRestorePoint)?.Id;
+                var points = await _service.GetRestorePointsAsync(_lifetime.Token);
+                RestorePointsBox.ItemsSource = points;
+                RestorePointsBox.DisplayMemberPath = nameof(CloudRestorePoint.Display);
+                RestorePointsBox.SelectedItem = points.FirstOrDefault(p => p.Id == currentId)
+                    ?? points.FirstOrDefault(p => p.Name == "eve-command-center-v2-latest.ecc")
+                    ?? points.FirstOrDefault();
+            }
             UpdateButtonStates();
         }
         catch (Exception ex)
@@ -213,8 +293,10 @@ public partial class CloudBackupWindow : Window
     private void UpdateButtonStates()
     {
         ConnectButton.IsEnabled = !_busy;
-        BackupButton.IsEnabled = !_busy && _connected;
+        BackupButton.IsEnabled = !_busy && _connected && _service.HasRecoveryPassword;
         RestoreButton.IsEnabled = !_busy && _connected && _hasRemoteBackup;
+        ExportEncryptedButton.IsEnabled = !_busy && _service.HasRecoveryPassword;
+        RestoreLocalButton.IsEnabled = !_busy && _service.HasRecoveryPassword;
         ReconnectButton.IsEnabled = !_busy && _configured;
         DisconnectButton.IsEnabled = !_busy && _connected;
     }

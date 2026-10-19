@@ -24,7 +24,7 @@ using WpfApplication = System.Windows.Application;
 
 namespace EveCommandCenter.Services;
 
-public sealed class CloudBackupService : IDisposable
+public sealed partial class CloudBackupService : IDisposable
 {
     public const string DriveScope =
         "https://www.googleapis.com/auth/drive.appdata";
@@ -178,7 +178,11 @@ public sealed class CloudBackupService : IDisposable
         bool connected = IsConfigured && HasStoredGoogleLogin;
         if (connected)
         {
-            try { remote = await FindRemoteBackupAsync(cancellationToken); }
+            try
+            {
+                remote = await FindRemoteBackupAsync(cancellationToken, name: PortableLatestName)
+                         ?? await FindRemoteBackupAsync(cancellationToken);
+            }
             catch { connected = false; }
         }
         return new CloudBackupStatus
@@ -205,26 +209,32 @@ public sealed class CloudBackupService : IDisposable
         IProgress<string>? progress = null,
         CancellationToken cancellationToken = default)
     {
+        // Never send a token-bearing backup before the user configured encryption.
+        string password = CloudBackupPortableSecurity.ReadPassword();
         await _gate.WaitAsync(cancellationToken);
         string? archive = null;
         try
         {
-            progress?.Report("Creating a safe snapshot of local data...");
+            progress?.Report("Capturing history, private moon files, local data and EVE credentials...");
             archive = await CreateArchiveAsync(cancellationToken);
-            progress?.Report("Uploading backup to private Google Drive app data...");
+            byte[] plaintext = await File.ReadAllBytesAsync(archive, cancellationToken);
+            byte[] encrypted = CloudBackupPortableSecurity.Encrypt(plaintext, password);
+            CryptographicOperations.ZeroMemory(plaintext);
+            progress?.Report("Uploading AES-256-GCM encrypted backup and restore points...");
             string token = await GetAccessTokenAsync(cancellationToken);
-            DriveFile? remote = await FindRemoteBackupAsync(
-                cancellationToken, token);
-            byte[] bytes = await File.ReadAllBytesAsync(
-                archive, cancellationToken);
-            if (remote == null)
-                await CreateRemoteBackupAsync(bytes, token, cancellationToken);
-            else
-                await UpdateRemoteBackupAsync(
-                    remote.Id, bytes, token, cancellationToken);
-            _settings.LastBackupUtc = DateTimeOffset.UtcNow;
+            DateTimeOffset now = DateTimeOffset.UtcNow;
+            // Only replace the v2 objects after encryption succeeds.
+            await UploadSnapshotAsync(PortableLatestName, encrypted, token, cancellationToken);
+            await UploadSnapshotIfDueAsync(DailyName(now), encrypted, token,
+                TimeSpan.FromHours(1), cancellationToken);
+            await UploadSnapshotIfDueAsync(WeeklyName(now), encrypted, token,
+                TimeSpan.FromDays(1), cancellationToken);
+            await UploadSnapshotIfDueAsync(MonthlyName(now), encrypted, token,
+                TimeSpan.FromDays(7), cancellationToken);
+            await PruneSnapshotHistoryAsync(token, cancellationToken);
+            _settings.LastBackupUtc = now;
             await SaveSettingsAsync();
-            progress?.Report("Cloud backup completed.");
+            progress?.Report("Encrypted backup complete (latest + daily/weekly/monthly restore points).");
         }
         finally
         {
@@ -235,39 +245,39 @@ public sealed class CloudBackupService : IDisposable
 
     public async Task RestoreNowAsync(
         IProgress<string>? progress = null,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        string? restorePointId = null)
     {
         await _gate.WaitAsync(cancellationToken);
         string? archive = null;
         try
         {
             string token = await GetAccessTokenAsync(cancellationToken);
-            DriveFile remote = await FindRemoteBackupAsync(
-                cancellationToken, token) ??
-                throw new InvalidOperationException(
-                    "No EVE Command Center backup exists in this Google account.");
-            progress?.Report("Downloading cloud backup...");
+            var available = await ListRemoteBackupsAsync(token, cancellationToken);
+            DriveFile remote = (restorePointId == null
+                ? available.FirstOrDefault(f => f.Name == PortableLatestName) ??
+                  available.FirstOrDefault(f => f.Name == BackupName)
+                : available.FirstOrDefault(f => f.Id == restorePointId)) ??
+                throw new InvalidOperationException("That restore point is no longer available.");
+            progress?.Report("Downloading selected cloud restore point...");
+            using var request = AuthorizedRequest(HttpMethod.Get,
+                DriveApi + "/files/" + Uri.EscapeDataString(remote.Id) + "?alt=media", token);
+            using HttpResponseMessage response = await _http.SendAsync(request, cancellationToken);
+            await EnsureSuccessAsync(response, "download restore point");
+            byte[] incoming = await response.Content.ReadAsByteArrayAsync(cancellationToken);
+            byte[] restoredZip = CloudBackupPortableSecurity.IsEncrypted(incoming)
+                ? CloudBackupPortableSecurity.Decrypt(incoming, CloudBackupPortableSecurity.ReadPassword())
+                : remote.Name == BackupName
+                    ? incoming // Retain backwards compatibility with token-free v1 ZIP.
+                    : throw new InvalidDataException("Unknown cloud backup format.");
             archive = TempPath("restore", ".zip");
-            using (var request = AuthorizedRequest(
-                       HttpMethod.Get,
-                       DriveApi + "/files/" + remote.Id + "?alt=media",
-                       token))
-            using (HttpResponseMessage response = await _http.SendAsync(
-                       request, HttpCompletionOption.ResponseHeadersRead,
-                       cancellationToken))
-            {
-                await EnsureSuccessAsync(response, "download backup");
-                await using Stream source = await response.Content
-                    .ReadAsStreamAsync(cancellationToken);
-                await using FileStream destination = File.Create(archive);
-                await source.CopyToAsync(destination, cancellationToken);
-            }
-
-            progress?.Report("Validating and restoring files...");
+            await File.WriteAllBytesAsync(archive, restoredZip, cancellationToken);
+            CryptographicOperations.ZeroMemory(restoredZip);
+            progress?.Report("Verifying archive checksums before restoring...");
             await RestoreArchiveAsync(archive, cancellationToken);
             _settings.LastRestoreUtc = DateTimeOffset.UtcNow;
             await SaveSettingsAsync();
-            progress?.Report("Restore completed. Restarting is required.");
+            progress?.Report("Restore complete. Restart Command Center to load recovered data.");
         }
         finally
         {
@@ -307,7 +317,7 @@ public sealed class CloudBackupService : IDisposable
         foreach (BackupSource source in sources)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            byte[] bytes = await ReadStableBytesAsync(
+            byte[] bytes = await ReadBackupFileAsync(
                 source.SourcePath, cancellationToken);
             ZipArchiveEntry entry = zip.CreateEntry(
                 "data/" + source.LogicalPath.Replace('\\', '/'),
@@ -320,6 +330,42 @@ public sealed class CloudBackupService : IDisposable
                 Size = bytes.LongLength,
                 Sha256 = Convert.ToHexString(SHA256.HashData(bytes))
             });
+        }
+        // EVE refresh tokens are stored in Windows Credential Manager, not pilot JSON.
+        // Export ONLY into the encrypted v2 container; v1 is no longer uploaded.
+        string pilotsPath = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "EVE Command Center", "PilotData", "pilots.json");
+        if (File.Exists(pilotsPath))
+        {
+            var pilots = JsonSerializer.Deserialize<List<EvePilotProfile>>(
+                await File.ReadAllTextAsync(pilotsPath, cancellationToken), _json) ?? new();
+            var secrets = new Dictionary<long, string>();
+            var notConnected = new List<long>();
+            foreach (var pilot in pilots.Where(p => p.CharacterId > 0))
+            {
+                string? refresh = EveCredentialStore.Read(pilot.CharacterId);
+                if (string.IsNullOrEmpty(refresh)) notConnected.Add(pilot.CharacterId);
+                else secrets[pilot.CharacterId] = refresh;
+            }
+            byte[] secretJson = JsonSerializer.SerializeToUtf8Bytes(new
+            {
+                RefreshTokens = secrets, MissingCharacterIds = notConnected
+            }, _json);
+            // Encrypt this entry BEFORE writing it to the temporary ZIP, too.
+            byte[] secretBytes = CloudBackupPortableSecurity.Encrypt(
+                secretJson, CloudBackupPortableSecurity.ReadPassword());
+            CryptographicOperations.ZeroMemory(secretJson);
+            ZipArchiveEntry entry = zip.CreateEntry("data/eve/refresh-tokens.json", CompressionLevel.Optimal);
+            await using (Stream stream = entry.Open())
+                await stream.WriteAsync(secretBytes, cancellationToken);
+            manifest.Files.Add(new CloudBackupManifestFile
+            {
+                LogicalPath = "eve/refresh-tokens.json",
+                Size = secretBytes.LongLength,
+                Sha256 = Convert.ToHexString(SHA256.HashData(secretBytes))
+            });
+            CryptographicOperations.ZeroMemory(secretBytes);
         }
         byte[] preferenceBytes = JsonSerializer.SerializeToUtf8Bytes(
             new CloudBackupPreferences
@@ -349,46 +395,55 @@ public sealed class CloudBackupService : IDisposable
     {
         string exeDir = AppContext.BaseDirectory;
         string localRoot = Path.Combine(
-            Environment.GetFolderPath(
-                Environment.SpecialFolder.LocalApplicationData),
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "EVE Command Center");
         var result = new List<BackupSource>();
-        AddFile(result, Path.Combine(exeDir, "EVE Command Center.json"),
-            "config/EVE Command Center.json");
-        AddFile(result, Path.Combine(exeDir, "EVE Command Center Mining.json"),
-            "config/EVE Command Center Mining.json");
+        AddFile(result, Path.Combine(exeDir, "EVE Command Center.json"), "config/EVE Command Center.json");
+        AddFile(result, Path.Combine(exeDir, "EVE Command Center Mining.json"), "config/EVE Command Center Mining.json");
+        var extensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ".json", ".jsonl", ".csv", ".log", ".txt", ".db", ".sqlite",
+            ".sqlite3", ".xml", ".dat", ".ini"
+        };
         if (Directory.Exists(localRoot))
         {
-            foreach (string path in Directory.GetFiles(
-                         localRoot, "*", SearchOption.AllDirectories)
-                     .Where(path =>
-                         path.EndsWith(".json", StringComparison.OrdinalIgnoreCase) ||
-                         path.EndsWith(".jsonl", StringComparison.OrdinalIgnoreCase)))
+            foreach (string path in Directory.GetFiles(localRoot, "*", SearchOption.AllDirectories))
             {
                 string relative = Path.GetRelativePath(localRoot, path);
-                string first = relative.Split(
-                    Path.DirectorySeparatorChar,
-                    Path.AltDirectorySeparatorChar)[0];
+                string first = relative.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)[0];
+                // Google credentials, local recovery key and prior restore backups never enter Google.
                 if (first.Equals("CloudBackup", StringComparison.OrdinalIgnoreCase) ||
-                    first.Equals("RestoreBackups", StringComparison.OrdinalIgnoreCase))
-                    continue;
-                AddFile(result, path, "local/" + relative);
+                    first.Equals("RestoreBackups", StringComparison.OrdinalIgnoreCase)) continue;
+                if (extensions.Contains(Path.GetExtension(path)) &&
+                    !Path.GetFileName(path).Contains("google", StringComparison.OrdinalIgnoreCase))
+                    AddFile(result, path, "local/" + relative);
             }
         }
-
         string mining = Path.Combine(exeDir, "MiningData");
         if (Directory.Exists(mining))
         {
-            foreach (string path in Directory.GetFiles(
-                         mining, "*", SearchOption.AllDirectories)
-                     .Where(path =>
-                         path.EndsWith(".json", StringComparison.OrdinalIgnoreCase) ||
-                         path.EndsWith(".jsonl", StringComparison.OrdinalIgnoreCase)))
-            {
-                string relative = Path.GetRelativePath(mining, path);
-                AddFile(result, path, "mining/" + relative);
-            }
+            foreach (string path in Directory.GetFiles(mining, "*", SearchOption.AllDirectories))
+                if (extensions.Contains(Path.GetExtension(path)))
+                    AddFile(result, path, "mining/" + Path.GetRelativePath(mining, path));
         }
+        // The original private moon CSV can live anywhere. Require explicit selection.
+        if (!string.IsNullOrWhiteSpace(_settings.PrivateMoonCsvPath))
+        {
+            if (!File.Exists(_settings.PrivateMoonCsvPath))
+                throw new FileNotFoundException("The selected private moon CSV is missing. Re-select it under Backup Settings.", _settings.PrivateMoonCsvPath);
+            AddFile(result, _settings.PrivateMoonCsvPath, "local/PrivateMoonProfiles/moon-profile.csv");
+        }
+        foreach (string folder in new[] { "Logs", "logs", "MoonData", "Reports", "History", "Contracts", "Data", "MarketData", "Telemetry" })
+        {
+            string root = Path.Combine(exeDir, folder);
+            if (!Directory.Exists(root)) continue;
+            foreach (string path in Directory.GetFiles(root, "*", SearchOption.AllDirectories))
+                if (extensions.Contains(Path.GetExtension(path)) &&
+                    !Path.GetFileName(path).Contains("google", StringComparison.OrdinalIgnoreCase))
+                    AddFile(result, path, "app/" + folder + "/" + Path.GetRelativePath(root, path));
+        }
+        result = result.GroupBy(x => x.LogicalPath, StringComparer.OrdinalIgnoreCase)
+            .Select(group => group.Last()).ToList();
         return result;
     }
 
@@ -435,6 +490,28 @@ public sealed class CloudBackupService : IDisposable
                 throw new InvalidDataException(
                     "Backup checksum failed for " + logical);
 
+            if (logical == "eve/refresh-tokens.json")
+            {
+                // Tokens are encrypted inside the ZIP as well as within the full archive.
+                byte[] tokenJson = CloudBackupPortableSecurity.IsEncrypted(bytes)
+                    ? CloudBackupPortableSecurity.Decrypt(bytes, CloudBackupPortableSecurity.ReadPassword())
+                    : throw new InvalidDataException("Unencrypted EVE tokens in backup are forbidden.");
+                using JsonDocument tokens = JsonDocument.Parse(tokenJson);
+                if (tokens.RootElement.TryGetProperty("RefreshTokens", out JsonElement secrets))
+                {
+                    foreach (JsonProperty pair in secrets.EnumerateObject())
+                    {
+                        if (!long.TryParse(pair.Name, out long characterId) || characterId <= 0)
+                            throw new InvalidDataException("Invalid EVE character ID in backup.");
+                        string refresh = pair.Value.GetString() ?? "";
+                        if (!string.IsNullOrEmpty(refresh))
+                            EveCredentialStore.Write(characterId, refresh);
+                    }
+                }
+                CryptographicOperations.ZeroMemory(bytes);
+                CryptographicOperations.ZeroMemory(tokenJson);
+                continue;
+            }
             if (logical == "cloud/preferences.json")
             {
                 CloudBackupPreferences preferences =
@@ -477,16 +554,20 @@ public sealed class CloudBackupService : IDisposable
             return Path.Combine(localRoot,
                 logical["local/".Length..].Replace(
                     '/', Path.DirectorySeparatorChar));
+        if (logical.StartsWith("app/", StringComparison.Ordinal))
+            return Path.Combine(exeDir,
+                logical["app/".Length..].Replace('/', Path.DirectorySeparatorChar));
         throw new InvalidDataException(
             "Backup contains an unknown logical path: " + logical);
     }
 
     private async Task<DriveFile?> FindRemoteBackupAsync(
         CancellationToken cancellationToken,
-        string? knownToken = null)
+        string? knownToken = null,
+        string name = BackupName)
     {
         string token = knownToken ?? await GetAccessTokenAsync(cancellationToken);
-        string query = "name='" + BackupName.Replace("'", "\\'") +
+        string query = "name='" + name.Replace("'", "\\'") +
             "' and trashed=false";
         string url = DriveApi + "/files?spaces=appDataFolder&q=" +
             Uri.EscapeDataString(query) +
@@ -506,17 +587,19 @@ public sealed class CloudBackupService : IDisposable
     private async Task CreateRemoteBackupAsync(
         byte[] bytes,
         string token,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        string name = BackupName)
     {
         using var multipart = new MultipartContent("related");
         var metadata = new StringContent(
             JsonSerializer.Serialize(new
             {
-                name = BackupName,
+                name,
                 parents = new[] { "appDataFolder" }
             }), Encoding.UTF8, "application/json");
         var content = new ByteArrayContent(bytes);
-        content.Headers.ContentType = new MediaTypeHeaderValue("application/zip");
+        content.Headers.ContentType = new MediaTypeHeaderValue(name.EndsWith(".ecc", StringComparison.Ordinal)
+            ? "application/octet-stream" : "application/zip");
         multipart.Add(metadata);
         multipart.Add(content);
         using var request = AuthorizedRequest(
@@ -542,7 +625,7 @@ public sealed class CloudBackupService : IDisposable
             token);
         request.Content = new ByteArrayContent(bytes);
         request.Content.Headers.ContentType =
-            new MediaTypeHeaderValue("application/zip");
+            new MediaTypeHeaderValue("application/octet-stream");
         using HttpResponseMessage response = await _http.SendAsync(
             request, cancellationToken);
         await EnsureSuccessAsync(response, "update backup");
@@ -640,6 +723,34 @@ public sealed class CloudBackupService : IDisposable
         string body = await response.Content.ReadAsStringAsync();
         throw new InvalidOperationException(
             $"Google Drive could not {operation}: " + Trim(body));
+    }
+
+    private static async Task<byte[]> ReadBackupFileAsync(string path, CancellationToken cancellationToken)
+    {
+        if (new[] { ".sqlite", ".sqlite3", ".db" }
+            .Contains(Path.GetExtension(path), StringComparer.OrdinalIgnoreCase))
+        {
+            string temporary = TempPath("sqlite-snapshot", ".db");
+            try
+            {
+                using var source = new Microsoft.Data.Sqlite.SqliteConnection(
+                    new Microsoft.Data.Sqlite.SqliteConnectionStringBuilder {
+                        DataSource = path, Mode = Microsoft.Data.Sqlite.SqliteOpenMode.ReadOnly }.ToString());
+                using var destination = new Microsoft.Data.Sqlite.SqliteConnection(
+                    new Microsoft.Data.Sqlite.SqliteConnectionStringBuilder {
+                        DataSource = temporary, Mode = Microsoft.Data.Sqlite.SqliteOpenMode.ReadWriteCreate }.ToString());
+                source.Open(); destination.Open();
+                source.BackupDatabase(destination);
+                destination.Close();
+                return await File.ReadAllBytesAsync(temporary, cancellationToken);
+            }
+            catch (Microsoft.Data.Sqlite.SqliteException)
+            {
+                // An unknown .db isn't necessarily SQLite; copy it normally.
+            }
+            finally { TryDelete(temporary); }
+        }
+        return await ReadStableBytesAsync(path, cancellationToken);
     }
 
     private static async Task<byte[]> ReadStableBytesAsync(

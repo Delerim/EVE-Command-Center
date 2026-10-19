@@ -206,6 +206,7 @@ internal static partial class Program
         CheckBuybackAnalytics();
         CheckMoonIntelligenceReports();
         CheckCloudBackupOAuthCallback();
+        CheckCloudBackupPortable();
         CheckBuybackIndexPolicy();
         CheckFuelAlignment();
         CheckReleaseMonitor().GetAwaiter().GetResult();

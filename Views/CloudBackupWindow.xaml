@@ -2,7 +2,7 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="EVE Command Center · Cloud Backup"
-        Width="850" Height="690" MinWidth="760" MinHeight="620"
+        Width="850" Height="790" MinWidth="760" MinHeight="700"
         WindowStartupLocation="CenterOwner" Background="#07181B"
         Foreground="#EAF7F7" FontFamily="Segoe UI">
     <Window.Resources>
@@ -80,6 +80,18 @@
                     <Button x:Name="DisconnectButton" Content="DISCONNECT"
                             Click="Disconnect_Click" Margin="8,0,0,0"/>
                 </StackPanel>
+                <TextBlock Text="PORTABLE ENCRYPTED BACKUPS" Foreground="#A9DADA" FontWeight="Bold" Margin="0,12,0,5"/>
+                <TextBlock Text="Choose a strong recovery password, store it safely outside this PC. EVE refresh tokens, moon CSVs, logs and databases are backed up in an AES-256-GCM encrypted archive. Google tokens are excluded." TextWrapping="Wrap" Foreground="#8FB2B5"/>
+                <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                    <PasswordBox x:Name="RecoveryPasswordBox" Width="180" Height="30" Padding="5" ToolTip="Recovery password (12+ characters)"/>
+                    <PasswordBox x:Name="ConfirmRecoveryPasswordBox" Width="180" Height="30" Padding="5" Margin="8,0,0,0" ToolTip="Repeat the recovery password"/>
+                    <Button x:Name="SaveRecoveryPasswordButton" Content="SAVE RECOVERY PASSWORD" Click="SaveRecoveryPassword_Click" Margin="8,0,0,0"/>
+                    <TextBlock x:Name="RecoveryPasswordStatus" Text="Not set" Foreground="#FFB74D" VerticalAlignment="Center" Margin="8,0,0,0"/>
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                    <Button Content="SELECT PRIVATE MOON CSV" Click="ChoosePrivateMoonCsv_Click"/>
+                    <TextBlock x:Name="PrivateMoonCsvStatus" Foreground="#8FB2B5" VerticalAlignment="Center" Margin="8,0,0,0" TextTrimming="CharacterEllipsis" Width="390"/>
+                </StackPanel>
             </StackPanel>
         </Border>
 
@@ -111,14 +123,19 @@
                 <TextBlock Text="BACKUP CONTENTS" FontWeight="Bold" Foreground="#A9DADA"/>
                 <TextBlock Grid.Row="1" Margin="0,7,0,12" TextWrapping="Wrap"
                            Foreground="#789EA1"
-                           Text="Client accounts and layout · thumbnail and overview settings · mining preferences and tile order · mining JSONL/history · pilot metadata · moon profiles, pulls, ledger history and reports. Tokens, runtime caches, window handles and process IDs are excluded."/>
-                <StackPanel Grid.Row="2" Orientation="Horizontal" VerticalAlignment="Bottom">
+                           Text="Encrypted latest plus 7 daily, 4 weekly and 12 monthly restore points. Includes JSON/JSONL history, SQLite databases, logs, supported local data, EVE refresh tokens and your selected private moon CSV. Google credentials and temporary runtime state are excluded."/>
+                <StackPanel Grid.Row="2" Orientation="Vertical" VerticalAlignment="Bottom">
+                    <ComboBox x:Name="RestorePointsBox" Width="520" HorizontalAlignment="Left" Margin="0,0,0,8" ToolTip="Choose which snapshot to restore"/>
+                    <StackPanel Orientation="Horizontal">
                     <Button x:Name="BackupButton" Content="BACK UP NOW" Click="Backup_Click"
                             Background="#17656A" BorderBrush="#55D7D2"/>
                     <Button x:Name="RestoreButton" Content="RESTORE &amp; RESTART"
                             Click="Restore_Click" Margin="8,0,0,0" Background="#5A4020"
                             BorderBrush="#C89243"/>
                     <Button Content="REFRESH STATUS" Click="RefreshStatus_Click" Margin="8,0,0,0"/>
+                    <Button x:Name="ExportEncryptedButton" Content="EXPORT ENCRYPTED COPY" Click="ExportEncrypted_Click" Margin="8,0,0,0"/>
+                    <Button x:Name="RestoreLocalButton" Content="RESTORE FILE" Click="RestoreLocal_Click" Margin="8,0,0,0"/>
+                    </StackPanel>
                 </StackPanel>
             </Grid>
         </Border>

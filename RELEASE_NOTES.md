@@ -1,3 +1,16 @@
+# EVE Command Center v3.6.69
+
+- Add the missing cloud icon beside Backup in App Settings, matching the existing sidebar icon spacing.
+- Introduce encrypted portable backups with recovery-password setup. Entire archives use AES-256-GCM and PBKDF2-SHA256, while locally remembered recovery passwords are protected with Windows DPAPI and never uploaded. Configure a recovery password before starting the new automatic cloud backup.
+- Include EVE SSO refresh tokens from Windows Credential Manager in the encrypted archive so linked pilots can be recovered on a replacement PC (subject to token validity and revocation). Never include the Google OAuth refresh token, OAuth JSON, or cloud recovery password.
+- Expand snapshot coverage to JSON/JSONL, moon records, historical reports, logs, CSV, SQLite database snapshots and supported local data. Explicitly choose any private moon CSV stored outside Command Center's folders.
+- Keep the existing v1 ZIP untouched for backwards compatibility; upload encrypted v2 snapshots under different names instead.
+- Retain the latest encrypted snapshot, 7 daily, 4 weekly and 12 monthly restore points in Google's hidden Drive appDataFolder, pruning only old v2 checkpoints.
+- Add a restore-point picker, encrypted local export and local encrypted-file restore option to the Google Drive Backup window.
+- Add encryption integrity and incorrect-password regression checks. A wrong recovery password cannot modify local data.
+
+**Important:** EVE SSO refresh tokens can be rotated or revoked; an older snapshot cannot guarantee an active login. Recovery passwords must be retained externally because Google sign-in alone cannot decrypt the portable archive. Backup contents are not visible in My Drive because the Drive API stores them in the private appDataFolder.
+
 # EVE Command Center v3.6.68
 
 - Fix Google Drive cloud-backup OAuth redirect failures after consent: the local loopback listener now remains open until the browser receives the authorization result page. This resolves the observed `127.0.0.1 refused to connect` and disposed `ThreadPoolBoundHandle` callback errors.

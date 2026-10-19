@@ -282,7 +282,7 @@
                     <Button x:Name="NavColors" Content="{DynamicResource L.Nav.Colors}" Click="NavButton_Click" Tag="Colors" Style="{StaticResource NavBtn}"/>
                     <Button x:Name="NavGroups" Content="{DynamicResource L.Nav.Groups}" Click="NavButton_Click" Tag="Groups" Style="{StaticResource NavBtn}"/>
                     <Button x:Name="NavAlerts" Content="{DynamicResource L.Nav.Alerts}" Click="NavButton_Click" Tag="Alerts" Style="{StaticResource NavBtn}"/>
-                    <Button x:Name="NavBackup" Content="Backup" Click="NavButton_Click" Tag="Backup" Style="{StaticResource NavBtn}"
+                    <Button x:Name="NavBackup" Content="  ☁  Backup" Click="NavButton_Click" Tag="Backup" Style="{StaticResource NavBtn}"
                             ToolTip="Google Drive backup, restore and automatic backups"/>
                     <Button x:Name="NavSounds" Content="{DynamicResource L.Nav.Sounds}" Click="NavButton_Click" Tag="Sounds" Style="{StaticResource NavBtn}"/>
                     <Button x:Name="NavVisibility" Content="{DynamicResource L.Nav.Visibility}" Click="NavButton_Click" Tag="Visibility" Style="{StaticResource NavBtn}"/>
