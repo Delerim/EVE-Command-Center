@@ -97,7 +97,7 @@ public sealed class ThumbnailManager : IDisposable
         // Re-enforce the hard mode even if the requested mode is unchanged: other
         // settings or focus flows can try to re-show a legacy preview mid-session.
         foreach(var (_,thumb) in _thumbnails) {
-            if(!mayShowPrimary) { if(thumb.IsVisible) thumb.HideWithOverlay(); }
+            if (!mayShowPrimary) { if (thumb.IsVisible || thumb.HasVisibleTextOverlay) thumb.HideWithOverlay(); }
             else if(modeChanged && !IsCharacterUserHidden(thumb.CharacterName)) thumb.ShowWithOverlay();
         }
         foreach(var (_,window) in _statWindows) {
@@ -1138,6 +1138,9 @@ public sealed class ThumbnailManager : IDisposable
     public void SetSettingsOpen(bool open)
     {
         _settingsOpen = open;
+        // The Settings / Backup focus transition must never expose a legacy
+        // text layer whose WinForms preview body is already hidden.
+        if (_overviewCombined) SetOverviewCombined(true, _overviewCapture);
         if (open) return;
 
         // On close, force a re-show in case previews were hidden while another
@@ -1345,6 +1348,10 @@ public sealed class ThumbnailManager : IDisposable
                 statWin.Topmost = s.ShowThumbnailsAlwaysOnTop;
                 statWin.LockPositions = s.LockPositions;
             }
+
+            // Settings reapplication changes native preview geometry and WPF
+            // stat overlays. Combined mode must win AFTER all those writes.
+            SetOverviewCombined(_overviewCombined, _overviewCapture);
         });
     }
 
@@ -1675,6 +1682,16 @@ public sealed class ThumbnailManager : IDisposable
     private void UpdateActiveBorders()
     {
         if (_disposed) return;
+        // Keep the native body, its independently owned WPF text window, and
+        // the per-pilot stat window in the same mode. Enforce before the drag
+        // early-return as well as the usual focus/z-order paths.
+        if (_overviewCombined)
+        {
+            foreach (var (_, thumb) in _thumbnails)
+                if (thumb.IsVisible || thumb.HasVisibleTextOverlay) thumb.HideWithOverlay();
+            foreach (var (_, stat) in _statWindows)
+                if (stat.IsVisible) stat.Visibility = Visibility.Collapsed;
+        }
         // Skip all heavy Win32/DWM work during drag — prevents contention
         if (_thumbnails.Values.Any(t => t.IsDragging))
             return;

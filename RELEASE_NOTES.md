@@ -1,4 +1,12 @@
-# EVE Command Center v3.6.73
+# EVE Command Center v3.6.74
+
+- **Fix Combined preview bleed when Settings or Backup gets focus.** The saved Combined/Separate preference now reasserts its native-preview visibility policy when the embedded Settings workspace activates or deactivates; no automatic preference change.
+- Keep the standalone WinForms preview body and its separate WPF text overlay synchronized. A hidden native preview can no longer leave an orphaned pilot label, process text or FPS window visible after Settings interactions or on z-order repair.
+- Reapply the Combined-mode visibility gate after Settings updates thumbnail sizing/styles and per-character stat windows. The focus tracker also checks both HWND layers before early exits.
+- Hidden previews do not recreate their independent text overlays when overlay z-order is corrected. Separate mode still restores the preview/stat windows when deliberately selected; independent PiPs and user visibility preferences are not changed.
+- Add synthetic native/WPF preview regression checks for Separate → Combined, orphan text overlay reproduction, Settings opening, Settings reapplication, Backup focus transition and mode restoration. No EVE clients, user credentials or private moon data are used in these tests.
+- Scope is limited to preview lifecycle, Settings activation, regression coverage and release notes. Google Drive backup, permanent mining history, contract journals and encrypted restore format are unchanged.
+
 
 - **Preserve mining history beyond one year.** Remove the destructive 365-day trimming of archived per-character/per-ore totals. Keep historical daily `MiningData/*.jsonl` event journals instead of deleting completed days after indexing. Backups already include these files. Existing aggregates are never replaced when a log scan returns no observations for their day.
 - Continue the bounded one-year **initial** EVE game-log backfill to avoid exhausting RAM on installations with gigabytes of logs. Earlier dates already stored in the Command Center archive remain safe; a future streaming all-time import is required to recover older game logs not yet indexed. Mining totals remain explicitly observed, not inferred when monitoring was offline.

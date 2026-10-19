@@ -1550,6 +1550,15 @@ public partial class MiningFleetOverviewWindow : Window
         var image=new System.Windows.Media.Imaging.BitmapImage();image.BeginInit();image.CacheOption=System.Windows.Media.Imaging.BitmapCacheOption.OnLoad;image.StreamSource=stream;image.DecodePixelWidth=360;image.EndInit();image.Freeze();
         _previewImages[hwnd]=(frame,image);return image;
     }
+    internal void ReassertPreviewModeForWorkspace()
+    {
+        if (_controlTile == null && !IsLoaded && !IsVisible) return;
+        bool combined = _prefs.CombinedCharacterOverview &&
+                        (_controlTile != null || (IsVisible && WindowState != WindowState.Minimized));
+        RunningApp?.OverviewThumbnails?.SetOverviewCombined(
+            combined, IsVisible && OverviewMode == "CHARACTERS" && !_prefs.CharacterOverviewLivePreview);
+    }
+
     private void ApplyCombinedMode()
     {
         bool combined=_prefs.CombinedCharacterOverview;

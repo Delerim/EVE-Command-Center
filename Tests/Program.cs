@@ -280,6 +280,7 @@ internal static partial class Program
             new AppSettings().MinimizeCommandCenterOnOverviewLaunch == false,
             "Command Center defaults to keeping both windows open");
         CheckEmbeddedLifecycle();
+        CheckCombinedPreviewSettingsLifecycle();
         var landing = new CommandCenterWindow(live: false);
         Check(
             landing.FindName("LaunchOverviewButton") != null &&

@@ -1273,6 +1273,9 @@ public partial class App : Application
 
     internal void SetSettingsWorkspaceActive(bool active)
     {
+        // The overview preference, not a stale manager flag, is authoritative
+        // when embedded Settings / Backup moves focus between WPF windows.
+        _miningFleetOverviewWindow?.ReassertPreviewModeForWorkspace();
         _thumbnailManager?.SetSettingsOpen(active);
         _thumbnailManager?.SetSuppressTopmost(active);
         _thumbnailManager?.SetSettingsClickSuppression(active);

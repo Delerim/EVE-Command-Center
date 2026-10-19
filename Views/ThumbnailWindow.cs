@@ -313,6 +313,9 @@ public class ThumbnailWindow : Form
         set => SetTopmost(value);
     }
     public bool IsVisible => Visible;
+    // The text layer is a separate WPF HWND. WinForms.Visible alone cannot
+    // prove that a hidden preview has left nothing drawn on top of EVE.
+    public bool HasVisibleTextOverlay => _textOverlay?.IsVisible == true;
     public WpfVisibility Visibility
     {
         get => Visible ? WpfVisibility.Visible : WpfVisibility.Collapsed;
@@ -1211,6 +1214,11 @@ public class ThumbnailWindow : Form
     public void EnsureOverlayZOrder()
     {
         if (IsDisposed || Disposing || _textOverlay == null || _textOverlay.IsClosed) return;
+        if (!Visible)
+        {
+            if (_textOverlay.IsVisible) _textOverlay.Hide();
+            return;
+        }
         if (!_textOverlay.IsVisible)
             _textOverlay.Show();
 
