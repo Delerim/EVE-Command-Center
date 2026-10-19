@@ -127,30 +127,18 @@ public sealed class CloudBackupService : IDisposable
             "&code_challenge_method=S256";
         Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
 
-        HttpListenerContext context;
+        // Keep the local HTTP listener alive until Chrome receives its response.
+        // Stopping here before WriteBrowserResponseAsync caused ERR_CONNECTION_REFUSED
+        // and ObjectDisposedException (ThreadPoolBoundHandle) on OAuth completion.
+        string code;
         try
         {
-            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(
-                cancellationToken);
-            timeout.CancelAfter(TimeSpan.FromMinutes(4));
-            context = await listener.GetContextAsync().WaitAsync(timeout.Token);
+            code = await ReadGoogleCallbackAsync(listener, state, cancellationToken);
         }
         finally
         {
             listener.Stop();
         }
-
-        string? error = context.Request.QueryString["error"];
-        string? returnedState = context.Request.QueryString["state"];
-        string? code = context.Request.QueryString["code"];
-        bool accepted = string.IsNullOrWhiteSpace(error) &&
-            string.Equals(state, returnedState, StringComparison.Ordinal) &&
-            !string.IsNullOrWhiteSpace(code);
-        await WriteBrowserResponseAsync(context.Response, accepted);
-        if (!accepted)
-            throw new InvalidOperationException(
-                "Google authorization was cancelled or the callback was invalid" +
-                (string.IsNullOrWhiteSpace(error) ? "." : ": " + error));
 
         var form = new Dictionary<string, string>
         {
@@ -675,6 +663,46 @@ public sealed class CloudBackupService : IDisposable
             }
         }
         throw new IOException("Could not snapshot " + path);
+    }
+
+    // Separate callback handler so the HTTP response lifecycle is regression-tested
+    // without Google credentials or an external network connection.
+    internal static async Task<string> ReadGoogleCallbackAsync(
+        HttpListener listener,
+        string expectedState,
+        CancellationToken cancellationToken)
+    {
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(
+            cancellationToken);
+        timeout.CancelAfter(TimeSpan.FromMinutes(4));
+        HttpListenerContext context;
+        try
+        {
+            context = await listener.GetContextAsync()
+                .WaitAsync(timeout.Token).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            throw new TimeoutException(
+                "Google sign-in timed out. Reopen Backup and try Reconnect Google again.");
+        }
+
+        string? error = context.Request.QueryString["error"];
+        string? returnedState = context.Request.QueryString["state"];
+        string? code = context.Request.QueryString["code"];
+        bool accepted = string.IsNullOrWhiteSpace(error) &&
+            string.Equals(expectedState, returnedState, StringComparison.Ordinal) &&
+            !string.IsNullOrWhiteSpace(code);
+
+        // Finish writing and closing the browser response BEFORE callers stop
+        // or dispose the listener. The code is never displayed or logged.
+        await WriteBrowserResponseAsync(context.Response, accepted)
+            .ConfigureAwait(false);
+        if (!accepted)
+            throw new InvalidOperationException(
+                "Google authorization was cancelled or the callback was invalid" +
+                (string.IsNullOrWhiteSpace(error) ? "." : ": " + error));
+        return code!;
     }
 
     private static async Task WriteBrowserResponseAsync(

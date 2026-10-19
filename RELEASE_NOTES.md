@@ -1,3 +1,11 @@
+# EVE Command Center v3.6.68
+
+- Fix Google Drive cloud-backup OAuth redirect failures after consent: the local loopback listener now remains open until the browser receives the authorization result page. This resolves the observed `127.0.0.1 refused to connect` and disposed `ThreadPoolBoundHandle` callback errors.
+- Separate the local OAuth callback from token exchange for a direct, offline regression test using a synthetic authorization code and state. No real Google access tokens or credentials are used in tests or included in the release.
+- Preserve PKCE, one-time state verification, the four-minute sign-in timeout and cancellation, token exchange, Windows Credential Manager storage, existing automatic backup settings, and backup/restore safeguards.
+- Show a clear timeout message if the Google consent flow is abandoned rather than leaving the user waiting on the Backup window.
+- Keep the release process build-first and allow `--publish` to resume safely if a network outage occurs after the release commit but before pushing the branch or tag.
+
 # EVE Command Center v3.6.67
 
 - Restore a clearly labelled **BACKUP** section in App Settings, beside Alerts, making the existing Google Drive backup and recovery tool easy to find.
