@@ -1,3 +1,12 @@
+# EVE Command Center v3.6.75
+
+- **Full backups from the existing Back up now button.** Includes saved Command Center history, consistent SQLite snapshots, linked EVE logins and external Documents/EVE/logs. Encryption and Google sign-in are unchanged. No new test button.
+- **Choose your own backup schedule.** Enable scheduling and enter the interval in minutes (5 to 43,200). New installations default to manual backups; existing saved settings are retained. Scheduled backups run while the app is open; separate backup-on-exit and daily/weekly/monthly tiers are removed.
+- **Keep two cloud copies.** Create a new encrypted snapshot, validate its contents and read it back from Google Drive before deleting older restore points. Failed upload or verification preserves earlier copies and does not record success. A retention failure reports that extra copies remain.
+- **Validate before recovery writes.** Check checksums, SQLite integrity, supported destinations and encrypted EVE login consistency before restoring a v2 archive. Restore captured historical data and logs; missing observations are not invented. Pilots without a saved login are reported as requiring reconnection.
+- Backups and recovery share an operation lock. Failed archive creation cleans up its temporary ZIP. Restore-point selection defaults to the newest copy.
+- Normal Windows Release builds and synthetic regressions validate this patch. The earlier native .NET compiler crash was not reproduced, so no unsupported root-cause claim or analyzer-disable workaround is made. See docs/backup-v3.6.75.md for scope, validation and limitations.
+
 # EVE Command Center v3.6.74
 
 - **Fix Combined preview bleed when Settings or Backup gets focus.** The saved Combined/Separate preference now reasserts its native-preview visibility policy when the embedded Settings workspace activates or deactivates; no automatic preference change.

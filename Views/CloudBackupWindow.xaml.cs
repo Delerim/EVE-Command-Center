@@ -190,7 +190,7 @@ public partial class CloudBackupWindow : Window
             CloudBackupCoordinator.RefreshSettings();
             MinutesBox.Text = _service.Settings.AutoBackupMinutes
                 .ToString(CultureInfo.InvariantCulture);
-            SetStatus("Automatic backup settings saved.");
+            SetStatus("Your backup schedule has been saved. Only two cloud copies are kept.");
         });
     }
 
@@ -277,7 +277,6 @@ public partial class CloudBackupWindow : Window
                 RestorePointsBox.ItemsSource = points;
                 RestorePointsBox.DisplayMemberPath = nameof(CloudRestorePoint.Display);
                 RestorePointsBox.SelectedItem = points.FirstOrDefault(p => p.Id == currentId)
-                    ?? points.FirstOrDefault(p => p.Name == "eve-command-center-v2-latest.ecc")
                     ?? points.FirstOrDefault();
             }
             UpdateButtonStates();

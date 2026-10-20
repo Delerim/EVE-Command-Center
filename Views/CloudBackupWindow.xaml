@@ -110,15 +110,15 @@
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
                 <StackPanel>
-                    <TextBlock Text="AUTOMATIC BACKUP" FontWeight="Bold" Foreground="#A9DADA"/>
-                    <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
-                        <CheckBox x:Name="AutoBackupCheck" Content="Back up while running and on exit"/>
+                    <TextBlock Text="YOUR BACKUP SCHEDULE" FontWeight="Bold" Foreground="#A9DADA"/>
+                    <WrapPanel Margin="0,8,8,0">
+                        <CheckBox x:Name="AutoBackupCheck" Content="Enable my backup schedule (while the app is running)"/>
                         <TextBlock Text="Every" Foreground="#789EA1" Margin="18,2,7,0"/>
                         <TextBox x:Name="MinutesBox" Width="58" Text="15"/>
-                        <TextBlock Text="minutes" Foreground="#789EA1" Margin="7,2,0,0"/>
-                    </StackPanel>
+                        <TextBlock Text="minutes (5 to 43,200)" Foreground="#789EA1" Margin="7,2,0,0"/>
+                    </WrapPanel>
                 </StackPanel>
-                <Button Grid.Column="1" Content="SAVE AUTOMATION" Click="SaveAutomation_Click"
+                <Button Grid.Column="1" Content="SAVE SCHEDULE" Click="SaveAutomation_Click"
                         VerticalAlignment="Center"/>
             </Grid>
         </Border>
@@ -133,7 +133,7 @@
                 <TextBlock Text="BACKUP CONTENTS" FontWeight="Bold" Foreground="#A9DADA"/>
                 <TextBlock Grid.Row="1" Margin="0,7,0,12" TextWrapping="Wrap"
                            Foreground="#789EA1"
-                           Text="Encrypted latest plus 7 daily, 4 weekly and 12 monthly restore points. Includes JSON/JSONL history, SQLite databases, logs, supported local data, EVE refresh tokens and your selected private moon CSV. Google credentials and temporary runtime state are excluded."/>
+                           Text="Keeps the two most recent successful backups. Back up now captures saved Command Center history, databases, external EVE game logs, linked EVE logins and your selected private moon CSV. Choose your own interval above; no separate daily/monthly or exit backups. Recovery restores saved history; it cannot invent observations never collected. Keep your recovery password separately."/>
                 <StackPanel Grid.Row="2" Orientation="Vertical" VerticalAlignment="Bottom">
                     <ComboBox x:Name="RestorePointsBox" Width="520" HorizontalAlignment="Left" Margin="0,0,0,8" ToolTip="Choose which snapshot to restore"/>
                     <WrapPanel Orientation="Horizontal">

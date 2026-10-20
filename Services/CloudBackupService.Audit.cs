@@ -17,9 +17,7 @@ public sealed partial class CloudBackupService
         {
             var included = DiscoverSources()
                 .Select(s => new HistoryAuditSource(s.LogicalPath, s.SourcePath));
-            string eveLogs = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "EVE", "logs");
-            return CloudHistoryAuditService.Build(included, eveLogs, cancellationToken);
+            return CloudHistoryAuditService.Build(included, null, cancellationToken);
         }, cancellationToken);
 
     /// <summary>Test an encrypted local copy by restoring only into a temporary directory.

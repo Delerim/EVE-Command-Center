@@ -46,6 +46,8 @@ public sealed class CloudArchiveVerification
     public int Files { get; init; }
     public long Bytes { get; init; }
     public int CheckedSqliteDatabases { get; init; }
+    public int StoredEveLogins { get; init; }
+    public int MissingEveLogins { get; init; }
     public string Summary => $"Verified {Files:N0} files ({CloudHistoryAuditService.SizeText(Bytes)}), {CheckedSqliteDatabases:N0} SQLite database(s). No active application files were modified.";
 }
 
@@ -76,6 +78,7 @@ public static class CloudHistoryAuditService
         if (p.Contains("contract") || p.Contains("buyback") || p.Contains("appraisal")) return "Contracts / buyback";
         if (p.Contains("planet") || p.Contains("/pi/") || p.Contains("/pihistory/") || p.Contains("planetary")) return "Planetary industry";
         if (p.Contains("industry") || p.Contains("manufactur") || p.Contains("blueprint") || p.Contains("production")) return "Industry";
+        if (p.StartsWith("game-logs/")) return "Mining";
         if (p.Contains("mining") || p.Contains("miner") || p.Contains("ore_") || p.Contains("session")) return "Mining";
         if (p.Contains("pilot") || p.Contains("character") || p.Contains("account")) return "Pilots";
         return "Other application data";
@@ -247,6 +250,15 @@ public static class CloudHistoryAuditService
         if (source.Length > MaxLocalVerificationBytes)
             throw new InvalidOperationException("This encrypted backup exceeds the 512 MiB audit-verifier limit. It has NOT been verified; a streaming verifier is required.");
         byte[] encrypted = await File.ReadAllBytesAsync(path, cancellationToken);
+        return await VerifyEncryptedBytesAsync(encrypted, password, cancellationToken);
+    }
+
+    internal static async Task<CloudArchiveVerification> VerifyEncryptedBytesAsync(byte[] encrypted, string password,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        if (encrypted.LongLength > MaxLocalVerificationBytes)
+            throw new InvalidOperationException("The compressed encrypted backup exceeds the 512 MiB limit. No backup completion was recorded.");
         byte[] plaintext = CloudBackupPortableSecurity.Decrypt(encrypted, password);
         string temporary = Path.Combine(Path.GetTempPath(), "ecc-history-verify-" + Guid.NewGuid().ToString("N"));
         try
@@ -254,6 +266,8 @@ public static class CloudHistoryAuditService
             Directory.CreateDirectory(temporary);
             using var buffer = new MemoryStream(plaintext, writable: false);
             using var zip = new ZipArchive(buffer, ZipArchiveMode.Read);
+            if (zip.Entries.Select(e => e.FullName).Distinct(StringComparer.OrdinalIgnoreCase).Count() != zip.Entries.Count)
+                throw new InvalidDataException("Archive contains duplicate entries.");
             ZipArchiveEntry manifestEntry = zip.GetEntry("manifest.json") ?? throw new InvalidDataException("Backup manifest missing.");
             CloudBackupManifest manifest;
             await using (Stream input = manifestEntry.Open())
@@ -263,6 +277,7 @@ public static class CloudHistoryAuditService
             var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             long bytes = 0;
             int databases = 0;
+            var credentials = new CloudBackupRecoveryStructure(password);
             foreach (CloudBackupManifestFile item in manifest.Files)
             {
                 cancellationToken.ThrowIfCancellationRequested();
@@ -271,7 +286,9 @@ public static class CloudHistoryAuditService
                 if (logical.StartsWith('/') || logical.Contains(':') ||
                     segments.Any(s => s.Length == 0 || s == "." || s == "..") || !seen.Add(logical))
                     throw new InvalidDataException("Backup contains unsafe or repeated paths.");
+                CloudBackupRecoveryStructure.ValidateDestination(logical);
                 ZipArchiveEntry entry = zip.GetEntry("data/" + logical) ?? throw new InvalidDataException("Missing archived file: " + logical);
+                if (item.Size < 0 || entry.Length != item.Size) throw new InvalidDataException("Archived size does not match the manifest.");
                 string destination = Path.GetFullPath(Path.Combine(temporary, logical.Replace('/', Path.DirectorySeparatorChar)));
                 if (!destination.StartsWith(Path.GetFullPath(temporary) + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
                     throw new InvalidDataException("Invalid restore destination.");
@@ -287,6 +304,7 @@ public static class CloudHistoryAuditService
                 if (logical.Equals("eve/refresh-tokens.json", StringComparison.Ordinal) &&
                     !CloudBackupPortableSecurity.IsEncrypted(hash))
                     throw new InvalidDataException("EVE credentials are not encrypted within the archive.");
+                credentials.Observe(logical, hash);
                 bytes += info.Length;
                 if (new[] { ".sqlite", ".sqlite3", ".db" }.Contains(info.Extension, StringComparer.OrdinalIgnoreCase))
                 {
@@ -313,7 +331,8 @@ public static class CloudHistoryAuditService
                 if (!seen.Contains(logical) || !actualEntries.Add(logical))
                     throw new InvalidDataException("Archive has unlisted or duplicate data entries.");
             }
-            return new CloudArchiveVerification { Files = seen.Count, Bytes = bytes, CheckedSqliteDatabases = databases };
+            credentials.Complete();
+            return new CloudArchiveVerification { Files = seen.Count, Bytes = bytes, CheckedSqliteDatabases = databases, StoredEveLogins = credentials.Stored, MissingEveLogins = credentials.Missing };
         }
         finally
         {

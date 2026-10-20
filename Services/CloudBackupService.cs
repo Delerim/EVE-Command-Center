@@ -35,31 +35,28 @@ public sealed partial class CloudBackupService : IDisposable
     private const string DriveUploadApi =
         "https://www.googleapis.com/upload/drive/v3";
 
-    private readonly HttpClient _http = new()
-    {
-        Timeout = TimeSpan.FromSeconds(45)
-    };
+    private readonly HttpClient _http;
     private readonly JsonSerializerOptions _json = new()
     {
         PropertyNameCaseInsensitive = true,
         WriteIndented = true
     };
-    private readonly SemaphoreSlim _gate = new(1, 1);
+    private static readonly SemaphoreSlim _gate = new(1, 1);
     private readonly string _settingsFile;
     private CloudBackupSettings _settings;
     private string _accessToken = "";
     private DateTimeOffset _accessTokenExpiresUtc;
 
-    public CloudBackupService()
+    public CloudBackupService() : this(new HttpClient { Timeout = TimeSpan.FromMinutes(15) },
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "EVE Command Center", "CloudBackup", "cloud-backup.json")) { }
+
+    internal CloudBackupService(HttpClient http, string settingsFile)
     {
-        _http.DefaultRequestHeaders.UserAgent.ParseAdd(
-            "EVE-Command-Center-Cloud-Backup/1.0");
-        string root = Path.Combine(
-            Environment.GetFolderPath(
-                Environment.SpecialFolder.LocalApplicationData),
-            "EVE Command Center", "CloudBackup");
-        Directory.CreateDirectory(root);
-        _settingsFile = Path.Combine(root, "cloud-backup.json");
+        _http = http;
+        _http.DefaultRequestHeaders.UserAgent.ParseAdd("EVE-Command-Center-Cloud-Backup/1.0");
+        _settingsFile = settingsFile;
+        Directory.CreateDirectory(Path.GetDirectoryName(settingsFile)!);
         _settings = LoadSettings();
     }
 
@@ -180,8 +177,8 @@ public sealed partial class CloudBackupService : IDisposable
         {
             try
             {
-                remote = await FindRemoteBackupAsync(cancellationToken, name: PortableLatestName)
-                         ?? await FindRemoteBackupAsync(cancellationToken);
+                string token = await GetAccessTokenAsync(cancellationToken);
+                remote = (await ListRemoteBackupsAsync(token, cancellationToken)).OrderByDescending(f => f.ModifiedTime).FirstOrDefault();
             }
             catch { connected = false; }
         }
@@ -200,9 +197,16 @@ public sealed partial class CloudBackupService : IDisposable
 
     public async Task SetAutoBackupAsync(bool enabled, int minutes)
     {
-        _settings.AutoBackupEnabled = enabled;
-        _settings.AutoBackupMinutes = Math.Clamp(minutes, 5, 1440);
-        await SaveSettingsAsync();
+        if (minutes < 5 || minutes > 43200) throw new InvalidOperationException("Choose a backup interval between 5 and 43,200 minutes (30 days).");
+        await _gate.WaitAsync();
+        try
+        {
+            _settings = LoadSettings();
+            _settings.AutoBackupEnabled = enabled;
+            _settings.AutoBackupMinutes = minutes;
+            await SaveSettingsAsync();
+        }
+        finally { _gate.Release(); }
     }
 
     public async Task BackupNowAsync(
@@ -215,26 +219,17 @@ public sealed partial class CloudBackupService : IDisposable
         string? archive = null;
         try
         {
-            progress?.Report("Capturing history, private moon files, local data and EVE credentials...");
-            archive = await CreateArchiveAsync(cancellationToken);
-            byte[] plaintext = await File.ReadAllBytesAsync(archive, cancellationToken);
-            byte[] encrypted = CloudBackupPortableSecurity.Encrypt(plaintext, password);
-            CryptographicOperations.ZeroMemory(plaintext);
-            progress?.Report("Uploading AES-256-GCM encrypted backup and restore points...");
+            ReloadSettings();
+            progress?.Report("Capturing application data, EVE game logs and linked EVE logins...");
+            archive = await Task.Run(() => CreateArchiveAsync(password, cancellationToken), cancellationToken);
+            byte[] encrypted = await Task.Run(async () =>
+            {
+                byte[] plaintext = await File.ReadAllBytesAsync(archive, cancellationToken);
+                try { return CloudBackupPortableSecurity.Encrypt(plaintext, password); }
+                finally { CryptographicOperations.ZeroMemory(plaintext); }
+            }, cancellationToken);
             string token = await GetAccessTokenAsync(cancellationToken);
-            DateTimeOffset now = DateTimeOffset.UtcNow;
-            // Only replace the v2 objects after encryption succeeds.
-            await UploadSnapshotAsync(PortableLatestName, encrypted, token, cancellationToken);
-            await UploadSnapshotIfDueAsync(DailyName(now), encrypted, token,
-                TimeSpan.FromHours(1), cancellationToken);
-            await UploadSnapshotIfDueAsync(WeeklyName(now), encrypted, token,
-                TimeSpan.FromDays(1), cancellationToken);
-            await UploadSnapshotIfDueAsync(MonthlyName(now), encrypted, token,
-                TimeSpan.FromDays(7), cancellationToken);
-            await PruneSnapshotHistoryAsync(token, cancellationToken);
-            _settings.LastBackupUtc = now;
-            await SaveSettingsAsync();
-            progress?.Report("Encrypted backup complete (latest + daily/weekly/monthly restore points).");
+            await UploadVerifiedBackupAsync(encrypted, password, token, progress, cancellationToken);
         }
         finally
         {
@@ -255,8 +250,7 @@ public sealed partial class CloudBackupService : IDisposable
             string token = await GetAccessTokenAsync(cancellationToken);
             var available = await ListRemoteBackupsAsync(token, cancellationToken);
             DriveFile remote = (restorePointId == null
-                ? available.FirstOrDefault(f => f.Name == PortableLatestName) ??
-                  available.FirstOrDefault(f => f.Name == BackupName)
+                ? available.OrderByDescending(f => f.ModifiedTime).FirstOrDefault()
                 : available.FirstOrDefault(f => f.Id == restorePointId)) ??
                 throw new InvalidOperationException("That restore point is no longer available.");
             progress?.Report("Downloading selected cloud restore point...");
@@ -265,6 +259,8 @@ public sealed partial class CloudBackupService : IDisposable
             using HttpResponseMessage response = await _http.SendAsync(request, cancellationToken);
             await EnsureSuccessAsync(response, "download restore point");
             byte[] incoming = await response.Content.ReadAsByteArrayAsync(cancellationToken);
+            if (CloudBackupPortableSecurity.IsEncrypted(incoming))
+                await Task.Run(() => CloudHistoryAuditService.VerifyEncryptedBytesAsync(incoming, CloudBackupPortableSecurity.ReadPassword(), cancellationToken), cancellationToken);
             byte[] restoredZip = CloudBackupPortableSecurity.IsEncrypted(incoming)
                 ? CloudBackupPortableSecurity.Decrypt(incoming, CloudBackupPortableSecurity.ReadPassword())
                 : remote.Name == BackupName
@@ -301,102 +297,113 @@ public sealed partial class CloudBackupService : IDisposable
     }
 
     private async Task<string> CreateArchiveAsync(
-        CancellationToken cancellationToken)
+        string password, CancellationToken cancellationToken)
     {
         string archivePath = TempPath("backup", ".zip");
-        var manifest = new CloudBackupManifest
+        try
         {
-            CreatedUtc = DateTimeOffset.UtcNow,
-            AppVersion = typeof(CloudBackupService).Assembly
-                .GetName().Version?.ToString() ?? "unknown",
-            MachineName = Environment.MachineName
-        };
-        IReadOnlyList<BackupSource> sources = DiscoverSources();
-        await using FileStream file = File.Create(archivePath);
-        using var zip = new ZipArchive(file, ZipArchiveMode.Create, leaveOpen: false);
-        foreach (BackupSource source in sources)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            byte[] bytes = await ReadBackupFileAsync(
-                source.SourcePath, cancellationToken);
-            ZipArchiveEntry entry = zip.CreateEntry(
-                "data/" + source.LogicalPath.Replace('\\', '/'),
-                CompressionLevel.Optimal);
-            await using (Stream stream = entry.Open())
-                await stream.WriteAsync(bytes, cancellationToken);
-            manifest.Files.Add(new CloudBackupManifestFile
+            var manifest = new CloudBackupManifest
             {
-                LogicalPath = source.LogicalPath.Replace('\\', '/'),
-                Size = bytes.LongLength,
-                Sha256 = Convert.ToHexString(SHA256.HashData(bytes))
-            });
-        }
-        // EVE refresh tokens are stored in Windows Credential Manager, not pilot JSON.
-        // Export ONLY into the encrypted v2 container; v1 is no longer uploaded.
-        string pilotsPath = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "EVE Command Center", "PilotData", "pilots.json");
-        if (File.Exists(pilotsPath))
-        {
-            var pilots = JsonSerializer.Deserialize<List<EvePilotProfile>>(
-                await File.ReadAllTextAsync(pilotsPath, cancellationToken), _json) ?? new();
-            var secrets = new Dictionary<long, string>();
-            var notConnected = new List<long>();
-            foreach (var pilot in pilots.Where(p => p.CharacterId > 0))
+                CreatedUtc = DateTimeOffset.UtcNow,
+                AppVersion = typeof(CloudBackupService).Assembly
+                    .GetName().Version?.ToString() ?? "unknown",
+                MachineName = Environment.MachineName
+            };
+            IReadOnlyList<BackupSource> sources = DiscoverSources();
+            await using FileStream file = File.Create(archivePath);
+            using var zip = new ZipArchive(file, ZipArchiveMode.Create, leaveOpen: false);
+            foreach (BackupSource source in sources)
             {
-                string? refresh = EveCredentialStore.Read(pilot.CharacterId);
-                if (string.IsNullOrEmpty(refresh)) notConnected.Add(pilot.CharacterId);
-                else secrets[pilot.CharacterId] = refresh;
+                cancellationToken.ThrowIfCancellationRequested();
+                byte[] bytes = await ReadBackupFileAsync(
+                    source.SourcePath, cancellationToken);
+                ZipArchiveEntry entry = zip.CreateEntry(
+                    "data/" + source.LogicalPath.Replace('\\', '/'),
+                    CompressionLevel.Optimal);
+                await using (Stream stream = entry.Open())
+                    await stream.WriteAsync(bytes, cancellationToken);
+                manifest.Files.Add(new CloudBackupManifestFile
+                {
+                    LogicalPath = source.LogicalPath.Replace('\\', '/'),
+                    Size = bytes.LongLength,
+                    Sha256 = Convert.ToHexString(SHA256.HashData(bytes))
+                });
             }
-            byte[] secretJson = JsonSerializer.SerializeToUtf8Bytes(new
+            // EVE refresh tokens are stored in Windows Credential Manager, not pilot JSON.
+            // Export ONLY into the encrypted v2 container; v1 is no longer uploaded.
+            string pilotsPath = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "EVE Command Center", "PilotData", "pilots.json");
+            if (File.Exists(pilotsPath))
             {
-                RefreshTokens = secrets, MissingCharacterIds = notConnected
-            }, _json);
-            // Encrypt this entry BEFORE writing it to the temporary ZIP, too.
-            byte[] secretBytes = CloudBackupPortableSecurity.Encrypt(
-                secretJson, CloudBackupPortableSecurity.ReadPassword());
-            CryptographicOperations.ZeroMemory(secretJson);
-            ZipArchiveEntry entry = zip.CreateEntry("data/eve/refresh-tokens.json", CompressionLevel.Optimal);
-            await using (Stream stream = entry.Open())
-                await stream.WriteAsync(secretBytes, cancellationToken);
+                var pilots = JsonSerializer.Deserialize<List<EvePilotProfile>>(
+                    await File.ReadAllTextAsync(pilotsPath, cancellationToken), _json) ?? new();
+                var secrets = new Dictionary<long, string>();
+                var notConnected = new List<long>();
+                foreach (var pilot in pilots.Where(p => p.CharacterId > 0))
+                {
+                    string? refresh = EveCredentialStore.Read(pilot.CharacterId);
+                    if (string.IsNullOrEmpty(refresh)) notConnected.Add(pilot.CharacterId);
+                    else secrets[pilot.CharacterId] = refresh;
+                }
+                byte[] secretJson = JsonSerializer.SerializeToUtf8Bytes(new
+                {
+                    RefreshTokens = secrets, MissingCharacterIds = notConnected
+                }, _json);
+                // Encrypt this entry BEFORE writing it to the temporary ZIP, too.
+                byte[] secretBytes = CloudBackupPortableSecurity.Encrypt(
+                    secretJson, password);
+                CryptographicOperations.ZeroMemory(secretJson);
+                ZipArchiveEntry entry = zip.CreateEntry("data/eve/refresh-tokens.json", CompressionLevel.Optimal);
+                await using (Stream stream = entry.Open())
+                    await stream.WriteAsync(secretBytes, cancellationToken);
+                manifest.Files.Add(new CloudBackupManifestFile
+                {
+                    LogicalPath = "eve/refresh-tokens.json",
+                    Size = secretBytes.LongLength,
+                    Sha256 = Convert.ToHexString(SHA256.HashData(secretBytes))
+                });
+                CryptographicOperations.ZeroMemory(secretBytes);
+            }
+            byte[] preferenceBytes = JsonSerializer.SerializeToUtf8Bytes(
+                new CloudBackupPreferences
+                {
+                    AutoBackupEnabled = _settings.AutoBackupEnabled,
+                    AutoBackupMinutes = _settings.AutoBackupMinutes
+                }, _json);
+            ZipArchiveEntry preferenceEntry = zip.CreateEntry(
+                "data/cloud/preferences.json", CompressionLevel.Optimal);
+            await using (Stream stream = preferenceEntry.Open())
+                await stream.WriteAsync(preferenceBytes, cancellationToken);
             manifest.Files.Add(new CloudBackupManifestFile
             {
-                LogicalPath = "eve/refresh-tokens.json",
-                Size = secretBytes.LongLength,
-                Sha256 = Convert.ToHexString(SHA256.HashData(secretBytes))
+                LogicalPath = "cloud/preferences.json",
+                Size = preferenceBytes.LongLength,
+                Sha256 = Convert.ToHexString(SHA256.HashData(preferenceBytes))
             });
-            CryptographicOperations.ZeroMemory(secretBytes);
+            ZipArchiveEntry manifestEntry = zip.CreateEntry(
+                "manifest.json", CompressionLevel.Optimal);
+            await using (Stream stream = manifestEntry.Open())
+                await JsonSerializer.SerializeAsync(
+                    stream, manifest, _json, cancellationToken);
+            return archivePath;
         }
-        byte[] preferenceBytes = JsonSerializer.SerializeToUtf8Bytes(
-            new CloudBackupPreferences
-            {
-                AutoBackupEnabled = _settings.AutoBackupEnabled,
-                AutoBackupMinutes = _settings.AutoBackupMinutes
-            }, _json);
-        ZipArchiveEntry preferenceEntry = zip.CreateEntry(
-            "data/cloud/preferences.json", CompressionLevel.Optimal);
-        await using (Stream stream = preferenceEntry.Open())
-            await stream.WriteAsync(preferenceBytes, cancellationToken);
-        manifest.Files.Add(new CloudBackupManifestFile
+        catch
         {
-            LogicalPath = "cloud/preferences.json",
-            Size = preferenceBytes.LongLength,
-            Sha256 = Convert.ToHexString(SHA256.HashData(preferenceBytes))
-        });
-        ZipArchiveEntry manifestEntry = zip.CreateEntry(
-            "manifest.json", CompressionLevel.Optimal);
-        await using (Stream stream = manifestEntry.Open())
-            await JsonSerializer.SerializeAsync(
-                stream, manifest, _json, cancellationToken);
-        return archivePath;
+            try { File.Delete(archivePath); } catch { }
+            throw;
+        }
     }
 
     private IReadOnlyList<BackupSource> DiscoverSources()
     {
-        string exeDir = AppContext.BaseDirectory;
-        string localRoot = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "EVE Command Center");
+        return DiscoverSources(AppContext.BaseDirectory,
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "EVE Command Center"),
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "EVE", "logs"), _settings.PrivateMoonCsvPath);
+    }
+
+    internal static IReadOnlyList<BackupSource> DiscoverSources(string exeDir, string localRoot, string gameLogsRoot, string? privateMoonCsv)
+    {
         var result = new List<BackupSource>();
         AddFile(result, Path.Combine(exeDir, "EVE Command Center.json"), "config/EVE Command Center.json");
         AddFile(result, Path.Combine(exeDir, "EVE Command Center Mining.json"), "config/EVE Command Center Mining.json");
@@ -427,11 +434,11 @@ public sealed partial class CloudBackupService : IDisposable
                     AddFile(result, path, "mining/" + Path.GetRelativePath(mining, path));
         }
         // The original private moon CSV can live anywhere. Require explicit selection.
-        if (!string.IsNullOrWhiteSpace(_settings.PrivateMoonCsvPath))
+        if (!string.IsNullOrWhiteSpace(privateMoonCsv))
         {
-            if (!File.Exists(_settings.PrivateMoonCsvPath))
-                throw new FileNotFoundException("The selected private moon CSV is missing. Re-select it under Backup Settings.", _settings.PrivateMoonCsvPath);
-            AddFile(result, _settings.PrivateMoonCsvPath, "local/PrivateMoonProfiles/moon-profile.csv");
+            if (!File.Exists(privateMoonCsv))
+                throw new FileNotFoundException("The selected private moon CSV is missing. Re-select it under Backup Settings.", privateMoonCsv);
+            AddFile(result, privateMoonCsv, "local/PrivateMoonProfiles/moon-profile.csv");
         }
         foreach (string folder in new[] { "Logs", "logs", "MoonData", "Reports", "History", "Contracts", "Data", "MarketData", "Telemetry" })
         {
@@ -442,6 +449,10 @@ public sealed partial class CloudBackupService : IDisposable
                     !Path.GetFileName(path).Contains("google", StringComparison.OrdinalIgnoreCase))
                     AddFile(result, path, "app/" + folder + "/" + Path.GetRelativePath(root, path));
         }
+        // Raw EVE logs live outside the application data directory and are needed for historical re-import.
+        if (Directory.Exists(gameLogsRoot))
+            foreach (string path in Directory.EnumerateFiles(gameLogsRoot, "*", SearchOption.AllDirectories))
+                AddFile(result, path, "game-logs/" + Path.GetRelativePath(gameLogsRoot, path));
         result = result.GroupBy(x => x.LogicalPath, StringComparer.OrdinalIgnoreCase)
             .Select(group => group.Last()).ToList();
         return result;
@@ -519,7 +530,7 @@ public sealed partial class CloudBackupService : IDisposable
                         bytes, _json) ?? new CloudBackupPreferences();
                 _settings.AutoBackupEnabled = preferences.AutoBackupEnabled;
                 _settings.AutoBackupMinutes = Math.Clamp(
-                    preferences.AutoBackupMinutes, 5, 1440);
+                    preferences.AutoBackupMinutes, 5, 43200);
                 continue;
             }
 
@@ -545,6 +556,8 @@ public sealed partial class CloudBackupService : IDisposable
             Environment.GetFolderPath(
                 Environment.SpecialFolder.LocalApplicationData),
             "EVE Command Center");
+        if (logical.StartsWith("game-logs/", StringComparison.Ordinal))
+            return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "EVE", "logs", logical["game-logs/".Length..].Replace('/', Path.DirectorySeparatorChar));
         if (logical.StartsWith("config/", StringComparison.Ordinal))
             return Path.Combine(exeDir, logical["config/".Length..]);
         if (logical.StartsWith("mining/", StringComparison.Ordinal))
@@ -936,11 +949,10 @@ public sealed partial class CloudBackupService : IDisposable
 
     public void Dispose()
     {
-        _gate.Dispose();
         _http.Dispose();
     }
 
-    private sealed record BackupSource(string SourcePath, string LogicalPath);
+    internal sealed record BackupSource(string SourcePath, string LogicalPath);
     private sealed class GoogleTokenResponse
     {
         [JsonPropertyName("access_token")]
@@ -975,15 +987,12 @@ public sealed class CloudBackupCoordinator : IDisposable
     {
         _timer = new DispatcherTimer
         {
-            Interval = TimeSpan.FromMinutes(Math.Clamp(
-                _service.Settings.AutoBackupMinutes, 5, 1440))
+            Interval = TimeSpan.FromMinutes(1)
         };
         _timer.Tick += Timer_Tick;
         if (_service.Settings.AutoBackupEnabled &&
             _service.IsConfigured && _service.HasStoredGoogleLogin)
             _timer.Start();
-        if (WpfApplication.Current != null)
-            WpfApplication.Current.Exit += Application_Exit;
     }
 
     public static CloudBackupCoordinator Attach() =>
@@ -998,16 +1007,21 @@ public sealed class CloudBackupCoordinator : IDisposable
     {
         _service.ReloadSettings();
         _timer.Stop();
-        _timer.Interval = TimeSpan.FromMinutes(Math.Clamp(
-            _service.Settings.AutoBackupMinutes, 5, 1440));
+        _timer.Interval = TimeSpan.FromMinutes(1);
         if (_service.Settings.AutoBackupEnabled &&
             _service.IsConfigured && _service.HasStoredGoogleLogin)
             _timer.Start();
     }
 
+    internal static bool BackupIsDue(CloudBackupSettings settings, DateTimeOffset now) =>
+        settings.AutoBackupEnabled && (!settings.LastBackupUtc.HasValue ||
+            now - settings.LastBackupUtc.Value >= TimeSpan.FromMinutes(Math.Clamp(settings.AutoBackupMinutes, 5, 43200)));
+
     private async void Timer_Tick(object? sender, EventArgs e)
     {
         if (_running) return;
+        _service.ReloadSettings();
+        if (!BackupIsDue(_service.Settings, DateTimeOffset.UtcNow)) return;
         _running = true;
         try { await _service.BackupNowAsync(); }
         catch (Exception ex)
@@ -1017,32 +1031,9 @@ public sealed class CloudBackupCoordinator : IDisposable
         finally { _running = false; }
     }
 
-    private void Application_Exit(object sender, ExitEventArgs e)
-    {
-        if (_running || !_service.Settings.AutoBackupEnabled ||
-            !_service.IsConfigured || !_service.HasStoredGoogleLogin)
-            return;
-        try
-        {
-            using var timeout = new CancellationTokenSource(
-                TimeSpan.FromSeconds(15));
-            Task.Run(
-                    () => _service.BackupNowAsync(
-                        cancellationToken: timeout.Token),
-                    timeout.Token)
-                .GetAwaiter().GetResult();
-        }
-        catch (Exception ex)
-        {
-            Debug.WriteLine("[CloudBackup] Exit backup failed: " + ex.Message);
-        }
-    }
-
     public void Dispose()
     {
         _timer.Stop();
-        if (WpfApplication.Current != null)
-            WpfApplication.Current.Exit -= Application_Exit;
         _service.Dispose();
     }
 }

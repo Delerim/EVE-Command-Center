@@ -28,6 +28,11 @@ internal static partial class Program
     [STAThread]
     private static void Main(string[] args)
     {
+        if (args.FirstOrDefault() == "--check-cloud-backup")
+        {
+            CheckCloudBackupPortable(); CheckCloudHistoryAudit(); CheckVerifiedCloudBackup();
+            Console.WriteLine($"{_checks} backup checks passed."); return;
+        }
         if (args.FirstOrDefault() == "--audit-expenses")
         {
             var appFixture = new System.Windows.Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
@@ -208,6 +213,7 @@ internal static partial class Program
         CheckCloudBackupOAuthCallback();
         CheckCloudBackupLayout();
         CheckCloudBackupPortable();
+        CheckVerifiedCloudBackup();
         CheckCloudBackupLiveSqlite();
         CheckCloudHistoryAudit();
         CheckPermanentHistoricalRetention();

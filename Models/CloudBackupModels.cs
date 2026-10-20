@@ -10,7 +10,7 @@ public sealed class CloudBackupSettings
     public string GoogleClientSecret { get; set; } = "";
     public string GoogleTokenEndpoint { get; set; } =
         "https://oauth2.googleapis.com/token";
-    public bool AutoBackupEnabled { get; set; } = true;
+    public bool AutoBackupEnabled { get; set; } = false;
     public int AutoBackupMinutes { get; set; } = 15;
     public DateTimeOffset? LastBackupUtc { get; set; }
     public DateTimeOffset? LastRestoreUtc { get; set; }
@@ -20,7 +20,7 @@ public sealed class CloudBackupSettings
 
 public sealed class CloudBackupPreferences
 {
-    public bool AutoBackupEnabled { get; set; } = true;
+    public bool AutoBackupEnabled { get; set; } = false;
     public int AutoBackupMinutes { get; set; } = 15;
 }
 
@@ -48,8 +48,8 @@ public sealed class CloudRestorePoint
     public long Size { get; init; }
     public bool IsLegacy { get; init; }
     public string Display => ModifiedUtc.ToLocalTime().ToString("dd MMM yyyy HH:mm") +
-        " - " + Name.Replace("eve-command-center-v2-", "").Replace(".ecc", "") +
-        (IsLegacy ? " (legacy; no EVE tokens)" : "");
+        " | " + (IsLegacy ? "Legacy backup (no EVE logins)" : "Full encrypted backup") +
+        " | " + (Size / (1024d * 1024)).ToString("0.0") + " MiB";
 }
 
 public sealed class CloudBackupStatus

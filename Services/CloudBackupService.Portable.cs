@@ -32,15 +32,6 @@ public sealed partial class CloudBackupService
         await SaveSettingsAsync();
     }
 
-    private static string DailyName(DateTimeOffset now) => PortablePrefix + "daily-" + now.UtcDateTime.ToString("yyyyMMdd", CultureInfo.InvariantCulture) + ".ecc";
-    private static string WeeklyName(DateTimeOffset now)
-    {
-        DateTime utcDay = now.UtcDateTime.Date;
-        int delta = ((int)utcDay.DayOfWeek + 6) % 7;
-        return PortablePrefix + "weekly-" + utcDay.AddDays(-delta).ToString("yyyyMMdd", CultureInfo.InvariantCulture) + ".ecc";
-    }
-    private static string MonthlyName(DateTimeOffset now) => PortablePrefix + "monthly-" + now.UtcDateTime.ToString("yyyyMM", CultureInfo.InvariantCulture) + ".ecc";
-
     // The cloud API lists objects in the hidden appDataFolder, not My Drive.
     private async Task<IReadOnlyList<DriveFile>> ListRemoteBackupsAsync(string token, CancellationToken ct)
     {
@@ -84,47 +75,6 @@ public sealed partial class CloudBackupService
             }).ToArray();
     }
 
-    private async Task UploadSnapshotAsync(string name, byte[] encrypted, string token, CancellationToken ct)
-    {
-        DriveFile? existing = await FindRemoteBackupAsync(ct, token, name);
-        if (existing == null)
-            await CreateRemoteBackupAsync(encrypted, token, ct, name);
-        else
-            await UpdateRemoteBackupAsync(existing.Id, encrypted, token, ct);
-    }
-
-    private async Task UploadSnapshotIfDueAsync(string name, byte[] encrypted, string token,
-        TimeSpan refreshInterval, CancellationToken ct)
-    {
-        DriveFile? existing = await FindRemoteBackupAsync(ct, token, name);
-        if (existing != null && DateTimeOffset.UtcNow - existing.ModifiedTime < refreshInterval)
-            return;
-        if (existing == null) await CreateRemoteBackupAsync(encrypted, token, ct, name);
-        else await UpdateRemoteBackupAsync(existing.Id, encrypted, token, ct);
-    }
-
-    private async Task PruneSnapshotHistoryAsync(string token, CancellationToken ct)
-    {
-        var remote = await ListRemoteBackupsAsync(token, ct);
-        foreach (var group in new[] { ("daily-", 7), ("weekly-", 4), ("monthly-", 12) })
-        {
-            foreach (var extra in remote
-                .Where(f => f.Name.StartsWith(PortablePrefix + group.Item1, StringComparison.Ordinal))
-                .OrderByDescending(f => f.Name, StringComparer.Ordinal)
-                .Skip(group.Item2))
-            {
-                try
-                {
-                    using var request = AuthorizedRequest(HttpMethod.Delete, DriveApi + "/files/" + extra.Id, token);
-                    using var response = await _http.SendAsync(request, ct);
-                    await EnsureSuccessAsync(response, "prune expired restore point");
-                }
-                catch (OperationCanceledException) { throw; }
-                catch (Exception ex) { Debug.WriteLine("[CloudBackup] Restore-point pruning failed: " + ex.Message); }
-            }
-        }
-    }
-
     public async Task RestoreLocalEncryptedFileAsync(string path, CancellationToken ct = default)
     {
         string password = CloudBackupPortableSecurity.ReadPassword();
@@ -133,6 +83,7 @@ public sealed partial class CloudBackupService
         try
         {
             byte[] incoming = await File.ReadAllBytesAsync(path, ct);
+            await Task.Run(() => CloudHistoryAuditService.VerifyEncryptedBytesAsync(incoming, password, ct), ct);
             byte[] plain = CloudBackupPortableSecurity.Decrypt(incoming, password);
             archive = TempPath("restore-local", ".zip");
             await File.WriteAllBytesAsync(archive, plain, ct);
@@ -151,7 +102,7 @@ public sealed partial class CloudBackupService
         await _gate.WaitAsync(ct);
         try
         {
-            archive = await CreateArchiveAsync(ct);
+            archive = await CreateArchiveAsync(password, ct);
             byte[] encrypted = CloudBackupPortableSecurity.Encrypt(await File.ReadAllBytesAsync(archive, ct), password);
             string temp = destination + ".tmp";
             try
