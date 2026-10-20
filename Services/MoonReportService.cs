@@ -498,6 +498,28 @@ public sealed class MoonReportService : IDisposable
             .ToArray();
     }
 
+    // Publish all schedule membership and timing before any asynchronous name lookup.
+    // The UI timer reads this state while enrichment is awaiting ESI responses.
+    internal static void ApplyExtractionSchedules(MoonReportState state, IReadOnlyList<EsiMoonExtraction> extractions)
+    {
+        var current = extractions.Select(PullId).ToHashSet();
+        foreach (MoonPullRecord previous in state.Pulls.Values)
+            previous.SeenInLatestExtractionList = current.Contains(previous.Id);
+        foreach (var extraction in extractions)
+        {
+            string id = PullId(extraction);
+            if (!state.Pulls.TryGetValue(id, out var pull))
+                state.Pulls[id] = pull = new MoonPullRecord { Id = id, StructureId = extraction.StructureId };
+            pull.SeenInLatestExtractionList = true;
+            pull.MoonId = extraction.MoonId;
+            pull.ExtractionStartUtc = extraction.ExtractionStartTime;
+            pull.ChunkArrivalUtc = extraction.ChunkArrivalTime;
+            pull.NaturalDecayUtc = extraction.NaturalDecayTime;
+            state.EsiKnownMoonIds.Add(extraction.MoonId);
+            state.EsiKnownStructureIds.Add(extraction.StructureId);
+        }
+    }
+
     private async Task UpdateExtractionsAsync(
         IReadOnlyList<EsiMoonExtraction> extractions,
         IReadOnlyDictionary<long, EsiCorporationStructure> structures,
@@ -505,8 +527,7 @@ public sealed class MoonReportService : IDisposable
         CancellationToken cancellationToken)
     {
         DateTimeOffset now = DateTimeOffset.UtcNow;
-        foreach (MoonPullRecord pull in _state.Pulls.Values)
-            pull.SeenInLatestExtractionList = false;
+        ApplyExtractionSchedules(_state, extractions);
 
         int index = 0;
         foreach (EsiMoonExtraction extraction in extractions)
@@ -516,26 +537,7 @@ public sealed class MoonReportService : IDisposable
             progress?.Report(
                 $"Resolving moon {index:N0} of {extractions.Count:N0}...");
 
-            string id = PullId(extraction);
-            if (!_state.Pulls.TryGetValue(id, out MoonPullRecord? pull))
-            {
-                pull = new MoonPullRecord
-                {
-                    Id = id,
-                    StructureId = extraction.StructureId,
-                    MoonId = extraction.MoonId,
-                    ExtractionStartUtc = extraction.ExtractionStartTime,
-                    ChunkArrivalUtc = extraction.ChunkArrivalTime,
-                    NaturalDecayUtc = extraction.NaturalDecayTime
-                };
-                _state.Pulls[id] = pull;
-            }
-
-            pull.SeenInLatestExtractionList = true;
-            pull.MoonId = extraction.MoonId;
-            pull.ExtractionStartUtc = extraction.ExtractionStartTime;
-            pull.ChunkArrivalUtc = extraction.ChunkArrivalTime;
-            pull.NaturalDecayUtc = extraction.NaturalDecayTime;
+            MoonPullRecord pull = _state.Pulls[PullId(extraction)];
 
             if (structures.TryGetValue(
                     extraction.StructureId,

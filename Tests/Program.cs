@@ -28,6 +28,12 @@ internal static partial class Program
     [STAThread]
     private static void Main(string[] args)
     {
+        if (args.FirstOrDefault() == "--audit-production-progress")
+        {
+            var fixtureApp = new System.Windows.Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
+            CheckProductionProgress(args.Length > 1 ? args[1] : null);
+            Console.WriteLine($"{_checks} production progress checks passed."); return;
+        }
         if (args.FirstOrDefault() == "--audit-production-dashboard")
         {
             var fixtureApp = new System.Windows.Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
@@ -185,6 +191,7 @@ internal static partial class Program
         CheckAuthorizationScopes();
         CheckWindowLayouts();
         CheckMoonDrillSchedule();
+        CheckProductionProgress();
         var piFixture = CheckPlanetary();
         var industryFixture = CheckIndustry();
         CheckIndustryWorkspace();

@@ -38,6 +38,7 @@ public partial class IndustryWorkspaceView : System.Windows.Controls.UserControl
     {
         InitializeComponent();
         WorkspaceLayout.Attach(this);
+        WorkspaceLayout.AttachTable(ProductionProgress);
         Strategy.ItemsSource = new[] { "Make", "Buy", "Use Stock" };
         Loaded += async (_, _) =>
         {
@@ -123,7 +124,7 @@ public partial class IndustryWorkspaceView : System.Windows.Controls.UserControl
         ProjectGallery.Visibility = Visibility.Visible;
         Projects.SelectedItem = null;
     }
-    private static string ProjectStage(IndustryProject p) => p.Archived ? "Archived" : p.Paused ? "Paused" : p.Nodes.Any(n => n.ActualJob != null) ? "EVE job linked" : p.Nodes.Any(n => n.PlannedJobId.HasValue) ? "Assigned" : "Planning";
+    private string ProjectStage(IndustryProject p) => IndustryProductionProgress.Stage(p, _state, ReadJobs(), DateTimeOffset.UtcNow);
     private void ProjectDefaults_Click(object sender, RoutedEventArgs e)
     {
         ProjectGallery.Visibility = ProjectWorkspace.Visibility = CreationPage.Visibility = Visibility.Collapsed;
@@ -159,6 +160,7 @@ public partial class IndustryWorkspaceView : System.Windows.Controls.UserControl
         Nodes.ItemsSource = project.Nodes.Where(n => n.ParentId == null).Select(Row).ToList();
 
         Audit.Text = string.Join(Environment.NewLine, _state.Events.Where(e => e.ProjectId == project.Id || e.ProjectId == null).OrderByDescending(e => e.TimeUtc).Take(100).Select(e => $"{e.TimeUtc:u} {IndustryPresentation.History(e.Description)}"));
+        ProductionProgress.ItemsSource = project.Nodes.Select(n => IndustryProductionProgress.Build(n, _state, ReadJobs(), DateTimeOffset.UtcNow)).ToArray();
         RefreshProjectSkills(project);
         RefreshProjectPurchases();
         RefreshProjectSales();
@@ -196,10 +198,12 @@ public partial class IndustryWorkspaceView : System.Windows.Controls.UserControl
         StockOwner.ItemsSource = new[] { new PilotOption(null, "All personal stock owners") }.Concat(_stock.Where(s => s.TypeId == node.TypeId).GroupBy(s => s.OwnerId).Select(g => new PilotOption(g.Key, g.First().Owner))).ToArray();
         StockOwner.SelectedIndex = 0; RefreshStockLocations();
         RefreshStock();
-        Reservations.ItemsSource = _state.Reservations.Where(r => r.NodeId == node.Id).Select(r => new ReservationRow(r.Id, r.Quantity,
+        Reservations.ItemsSource = _state.Reservations.Where(r => r.NodeId == node.Id).Select(r => new ReservationRow(r.Id, r.Quantity, r.DeliveredQuantity,
             $"{Pilot(r.OwnerId)} / {DisplayPath(r.OwnerId, r.LocationId)}", IndustryWorkspaceInventory.Review(r, _state.Reservations, _stock, DateTimeOffset.UtcNow))).ToArray();
         decimal reserved = _state.Reservations.Where(r => r.NodeId == node.Id).Sum(r => (decimal)r.Quantity);
-        Coverage.Text = $"Reserved for this build: {reserved:N0} / {node.Quantity:N0}  |  Still needed: {node.Quantity - reserved:N0}  |  Reservation does not confirm delivery.";
+        DeliveryConfirmed.IsChecked = false;
+        DeliveryNote.Text = "";
+        Coverage.Text = $"Reserved for this build: {reserved:N0} / {node.Quantity:N0}  |  To reserve: {node.Quantity - reserved:N0}  |  Delivered: {_state.Reservations.Where(r => r.NodeId == node.Id).Sum(r => (decimal)r.DeliveredQuantity):N0}";
     }
     private IndustryPresentation.ReadinessState Readiness(IndustryProjectNode node) =>
         IndustryPresentation.Readiness(node, _inventory().ToArray(), _linked, _blueprints, DateTimeOffset.UtcNow, _state.Projects.FirstOrDefault(p => p.Id == _projectId)?.LeadId);
@@ -423,6 +427,20 @@ public partial class IndustryWorkspaceView : System.Windows.Controls.UserControl
         if (latest == null || latest.Path != selected.Source.Path || latest.LocationId != selected.Source.LocationId) throw new InvalidOperationException("Stock moved or disappeared. Reload and review the source.");
         _store.Reserve(id, node, latest, Quantity(ReserveQuantity.Text), DateTimeOffset.UtcNow, currentStock);
     }, "Stock reserved across all projects. Transfer and delivery remain unverified.");
+    private void ConfirmDelivery_Click(object sender, RoutedEventArgs e) => Action(() =>
+    {
+        if (Reservations.SelectedItem is not ReservationRow reservation || Stock.SelectedItem is not StockRow destination)
+            throw new InvalidOperationException("Select the reservation below and its destination stock above.");
+        if (DeliveryConfirmed.IsChecked != true) throw new InvalidOperationException("Confirm that you checked the physical delivery in EVE.");
+        if (!long.TryParse(DeliveryQuantity.Text, out long quantity)) throw new InvalidOperationException("Enter a whole delivery quantity.");
+        _store.ConfirmDelivery(reservation.Id, destination.Source, quantity, DeliveryNote.Text, DateTimeOffset.UtcNow, ReadStock());
+    }, "Delivery confirmed. Stock remains held for this build; nothing is marked consumed.");
+    private void UndoDelivery_Click(object sender, RoutedEventArgs e) => Action(() =>
+    {
+        if (Reservations.SelectedItem is not ReservationRow reservation) throw new InvalidOperationException("Select a confirmed reservation.");
+        _store.UndoDelivery(reservation.Id);
+    }, "Delivery confirmation undone; reservation retained.");
+
     private void Release_Click(object sender, RoutedEventArgs e) => Action(() =>
     { if (Reservations.SelectedItem is not ReservationRow r) throw new InvalidOperationException("Select a reservation to release."); _store.Release(r.Id); }, "Reservation released; audit history retained.");
 
@@ -437,7 +455,7 @@ public partial class IndustryWorkspaceView : System.Windows.Controls.UserControl
         public string Icon => $"https://images.evetech.net/types/{TypeId}/icon?size=32";
         public string Color => Strategy == "Make" ? "#74D6C9" : Strategy == "Buy" ? "#80BFFF" : "#FFD166";
     }
-    private sealed record ReservationRow(Guid Id, long Quantity, string Source, string Review);
+    private sealed record ReservationRow(Guid Id, long Quantity, long Delivered, string Source, string Review);
     private sealed record StockRow(IndustryStockSource Source, string DisplayPath, string ResolvedName, decimal Available)
     {
         public string Name => ResolvedName;

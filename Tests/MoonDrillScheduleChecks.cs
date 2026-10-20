@@ -30,6 +30,21 @@ internal static partial class Program
         Check(rows.Single(r=>r.StructureId==4).Status=="SCHEDULED" && rows.Single(r=>r.StructureId==4).Elapsed=="0d 0h 0m","Future starts do not produce negative elapsed time");
         Check(rows.Single(r=>r.StructureId==6).Status=="NOT VISIBLE","Missing structures are distinguished from unset drills");
         Check(rows[0].NotSet,"Unset drills sort first");
+        var refreshed = new MoonReportState { LastRefreshUtc = now.AddHours(-1) };
+        var schedules = Enumerable.Range(1, 127).Select(id => new EsiMoonExtraction
+        {
+            StructureId = id, MoonId = id, ExtractionStartTime = now.AddDays(-2),
+            ChunkArrivalTime = now.AddDays(5), NaturalDecayTime = now.AddDays(7)
+        }).ToArray();
+        MoonReportService.ApplyExtractionSchedules(refreshed, schedules);
+        Check(MoonDrillSchedule.Build(refreshed, now).Count(r => r.Status == "RUNNING") == 127,
+            "All 127 extraction schedules are visible before asynchronous moon-name enrichment begins");
+        MoonReportService.ApplyExtractionSchedules(refreshed, schedules);
+        Check(refreshed.Pulls.Count == 127 && refreshed.Pulls.Values.All(p => p.SeenInLatestExtractionList),
+            "Repeated extraction refresh preserves all schedules without duplicate pulls");
+        MoonReportService.ApplyExtractionSchedules(refreshed, schedules.Take(64).ToArray());
+        Check(refreshed.Pulls.Values.Count(p => p.SeenInLatestExtractionList) == 64 && refreshed.Pulls.Count == 127,
+            "A complete changed extraction response removes current membership while retaining history");
         state.LastRefreshUtc=null;
         Check(MoonDrillSchedule.Build(state,now).Single(r=>r.StructureId==5).Status=="NOT CHECKED","Unrefreshed data cannot assert that an extraction is not set");
     }

@@ -30,7 +30,7 @@ public sealed class IndustryWorkspaceStore
     {
         string json = File.ReadAllText(path);
         using var doc = JsonDocument.Parse(json);
-        Require(doc.RootElement.TryGetProperty("SchemaVersion", out var version) && version.GetInt32() == 1, "Missing or unsupported planning schema; use a compatible application version.");
+        Require(doc.RootElement.TryGetProperty("SchemaVersion", out var version) && version.GetInt32() is 1 or 2, "Missing or unsupported planning schema; use a compatible application version.");
         var state = JsonSerializer.Deserialize<IndustryWorkspace>(json) ?? throw new InvalidDataException("Empty planning document.");
         Validate(state); return state;
     }
@@ -78,7 +78,7 @@ public sealed class IndustryWorkspaceStore
                 {
                     using var document = JsonDocument.Parse(File.ReadAllText(_path));
                     if (document.RootElement.TryGetProperty("SchemaVersion", out var version))
-                        Require(version.GetInt32() <= 1, "This file belongs to a newer schema; do not downgrade it using an old backup.");
+                        Require(version.GetInt32() <= 2, "This file belongs to a newer schema; do not downgrade it using an old backup.");
                 }
                 catch (JsonException) { }
             }
@@ -156,7 +156,7 @@ public sealed class IndustryWorkspaceStore
             if (p.LeadId != lead) Linked(lead, linked);
             if (p.BuyerId != buyer) Linked(buyer, linked);
             if (p.SellerId != seller) Linked(seller, linked);
-            Require(!archived || !s.Reservations.Any(r => r.ProjectId == id), "Release reservations before archiving; expenses/history will remain.");
+            Require(!archived || !s.Reservations.Any(r => r.ProjectId == id && r.DeliveredQuantity != r.Quantity), "Confirm delivery or release outstanding reservations before archiving. Delivered stock remains held for this project.");
             p.Name = name.Trim(); p.LeadId = lead; p.BuyerId = buyer; p.SellerId = seller; p.Paused = paused; p.Archived = archived; p.Notes = notes;
         }, $"Edited project: {name}; lead {lead}, buyer {buyer}, seller {seller}, paused {paused}, archived {archived}.", id);
     }
@@ -258,6 +258,67 @@ public sealed class IndustryWorkspaceStore
                 LocationId = source.LocationId, LocationFlag = source.LocationFlag, Path = source.Path, Quantity = quantity, SnapshotUtc = source.SnapshotUtc });
         }, $"Reserved {quantity} of type {source.TypeId}, owner {source.OwnerId}, item {source.ItemId} at {source.Path}; delivery unverified.", projectId);
     }
+    public void ConfirmDelivery(Guid reservationId, IndustryStockSource destination, long quantity,
+        string note, DateTimeOffset now, IReadOnlyList<IndustryStockSource> currentStock)
+    {
+        Guid projectId = Snapshot().Reservations.Single(r => r.Id == reservationId).ProjectId;
+        Change(s =>
+        {
+            var reservation = s.Reservations.Single(r => r.Id == reservationId);
+            var project = Project(s, projectId);
+            Require(!project.Archived && !project.Paused, "Resume the project before confirming delivery.");
+            Require(quantity > 0 && quantity <= reservation.Quantity - reservation.DeliveredQuantity,
+                "Choose a quantity no greater than the remaining reserved delivery.");
+            Require(!string.IsNullOrWhiteSpace(note), "Describe the destination or handoff you have checked.");
+            Require(currentStock.Contains(destination) && destination.Verified &&
+                IndustryWorkspaceInventory.Recent(destination.SnapshotUtc, now), "Refresh inventory and select the observed destination stock.");
+            Require(destination.TypeId == reservation.TypeId && destination.OwnerId > 0 && destination.ItemId > 0 && destination.LocationId > 0,
+                "Destination stock must match the reserved component.");
+            bool same = reservation.OwnerId == destination.OwnerId && reservation.ItemId == destination.ItemId &&
+                reservation.LocationId == destination.LocationId && reservation.LocationFlag == destination.LocationFlag && reservation.Path == destination.Path;
+            Require(same || reservation.DeliveredQuantity == 0 || reservation.OwnerId != destination.OwnerId || reservation.ItemId != destination.ItemId,
+                "Undo the earlier confirmation before moving the same confirmed stack again.");
+            Require(!s.Reservations.Where(r => r.TypeId == destination.TypeId && r.Id != reservationId).Any(r =>
+                !IndustryWorkspaceInventory.Review(r, s.Reservations, currentStock, now).StartsWith("RESERVED", StringComparison.Ordinal)),
+                "Review other missing or moved reservations for this material before confirming a handoff.");
+            decimal allocated = s.Reservations.Where(r => r.OwnerId == destination.OwnerId && r.ItemId == destination.ItemId && (same || r.Id != reservationId)).Sum(r => (decimal)r.Quantity);
+            Require(same ? allocated <= destination.Quantity : quantity <= destination.Quantity - allocated,
+                "Destination stock is insufficient or already reserved for another build.");
+            if (same)
+            {
+                reservation.DeliveredQuantity += quantity;
+                reservation.DeliveryConfirmedUtc = now;
+                reservation.DeliveryNote = note.Trim();
+            }
+            else
+            {
+                // Move the reservation atomically: the same physical quantity cannot remain held at both ends.
+                reservation.Quantity -= quantity;
+                if (reservation.Quantity == 0) s.Reservations.Remove(reservation);
+                s.Reservations.Add(new IndustryReservation
+                {
+                    ProjectId = projectId, NodeId = reservation.NodeId, TypeId = destination.TypeId,
+                    OwnerId = destination.OwnerId, ItemId = destination.ItemId, LocationId = destination.LocationId,
+                    LocationFlag = destination.LocationFlag, Path = destination.Path, Quantity = quantity,
+                    SnapshotUtc = destination.SnapshotUtc, DeliveredQuantity = quantity, DeliveryConfirmedUtc = now,
+                    DeliveryNote = note.Trim()
+                });
+            }
+            s.SchemaVersion = 2; // Older clients must refuse edits rather than discard delivery evidence.
+        }, $"Confirmed {quantity:N0} delivered to {destination.Owner}. {note.Trim()} Stock remains reserved; consumption is not inferred.", projectId);
+    }
+    public void UndoDelivery(Guid reservationId)
+    {
+        Guid projectId = Snapshot().Reservations.Single(r => r.Id == reservationId).ProjectId;
+        Change(s =>
+        {
+            Require(!Project(s, projectId).Archived, "Reopen the project before correcting delivery.");
+            var reservation = s.Reservations.Single(r => r.Id == reservationId);
+            Require(reservation.DeliveredQuantity > 0, "Select a reservation with confirmed delivery.");
+            reservation.DeliveredQuantity = 0; reservation.DeliveryConfirmedUtc = null; reservation.DeliveryNote = "";
+        }, "Delivery confirmation undone. Stock remains reserved at its recorded destination.", projectId);
+    }
+
     public void DeleteProject(Guid projectId, bool releaseReservations = false)
     {
         Change(s =>
@@ -272,12 +333,12 @@ public sealed class IndustryWorkspaceStore
     public void Release(Guid reservationId)
     {
         Guid projectId = Snapshot().Reservations.Single(r => r.Id == reservationId).ProjectId;
-        Change(s => { var r = s.Reservations.Single(r => r.Id == reservationId); s.Reservations.Remove(r); }, "Released reservation " + reservationId + "; history retained.", projectId);
+        Change(s => { var r = s.Reservations.Single(r => r.Id == reservationId); Require(r.DeliveredQuantity == 0, "Undo delivery confirmation before releasing this stock."); s.Reservations.Remove(r); }, "Released reservation " + reservationId + "; history retained.", projectId);
     }
     private static IndustryProject Project(IndustryWorkspace state, Guid id) => state.Projects.Single(p => p.Id == id);
     internal static void Validate(IndustryWorkspace state)
     {
-        Require(state.SchemaVersion == 1, "Unsupported planning schema; use a compatible application version.");
+        Require(state.SchemaVersion is 1 or 2, "Unsupported planning schema; use a compatible application version.");
         Require(state.Revision >= 0, "Invalid planning revision.");
         Require(state.Projects.Select(p => p.Id).Distinct().Count() == state.Projects.Count, "Duplicate project IDs.");
         var allNodes = state.Projects.SelectMany(p => p.Nodes).ToArray();
@@ -313,6 +374,9 @@ public sealed class IndustryWorkspaceStore
                 "This blueprint copy's runs are already planned in another project. Archive or delete the earlier plan before reusing those runs.");
         Require(state.Reservations.Select(r => r.Id).Distinct().Count() == state.Reservations.Count, "Duplicate reservation IDs.");
         foreach (var r in state.Reservations)
+        {
+            Require(r.DeliveredQuantity >= 0 && r.DeliveredQuantity <= r.Quantity && (r.DeliveredQuantity == 0 || (state.SchemaVersion >= 2 && r.DeliveryConfirmedUtc.HasValue && !string.IsNullOrWhiteSpace(r.DeliveryNote))), "Invalid delivery confirmation.");
             Require(r.Quantity > 0 && r.OwnerId > 0 && r.ItemId > 0 && state.Projects.Any(p => p.Id == r.ProjectId && p.Nodes.Any(n => n.Id == r.NodeId && n.TypeId == r.TypeId)), "Invalid reservation reference.");
+        }
     }
 }

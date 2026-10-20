@@ -1,3 +1,12 @@
+# EVE Command Center v3.6.77
+
+- **Moon drill refresh no longer shows false unscheduled drills.** Apply the complete extraction list before asynchronous moon-name lookups. Previously the drill timer could redraw midway through refresh, showing 64 running and 63 not set even though all 127 schedules were present. Genuine missing schedules remain distinguishable; no schedules are invented.
+- **Production & delivery in each project.** See required, reserved, in-production, awaiting-collection, delivered and still-to-deliver quantities separately. Product icons/names, aligned sortable quantities, restrained receipt colours and remembered column widths/order use the existing workspace style.
+- **Confirm partial deliveries and handoffs.** In a component's Stock & transfers tab, select a reservation and observed destination stock, enter the quantity and handoff note, then confirm delivery. Moving between pilots or locations moves the reservation atomically. Confirmed stock stays held, so another project cannot claim it.
+- **Correct receipts without losing stock allocations.** Undo a delivery confirmation while retaining its reservation. Delivered reservations require this explicit correction before release. Archived projects can retain fully delivered stock; outstanding reservations must be resolved first.
+- **Evidence-based progress.** Project cards reflect gathering, manufacturing, awaiting collection, partial receipts or delivered output. A linked manufacturing job uses its actual runs and recipe output. Stale or absent job observations remain Unknown; elapsed timers and EVE collection never auto-confirm a project receipt.
+- Workspace delivery evidence is versioned and retained in the existing JSON/SQLite workspace and audit history. No additional ESI queries or separate ledger. One linked EVE job per component remains the current limit; multi-batch reconciliation, consumption and realized-profit accounting remain future work.
+
 # EVE Command Center v3.6.76
 
 - **Production materials on the main dashboard.** See active-project demand, shared available stock, reserved quantities and missing stock together, with item names/icons and understated coverage colours. Paused projects keep their reservations but do not add demand; archived projects do not add demand.

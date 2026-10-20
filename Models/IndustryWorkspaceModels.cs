@@ -74,6 +74,9 @@ public sealed class IndustryReservation
     public string LocationFlag { get; set; } = "";
     public string Path { get; set; } = "";
     public long Quantity { get; set; }
+    public long DeliveredQuantity { get; set; }
+    public DateTimeOffset? DeliveryConfirmedUtc { get; set; }
+    public string DeliveryNote { get; set; } = "";
     public DateTimeOffset SnapshotUtc { get; set; }
     public DateTimeOffset CreatedUtc { get; set; } = DateTimeOffset.UtcNow;
 }

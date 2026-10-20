@@ -253,7 +253,8 @@
                       </ScrollViewer>
                     </TabItem>
                     <TabItem Header="Stock &amp; transfers">
-                      <DockPanel Margin="0,8">
+                      <ScrollViewer x:Name="StockTabScroll" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                      <DockPanel Margin="0,8" MinHeight="620" Height="{Binding ViewportHeight, ElementName=StockTabScroll}">
                         <WrapPanel Margin="0,6" DockPanel.Dock="Top">
                           <ComboBox x:Name="StockOwner" Style="{StaticResource WorkspaceCombo}" DisplayMemberPath="Name" SelectionChanged="StockOwner_Changed" MinWidth="150" MaxWidth="250" />
                           <ComboBox x:Name="StockLocation" Style="{StaticResource WorkspaceCombo}" MaxWidth="250" SelectionChanged="StockLocation_Changed" MinWidth="150" />
@@ -266,6 +267,18 @@
                             <Button Content="RESERVE SELECTED STACK" Click="Reserve_Click" />
                             <Button Content="RELEASE SELECTED RESERVATION" Click="Release_Click" HorizontalAlignment="Left" DockPanel.Dock="Bottom" />
                           </WrapPanel>
+                          <Expander Header="Confirm delivery" Margin="3,6">
+                            <StackPanel>
+                              <TextBlock Text="Select a reservation in the lower table and its destination stock in the upper table. For stock already in place, select the same stack. Refresh inventory after hauling." TextWrapping="Wrap" Margin="3,4" />
+                              <WrapPanel>
+                                <StackPanel><TextBlock Text="Delivered quantity" /><TextBox x:Name="DeliveryQuantity" Text="1" Width="110" /></StackPanel>
+                                <StackPanel><TextBlock Text="Destination / handoff checked" /><TextBox x:Name="DeliveryNote" MinWidth="260" /></StackPanel>
+                              </WrapPanel>
+                              <CheckBox x:Name="DeliveryConfirmed" Content="I checked this delivery in EVE" />
+                              <WrapPanel><Button Content="Confirm delivery" Click="ConfirmDelivery_Click" /><Button Content="Undo selected confirmation" Click="UndoDelivery_Click" /></WrapPanel>
+                              <TextBlock Text="Confirmed stock stays reserved. Delivery does not mean the materials have been consumed." TextWrapping="Wrap" Foreground="#A5BBC1" />
+                            </StackPanel>
+                          </Expander>
                           <TextBlock x:Name="Coverage" Foreground="#FFD166" TextWrapping="NoWrap" Margin="3,7" TextTrimming="CharacterEllipsis" ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}" />
                         </StackPanel>
                         <Grid Margin="0,12" x:Name="StockLayout">
@@ -317,12 +330,14 @@
                           <DataGrid x:Name="Reservations" MinHeight="45" Grid.Row="2">
                             <DataGrid.Columns>
                               <DataGridTextColumn HeaderStyle="{StaticResource QuantityHeader}" Header="Units" Binding="{Binding Quantity}" Width="70"  ElementStyle="{StaticResource QuantityText}"/>
+                              <DataGridTextColumn HeaderStyle="{StaticResource QuantityHeader}" Header="Delivered" Binding="{Binding Delivered, StringFormat=N0}" Width="100" ElementStyle="{StaticResource QuantityText}" />
                               <DataGridTextColumn Header="Reserved source" Binding="{Binding Source}" Width="2*" />
                               <DataGridTextColumn Header="Review" Binding="{Binding Review}" Width="2*" />
                             </DataGrid.Columns>
                           </DataGrid>
                         </Grid>
                       </DockPanel>
+                      </ScrollViewer>
                     </TabItem>
                     <TabItem Header="Notes &amp; assumptions">
                       <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
@@ -454,6 +469,26 @@
                   <Setter Property="ToolTip" Value="{Binding Review}" />
                 </Style>
               </DataGrid.RowStyle>
+            </DataGrid>
+          </DockPanel>
+        </TabItem>
+        <TabItem Header="Production &amp; delivery">
+          <DockPanel Margin="12">
+            <TextBlock DockPanel.Dock="Top" Text="Track every component through its linked EVE job and confirmed receipt. Job quantities overlap with stock; they are never added together. Still to deliver is required minus confirmed delivery. Use Stock &amp; transfers on a component to confirm a receipt." TextWrapping="Wrap" Margin="3,8" />
+            <DataGrid x:Name="ProductionProgress" IsReadOnly="True" AutoGenerateColumns="False">
+              <DataGrid.Columns>
+                <DataGridTemplateColumn Header="Component" SortMemberPath="Name" Width="*" MinWidth="220">
+                  <DataGridTemplateColumn.CellTemplate><DataTemplate><DockPanel><Image Source="{Binding Icon}" Width="26" Height="26" Margin="0,0,8,0" /><TextBlock Text="{Binding Name}" VerticalAlignment="Center" /></DockPanel></DataTemplate></DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+                <DataGridTextColumn Header="Required" Binding="{Binding Required, StringFormat=N0}" Width="100" HeaderStyle="{StaticResource QuantityHeader}" ElementStyle="{StaticResource QuantityText}" />
+                <DataGridTextColumn Header="Reserved" Binding="{Binding Reserved, StringFormat=N0}" Width="100" HeaderStyle="{StaticResource QuantityHeader}" ElementStyle="{StaticResource QuantityText}" />
+                <DataGridTextColumn Header="In production" Binding="{Binding ProductionText}" SortMemberPath="InProduction" Width="115" HeaderStyle="{StaticResource QuantityHeader}" ElementStyle="{StaticResource QuantityText}" />
+                <DataGridTextColumn Header="To collect" Binding="{Binding CollectionText}" SortMemberPath="AwaitingCollection" Width="100" HeaderStyle="{StaticResource QuantityHeader}" ElementStyle="{StaticResource QuantityText}" />
+                <DataGridTextColumn Header="Delivered" Binding="{Binding Delivered, StringFormat=N0}" Width="100" HeaderStyle="{StaticResource QuantityHeader}" ElementStyle="{StaticResource QuantityText}" />
+                <DataGridTextColumn Header="Still to deliver" Binding="{Binding StillToDeliver, StringFormat=N0}" Width="115" HeaderStyle="{StaticResource QuantityHeader}" ElementStyle="{StaticResource QuantityText}" />
+                <DataGridTextColumn Header="Receipt" Binding="{Binding ReceiptStatus}" Width="140"><DataGridTextColumn.ElementStyle><Style TargetType="TextBlock"><Setter Property="Foreground" Value="{Binding Color}" /></Style></DataGridTextColumn.ElementStyle></DataGridTextColumn>
+                <DataGridTextColumn Header="EVE job" Binding="{Binding JobStatus}" Width="270" />
+              </DataGrid.Columns>
             </DataGrid>
           </DockPanel>
         </TabItem>

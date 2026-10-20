@@ -72,3 +72,15 @@ Remaining: richer readiness/procurement-gap widgets, independent transaction/fin
 ## How much remains?
 
 The brief defines five phases, A through E. All five have now been started; no additional lettered phase follows E. A's core foundations are delivered. B, C and D have usable delivered increments but retain the gaps listed above; E has just begun. Four phases therefore still have outstanding full-brief requirements. Completion will take several further validated patches, especially financial reconciliation; the current app should not claim complete industrial profit accounting.
+
+
+## v3.6.77 acceptance checks
+
+- Refresh Moon Operations while viewing Drill Schedule: existing scheduled drills must not briefly turn NOT SET during name resolution. The original saved snapshot had 127 schedules. A genuinely absent extraction can still show NOT SET after a complete response.
+- Open a production project > Production & delivery. Sort quantity headings and resize/reorder columns; reopen to check preferences. Quantities are distinct overlapping stages, not an additive total.
+- Reserve an observed component stack. In Stock & transfers > Confirm delivery, select that reservation and the destination stack, quantity, note and acknowledgement. Partial confirmation increases Delivered while keeping the full reservation held.
+- For a handoff, refresh Industry inventory after hauling, then select the destination stack. The confirmed quantity must move from the origin reservation to a new destination reservation without doubling total held stock. Insufficient, stale, mismatched or already allocated destination stock must fail without changing state.
+- Undo selected confirmation: delivered quantity clears, stock stays reserved. Releasing a confirmed reservation must fail until undo. Reopen the app to verify persistence.
+- A root receipt covering the required output changes the project card to Delivered; child-only receipts do not finish the parent. Paused/archived labels take precedence. Delivery does not assert consumption or profit.
+- Link a partial manufacturing job: In production uses actual runs times product output. Only ESI ready status populates To collect. ESI delivered requires explicit project receipt. Stale/missing job observations show Unknown, never assumed completion.
+- One EVE job per component is still the limit. Multiple batch reconciliation, consumption and realized profit are not complete phases in this patch.
