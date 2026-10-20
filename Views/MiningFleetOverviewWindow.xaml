@@ -759,7 +759,7 @@
                                             </Button>
                                         </StackPanel>
                                     </Grid>
-                                    <StackPanel Grid.Row="4" VerticalAlignment="Bottom" Visibility="{Binding HoldVisibility}" Margin="0,2,0,0" MouseRightButtonUp="MiningHold_RightClick">
+                                    <StackPanel Grid.Row="4" VerticalAlignment="Bottom" Visibility="{Binding HoldVisibility}" Margin="0,2,0,0">
                                         <TextBlock Text="HOLD" FontSize="8" Foreground="#829C9F" Margin="0,0,0,2" />
                                         <ItemsControl ItemsSource="{Binding MainHoldRows}" ItemTemplate="{StaticResource HoldBarTemplate}">
 

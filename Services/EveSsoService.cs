@@ -644,6 +644,9 @@ public sealed class EveSsoService
                 fleetHold = await MiningHoldSnapshots.ReadAsync(ship, assets,
                 _assetCache.GetValueOrDefault(pilot.CharacterId)?.ObservedUtc ?? default,
                 id => GetUniverseTypeAsync(id, cancellationToken));
+            }
+            if (MiningHoldCapacity.HasLiveMiningHold(ship.ShipTypeId))
+            {
                 miningHoldInventory = await MiningHoldSnapshots.ReadAsync(ship, assets,
                     _assetCache.GetValueOrDefault(pilot.CharacterId)?.ObservedUtc ?? default,
                     id => GetUniverseTypeAsync(id, cancellationToken), "SpecializedOreHold", 1556);

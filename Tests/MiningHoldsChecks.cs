@@ -153,6 +153,10 @@ internal static partial class Program
         var miningInventory=MiningHoldSnapshots.ReadAsync(ship,assets,now,MiningType,"SpecializedOreHold",1556).GetAwaiter().GetResult();
         Check(miningInventory.Complete && miningInventory.UsedM3==1000 && miningInventory.BaseCapacityM3==150000,
             "Orca mining inventory includes compressed cargo already aboard and excludes fleet/cargo holds");
+        assets.RemoveAll(a=>a.LocationFlag=="SpecializedOreHold");
+        var emptiedInventory=MiningHoldSnapshots.ReadAsync(ship,assets,now.AddMinutes(5),MiningType,"SpecializedOreHold",1556).GetAwaiter().GetResult();
+        Check(emptiedInventory.Complete && emptiedInventory.UsedM3==0 && MiningHoldSnapshots.Present("Mining",emptiedInventory,now.AddMinutes(5),true).Percent==0,
+            "Refreshed empty mining inventory clears the previous cargo amount without manual reset");
         assets.RemoveAt(0);
         Check(!MiningHoldSnapshots.ReadAsync(ship, assets, now, Type).GetAwaiter().GetResult().Complete,
             "Ship absent from snapshot cannot be declared an empty fleet hangar");

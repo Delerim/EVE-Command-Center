@@ -1,3 +1,8 @@
+# EVE Command Center v3.6.88
+
+- **Automatic mining-hold inventory refresh for exhumers.** Hulk, Skiff and Mackinaw now use the same periodically refreshed hold inventory as Orca. Once EVE reports an unload, the bar reflects the reduced contents instead of retaining the accumulated log estimate.
+- Hold values are explicitly Cached/Old, with the inventory fetch time on hover; unavailable data stays unavailable. Existing pilot sync and asset caching are reused. EVE cache delays still apply, so this is not instant live cargo measurement. The obsolete manual-empty action is removed from the inventory bars.
+
 # EVE Command Center v3.6.87
 
 - **Clear stopped-miner indicator.** A stopped stream shows a square stop symbol instead of its previous cycle duration, with a gentle red pulse on that ring only. Running streams retain their cycle time and progress arc. The same indicator works in compact mode; muted streams do not flash.

@@ -43,3 +43,7 @@ Laser tiles use slightly larger rings and omit the separate remaining-seconds la
 Short/long recurring pull gaps establish the full per-stream cadence before same-ore streams are assigned. Recent stable windows retain that evidence if one stream stops. Equal regular pulls with no distinguishing evidence remain limited by log ambiguity; fitted count alone does not establish activity.
 
 Orca mining contents now use SpecializedOreHold assets and resolved item volumes with pilot-adjusted capacity. The bar explicitly says Cached/Old or Unavailable and refreshes with existing ship inventory sync. It does not combine delayed inventory with live deltas, which would double-count unknown intervals. FleetHangar remains separate. Orca no longer offers the estimate-only empty action. Exhumer live estimates are unchanged.
+
+## v3.6.88 follow-up
+
+All supported mining ships now display periodic mining-hold inventory, replacing the accumulating log estimate in the overview. Existing pilot refresh and shared asset cache drive updates; no extra polling loop or cache bypass is added. Cached/Old labels and hover timestamps distinguish delayed data. Complete empty inventory clears the bar; unavailable data never implies zero. Manual-empty correction is removed from inventory bars. This supersedes earlier live-estimate UI behaviour; logs cannot reliably measure transfers.
