@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -61,11 +62,11 @@ public sealed class EveSsoService
     private readonly HttpClient _http;
     private readonly JsonSerializerOptions _json;
     private readonly string _pilotFile;
-    private readonly Dictionary<long, TokenCache> _accessTokens = new();
-    private readonly Dictionary<int, string> _typeNames = new();
-    private readonly Dictionary<int, EveUniverseType> _typeDetails = new();
-    private readonly Dictionary<int, string> _systemNames = new();
-    private readonly Dictionary<long, AssetCacheEntry> _assetCache = new();
+    private static readonly ConcurrentDictionary<long, TokenCache> _accessTokens = new();
+    private readonly ConcurrentDictionary<int, string> _typeNames = new();
+    private readonly ConcurrentDictionary<int, EveUniverseType> _typeDetails = new();
+    private readonly ConcurrentDictionary<int, string> _systemNames = new();
+    private readonly ConcurrentDictionary<long, AssetCacheEntry> _assetCache = new();
 
     private sealed class AssetCacheEntry
     {
@@ -292,8 +293,8 @@ public sealed class EveSsoService
     public async Task RemoveCharacterAsync(long characterId)
     {
         EveCredentialStore.Delete(characterId);
-        _accessTokens.Remove(characterId);
-        _assetCache.Remove(characterId);
+        _accessTokens.TryRemove(characterId, out _);
+        _assetCache.TryRemove(characterId, out _);
 
         var pilots = (await LoadPilotsAsync()).ToList();
         pilots.RemoveAll(p => p.CharacterId == characterId);
@@ -1085,7 +1086,7 @@ public sealed class EveSsoService
             CurrentShip = context.ShipName
         };
 
-        if (coreReady != null) await coreReady(new EvePilotDashboard { CoreOnly=true, Summary=summary, TrainedSkills=skills.Skills.ToArray(), SkillQueue=queueViews });
+        if (coreReady != null) await coreReady(new EvePilotDashboard { CoreOnly = true, Summary = summary, TrainedSkills = skills.Skills.ToArray(), SkillQueue = queueViews });
 
 
 
@@ -1109,7 +1110,7 @@ public sealed class EveSsoService
             trainingProfileTask);
 
         context = await contextTask;
-        summary = new EvePilotSummary { CharacterId=summary.CharacterId, CharacterName=summary.CharacterName, TotalSp=summary.TotalSp, CurrentSkill=summary.CurrentSkill, CurrentSkillRemaining=summary.CurrentSkillRemaining, QueueEndsIn=summary.QueueEndsIn, CurrentProgressPercent=summary.CurrentProgressPercent, CurrentSystem=context.SystemName, CurrentShip=context.ShipName };
+        summary = new EvePilotSummary { CharacterId = summary.CharacterId, CharacterName = summary.CharacterName, TotalSp = summary.TotalSp, CurrentSkill = summary.CurrentSkill, CurrentSkillRemaining = summary.CurrentSkillRemaining, QueueEndsIn = summary.QueueEndsIn, CurrentProgressPercent = summary.CurrentProgressPercent, CurrentSystem = context.SystemName, CurrentShip = context.ShipName };
 
         return new EvePilotDashboard
         {
@@ -1364,7 +1365,15 @@ public sealed class EveSsoService
         }
         catch { return false; }
     }
-    private async Task<string> GetAccessTokenAsync(
+    private static readonly ConcurrentDictionary<long, SemaphoreSlim> TokenRefreshGates = new();
+    private async Task<string> GetAccessTokenAsync(EvePilotProfile pilot, CancellationToken cancellationToken)
+    {
+        var gate = TokenRefreshGates.GetOrAdd(pilot.CharacterId, _ => new SemaphoreSlim(1, 1));
+        await gate.WaitAsync(cancellationToken);
+        try { return await GetAccessTokenCoreAsync(pilot, cancellationToken); }
+        finally { gate.Release(); }
+    }
+    private async Task<string> GetAccessTokenCoreAsync(
         EvePilotProfile pilot,
         CancellationToken cancellationToken)
     {
@@ -1551,80 +1560,37 @@ public sealed class EveSsoService
     }
 
     private async Task<List<EveAssetItem>> GetCharacterAssetsAsync(
-        long characterId,
-        string accessToken,
-        CancellationToken cancellationToken)
+        long characterId, string accessToken, CancellationToken cancellationToken)
     {
-        var all = new List<EveAssetItem>();
-
-        int page = 1;
-        int pages = 1;
-
-        do
+        async Task<(List<EveAssetItem> Items, int Pages)> ReadPage(int page)
         {
-            using var request =
-                new HttpRequestMessage(
-                    HttpMethod.Get,
-                    EsiBase +
-                    $"/characters/{characterId}/assets/?page={page}");
-
-            request.Headers.Accept.Add(
-                new MediaTypeWithQualityHeaderValue(
-                    "application/json"));
-
-            request.Headers.Authorization =
-                new AuthenticationHeaderValue(
-                    "Bearer",
-                    accessToken);
-
-            using HttpResponseMessage response =
-                await _http.SendAsync(
-                    request,
-                    cancellationToken);
-
-            string json =
-                await response.Content.ReadAsStringAsync(
-                    cancellationToken);
-
+            using var request = new HttpRequestMessage(HttpMethod.Get, EsiBase + $"/characters/{characterId}/assets/?page={page}");
+            request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+            using var response = await _http.SendAsync(request, cancellationToken);
             if (!response.IsSuccessStatusCode)
-            {
-                throw new InvalidOperationException(
-                    $"ESI character assets page {page} failed: " +
-                    $"{(int)response.StatusCode} {response.ReasonPhrase}");
-            }
-
-            List<EveAssetItem> items =
-                JsonSerializer.Deserialize<List<EveAssetItem>>(
-                    json,
-                    _json)
-                ?? new List<EveAssetItem>();
-
-            all.AddRange(items);
-
-            if (page == 1 &&
-                response.Headers.TryGetValues(
-                    "X-Pages",
-                    out IEnumerable<string>? values))
-            {
-                string? value =
-                    values.FirstOrDefault();
-
-                if (!int.TryParse(
-                        value,
-                        out pages))
-                    pages = 1;
-
-                pages = Math.Clamp(
-                    pages,
-                    1,
-                    100);
-            }
-
-            page++;
+                throw new InvalidOperationException($"ESI character assets page {page} failed: {(int)response.StatusCode} {response.ReasonPhrase}");
+            var json = await response.Content.ReadAsStringAsync(cancellationToken);
+            var items = JsonSerializer.Deserialize<List<EveAssetItem>>(json, _json) ?? throw new InvalidOperationException("Missing asset page data");
+            int pages = 1;
+            if (response.Headers.TryGetValues("X-Pages", out var values) && (!int.TryParse(values.FirstOrDefault(), out pages) || pages < 1 || pages > 100))
+                throw new InvalidOperationException("Invalid asset page count; previous inventory retained");
+            return (items, pages);
         }
-        while (page <= pages);
-
-        return all;
+        var first = await ReadPage(1);
+        using var workers = new SemaphoreSlim(3, 3);
+        var remaining = await Task.WhenAll(Enumerable.Range(2, first.Pages - 1).Select(async page =>
+        {
+            await workers.WaitAsync(cancellationToken);
+            try
+            {
+                var result = await ReadPage(page);
+                if (result.Pages != first.Pages) throw new InvalidOperationException("Asset pages changed during refresh; previous inventory retained");
+                return result.Items;
+            }
+            finally { workers.Release(); }
+        }));
+        return first.Items.Concat(remaining.SelectMany(items => items)).ToList();
     }
 
     public async Task<string?> ResolveDisplayLocationAsync(long id, EvePilotProfile pilot, CancellationToken ct)

@@ -47,3 +47,7 @@ Orca mining contents now use SpecializedOreHold assets and resolved item volumes
 ## v3.6.88 follow-up
 
 All supported mining ships now display periodic mining-hold inventory, replacing the accumulating log estimate in the overview. Existing pilot refresh and shared asset cache drive updates; no extra polling loop or cache bypass is added. Cached/Old labels and hover timestamps distinguish delayed data. Complete empty inventory clears the bar; unavailable data never implies zero. Manual-empty correction is removed from inventory bars. This supersedes earlier live-estimate UI behaviour; logs cannot reliably measure transfers.
+
+## Both streams stopped (v3.6.89)
+
+The learning window is anchored to the latest observation in the current ship session. Stopping both streams no longer erases their learned cadence after ten minutes of inactivity: each retains its stopped indicator. New pulls resume tracking; a ship-session change still resets observations. Stream identities remain inferred from logs, not measured module slots.

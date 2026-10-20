@@ -28,6 +28,11 @@ internal static partial class Program
     [STAThread]
     private static void Main(string[] args)
     {
+        if (args.FirstOrDefault() == "--audit-esi")
+        {
+            CheckEsiQueue().GetAwaiter().GetResult();
+            Console.WriteLine($"{_checks} ESI queue checks passed."); return;
+        }
         if (args.FirstOrDefault() == "--audit-mining-holds")
         {
             var miningApp = new System.Windows.Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };

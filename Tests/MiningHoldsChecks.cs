@@ -85,8 +85,8 @@ internal static partial class Program
             new MiningStatusRings.Pull(now.AddSeconds(n * 12), 80, "Ore", false)});
         Check(MiningStatusRings.Build(2, false, false, identical, now.AddSeconds(65)).All(r => r.CycleText == "12s"),
             "Coincident identical pulls learn their common cycle without inventing physical slot identity");
-        Check(MiningStatusRings.Build(2, false, false, pulls, now.AddMinutes(20)).All(r => r.Timing == "Learning"),
-            "Stale streams expire rather than producing indefinite inferred alarms");
+        Check(MiningStatusRings.Build(2, false, false, pulls, now.AddMinutes(20)).All(r => r.IsStopped && r.PulseStopped),
+            "Both stopped streams retain their learned stop indicators during a long idle session");
         var mixedOre = Enumerable.Range(0, 8).SelectMany(n => new[] {
             new MiningStatusRings.Pull(now.AddSeconds(n * 24), n == 5 ? 53 : 54, "Bitumens", false),
             new MiningStatusRings.Pull(now.AddSeconds(n * 24), 162, "Bitumens", true),
@@ -100,6 +100,12 @@ internal static partial class Program
         var mixedStopped = MiningStatusRings.Build(2, false, false, oneContinues, now.AddSeconds(217));
         Check(mixedStopped.Count(r => r.Accent == "#E88991") == 1 && mixedStopped.Count(r => r.Accent == "#65D5B6") == 1,
             "Only the stopped ore stream turns red while the other resource continues");
+        var bothStopped=MiningStatusRings.Build(2,false,false,identical,now.AddSeconds(100));
+        Check(bothStopped.Count(r=>r.IsStopped && r.PulseStopped && r.CentreText=="")==2,
+            "Simultaneous mining stops show two independent pulsing stop symbols");
+        var restarted=identical.Concat(new[] {new MiningStatusRings.Pull(now.AddSeconds(120),80,"Ore",false),new MiningStatusRings.Pull(now.AddSeconds(120),80,"Ore",false)});
+        Check(MiningStatusRings.Build(2,false,false,restarted,now.AddSeconds(121)).All(r=>!r.IsStopped && r.Accent=="#65D5B6"),
+            "Both stopped miners recover after simultaneous new pulls");
         var singleRunning=Enumerable.Range(0,16).Select(n=>new MiningStatusRings.Pull(now.AddSeconds(n*24),54,"Bitumens",false));
         var singleRows=MiningStatusRings.Build(2,false,false,singleRunning,now.AddSeconds(361));
         Check(singleRows.Count(r=>r.Accent=="#65D5B6")==1 && singleRows.Count(r=>r.Timing=="Learning")==1,

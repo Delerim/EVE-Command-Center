@@ -15,7 +15,7 @@ internal static partial class Program
             DogmaAttributes = attrs.Select(a => new EveDogmaAttributeValue { AttributeId = a.Id, Value = a.Value }).ToList()
         };
         var sso = new EveSsoService();
-        var types = (Dictionary<int, EveUniverseType>)typeof(EveSsoService).GetField("_typeDetails", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(sso)!;
+        var types = (IDictionary<int, EveUniverseType>)typeof(EveSsoService).GetField("_typeDetails", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(sso)!;
         types[22546] = Type(22546, "Skiff", 543, (263,6500), (265,6000), (9,6500), (271,1), (272,.5), (273,.6), (274,.8), (267,.4), (268,.9), (269,.75), (270,.65), (113,.67), (111,.67), (109,.67), (110,.67));
         types[1] = Type(1, "Large F-S9 Regolith Compact Shield Extender", 38, (72,2200));
         types[2] = Type(2, "Multispectrum Shield Hardener II", 77, (984,-32.5), (985,-32.5), (986,-32.5), (987,-32.5));

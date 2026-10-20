@@ -1,3 +1,9 @@
+# EVE Command Center v3.6.89
+
+- **Less waiting behind unrelated ESI requests.** Up to four network requests can run concurrently, with shared pacing, per-pilot rate-group cooldowns, cache reuse and duplicate-request suppression. Three pilots can refresh concurrently; asset pages use three workers and incomplete results are rejected. Token refreshes are shared and serialized per pilot.
+- **Both mining streams can remain stopped.** Learned streams retain their independent stop indicators through long idle periods instead of reverting to Learning as observations age out. New activity resumes tracking normally; ship-session changes still reset tracking.
+- ESI cache expiry and provider cooldowns remain respected. These changes reduce local queue blocking; they cannot make server snapshots live.
+
 # EVE Command Center v3.6.88
 
 - **Automatic mining-hold inventory refresh for exhumers.** Hulk, Skiff and Mackinaw now use the same periodically refreshed hold inventory as Orca. Once EVE reports an unload, the bar reflects the reduced contents instead of retaining the accumulated log estimate.

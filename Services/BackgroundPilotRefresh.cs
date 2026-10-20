@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.IO;
 using System.Text.Json;
 using EveCommandCenter.Models;
@@ -9,10 +10,10 @@ public sealed class BackgroundPilotRefresh
 {
     public Func<long, bool> ShouldSync { get; set; } = _ => true;
 
-    public Dictionary<long, EvePilotSummary> Summaries { get; } = new();
-    public Dictionary<long, EveMiningShipIntel> Intel { get; } = new();
-    private readonly Dictionary<long, DateTimeOffset> _due = new();
-    private bool _busy;
+    public ConcurrentDictionary<long, EvePilotSummary> Summaries { get; } = new();
+    public ConcurrentDictionary<long, EveMiningShipIntel> Intel { get; } = new();
+    private readonly ConcurrentDictionary<long, DateTimeOffset> _due = new();
+    private int _busy;
     public event Action? Changed;
     private readonly string _directory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "EVE Command Center", "PilotData");
     private readonly EveSsoService sso;
@@ -24,37 +25,43 @@ public sealed class BackgroundPilotRefresh
     }
     public async Task RefreshAsync(CancellationToken lifetime)
     {
-        if (_busy || lifetime.IsCancellationRequested) return;
-        _busy = true;
+        if (lifetime.IsCancellationRequested || Interlocked.CompareExchange(ref _busy, 1, 0) != 0) return;
         try
         {
             var pilots = await sso.LoadPilotsAsync();
-            foreach (var pilot in pilots.Where(p => ShouldSync(p.CharacterId)).OrderBy(p => _due.GetValueOrDefault(p.CharacterId)))
+            using var workers = new SemaphoreSlim(3, 3);
+            var duePilots = pilots.Where(p => ShouldSync(p.CharacterId) && _due.GetValueOrDefault(p.CharacterId) <= DateTimeOffset.UtcNow).OrderBy(p => _due.GetValueOrDefault(p.CharacterId)).ToArray();
+            await Task.WhenAll(duePilots.Select(async pilot =>
             {
-                lifetime.ThrowIfCancellationRequested();
-                if (_due.GetValueOrDefault(pilot.CharacterId) > DateTimeOffset.UtcNow) continue;
-                using var timeout = CancellationTokenSource.CreateLinkedTokenSource(lifetime);
-                timeout.CancelAfter(TimeSpan.FromMinutes(3));
+                await workers.WaitAsync(lifetime);
                 try
                 {
-                    Summaries[pilot.CharacterId] = await sso.GetSummaryAsync(pilot, timeout.Token);
-                    Changed?.Invoke();
+                    lifetime.ThrowIfCancellationRequested();
+
+                    using var timeout = CancellationTokenSource.CreateLinkedTokenSource(lifetime);
+                    timeout.CancelAfter(TimeSpan.FromMinutes(3));
+                    try
+                    {
+                        Summaries[pilot.CharacterId] = await sso.GetSummaryAsync(pilot, timeout.Token);
+                        Changed?.Invoke();
+                    }
+                    catch (OperationCanceledException) when (lifetime.IsCancellationRequested) { throw; }
+                    catch (Exception ex) { EsiDiagnostics.Write($"Pilot {pilot.CharacterId} summary deferred: {ex.GetType().Name}"); }
+                    try
+                    {
+                        var intel = await sso.GetMiningShipIntelAsync(pilot, timeout.Token);
+                        if (!Intel.TryGetValue(pilot.CharacterId, out var old) || old.CurrentShip.ShipItemId != intel.CurrentShip.ShipItemId || intel.Defense.Available)
+                            Intel[pilot.CharacterId] = intel;
+                        Changed?.Invoke();
+                    }
+                    catch (OperationCanceledException) when (lifetime.IsCancellationRequested) { throw; }
+                    catch (Exception ex) { EsiDiagnostics.Write($"Pilot {pilot.CharacterId} fit deferred: {ex.GetType().Name}"); }
+                    _due[pilot.CharacterId] = DateTimeOffset.UtcNow.AddMinutes(1);
                 }
-                catch (OperationCanceledException) when (lifetime.IsCancellationRequested) { throw; }
-                catch (Exception ex) { EsiDiagnostics.Write($"Pilot {pilot.CharacterId} summary deferred: {ex.GetType().Name}"); }
-                try
-                {
-                    var intel = await sso.GetMiningShipIntelAsync(pilot, timeout.Token);
-                    if (!Intel.TryGetValue(pilot.CharacterId, out var old) || old.CurrentShip.ShipItemId != intel.CurrentShip.ShipItemId || intel.Defense.Available)
-                        Intel[pilot.CharacterId] = intel;
-                    Changed?.Invoke();
-                }
-                catch (OperationCanceledException) when (lifetime.IsCancellationRequested) { throw; }
-                catch (Exception ex) { EsiDiagnostics.Write($"Pilot {pilot.CharacterId} fit deferred: {ex.GetType().Name}"); }
-                _due[pilot.CharacterId] = DateTimeOffset.UtcNow.AddMinutes(1);
-            }
-            foreach (var id in Summaries.Keys.Where(id => !pilots.Any(p => p.CharacterId == id)).ToArray()) Summaries.Remove(id);
-            foreach (var id in Intel.Keys.Where(id => !pilots.Any(p => p.CharacterId == id)).ToArray()) Intel.Remove(id);
+                finally { workers.Release(); }
+            }));
+            foreach (var id in Summaries.Keys.Where(id => !pilots.Any(p => p.CharacterId == id)).ToArray()) Summaries.TryRemove(id, out _);
+            foreach (var id in Intel.Keys.Where(id => !pilots.Any(p => p.CharacterId == id)).ToArray()) Intel.TryRemove(id, out _);
             Directory.CreateDirectory(_directory);
             // Each file has one background writer. Keep successful summaries across refresh failures.
             await SaveCacheAsync("background-pilot-summaries.json", JsonSerializer.Serialize(Summaries));
@@ -62,13 +69,13 @@ public sealed class BackgroundPilotRefresh
         }
         catch (OperationCanceledException) { }
         catch (Exception ex) { EsiDiagnostics.Write("Pilot refresh deferred: " + ex.GetType().Name); }
-        finally { _busy = false; }
+        finally { Volatile.Write(ref _busy, 0); }
     }
-    private async Task SaveCacheAsync(string name,string json)
+    private async Task SaveCacheAsync(string name, string json)
     {
-        string path=Path.Combine(_directory,name);
-        await File.WriteAllTextAsync(path+".tmp",json);
-        File.Move(path+".tmp",path,true);
+        string path = Path.Combine(_directory, name);
+        await File.WriteAllTextAsync(path + ".tmp", json);
+        File.Move(path + ".tmp", path, true);
     }
 
 }

@@ -61,7 +61,11 @@ internal static class MiningStatusRings
     {
         if (droneMining || fitted <= 0) return Array.Empty<Row>();
         fitted = Math.Min(fitted, 8);
-        var observations = source.Where(p => p.Units > 0 && double.IsFinite(p.Units) && p.Utc <= now && p.Utc >= now.AddMinutes(-10)).OrderBy(p => p.Utc).TakeLast(100).ToArray();
+        var recent = source.Where(p => p.Units > 0 && double.IsFinite(p.Units) && p.Utc <= now).OrderBy(p => p.Utc).TakeLast(100).ToArray();
+        // Anchor the learning window to activity, not wall time: stopping both modules
+        // must not erase the cadence. The caller scopes observations to the current ship session.
+        var lastActivity = recent.LastOrDefault()?.Utc ?? now;
+        var observations = recent.Where(p=>p.Utc>=lastActivity.AddMinutes(-10)).ToArray();
         var cadence = StaggeredCadences(observations, fitted);
         var tracks = new List<Track>();
         DateTime uncertainUntil = default;
