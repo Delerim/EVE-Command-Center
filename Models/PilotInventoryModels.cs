@@ -386,7 +386,7 @@ public sealed class EveMiningShipIntel
     public IReadOnlyList<EveMiningLaserView> MiningLasers { get; init; } =
         Array.Empty<EveMiningLaserView>();
 
-    public EveFitDefenseStats Defense { get; init; } = new();
+    public EveFitDefenseStats Defense { get; set; } = new();
 
     public EveShieldCommandBoostProfile ShieldBoost { get; init; } = new();
 

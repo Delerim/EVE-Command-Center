@@ -1,3 +1,9 @@
+# EVE Command Center v3.6.90
+
+- **Recover mining rings after a full hold.** A reduced final pull no longer poisons an established yield/cadence. A restarted stream can re-anchor after a stop without treating its pause as a new cycle duration. Includes a replay of the observed 54-unit / 4-unit full-hold sequence and changed restart timing.
+- **Hold refresh no longer depends on defence refresh.** New inventory reaches the overview even when a defence calculation is unavailable; the previous defence estimate is retained for the same ship. Background fit/hold refresh has its own timeout budget.
+- **Honest inventory freshness.** Asset snapshots retain ESI observation dates and cache expiry, rather than becoming freshly dated each time cached data is reused. Old data ages visibly. Inventory remains an ESI snapshot, not instantaneous measurement of unloading or compression.
+
 # EVE Command Center v3.6.89
 
 - **Less waiting behind unrelated ESI requests.** Up to four network requests can run concurrently, with shared pacing, per-pilot rate-group cooldowns, cache reuse and duplicate-request suppression. Three pilots can refresh concurrently; asset pages use three workers and incomplete results are rejected. Token refreshes are shared and serialized per pilot.

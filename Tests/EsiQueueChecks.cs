@@ -127,6 +127,8 @@ internal static partial class Program
         var pagesStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         int pageCalls = 0;
         bool failPage = false;
+        var assetObserved = DateTimeOffset.UtcNow.AddMinutes(-25);
+        var assetExpires = DateTimeOffset.UtcNow.AddMinutes(20);
         var pagesFake = new EsiAsyncFake(async (r, ct) =>
         {
             int page = int.Parse(r.RequestUri!.Query.Split('=')[1]);
@@ -138,6 +140,8 @@ internal static partial class Program
             var response = new HttpResponseMessage(failPage && page == 3 ? HttpStatusCode.ServiceUnavailable : HttpStatusCode.OK)
             { Content = new StringContent("[{\"item_id\":" + page + ",\"type_id\":34,\"quantity\":1}]") };
             response.Headers.TryAddWithoutValidation("X-Pages", "4");
+            response.Content.Headers.LastModified = assetObserved;
+            response.Content.Headers.Expires = assetExpires;
             return response;
         });
         using var pagesClient = new HttpClient(pagesFake);
@@ -162,6 +166,14 @@ internal static partial class Program
         finally { pageRelease.TrySetResult(); }
         var assets = ((System.Collections.IEnumerable)await assetTask).Cast<object>().ToArray();
         Check(assets.Length == 4, "All asset pages are combined only after successful completion");
+        var snapshotMethod = typeof(EveSsoService).GetMethod("GetCharacterAssetsSnapshotAsync", flags)!;
+        var snapshotTask = (Task)snapshotMethod.Invoke(service, new object[] { 1L, "fake", CancellationToken.None })!;
+        await snapshotTask;
+        var snapshot = snapshotTask.GetType().GetProperty("Result")!.GetValue(snapshotTask)!;
+        var observed = (DateTimeOffset)snapshot.GetType().GetProperty("ObservedUtc")!.GetValue(snapshot)!;
+        var expires = (DateTimeOffset)snapshot.GetType().GetProperty("ExpiresAt")!.GetValue(snapshot)!;
+        Check(Math.Abs((observed - assetObserved).TotalSeconds) < 1 && Math.Abs((expires - assetExpires).TotalSeconds) < 1,
+            "Asset snapshot retains provider observation time and expiry instead of resetting age on reuse");
         failPage = true;
         try { await Assets(); Check(false, "A failed asset page must reject the snapshot"); }
         catch (InvalidOperationException) { Check(true, "Failed pagination cannot publish a partial inventory"); }

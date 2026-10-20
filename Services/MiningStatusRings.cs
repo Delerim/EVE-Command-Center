@@ -93,8 +93,8 @@ internal static class MiningStatusRings
                     candidates.Add((track, error / tolerance, gap, 1));
                 else if (track.Cycle > 0 && deviation <= 2.5 && error <= track.Yield * .2 && cycles <= 3)
                     candidates.Add((track, deviation / 2.5 + error / (3 * tolerance), gap, cycles));
-                else if (track.Cycle > 0 && gap > track.Cycle * 3 && error <= tolerance)
-                    candidates.Add((track, 2 + error / tolerance, gap, cycles));
+                else if (track.Cycle > 0 && gap > track.Cycle + 8 && error <= tolerance)
+                    candidates.Add((track, 2 + error / tolerance, gap, Math.Max(4, cycles)));
             }
             var ordered = candidates.OrderBy(c => c.Score).ToArray();
             if (ordered.Length > 1 && ordered[1].Score - ordered[0].Score < .2 &&
@@ -122,6 +122,11 @@ internal static class MiningStatusRings
             {
                 replaced.Ore = pull.Ore; replaced.Last = pull.Utc; replaced.Yield = pull.Units; replaced.Gaps.Clear(); replaced.SeedCycle = cadence.GetValueOrDefault(pull.Ore);
             }
+            // A short final pull when the hold fills is not a new yield/cadence.
+            // Keep established tracks; subsequent full pulls can re-anchor a stopped stream.
+            else if (!pull.Critical && tracks.Any(t => t.Ready &&
+                string.Equals(t.Ore, pull.Ore, StringComparison.OrdinalIgnoreCase) && pull.Units < t.Yield * .8))
+                continue;
             else
                 uncertainUntil = pull.Utc.AddSeconds(Math.Max(30, tracks.Count == 0 ? 30 : tracks.Max(t => t.Cycle) * 2));
         }

@@ -47,11 +47,13 @@ public sealed class BackgroundPilotRefresh
                     }
                     catch (OperationCanceledException) when (lifetime.IsCancellationRequested) { throw; }
                     catch (Exception ex) { EsiDiagnostics.Write($"Pilot {pilot.CharacterId} summary deferred: {ex.GetType().Name}"); }
+                    using var fitTimeout = CancellationTokenSource.CreateLinkedTokenSource(lifetime);
+                    fitTimeout.CancelAfter(TimeSpan.FromMinutes(3));
                     try
                     {
-                        var intel = await sso.GetMiningShipIntelAsync(pilot, timeout.Token);
-                        if (!Intel.TryGetValue(pilot.CharacterId, out var old) || old.CurrentShip.ShipItemId != intel.CurrentShip.ShipItemId || intel.Defense.Available)
-                            Intel[pilot.CharacterId] = intel;
+                        var intel = await sso.GetMiningShipIntelAsync(pilot, fitTimeout.Token);
+                        Intel.TryGetValue(pilot.CharacterId, out var old);
+                        Intel[pilot.CharacterId] = MergeSnapshot(old, intel);
                         Changed?.Invoke();
                     }
                     catch (OperationCanceledException) when (lifetime.IsCancellationRequested) { throw; }
@@ -71,6 +73,13 @@ public sealed class BackgroundPilotRefresh
         catch (Exception ex) { EsiDiagnostics.Write("Pilot refresh deferred: " + ex.GetType().Name); }
         finally { Volatile.Write(ref _busy, 0); }
     }
+    internal static EveMiningShipIntel MergeSnapshot(EveMiningShipIntel? previous, EveMiningShipIntel current)
+    {
+        if (previous?.CurrentShip.ShipItemId == current.CurrentShip.ShipItemId && !current.Defense.Available)
+            current.Defense = previous.Defense;
+        return current;
+    }
+
     private async Task SaveCacheAsync(string name, string json)
     {
         string path = Path.Combine(_directory, name);

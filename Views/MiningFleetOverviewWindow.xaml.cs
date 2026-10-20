@@ -665,10 +665,8 @@ public partial class MiningFleetOverviewWindow : Window
                                     if (_pilotIntel.TryGetValue(profile.CharacterName, out var current)) current.MiningHoldCapacityM3 = capacity;
                                     if (!IsMouseOver) RefreshCards();
                                 });
-                                if (!_pilotIntel.TryGetValue(intel.CharacterName, out var previous) ||
-                                    previous.CurrentShip.ShipItemId != intel.CurrentShip.ShipItemId ||
-                                    intel.Defense.Available || !previous.Defense.Available)
-                                    _pilotIntel[intel.CharacterName] = intel;
+                                _pilotIntel.TryGetValue(intel.CharacterName, out var previous);
+                                _pilotIntel[intel.CharacterName] = BackgroundPilotRefresh.MergeSnapshot(previous, intel);
                                 if (!IsMouseOver) RefreshCards();
                                 return intel;
                             }

@@ -147,6 +147,7 @@ public static class EsiHttp
             try { response = await base.SendAsync(request, timeout.Token).ConfigureAwait(false); }
             catch (OperationCanceledException) { EsiDiagnostics.Write($"CANCEL/TIMEOUT {request.Method} {route} after {(DateTimeOffset.UtcNow - started).TotalSeconds:0.0}s"); throw; }
             catch (HttpRequestException) { EsiDiagnostics.Write($"NETWORK ERROR {request.Method} {route}"); throw; }
+            response.Headers.Date ??= DateTimeOffset.UtcNow;
             byte[] body;
             try { body = await response.Content.ReadAsByteArrayAsync(timeout.Token).ConfigureAwait(false); }
             catch { response.Dispose(); throw; }

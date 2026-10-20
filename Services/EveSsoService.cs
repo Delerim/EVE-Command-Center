@@ -1541,28 +1541,17 @@ public sealed class EveSsoService
             return cached.Items;
         }
 
-        List<EveAssetItem> items =
-            await GetCharacterAssetsAsync(
-                characterId,
-                accessToken,
-                cancellationToken);
-
-        _assetCache[characterId] =
-            new AssetCacheEntry
-            {
-                ObservedUtc = DateTimeOffset.UtcNow,
-                ExpiresAt =
-                    DateTimeOffset.UtcNow.AddMinutes(3),
-                Items = items
-            };
-
-        return items;
+        var snapshot = await GetCharacterAssetsSnapshotAsync(characterId, accessToken, cancellationToken);
+        _assetCache[characterId] = snapshot;
+        return snapshot.Items;
     }
 
-    private async Task<List<EveAssetItem>> GetCharacterAssetsAsync(
-        long characterId, string accessToken, CancellationToken cancellationToken)
+    private async Task<List<EveAssetItem>> GetCharacterAssetsAsync(long characterId, string accessToken, CancellationToken cancellationToken)
+        => (await GetCharacterAssetsSnapshotAsync(characterId, accessToken, cancellationToken)).Items;
+
+    private async Task<AssetCacheEntry> GetCharacterAssetsSnapshotAsync(long characterId, string accessToken, CancellationToken cancellationToken)
     {
-        async Task<(List<EveAssetItem> Items, int Pages)> ReadPage(int page)
+        async Task<(List<EveAssetItem> Items, int Pages, DateTimeOffset Observed, DateTimeOffset Expires)> ReadPage(int page)
         {
             using var request = new HttpRequestMessage(HttpMethod.Get, EsiBase + $"/characters/{characterId}/assets/?page={page}");
             request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
@@ -1575,7 +1564,13 @@ public sealed class EveSsoService
             int pages = 1;
             if (response.Headers.TryGetValues("X-Pages", out var values) && (!int.TryParse(values.FirstOrDefault(), out pages) || pages < 1 || pages > 100))
                 throw new InvalidOperationException("Invalid asset page count; previous inventory retained");
-            return (items, pages);
+            var received = DateTimeOffset.UtcNow;
+            var observed = response.Content.Headers.LastModified ??
+                (response.Headers.Date ?? received - (response.Headers.Age ?? TimeSpan.Zero));
+            var expires = response.Content.Headers.Expires ?? received.AddMinutes(3);
+            if (response.Content.Headers.Expires == null && response.Headers.CacheControl?.MaxAge is { } maxAge)
+                expires = (response.Headers.Date ?? received - (response.Headers.Age ?? TimeSpan.Zero)).Add(maxAge);
+            return (items, pages, observed, expires);
         }
         var first = await ReadPage(1);
         using var workers = new SemaphoreSlim(3, 3);
@@ -1586,11 +1581,16 @@ public sealed class EveSsoService
             {
                 var result = await ReadPage(page);
                 if (result.Pages != first.Pages) throw new InvalidOperationException("Asset pages changed during refresh; previous inventory retained");
-                return result.Items;
+                return result;
             }
             finally { workers.Release(); }
         }));
-        return first.Items.Concat(remaining.SelectMany(items => items)).ToList();
+        var pages = new[] { first }.Concat(remaining).ToArray();
+        return new AssetCacheEntry {
+            Items = pages.SelectMany(page => page.Items).ToList(),
+            ObservedUtc = pages.Min(page => page.Observed),
+            ExpiresAt = pages.Min(page => page.Expires)
+        };
     }
 
     public async Task<string?> ResolveDisplayLocationAsync(long id, EvePilotProfile pilot, CancellationToken ct)

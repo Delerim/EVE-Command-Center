@@ -50,7 +50,7 @@ internal static class MiningHoldSnapshots
         return new(label, prefix + amounts, known ? Math.Clamp(fraction * 100, 0, 100) : 0,
             !known || stale ? "#829C9F" : fraction >= .8 ? "#D7B66B" : "#65CBB9",
             $"{label}: {(known ? $"{hold.UsedM3:N1} / {hold.BaseCapacityM3:N1} m\u00b3 capacity" : "Unknown volume")}\n" +
-            (hold.ObservedUtc == default ? "No asset snapshot. " : $"Assets fetched {hold.ObservedUtc.ToLocalTime():dd MMM HH:mm}. ") +
+            (hold.ObservedUtc == default ? "No asset snapshot. " : $"Asset snapshot dated {hold.ObservedUtc.ToLocalTime():dd MMM HH:mm}. ") +
             "ESI-cached, not live. " + (adjustedCapacity ? "Capacity includes pilot skill bonuses.\n" : "Capacity excludes skill and fitting bonuses.\n") + hold.Detail +
             (fraction > 1 ? "\nVolume exceeds base capacity; this does not imply the in-game hold is full." : ""));
     }

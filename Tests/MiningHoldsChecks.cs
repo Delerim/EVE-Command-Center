@@ -28,6 +28,13 @@ internal static partial class Program
             new() { AttributeId=1556, Value=150000 }, new() { AttributeId=3212, Value=5 } } },
             new[] { new EveSkillEntry { SkillId=29637, ActiveSkillLevel=5 } }) == 187500,
             "Orca mining capacity includes Industrial Command Ships bonus from dogma");
+        var priorIntel = new EveMiningShipIntel { CurrentShip = new() { ShipItemId=123 }, Defense = new(),
+            MiningHoldInventory = new() { Complete=true, UsedM3=15000 } };
+        var freshIntel = new EveMiningShipIntel { CurrentShip = new() { ShipItemId=123 },
+            MiningHoldInventory = new() { Complete=true, UsedM3=500 } };
+        var mergedIntel = BackgroundPilotRefresh.MergeSnapshot(priorIntel, freshIntel);
+        Check(mergedIntel.MiningHoldInventory.UsedM3 == 500 && ReferenceEquals(mergedIntel.Defense, priorIntel.Defense),
+            "A defence refresh failure cannot block newer mining inventory");
         var tracker = new LiveMiningHold();
         tracker.Configure("A", 42, now);
         (double, double) Volumes(string _) => (10, .1);
@@ -106,6 +113,14 @@ internal static partial class Program
         var restarted=identical.Concat(new[] {new MiningStatusRings.Pull(now.AddSeconds(120),80,"Ore",false),new MiningStatusRings.Pull(now.AddSeconds(120),80,"Ore",false)});
         Check(MiningStatusRings.Build(2,false,false,restarted,now.AddSeconds(121)).All(r=>!r.IsStopped && r.Accent=="#65D5B6"),
             "Both stopped miners recover after simultaneous new pulls");
+        var fullRestart = Enumerable.Range(0, 12).SelectMany(n => new[] {
+            new MiningStatusRings.Pull(now.AddSeconds(n*24),54,"Bitumens",false),
+            new MiningStatusRings.Pull(now.AddSeconds(n*24+10),54,"Bitumens",false)}).ToList();
+        fullRestart.Add(new(now.AddSeconds(288),4,"Bitumens",false));
+        foreach (int second in new[] {298,319,322,343,346,368,370,392,394,416,418})
+            fullRestart.Add(new(now.AddSeconds(second),54,"Bitumens",false));
+        Check(MiningStatusRings.Build(2,false,false,fullRestart,now.AddSeconds(323)).All(r=>r.Accent=="#65D5B6"),
+            "Full hold partial pull and changed restart phase recover both mining streams");
         var singleRunning=Enumerable.Range(0,16).Select(n=>new MiningStatusRings.Pull(now.AddSeconds(n*24),54,"Bitumens",false));
         var singleRows=MiningStatusRings.Build(2,false,false,singleRunning,now.AddSeconds(361));
         Check(singleRows.Count(r=>r.Accent=="#65D5B6")==1 && singleRows.Count(r=>r.Timing=="Learning")==1,
