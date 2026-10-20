@@ -200,7 +200,7 @@
                           HorizontalScrollBarVisibility="Disabled"
                           VerticalScrollBarVisibility="Disabled"
                           CanContentScroll="False">
-                <ItemsControl x:Name="MinerItems">
+                <ItemsControl x:Name="MinerItems" Grid.IsSharedSizeScope="True">
                     <ItemsControl.ItemsPanel>
                         <ItemsPanelTemplate>
                             <StackPanel Orientation="{Binding CardOrientation, RelativeSource={RelativeSource AncestorType=Window}}"/>
@@ -292,13 +292,16 @@
 
                                 <Grid>
                                     <Grid.RowDefinitions>
-                                        <RowDefinition Height="Auto"/>
-                                        <RowDefinition Height="Auto"/>
-                                        <RowDefinition Height="Auto"/>
-                                        <RowDefinition Height="Auto"/>
-                                        <RowDefinition Height="Auto"/>
-                                        <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto" SharedSizeGroup="CardRow0"/>
+                                        <RowDefinition Height="Auto" SharedSizeGroup="CardRow1"/>
+                                        <RowDefinition Height="Auto" SharedSizeGroup="CardRow2"/>
+                                        <RowDefinition Height="Auto" SharedSizeGroup="CardRow3"/>
+                                        <RowDefinition Height="Auto" SharedSizeGroup="CardRow4"/>
+                                        <RowDefinition Height="Auto" SharedSizeGroup="CardRow5"/>
+                                        <RowDefinition Height="Auto" SharedSizeGroup="CardRow6"/>
+                                        <RowDefinition Height="Auto" SharedSizeGroup="CardRow7"/>
+                                        <RowDefinition Height="Auto" SharedSizeGroup="CardRow8"/>
+                                    </Grid.RowDefinitions>
 
                                     <Border x:Name="AlertCountBadge" Grid.Row="0"
                                             HorizontalAlignment="Right"

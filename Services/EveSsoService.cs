@@ -418,7 +418,8 @@ public sealed class EveSsoService
     public async Task<EveMiningShipIntel> GetMiningShipIntelAsync(
         EvePilotProfile pilot,
         CancellationToken cancellationToken = default,
-        Action<EveCurrentShipView>? shipIdentified = null)
+        Action<EveCurrentShipView>? shipIdentified = null,
+        Action<double>? capacityIdentified = null)
     {
         EveCurrentShipView ship =
             await GetCurrentShipIdentityAsync(
@@ -573,6 +574,9 @@ public sealed class EveSsoService
                 token,
                 cancellationToken);
 
+        double miningCapacity = MiningHoldCapacity.For(await GetUniverseTypeAsync(ship.ShipTypeId, cancellationToken), skills.Skills);
+        capacityIdentified?.Invoke(miningCapacity);
+
         IReadOnlyList<EveUniverseType> defenseImplants =
             await GetInstalledImplantTypesAsync(
                 pilot,
@@ -661,7 +665,7 @@ public sealed class EveSsoService
                     .ToArray(),
             Defense = defense,
             ShieldBoost = shieldBoost,
-            MiningHoldCapacityM3 = MiningHoldCapacity.For(await GetUniverseTypeAsync(ship.ShipTypeId, cancellationToken), skills.Skills),
+            MiningHoldCapacityM3 = miningCapacity,
             FleetHangar = fleetHold,
             AssetsAvailable = true
         };

@@ -23,6 +23,11 @@ internal static partial class Program
         Check(MiningHoldCapacity.For(new(), Array.Empty<EveSkillEntry>()) == 0, "Missing capacity never defaults to a Hulk hold");
         Check(MiningHoldCapacity.IsExhumer(22544) && MiningHoldCapacity.IsExhumer(22546) && MiningHoldCapacity.IsExhumer(22548) &&
             !MiningHoldCapacity.IsExhumer(28606), "Live mining holds are scoped to the three exhumers");
+        Check(MiningHoldCapacity.HasLiveMiningHold(28606), "Orca exposes a live mining hold as well as cached fleet storage");
+        Check(MiningHoldCapacity.For(new EveUniverseType { DogmaAttributes = new() {
+            new() { AttributeId=1556, Value=150000 }, new() { AttributeId=3212, Value=5 } } },
+            new[] { new EveSkillEntry { SkillId=29637, ActiveSkillLevel=5 } }) == 187500,
+            "Orca mining capacity includes Industrial Command Ships bonus from dogma");
         var tracker = new LiveMiningHold();
         tracker.Configure("A", 42, now);
         (double, double) Volumes(string _) => (10, .1);
@@ -127,9 +132,29 @@ internal static partial class Program
             type.GetProperty("LaserFallbackVisibility")!.SetValue(card, Visibility.Collapsed);
             type.GetProperty("HoldRows")!.SetValue(card, new[] {new MiningHoldSnapshots.Row("Mining","~9,250 / 11,500 m\u00b3",80.4,"#E0BA68","Live estimate")});
         }
+        var orcaCard = items.Items[0]; var orcaType = orcaCard.GetType();
+        orcaType.GetProperty("StatusRings")!.SetValue(orcaCard, Array.Empty<MiningStatusRings.Row>());
+        orcaType.GetProperty("RingsVisibility")!.SetValue(orcaCard, Visibility.Collapsed);
+        orcaType.GetProperty("LaserFallbackVisibility")!.SetValue(orcaCard, Visibility.Visible);
+        orcaType.GetProperty("LaserText")!.SetValue(orcaCard, "DRONE MINING");
+        orcaType.GetProperty("HoldVisibility")!.SetValue(orcaCard, Visibility.Visible);
+        orcaType.GetProperty("HoldRows")!.SetValue(orcaCard, new[] {
+            new MiningHoldSnapshots.Row("Mining", "~12,500 / 187,500 m\u00b3", 6.67, "#65D5B6", "Live estimate"),
+            new MiningHoldSnapshots.Row("Fleet", "Cached: 30,772 / 40,000 m\u00b3", 76.93, "#65D5B6", "Cached inventory") });
         items.Items.Refresh();
         window.Width = 800;
         Render(window, render);
+        IEnumerable<DependencyObject> Walk(DependencyObject parent)
+        {
+            for (int i=0; i<System.Windows.Media.VisualTreeHelper.GetChildrenCount(parent); i++)
+            {
+                var child=System.Windows.Media.VisualTreeHelper.GetChild(parent,i); yield return child;
+                foreach(var nested in Walk(child)) yield return nested;
+            }
+        }
+        var frames=Walk(items).OfType<Border>().Where(b=>b.CornerRadius.TopLeft==7 && b.ActualWidth>150).ToArray();
+        Check(frames.Length>=2 && frames.Max(b=>b.ActualHeight)-frames.Min(b=>b.ActualHeight)<1,
+            "Orca with two holds and exhumer with rings have equal rendered card heights");
         window.Close();
     }
 }

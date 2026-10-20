@@ -1,3 +1,10 @@
+# EVE Command Center v3.6.81
+
+- **Orca mining hold added.** Orca cards now show their log-driven mining-hold estimate alongside the separately labelled cached fleet hangar. Capacity uses hull dogma and the pilot's Industrial Command Ships level. Personal cargo stays hidden.
+- **Aligned mining tiles.** Shared row sizes keep the Orca and exhumer cards equal in height, align hold bars beneath the mining-stream area, and keep status/alarm controls together at the bottom. Existing compact and preview modes remain available.
+- **Earlier capacity display.** Ship mining capacity is sent to the overview as soon as hull and skill data are ready, without waiting for the remaining fitting, implants and EHP calculations. ESI delays and unresolved volume data can still delay confirmed values.
+- Mining amounts remain estimates: unlogged transfers and unloading need correction. Right-click a mining hold to mark it empty. The Orca fleet hangar remains cached inventory, not inferred live transfers.
+
 # EVE Command Center v3.6.80
 
 - **Independent mining-stream rings.** Compact teal rings learn separate pull streams from log timing and yield. A stopped stream turns red independently; ambiguous or insufficient observations stay grey. The rings are inferred streams, not physical module-slot identifiers. Critical pulls do not inflate the learned normal yield.

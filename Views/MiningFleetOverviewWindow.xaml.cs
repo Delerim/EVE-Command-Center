@@ -660,6 +660,10 @@ public partial class MiningFleetOverviewWindow : Window
                                     if (!_pilotIntel.TryGetValue(profile.CharacterName, out var cached) || cached.CurrentShip.ShipItemId != ship.ShipItemId)
                                         _pilotIntel[profile.CharacterName] = new EveMiningShipIntel { CharacterId=profile.CharacterId, CharacterName=profile.CharacterName, CurrentShip=ship };
                                     if (!IsMouseOver) RefreshCards();
+                                }, capacityIdentified: capacity =>
+                                {
+                                    if (_pilotIntel.TryGetValue(profile.CharacterName, out var current)) current.MiningHoldCapacityM3 = capacity;
+                                    if (!IsMouseOver) RefreshCards();
                                 });
                                 if (!_pilotIntel.TryGetValue(intel.CharacterName, out var previous) ||
                                     previous.CurrentShip.ShipItemId != intel.CurrentShip.ShipItemId ||
@@ -718,7 +722,7 @@ public partial class MiningFleetOverviewWindow : Window
     private void MiningHold_RightClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
     {
         if (sender is not FrameworkElement { DataContext: FleetCard card } element ||
-            !_pilotIntel.TryGetValue(card.Character, out var intel) || !MiningHoldCapacity.IsExhumer(intel.CurrentShip.ShipTypeId)) return;
+            !_pilotIntel.TryGetValue(card.Character, out var intel) || !MiningHoldCapacity.HasLiveMiningHold(intel.CurrentShip.ShipTypeId)) return;
         var menu = new System.Windows.Controls.ContextMenu();
         var empty = new System.Windows.Controls.MenuItem { Header = "Mark mining hold empty" };
         empty.Click += (_, _) => { _tracker.MiningHold.Empty(card.Character, DateTime.UtcNow); RefreshCards(); };
@@ -1078,7 +1082,7 @@ public partial class MiningFleetOverviewWindow : Window
             var holdRows = new List<MiningHoldSnapshots.Row>();
             void AppendHold(string name, EveShipHoldSnapshot hold)
             { if (hold.Supported) holdRows.Add(MiningHoldSnapshots.Present(name, hold, DateTimeOffset.UtcNow)); }
-            if (shipIntel != null && MiningHoldCapacity.IsExhumer(shipIntel.CurrentShip.ShipTypeId))
+            if (shipIntel != null && MiningHoldCapacity.HasLiveMiningHold(shipIntel.CurrentShip.ShipTypeId))
             {
                 _tracker.MiningHold.Configure(character, shipIntel.CurrentShip.ShipItemId, DateTime.UtcNow);
                 holdRows.Add(_tracker.MiningHold.Present(character, shipIntel.MiningHoldCapacityM3, ore =>
@@ -1409,7 +1413,7 @@ public partial class MiningFleetOverviewWindow : Window
             card.CardWidth = cardWidth;
             card.CardPadding = new Thickness(8, _prefs.FleetOverviewVertical ? 3 : 6, 8, _prefs.FleetOverviewVertical ? 3 : 6);
             card.CardMargin = new Thickness(0, 0, 6, _prefs.FleetOverviewVertical ? 3 : 6);
-            card.CardMinHeight = _prefs.FleetOverviewVertical ? 0 : 248 + (_tracker.RockTracking.Enabled ? 85 : 0);
+            card.CardMinHeight = _prefs.FleetOverviewVertical ? 0 : 252 + (_tracker.RockTracking.Enabled ? 85 : 0);
             card.PreviewHeight = _prefs.FleetOverviewVertical ? 60 : 115;
             card.DetailedMiningVisibility = !_prefs.FleetOverviewVertical && OverviewMode == "MINING" ? Visibility.Visible : Visibility.Collapsed;
             card.CompactMiningVisibility = _prefs.FleetOverviewVertical && OverviewMode == "MINING" ? Visibility.Visible : Visibility.Collapsed;

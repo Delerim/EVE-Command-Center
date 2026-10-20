@@ -21,3 +21,7 @@ Uses existing personal asset snapshots and direct FleetHangar contents only, exc
 Run `dotnet run --project Tests/CommandCenter.Checks.csproj -c Release -- --audit-mining-holds <image-path>` for deterministic log/capacity/stream checks and a WPF fixture render. Full regression checks are also required. Fixtures are not live-client proof. English compression/full messages are currently recognised; unsupported client languages need verified message patterns before claiming equivalent hold tracking.
 
 The supplied reference was inspected statically to understand log-derived behaviour. Its GUI, controls, tokens and operational databases were not imported or executed.
+
+## v3.6.81 follow-up
+
+Orca now also has a log-driven mining-hold estimate. Industrial Command Ships adjusts the hull capacity using dogma attribute 3212 (currently 5% per level); with base 150,000 and level V this is 187,500 cubic metres. The fleet hangar retains its separately labelled cached source. Shared grid rows align cards and their bottom controls. Capacity is delivered before slower fitting/defence work finishes.
