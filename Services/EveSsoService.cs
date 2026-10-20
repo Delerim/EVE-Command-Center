@@ -1528,6 +1528,23 @@ public sealed class EveSsoService
         };
     }
 
+    // Hold-only polling avoids skills, defence and fitting work. Shared asset expiry still applies.
+    internal async Task<(EveShipHoldSnapshot Mining, EveShipHoldSnapshot Fleet)> GetShipHoldsAsync(
+        EvePilotProfile pilot, EveCurrentShipView ship, CancellationToken ct)
+    {
+        if (!HasScope(pilot, "esi-assets.read_assets.v1") || ship.ShipItemId <= 0)
+            return (new(), new());
+        var token = await GetAccessTokenAsync(pilot, ct);
+        var assets = await GetCharacterAssetsCachedAsync(pilot.CharacterId, token, ct);
+        var observed = _assetCache.GetValueOrDefault(pilot.CharacterId)?.ObservedUtc ?? default;
+        var mining = MiningHoldCapacity.HasLiveMiningHold(ship.ShipTypeId)
+            ? await MiningHoldSnapshots.ReadAsync(ship, assets, observed,
+                id => GetUniverseTypeAsync(id, ct), "SpecializedOreHold", 1556) : new EveShipHoldSnapshot();
+        var fleet = ship.IsOrca
+            ? await MiningHoldSnapshots.ReadAsync(ship, assets, observed, id => GetUniverseTypeAsync(id, ct)) : new EveShipHoldSnapshot();
+        return (mining, fleet);
+    }
+
     private async Task<List<EveAssetItem>> GetCharacterAssetsCachedAsync(
         long characterId,
         string accessToken,

@@ -35,6 +35,15 @@ internal static partial class Program
         var mergedIntel = BackgroundPilotRefresh.MergeSnapshot(priorIntel, freshIntel);
         Check(mergedIntel.MiningHoldInventory.UsedM3 == 500 && ReferenceEquals(mergedIntel.Defense, priorIntel.Defense),
             "A defence refresh failure cannot block newer mining inventory");
+        var priorityIntel = new EveMiningShipIntel { CurrentShip = new() { ShipItemId=123 },
+            MiningHoldInventory = new() { Complete=true, UsedM3=100, ObservedUtc=now.AddMinutes(1) } };
+        var olderFit = new EveMiningShipIntel { CurrentShip = new() { ShipItemId=123 },
+            MiningHoldInventory = new() { Complete=true, UsedM3=12000, ObservedUtc=now } };
+        Check(BackgroundPilotRefresh.MergeSnapshot(priorityIntel, olderFit).MiningHoldInventory.UsedM3 == 100,
+            "A slower fit refresh cannot overwrite newer priority hold data");
+        var changedShip = new EveMiningShipIntel { CurrentShip = new() { ShipItemId=456 } };
+        Check(!BackgroundPilotRefresh.MergeSnapshot(priorityIntel, changedShip).MiningHoldInventory.Complete,
+            "Priority inventory is never carried into a different ship");
         var tracker = new LiveMiningHold();
         tracker.Configure("A", 42, now);
         (double, double) Volumes(string _) => (10, .1);

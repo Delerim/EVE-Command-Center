@@ -176,6 +176,9 @@ public partial class MiningFleetOverviewWindow : Window
     private readonly MiningDashboardPreferences _prefs;
     private readonly DispatcherTimer _timer;
     private readonly DispatcherTimer _pilotIntelTimer;
+    private readonly DispatcherTimer _holdRefreshTimer = new() { Interval = TimeSpan.FromSeconds(30) };
+    private readonly CancellationTokenSource _holdRefreshLifetime = new();
+    private bool _holdRefreshBusy;
     private readonly DispatcherTimer _plexMarketTimer;
     private readonly EveSsoService _pilotSso = new();
     private readonly MiningMarketService _plexMarket = new();
@@ -287,6 +290,8 @@ public partial class MiningFleetOverviewWindow : Window
             async (_, _) =>
                 await RefreshPilotIntelAsync();
         _pilotIntelTimer.Start();
+        _holdRefreshTimer.Tick += async (_, _) => await RefreshHoldsAsync();
+        _holdRefreshTimer.Start();
         _backgroundPilots.Changed += ApplyBackgroundPilotIntel;
 
         _plexMarketTimer = new DispatcherTimer
@@ -327,6 +332,8 @@ public partial class MiningFleetOverviewWindow : Window
             RunningApp?.OverviewThumbnails?.SetOverviewCombined(false);
             _previewImages.Clear();
             _pilotIntelTimer.Stop();
+            _holdRefreshTimer.Stop();
+            _holdRefreshLifetime.Cancel();
             _backgroundPilots.Changed -= ApplyBackgroundPilotIntel;
             _plexMarketTimer.Stop();
             _prefs.FleetOverviewX = Left;
@@ -608,11 +615,50 @@ public partial class MiningFleetOverviewWindow : Window
         foreach (var intel in _backgroundPilots.Intel.Values)
         {
             if (!_pilotIntel.TryGetValue(intel.CharacterName, out var old) || intel.SyncedUtc > old.SyncedUtc)
-                _pilotIntel[intel.CharacterName] = intel;
+                _pilotIntel[intel.CharacterName] = BackgroundPilotRefresh.MergeSnapshot(old, intel);
             _portraitUrls[intel.CharacterName] = $"https://images.evetech.net/characters/{intel.CharacterId}/portrait?size=64";
         }
         if (!IsMouseOver) RefreshCards();
     }
+    private async Task RefreshHoldsAsync()
+    {
+        if (_holdRefreshBusy || _holdRefreshLifetime.IsCancellationRequested || !IsVisible || WindowState == WindowState.Minimized) return;
+        _holdRefreshBusy = true;
+        try
+        {
+            var operations = BackgroundOperations.Current;
+            var profiles = await operations.Sso.LoadPilotsAsync();
+            var wanted = new HashSet<string>(_tracker.GetMiningDashboardCharacters(), StringComparer.OrdinalIgnoreCase);
+            var candidates = profiles.Where(p => wanted.Contains(p.CharacterName) && operations.SyncSettings.Enabled(p.CharacterId, "pilot") &&
+                _pilotIntel.TryGetValue(p.CharacterName, out var intel) && MiningHoldCapacity.HasLiveMiningHold(intel.CurrentShip.ShipTypeId))
+                .OrderBy(p => _pilotIntel[p.CharacterName].MiningHoldInventory.ObservedUtc).ToArray();
+            using var workers = new SemaphoreSlim(2, 2);
+            await Task.WhenAll(candidates.Select(async pilot =>
+            {
+                await workers.WaitAsync(_holdRefreshLifetime.Token);
+                try
+                {
+                    if (!_pilotIntel.TryGetValue(pilot.CharacterName, out var before)) return;
+                    var ship = before.CurrentShip;
+                    using var timeout = CancellationTokenSource.CreateLinkedTokenSource(_holdRefreshLifetime.Token);
+                    timeout.CancelAfter(TimeSpan.FromMinutes(2));
+                    var holds = await operations.Sso.GetShipHoldsAsync(pilot, ship, timeout.Token);
+                    if (_holdRefreshLifetime.IsCancellationRequested || !_pilotIntel.TryGetValue(pilot.CharacterName, out var current) ||
+                        current.CurrentShip.ShipItemId != ship.ShipItemId) return;
+                    if (holds.Mining.ObservedUtc >= current.MiningHoldInventory.ObservedUtc) current.MiningHoldInventory = holds.Mining;
+                    if (holds.Fleet.ObservedUtc >= current.FleetHangar.ObservedUtc) current.FleetHangar = holds.Fleet;
+                    if (!IsMouseOver) RefreshCards();
+                }
+                catch (OperationCanceledException) { }
+                catch (Exception ex) { EsiDiagnostics.Write($"Pilot {pilot.CharacterId} priority hold refresh deferred: {ex.GetType().Name}"); }
+                finally { workers.Release(); }
+            }));
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception ex) { EsiDiagnostics.Write("Priority holds deferred: " + ex.GetType().Name); }
+        finally { _holdRefreshBusy = false; }
+    }
+
     private async Task RefreshPilotIntelAsync()
     {
         ApplyBackgroundPilotIntel();

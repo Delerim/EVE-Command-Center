@@ -77,6 +77,13 @@ public sealed class BackgroundPilotRefresh
     {
         if (previous?.CurrentShip.ShipItemId == current.CurrentShip.ShipItemId && !current.Defense.Available)
             current.Defense = previous.Defense;
+        if (previous?.CurrentShip.ShipItemId == current.CurrentShip.ShipItemId)
+        {
+            if (previous.MiningHoldInventory.ObservedUtc > current.MiningHoldInventory.ObservedUtc)
+                current.MiningHoldInventory = previous.MiningHoldInventory;
+            if (previous.FleetHangar.ObservedUtc > current.FleetHangar.ObservedUtc)
+                current.FleetHangar = previous.FleetHangar;
+        }
         return current;
     }
 

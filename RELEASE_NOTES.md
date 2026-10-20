@@ -1,3 +1,9 @@
+# EVE Command Center v3.6.91
+
+- **Dedicated mining-hold refresh.** While the mining overview is visible, a separate 30-second check refreshes tracked, sync-enabled exhumer and Orca holds, oldest snapshots first. Two bounded workers use the shared asset cache without waiting for the five-minute full skills/fit refresh.
+- Slow fit updates cannot replace newer hold data, and results for a previous ship are discarded. Closing the overview cancels its hold refresh work.
+- ESI cache expiry and rate limits remain respected. Old snapshots remain labelled Old until newer data arrives; this does not provide live cargo measurement.
+
 # EVE Command Center v3.6.90
 
 - **Recover mining rings after a full hold.** A reduced final pull no longer poisons an established yield/cadence. A restarted stream can re-anchor after a stop without treating its pause as a new cycle duration. Includes a replay of the observed 54-unit / 4-unit full-hold sequence and changed restart timing.
