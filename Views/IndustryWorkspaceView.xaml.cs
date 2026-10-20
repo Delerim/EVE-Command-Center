@@ -39,6 +39,7 @@ public partial class IndustryWorkspaceView : System.Windows.Controls.UserControl
         InitializeComponent();
         WorkspaceLayout.Attach(this);
         WorkspaceLayout.AttachTable(ProductionProgress);
+        WorkspaceLayout.AttachTable(JobHistoryGrid);
         Strategy.ItemsSource = new[] { "Make", "Buy", "Use Stock" };
         Loaded += async (_, _) =>
         {
@@ -161,6 +162,12 @@ public partial class IndustryWorkspaceView : System.Windows.Controls.UserControl
 
         Audit.Text = string.Join(Environment.NewLine, _state.Events.Where(e => e.ProjectId == project.Id || e.ProjectId == null).OrderByDescending(e => e.TimeUtc).Take(100).Select(e => $"{e.TimeUtc:u} {IndustryPresentation.History(e.Description)}"));
         ProductionProgress.ItemsSource = project.Nodes.Select(n => IndustryProductionProgress.Build(n, _state, ReadJobs(), DateTimeOffset.UtcNow)).ToArray();
+        var historyBatches = _state.JobHistory.Where(h => h.ProjectId == project.Id).Select(h => (h.Job.OwnerId, h.Job.JobId)).Distinct()
+            .Select((key, index) => (key, Number: index + 1)).ToDictionary(x => x.key, x => x.Number);
+        JobHistoryGrid.ItemsSource = _state.JobHistory.Where(h => h.ProjectId == project.Id).OrderByDescending(h => h.Job.SnapshotUtc)
+            .Select(h => new JobHistoryRow(historyBatches[(h.Job.OwnerId, h.Job.JobId)], ProductName(h.Job.ProductTypeId, IndustryCatalog.Name(h.Job.ProductTypeId)), h.Job.ProductTypeId,
+                Pilot(h.Job.InstallerId), FacilityName(h.Job.OwnerId, h.Job.FacilityId), (h.Job.Status == "delivered" ? "Collected in EVE" : IndustryJobMatching.Describe(h.Job)),
+                h.Job.Runs, IndustryJobMatching.OutputUnits(h.Job), h.Job.SnapshotUtc.UtcDateTime, h.Job.EndUtc.UtcDateTime)).ToArray();
         RefreshProjectSkills(project);
         RefreshProjectPurchases();
         RefreshProjectSales();
@@ -221,7 +228,7 @@ public partial class IndustryWorkspaceView : System.Windows.Controls.UserControl
         RefreshComponentBlueprintLocations();
         ComponentBlueprintHint.Text = node.BlueprintItemId.HasValue ? $"Selected instance | {Pilot(node.BlueprintOwnerId)} | ME {node.MaterialEfficiency}%" : "Select an owned instance to apply its ME and runs. Location and availability remain visible per copy.";
         var savedJobs = IndustryJobMatching.LinkedJobs(node).ToArray();
-        var observedJobs = ReadJobs().Where(j => j.ProductTypeId == node.TypeId && j.BlueprintTypeId == node.BlueprintTypeId).ToArray();
+        var observedJobs = ReadJobs().Where(j => j.ProductTypeId == node.TypeId && j.BlueprintTypeId == node.BlueprintTypeId).Select(j => savedJobs.FirstOrDefault(saved => saved.JobId == j.JobId && saved.OwnerId == j.OwnerId && IndustryJobMatching.Terminal(saved)) ?? j).ToArray();
         var jobs = observedJobs.Concat(savedJobs.Where(saved => !observedJobs.Any(j => j.OwnerId == saved.OwnerId && j.JobId == saved.JobId)))
             .OrderByDescending(j => savedJobs.Any(saved => saved.OwnerId == j.OwnerId && saved.JobId == j.JobId)).ThenByDescending(j => j.StartUtc).ToArray();
         ExistingJobs.ItemsSource = jobs.Select(j => new JobRow(j, Pilot(j.InstallerId), FacilityName(j.OwnerId, j.FacilityId),
@@ -294,8 +301,11 @@ public partial class IndustryWorkspaceView : System.Windows.Controls.UserControl
         public string StockColor => Available == null ? "#A5BBC1" : Quantity - Reserved - Available > 0 ? "#EDAD83" : "#76D7CB";
         public string StockStatus => Available == null ? "Check inventory" : Quantity - Reserved - Available > 0 ? "Shortfall" : "Stock covers demand";
     }
+    private sealed record JobHistoryRow(int BatchNumber, string Name, int TypeId, string Pilot, string Facility, string Status, long Runs,
+        decimal? Output, DateTime Observed, DateTime Ends)
+    { public string Batch => $"Batch {BatchNumber}"; public string Icon => $"https://images.evetech.net/types/{TypeId}/icon?size=32"; }
     private sealed record JobRow(IndustryJobLink Link, string Owner, string Facility, bool Linked, bool Observed)
-    { public string Output => IndustryJobMatching.OutputUnits(Link)?.ToString("N0") ?? "Unknown"; public decimal? OutputQuantity => IndustryJobMatching.OutputUnits(Link); public string Association => Linked ? "Linked" : "Candidate"; public string Status => Observed ? IndustryJobMatching.Describe(Link) : "Saved evidence; refresh to check"; public string End => Link.EndUtc.UtcDateTime.ToString("dd MMM HH:mm"); }
+    { public string Output => IndustryJobMatching.OutputUnits(Link)?.ToString("N0") ?? "Unknown"; public decimal? OutputQuantity => IndustryJobMatching.OutputUnits(Link); public string Association => Linked ? "Linked" : "Candidate"; public string Status => Observed ? IndustryJobMatching.Describe(Link) : IndustryJobMatching.Terminal(Link) ? IndustryJobMatching.Describe(Link) + " (saved)" : "Saved evidence; refresh to check"; public string End => Link.EndUtc.UtcDateTime.ToString("dd MMM HH:mm"); }
     private void StockOwner_Changed(object sender, SelectionChangedEventArgs e) => RefreshStockLocations();
     private void StockLocation_Changed(object sender, SelectionChangedEventArgs e) { if (_initialized) RefreshStock(); }
     private void RefreshStockLocations()

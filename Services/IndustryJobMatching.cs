@@ -17,6 +17,11 @@ public static class IndustryJobMatching
         return job.Runs > 0 && perRun > 0 && double.IsFinite(perRun) && perRun < (double)decimal.MaxValue / job.Runs
             ? (decimal)perRun * job.Runs : null;
     }
+    public static bool CanAdvance(IndustryJobLink previous, IndustryJobLink next) =>
+        SameIdentity(previous, next) && next.SnapshotUtc >= previous.SnapshotUtc &&
+        (!Terminal(previous) || previous.Status == next.Status) &&
+        (previous.Status != "ready" || next.Status == "ready" || Terminal(next));
+    public static bool Terminal(IndustryJobLink job) => job.Status is "delivered" or "cancelled" or "reverted";
     public static bool Valid(IndustryJobLink j) => j.OwnerId > 0 && j.JobId > 0 && j.InstallerId == j.OwnerId &&
         j.ProductTypeId > 0 && j.BlueprintTypeId > 0 && j.BlueprintItemId > 0 && j.FacilityId > 0 && j.Runs > 0 &&
         j.StartUtc != default && j.EndUtc >= j.StartUtc && j.Status is "active" or "paused" or "ready" or "delivered" or "cancelled" or "reverted";

@@ -17,6 +17,7 @@ public sealed class IndustryWorkspace
     public Dictionary<long, IndustryCharacterRole> Roles { get; set; } = new();
     public List<IndustryProject> Projects { get; set; } = new();
     public List<IndustryReservation> Reservations { get; set; } = new();
+    public List<IndustryJobObservation> JobHistory { get; set; } = new();
     public List<IndustryPlanningEvent> Events { get; set; } = new();
 }
 
@@ -98,3 +99,5 @@ public sealed record IndustryStockSource(long OwnerId, string Owner, long ItemId
 public sealed record IndustryJobLink(long OwnerId, long JobId, long InstallerId, int ProductTypeId,
     int BlueprintTypeId, long BlueprintItemId, long FacilityId, long Runs, string Status,
     DateTimeOffset StartUtc, DateTimeOffset EndUtc, DateTimeOffset SnapshotUtc);
+
+public sealed record IndustryJobObservation(Guid ProjectId, Guid NodeId, IndustryJobLink Job);

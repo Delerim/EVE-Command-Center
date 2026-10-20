@@ -37,7 +37,7 @@ internal static partial class Program
         store.MatchJob(project, root.Id, batchTwo, linked, now);
         var batches = store.Snapshot();
         var batchNode = batches.Projects.Single(p => p.Id == project).Nodes[0];
-        Check(batches.SchemaVersion == 3 && IndustryJobMatching.LinkedJobs(batchNode).Count() == 2 && batchNode.ActualJob == job,
+        Check(batches.SchemaVersion >= 3 && IndustryJobMatching.LinkedJobs(batchNode).Count() == 2 && batchNode.ActualJob == job,
             "Adding a second batch preserves the original association and upgrades workspace compatibility");
         var progress = IndustryProductionProgress.Build(batchNode, batches, new[] { job, batchTwo }, now);
         Check(progress.InProduction == 4 && progress.AwaitingCollection == 3 && progress.Delivered == 0 && progress.Reserved == 0,
@@ -63,7 +63,7 @@ internal static partial class Program
         store.Reserve(project, root.Id, finishedStock, 1, now, new[] { finishedStock });
         var receipt = store.Snapshot().Reservations.Single().Id;
         store.ConfirmDelivery(receipt, finishedStock, 1, "Checked at assembly", now, new[] { finishedStock });
-        Check(store.Snapshot().SchemaVersion == 3, "Recording a receipt cannot downgrade the multi-batch workspace schema");
+        Check(store.Snapshot().SchemaVersion >= 3, "Recording a receipt cannot downgrade the multi-batch workspace schema");
         new IndustryLedger(Path.Combine(folder, "component-flow")).Ensure();
         Check(IndustryJobMatching.LinkedJobs(new IndustryWorkspaceStore(Path.Combine(folder, "component-flow")).Snapshot().Projects.Single(p => p.Id == project).Nodes[0]).Count() == 3,
             "Batch associations survive authoritative SQLite migration");

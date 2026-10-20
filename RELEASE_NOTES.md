@@ -1,3 +1,11 @@
+# EVE Command Center v3.6.79
+
+- **Permanent history for linked manufacturing batches.** Successful Industry job responses retain observed status and end-time changes in the existing workspace. Initial links are recorded, and repeated unchanged responses do not duplicate history or rewrite the workspace. No additional ESI requests.
+- **Job history inside each project.** Review component icons/names, readable batch labels, pilots, output, runs, observed/end times in UTC and facilities. Columns sort and remember their widths/order. Evidence remains stored after unlinking or deleting a project.
+- **Collected jobs stay traceable.** Confirmed delivered/cancelled/reverted outcomes survive EVE's retention window. Missing nonterminal jobs remain Unknown. Job collection never confirms a project receipt, material consumption or profit.
+- New observations must match the linked batch identity and be newer and fresh. Terminal outcomes cannot regress, and a ready job cannot revert to manufacturing. Persistence failures are reported in Industry status without aborting the rest of its refresh.
+- Job history upgrades the workspace payload to schema 4; existing schemas remain readable. Earlier versions refuse newer payloads rather than discard history. Material consumption, cost basis and realized-profit accounting remain subsequent increments.
+
 # EVE Command Center v3.6.78
 
 - **Multiple manufacturing batches per component.** Link several EVE jobs without replacing earlier associations. Each job remains exclusive to one component across all projects; relinking the same batch does not duplicate output.

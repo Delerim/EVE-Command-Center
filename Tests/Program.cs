@@ -28,6 +28,12 @@ internal static partial class Program
     [STAThread]
     private static void Main(string[] args)
     {
+        if (args.FirstOrDefault() == "--audit-job-history")
+        {
+            var fixtureApp = new System.Windows.Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
+            CheckJobHistory(args.Length > 1 ? args[1] : null);
+            Console.WriteLine($"{_checks} job-history checks passed."); return;
+        }
         if (args.FirstOrDefault() == "--audit-production-progress")
         {
             var fixtureApp = new System.Windows.Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
@@ -192,6 +198,7 @@ internal static partial class Program
         CheckWindowLayouts();
         CheckMoonDrillSchedule();
         CheckProductionProgress();
+        CheckJobHistory();
         var piFixture = CheckPlanetary();
         var industryFixture = CheckIndustry();
         CheckIndustryWorkspace();

@@ -286,3 +286,16 @@ Production & delivery sums recipe output per actual run across all linked observ
 Test: link two matching jobs with different statuses; verify separate production/collection totals, relink without duplication, restart, then unlink one while retaining the other. Attempt sharing an additional batch across projects and changing its identity: both must fail. A missing current observation must remain visible as saved evidence and must not become a fresh candidate. Confirm a delivery after adding batches: receipts stay separate and schema 3 persists. Builder and selected blueprint remain fixed for a component; multi-builder splitting, automatic permanent job-transition capture, consumption and realized profit are still outstanding.
 
 Validation: 913 full regression checks passed, including batch aggregation, duplicate and cross-project rejection, exact unlink, schema preservation after receipts, JSON/SQLite persistence, and saved-batch inspector behavior. Normal Release compilation, Windows x64 self-contained single-file publishing, release-note validation and git diff --check passed. No production ledger was changed by tests.
+
+
+## v3.6.79 - Permanent linked-batch observations
+
+IndustryService publishes parsed manufacturing observations immediately after a successful job response, before unrelated blueprint/assets/skills requests. BackgroundOperations sends them to the existing workspace store. Only explicitly linked identities are updated; there is no new endpoint or inferred association. Empty/missing lists never complete or remove a job. A persistence failure is surfaced through Industry status and does not turn successful network data into a failed refresh.
+
+Workspace schema 4 adds structured JobHistory. Manual links retain initial evidence; automatic updates append status/end-time changes and update the saved link in the same workspace transaction. Repeated unchanged snapshots do not increment revision. Freshness, timestamp ordering, immutable identity and terminal-state safeguards apply. Ready cannot regress to active/paused. Delivered/cancelled/reverted links retain their terminal evidence when missing from current responses. Nonterminal missing/stale links still yield unknown progress. No reservation, receipt, consumption or financial entries are inferred. Unlink and project deletion retain structured history; deleted-project history is retained for audit, not shown as an active project tab.
+
+The project Job history tab uses named/icon components, stable human batch labels within the project, pilot/facility display names, quantities and UTC observations. Existing column persistence and sorting apply. Consumption and batch costing depend on this evidence but are not included in this increment.
+
+Validation: 928 full regression checks passed. Focused tests cover initial evidence, successful service-hook persistence, no-op refreshes, foreign/unlinked jobs, identity conflicts, pause/resume/ready/collected changes, terminal regression rejection, disappearance, SQLite migration/reopen, persistence-error visibility, unlink/deletion retention and the native WPF history inspector.
+
+Release validation: 16 focused history/render checks passed; native WPF history layout inspected. Normal Windows x64 single-file publish, release-note validation and git diff --check passed. Tests use synthetic isolated workspaces.

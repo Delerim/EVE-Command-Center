@@ -24,7 +24,9 @@ public static class IndustryProductionProgress
         foreach (var linked in IndustryJobMatching.LinkedJobs(node))
         {
             var current = observations.FirstOrDefault(j => IndustryJobMatching.SameIdentity(j, linked));
-            if (current == null || !IndustryWorkspaceInventory.Recent(current.SnapshotUtc, now))
+            // Terminal outcomes are permanent evidence; disappearance is never an outcome.
+            if (IndustryJobMatching.Terminal(linked)) current = linked;
+            if (current == null || (!IndustryJobMatching.Terminal(current) && !IndustryWorkspaceInventory.Recent(current.SnapshotUtc, now)))
             { production = collection = null; status = "Refresh Industry to check linked job"; }
             else
             {

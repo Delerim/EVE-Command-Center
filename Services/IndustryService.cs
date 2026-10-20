@@ -16,8 +16,25 @@ public sealed class IndustryService
     public bool Busy {get;private set;}
     public IndustryState State {get;private set;}
     public event Action? Changed;
+    public event Action<IReadOnlyList<IndustryJobLink>>? JobsObserved;
+    public string JobHistoryError { get; private set; } = "";
     public event Action<string,string>? Alert;
-    public string Status {get;private set;}="Industry snapshots; upgrade this toon once in Settings for all features.";
+    private string _status = "Industry snapshots; upgrade this toon once in Settings for all features.";
+    public string Status { get => _status + (JobHistoryError.Length == 0 ? "" : " | " + JobHistoryError); private set => _status = value; }
+    internal void PublishJobObservations(long owner, string name, List<JsonElement> jobs, DateTimeOffset observed)
+    {
+        try
+        {
+            var pilot = new IndustryPilot { Id = owner, Name = name, Jobs = jobs, Updated = observed, Error = "" };
+            JobsObserved?.Invoke(IndustryJobMatching.Read(new[] { pilot }, new HashSet<long> { owner }));
+            JobHistoryError = "";
+        }
+        catch (Exception ex)
+        {
+            JobHistoryError = "Job history could not be saved. Reopen the app and refresh Industry.";
+            EsiDiagnostics.Write("Industry job history: " + ex.GetType().Name);
+        }
+    }
     public IndustryService(EveSsoService sso, string? directory=null) { _sso=sso; _file=Path.Combine(directory??Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"EVE Command Center"),"industry.json"); try {State=JsonSerializer.Deserialize<IndustryState>(File.ReadAllText(_file))??new();}catch {State=new();} }
     public void Save() {Directory.CreateDirectory(Path.GetDirectoryName(_file)!);File.WriteAllText(_file+".tmp",JsonSerializer.Serialize(State));File.Move(_file+".tmp",_file,true);}
     public void Due() => _due=default;
@@ -55,6 +72,7 @@ public sealed class IndustryService
                 {
                     var token=await _sso.GetAccessTokenForAsync(p,timeout.Token);
                     data.Jobs=await Read($"/characters/{p.CharacterId}/industry/jobs/?include_completed=true",token,timeout.Token);
+                    PublishJobObservations(p.CharacterId, p.CharacterName, data.Jobs, DateTimeOffset.UtcNow);
                     data.Blueprints=await Read($"/characters/{p.CharacterId}/blueprints/",token,timeout.Token);
                     data.Assets=(await _sso.GetAssetsForPlanningAsync(p,timeout.Token)).ToList();
                     data.Skills=(await Read($"/characters/{p.CharacterId}/skills/",token,timeout.Token)).ToDictionary(j=>(int)IndustryCatalog.Num(j,"skill_id"),j=>(int)IndustryCatalog.Num(j,"active_skill_level"));

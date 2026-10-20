@@ -93,3 +93,15 @@ A component retains its original ActualJob plus AdditionalJobs. Linking another 
 Production & delivery sums recipe output per actual run across all linked observations. Unknown/stale batches make stage totals Unknown, preserving conservative semantics. Surplus is visible without increasing required demand or receipts. The inspector shows Linked/Candidate, expected output and saved-only evidence, and requires selecting the exact batch to unlink. Dashboard job counts include all batches.
 
 Test: link two matching jobs with different statuses; verify separate production/collection totals, relink without duplication, restart, then unlink one while retaining the other. Attempt sharing an additional batch across projects and changing its identity: both must fail. A missing current observation must remain visible as saved evidence and must not become a fresh candidate. Confirm a delivery after adding batches: receipts stay separate and schema 3 persists. Builder and selected blueprint remain fixed for a component; multi-builder splitting, automatic permanent job-transition capture, consumption and realized profit are still outstanding.
+
+
+## v3.6.79 acceptance checks
+
+1. Link a manufacturing batch, then open the project's Job history tab: its initial observation should appear with an item name/icon and Batch label.
+2. Refresh Industry after a real status change. The new observation should appear after reloading the workspace. Refreshing unchanged data must not add duplicate history rows.
+3. Verify paused/resumed/ready transitions and UTC end times. Every observed transition is retained; transitions that occur between successful polls cannot be reconstructed.
+4. After collection, a delivered job must retain its collected status if later absent from EVE responses. Project Delivered must still require the separate receipt confirmation. An absent active job must remain Unknown.
+5. Unlink a batch: its history remains in the project. Reopen to verify persisted history. Deleting a project preserves evidence for audit but removes the active project view.
+6. Sort and resize history columns. Check their saved widths/order on reopening. Persistence failures should appear in Industry status rather than silently claim history was saved.
+
+This patch does not implement material consumption or realized batch profit. Those require explicit quantity and cost-basis attribution in subsequent increments.

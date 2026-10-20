@@ -494,6 +494,24 @@
             </DataGrid>
           </DockPanel>
         </TabItem>
+        <TabItem Header="Job history">
+          <DockPanel Margin="12">
+            <TextBlock DockPanel.Dock="Top" Margin="3,8" TextWrapping="Wrap" Text="Saved changes to this project's linked manufacturing batches. History is retained after unlinking and after EVE stops returning a job. Collection does not confirm project delivery or material consumption. Times are UTC." />
+            <DataGrid x:Name="JobHistoryGrid" IsReadOnly="True" AutoGenerateColumns="False">
+              <DataGrid.Columns>
+                <DataGridTextColumn Header="Batch" Binding="{Binding Batch}" SortMemberPath="BatchNumber" Width="85" />
+                <DataGridTemplateColumn Header="Component" SortMemberPath="Name" Width="*" MinWidth="200"><DataGridTemplateColumn.CellTemplate><DataTemplate><DockPanel><Image Source="{Binding Icon}" Width="26" Height="26" Margin="0,0,8,0" /><TextBlock Text="{Binding Name}" VerticalAlignment="Center" /></DockPanel></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
+                <DataGridTextColumn Header="Pilot" Binding="{Binding Pilot}" Width="150" />
+                <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="270" />
+                <DataGridTextColumn Header="Output" Binding="{Binding Output, StringFormat=N0, TargetNullValue=Unknown}" Width="100" HeaderStyle="{StaticResource QuantityHeader}" ElementStyle="{StaticResource QuantityText}" />
+                <DataGridTextColumn Header="Runs" Binding="{Binding Runs, StringFormat=N0}" Width="75" HeaderStyle="{StaticResource QuantityHeader}" ElementStyle="{StaticResource QuantityText}" />
+                <DataGridTextColumn Header="Observed (UTC)" Binding="{Binding Observed, StringFormat=dd MMM yyyy HH:mm}" Width="165" />
+                <DataGridTextColumn Header="Ends (UTC)" Binding="{Binding Ends, StringFormat=dd MMM yyyy HH:mm}" Width="165" />
+                <DataGridTextColumn Header="Facility" Binding="{Binding Facility}" Width="220" />
+              </DataGrid.Columns>
+            </DataGrid>
+          </DockPanel>
+        </TabItem>
         <TabItem x:Name="SkillsTab" Header="Required skills">
           <DockPanel Margin="14">
             <StackPanel DockPanel.Dock="Top">

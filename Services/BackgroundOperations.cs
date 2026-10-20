@@ -45,6 +45,7 @@ public sealed partial class BackgroundOperations : IDisposable
         Access = new CorporationAccessService(Sso);
         Planetary = new PlanetaryService(Sso);
         Industry = new IndustryService(Sso);
+        Industry.JobsObserved += jobs => IndustryWorkspace.ObserveLinkedJobs(jobs, DateTimeOffset.UtcNow);
         MarketOrders = new MarketOrdersService(Sso);
         Omega = new OmegaService(Sso);
         Omega.Alert += (title,message) =>
