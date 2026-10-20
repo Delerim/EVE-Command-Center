@@ -1,3 +1,7 @@
+# EVE Command Center v3.6.85
+
+- **Full-width laser tiles.** Mining streams now divide the available card width evenly instead of using fixed-width tiles, removing the unused right-edge space. Slightly larger rings improve cycle readability while retaining the small gap between tiles.
+
 # EVE Command Center v3.6.84
 
 - **Cleaner laser tiles.** Removed the separate remaining-seconds label. Slightly larger rings retain the cycle duration inside, ORE/crystal type beside them and the tracked ore underneath. Progress arcs, independent stopped-stream colours and hover details remain available.

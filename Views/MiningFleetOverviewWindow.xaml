@@ -581,17 +581,17 @@
                                             <TextBlock Text="{Binding EhpText}" Foreground="#8EC9E8" FontSize="10" DockPanel.Dock="Right" ToolTip="{Binding EhpToolTip}" />
                                             <TextBlock Text="MINING STREAMS" Foreground="#829C9F" FontSize="8" VerticalAlignment="Center" />
                                         </DockPanel>
-                                        <ItemsControl ItemsSource="{Binding StatusRings}" Visibility="{Binding RingsVisibility}" Margin="0,3,0,0">
-                                            <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                                        <ItemsControl ItemsSource="{Binding StatusRings}" Visibility="{Binding RingsVisibility}" Margin="0,3,-4,0">
+                                            <ItemsControl.ItemsPanel><ItemsPanelTemplate><UniformGrid Rows="1" /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
                                             <ItemsControl.ItemTemplate><DataTemplate>
                                                 <Border Padding="3,3" Margin="0,0,4,2" CornerRadius="8" BorderThickness="1" ToolTip="{Binding Detail}">
                                                     <Border.Style><Style TargetType="Border">
                                                         <Setter Property="Background" Value="#10262B" /><Setter Property="BorderBrush" Value="#244349" />
                                                         <Style.Triggers><Trigger Property="IsMouseOver" Value="True"><Setter Property="Background" Value="#204148" /><Setter Property="BorderBrush" Value="#609A9E" /></Trigger></Style.Triggers>
                                                     </Style></Border.Style>
-                                                    <StackPanel Width="83">
+                                                    <StackPanel>
                                                         <StackPanel Orientation="Horizontal">
-                                                            <Viewbox Width="34" Height="34" Margin="0,0,5,0">
+                                                            <Viewbox Width="38" Height="38" Margin="0,0,5,0">
                                                                 <Grid Width="36" Height="36">
                                                                     <Ellipse Stroke="#294349" StrokeThickness="2" Margin="3" />
                                                                     <Path Data="{Binding ArcData}" Stroke="{Binding Accent}" StrokeThickness="2.5" StrokeStartLineCap="Round" StrokeEndLineCap="Round" />
