@@ -28,6 +28,12 @@ internal static partial class Program
     [STAThread]
     private static void Main(string[] args)
     {
+        if (args.FirstOrDefault() == "--audit-mining-holds")
+        {
+            var miningApp = new System.Windows.Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
+            CheckMiningHolds(args.Length > 1 ? args[1] : null);
+            Console.WriteLine($"{_checks} mining hold checks passed."); return;
+        }
         if (args.FirstOrDefault() == "--audit-job-history")
         {
             var fixtureApp = new System.Windows.Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
@@ -207,6 +213,7 @@ internal static partial class Program
         CheckRockTracking();
         CheckNotificationCenter();
         CheckMiningRates();
+        CheckMiningHolds();
         CheckMiningDailyActivityAccumulator();
         CheckMiningResidue();
         CheckLogMonitorSessionPruning();
@@ -800,15 +807,15 @@ internal static partial class Program
         cardType.GetProperty("ResidueUnits")!.SetValue(next, 0L);
         cardType.GetProperty("MinedUnits")!.SetValue(next, 0.0);
         cardType.GetMethod("UpdateFrom")!.Invoke(card, new[] { next });
-        Check(notified.Contains("ResidueText") && (string)cardType.GetProperty("ResidueText")!.GetValue(card)! == "WASTE --",
+        Check(notified.Contains("ResidueText") && (string)cardType.GetProperty("ResidueText")!.GetValue(card)! == "W: --",
             "Mining-day reset notifies waste display when totals return to zero");
 
-        Check(MiningFleetOverviewWindow.FormatWaste(25, 100) == "WASTE " + 25.0.ToString("0.0") + "%",
+        Check(MiningFleetOverviewWindow.FormatWaste(25, 100) == "W: " + 25.0.ToString("0.0") + "%",
             "Waste percentage uses collected ore as denominator, excluding residue");
-        Check(MiningFleetOverviewWindow.FormatWaste(0, 100) == "WASTE " + 0.0.ToString("0.0") + "%" &&
-              MiningFleetOverviewWindow.FormatWaste(10, 0) == "WASTE --",
+        Check(MiningFleetOverviewWindow.FormatWaste(0, 100) == "W: " + 0.0.ToString("0.0") + "%" &&
+              MiningFleetOverviewWindow.FormatWaste(10, 0) == "W: --",
             "Waste distinguishes zero residue from missing mined-ore denominator");
-        Check(MiningFleetOverviewWindow.FormatWaste(150, 100) == "WASTE " + 150.0.ToString("0.0") + "%",
+        Check(MiningFleetOverviewWindow.FormatWaste(150, 100) == "W: " + 150.0.ToString("0.0") + "%",
             "Waste-to-mined ratio can exceed 100 percent without being clamped");
         var now = DateTime.UtcNow;
         string prefix = $"[ {now:yyyy.MM.dd HH:mm:ss} ] (mining) ";

@@ -123,6 +123,13 @@ public sealed class EveUniverseType
     [JsonPropertyName("published")]
     public bool Published { get; set; }
 
+    [JsonPropertyName("volume")]
+    public double? Volume { get; set; }
+    [JsonPropertyName("packaged_volume")]
+    public double? PackagedVolume { get; set; }
+    [JsonPropertyName("capacity")]
+    public double? Capacity { get; set; }
+
     [JsonPropertyName("dogma_attributes")]
     public List<EveDogmaAttributeValue> DogmaAttributes { get; set; } = new();
 }

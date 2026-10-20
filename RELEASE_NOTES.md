@@ -1,3 +1,11 @@
+# EVE Command Center v3.6.80
+
+- **Independent mining-stream rings.** Compact teal rings learn separate pull streams from log timing and yield. A stopped stream turns red independently; ambiguous or insufficient observations stay grey. The rings are inferred streams, not physical module-slot identifiers. Critical pulls do not inflate the learned normal yield.
+- **Live mining-hold estimates for Hulk, Skiff and Mackinaw.** Mining adds volume, compression reduces it and a full-hold notification anchors the estimate. Capacity comes from the detected hull's dogma and pilot skills, including Mackinaw's Mining Barge and Exhumers bonuses. Personal cargo is removed. Ship changes start a new estimate.
+- **Hold directly beneath the rings; status and alarms at the bottom.** Horizontal and compact vertical layouts retain Command Center styling. Hover details explain confidence and freshness without adding visible switches. Right-click the mining hold to mark it empty after unloading.
+- **Orca fleet hangar.** Shows separately labelled cached inventory with freshness and missing-data handling. It does not pretend unlogged fleet transfers are live measurements. Orca drone mining does not invent strip-miner rings.
+- Estimates start without known opening contents and cannot detect every transfer or unload. Missing item volumes/capacity remain explicit. The new log parser recognises English compression/full notifications. Existing ship-level sound/watchdog behaviour is unchanged; independent rings are visual indicators. No live-client end-to-end validation is claimed.
+
 # EVE Command Center v3.6.79
 
 - **Permanent history for linked manufacturing batches.** Successful Industry job responses retain observed status and end-time changes in the existing workspace. Initial links are recorded, and repeated unchanged responses do not duplicate history or rewrite the workspace. No additional ESI requests.

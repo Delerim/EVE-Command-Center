@@ -278,6 +278,7 @@ public partial class App : Application
             {
                 _statTracker.RecordDamage(dmg.CharacterName, dmg.Amount, false, dmg.IsNpc);
             };
+            _logMonitor.MiningHoldChanged += _statTracker.RecordHoldEvent;
             _logMonitor.MiningYield += (mining) =>
             {
                 _statTracker.RecordMining(mining.CharacterName, mining.Amount, mining.MineType,

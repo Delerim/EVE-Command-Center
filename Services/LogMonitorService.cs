@@ -88,6 +88,7 @@ public sealed class LogMonitorService : IDisposable
     public event Action<DamageEvent>? DamageReceived;       // Player took damage
     public event Action<DamageEvent>? DamageDealt;          // Player dealt damage (for stat tracker)
     public event Action<RepairEvent>? RepairReceived;       // Player received remote repairs
+    internal event Action<HoldLogEvent>? MiningHoldChanged;
     public event Action<MiningEvent>? MiningYield;          // Mining cycle completed
     public event Action<string, string, string>? AlertTriggered; // (characterName, alertType, severity)
     public event Action<BountyEvent>? BountyReceived;  // Bounty prize for stat tracker
@@ -1531,6 +1532,8 @@ public sealed class LogMonitorService : IDisposable
     private void ParseGameLogLine(string line, string character)
     {
         CombatLineObserved?.Invoke(character,line);
+        var holdEvent = LiveMiningHold.Parse(line, character);
+        if (holdEvent != null) MiningHoldChanged?.Invoke(holdEvent);
         var trimmedLine = line.TrimStart();
 
         // Skip header lines (any language — #86)

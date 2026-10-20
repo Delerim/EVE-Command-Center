@@ -298,7 +298,7 @@
                                         <RowDefinition Height="Auto"/>
                                         <RowDefinition Height="Auto"/>
                                         <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
 
                                     <Border x:Name="AlertCountBadge" Grid.Row="0"
                                             HorizontalAlignment="Right"
@@ -555,43 +555,43 @@
                                         </DockPanel>
                                     </Grid>
 
-                                    <Grid Visibility="{Binding DetailedMiningVisibility}" Grid.Row="3"
-                                          Margin="0,2,0,0">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="Auto"/>
-                                        </Grid.ColumnDefinitions>
+                                    <ItemsControl Grid.Row="3" ItemsSource="{Binding StatusRings}" Visibility="{Binding CompactMiningVisibility}">
+                                        <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate><DataTemplate>
+                                            <StackPanel Orientation="Horizontal" Margin="0,2,10,1" ToolTip="{Binding Detail}">
+                                                <Grid Width="17" Height="17" Margin="0,0,4,0"><Ellipse Stroke="{Binding Accent}" StrokeThickness="1.5"/><TextBlock Text="{Binding Label}" Foreground="{Binding Accent}" FontSize="9" HorizontalAlignment="Center" VerticalAlignment="Center" /></Grid>
+                                                <TextBlock Text="{Binding Timing}" Foreground="{Binding Accent}" FontSize="9" VerticalAlignment="Center" />
+                                            </StackPanel>
+                                        </DataTemplate></ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                    <StackPanel Visibility="{Binding DetailedMiningVisibility}" Grid.Row="3" Margin="0,4,0,0" ToolTip="{Binding LaserToolTip}">
+                                        <DockPanel>
+                                            <TextBlock Text="{Binding EhpText}" Foreground="#8EC9E8" FontSize="10" DockPanel.Dock="Right" ToolTip="{Binding EhpToolTip}" />
+                                            <TextBlock Text="MINING STREAMS" Foreground="#829C9F" FontSize="8" VerticalAlignment="Center" />
+                                        </DockPanel>
+                                        <ItemsControl ItemsSource="{Binding StatusRings}" Visibility="{Binding RingsVisibility}" Margin="0,3,0,0">
+                                            <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                                            <ItemsControl.ItemTemplate><DataTemplate>
+                                                <Border Padding="5,3" Margin="0,0,5,2" CornerRadius="8" BorderThickness="1" ToolTip="{Binding Detail}">
+                                                    <Border.Style><Style TargetType="Border">
+                                                        <Setter Property="Background" Value="#10262B" /><Setter Property="BorderBrush" Value="#244349" />
+                                                        <Style.Triggers><Trigger Property="IsMouseOver" Value="True"><Setter Property="Background" Value="#204148" /><Setter Property="BorderBrush" Value="#609A9E" /></Trigger></Style.Triggers>
+                                                    </Style></Border.Style>
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <Grid Width="36" Height="36" Margin="0,0,5,0">
+                                                            <Ellipse Stroke="#294349" StrokeThickness="2" Margin="3" />
+                                                            <Path Data="{Binding ArcData}" Stroke="{Binding Accent}" StrokeThickness="2.5" StrokeStartLineCap="Round" StrokeEndLineCap="Round" />
+                                                            <TextBlock Text="{Binding Label}" FontSize="12" FontWeight="SemiBold" Foreground="{Binding Accent}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                        </Grid>
+                                                        <TextBlock Text="{Binding Timing}" Foreground="{Binding Accent}" FontSize="10" VerticalAlignment="Center" MinWidth="40" />
+                                                    </StackPanel>
+                                                </Border>
+                                            </DataTemplate></ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                        <TextBlock Text="{Binding LaserText}" Visibility="{Binding LaserFallbackVisibility}" Foreground="#ADDAD2" FontSize="10" TextTrimming="CharacterEllipsis" />
+                                    </StackPanel>
 
-                                        <TextBlock Grid.Column="0"
-                                                   Foreground="#7FDCC5"
-                                                   FontSize="10.5"
-                                                   FontWeight="SemiBold"
-                                                   VerticalAlignment="Center"
-                                                   TextTrimming="CharacterEllipsis"
-                                                   ToolTip="{Binding LaserToolTip}">
-                                            <Run Text="{Binding LaserPrimaryText}"
-                                                 Foreground="#7FDCC5"/>
-                                            <Run Text="{Binding LaserPrimaryCrystal}"
-                                                 Foreground="#64C7FF"
-                                                 FontWeight="Bold"/>
-                                            <Run Text="{Binding LaserSecondaryText}"
-                                                 Foreground="#7FDCC5"/>
-                                            <Run Text="{Binding LaserSecondaryCrystal}"
-                                                 Foreground="#64C7FF"
-                                                 FontWeight="Bold"/>
-                                        </TextBlock>
-
-                                        <TextBlock Grid.Column="1"
-                                                   Text="{Binding EhpText}"
-                                                   Foreground="#8EC9E8"
-                                                   FontSize="10.5"
-                                                   FontWeight="SemiBold"
-                                                   Margin="7,0,0,0"
-                                                   VerticalAlignment="Center"
-                                                   ToolTip="{Binding EhpToolTip}"/>
-                                    </Grid>
-
-                                    <Grid Visibility="{Binding MiningVisibility}" Grid.Row="4" Margin="0,2,0,0">
+                                    <Grid Visibility="{Binding MiningVisibility}" Grid.Row="6" Margin="0,2,0,0">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*"/>
                                             <ColumnDefinition Width="Auto"/>
@@ -716,6 +716,20 @@
                                             </Button>
                                         </StackPanel>
                                     </Grid>
+                                    <StackPanel Grid.Row="4" Visibility="{Binding HoldVisibility}" Margin="0,5,0,0" MouseRightButtonUp="MiningHold_RightClick">
+                                        <TextBlock Text="HOLD" FontSize="8" Foreground="#829C9F" Margin="0,0,0,2" />
+                                        <ItemsControl ItemsSource="{Binding HoldRows}">
+                                            <ItemsControl.ItemTemplate><DataTemplate>
+                                                <Border CornerRadius="4" Padding="3,2" Margin="0,0,0,2" ToolTip="{Binding Detail}">
+                                                    <Border.Style><Style TargetType="Border"><Setter Property="Background" Value="#102327" /><Style.Triggers><Trigger Property="IsMouseOver" Value="True"><Setter Property="Background" Value="#203B40" /></Trigger></Style.Triggers></Style></Border.Style>
+                                                    <StackPanel>
+                                                        <DockPanel><TextBlock Text="{Binding Label}" Width="39" FontSize="9" Foreground="#9ABCB9" /><TextBlock Text="{Binding VolumeText}" FontSize="9" Foreground="#C6E0DB" TextAlignment="Right" /></DockPanel>
+                                                        <ProgressBar Value="{Binding Percent}" Maximum="100" Height="3" Margin="0,2,0,0" Foreground="{Binding Accent}" Background="#294044" BorderThickness="0" />
+                                                    </StackPanel>
+                                                </Border>
+                                            </DataTemplate></ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </StackPanel>
                                     <StackPanel Grid.Row="5" Margin="0,6,0,0" Visibility="{Binding RockVisibility}">
                                         <Button Content="SET ROCKS (EST.)" Tag="{Binding Character}" Click="SetRocks_Click" FontSize="9" Padding="3,1" HorizontalAlignment="Left"/>
                                         <TextBlock Text="{Binding Rock1Text}" Foreground="#74D6C9" FontSize="10" Margin="0,3,0,1" ToolTip="{Binding Rock1Note}"/>
@@ -723,7 +737,7 @@
                                         <TextBlock Text="{Binding Rock2Text}" Foreground="#9EBFFF" FontSize="10" Margin="0,3,0,1" ToolTip="{Binding Rock2Note}"/>
                                         <ProgressBar Height="3" Value="{Binding Rock2Percent}" Maximum="100" Foreground="#9EBFFF" Background="#243B3B"/>
                                     </StackPanel>
-                                    <StackPanel Grid.Row="7" Height="115" Margin="0,5,0,0" Visibility="{Binding CombatVisibility}" ToolTip="{Binding CombatToolTip}">
+                                    <StackPanel Grid.Row="8" Height="115" Margin="0,5,0,0" Visibility="{Binding CombatVisibility}" ToolTip="{Binding CombatToolTip}">
                                         <Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/></Grid.ColumnDefinitions>
                                             <StackPanel><TextBlock Text="DPS OUT / 30s" Foreground="#74D6C9" FontSize="9"/><TextBlock Text="{Binding CombatOut}" Foreground="#EAF7F4" FontWeight="Bold" FontSize="16"/></StackPanel>
                                             <StackPanel Grid.Column="1"><TextBlock Text="DPS IN / 30s" Foreground="#EBAAA2" FontSize="9"/><TextBlock Text="{Binding CombatIn}" Foreground="#FFE1DB" FontWeight="Bold" FontSize="16"/></StackPanel>
@@ -733,7 +747,7 @@
                                         <TextBlock Text="{Binding CombatNotice}" Foreground="#FFD166" FontSize="10" Margin="0,3,0,0" TextTrimming="CharacterEllipsis"/>
                                         <TextBlock Text="{Binding CombatHint}" Foreground="#78928E" FontSize="9" Margin="0,4,0,0"/>
                                     </StackPanel>
-                                    <Grid Grid.Row="6" Visibility="{Binding PreviewVisibility}" Margin="0,5,0,0" Height="{Binding PreviewHeight}" Background="#071013" ClipToBounds="True">
+                                    <Grid Grid.Row="7" Visibility="{Binding PreviewVisibility}" Margin="0,5,0,0" Height="{Binding PreviewHeight}" Background="#071013" ClipToBounds="True">
                                         <Image Source="{Binding Preview}" Stretch="Uniform" Margin="0,0,0,32"/>
                                         <local:OverviewLivePreview x:Name="LiveSurface" SourceHwnd="{Binding SourceHwnd}" Enabled="{Binding LivePreview}" Margin="0,0,0,32"/>
 

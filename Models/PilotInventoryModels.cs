@@ -360,6 +360,16 @@ public sealed class EveInventorySnapshot
     public string AccessMessage { get; init; } = "";
 }
 
+public sealed class EveShipHoldSnapshot
+{
+    public double UsedM3 { get; init; }
+    public double BaseCapacityM3 { get; init; }
+    public bool Complete { get; init; }
+    public bool Supported { get; init; } = true;
+    public DateTimeOffset ObservedUtc { get; init; }
+    public string Detail { get; init; } = "Inventory not available";
+}
+
 public sealed class EveMiningShipIntel
 {
     public DateTimeOffset SyncedUtc { get; init; }
@@ -382,6 +392,8 @@ public sealed class EveMiningShipIntel
 
     public bool AssetsAvailable { get; init; }
 
+    public double MiningHoldCapacityM3 { get; init; }
+    public EveShipHoldSnapshot FleetHangar { get; init; } = new();
     public bool IsOrca => CurrentShip.IsOrca;
 
     public double? RepresentativeLaserBaseCycleSeconds =>

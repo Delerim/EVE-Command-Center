@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -392,6 +392,8 @@ public sealed class MiningMarketService
                 rawTypeId,
                 cancellationToken);
 
+            var compressedVolumeTask = usesCompressedMarket ? FetchOptionalCompressedVolumeAsync(marketTypeId, cancellationToken) : Task.FromResult(0.0);
+
             Task<(double? BestSell, double? BestBuy)> jitaTask;
             Task<(double? BestSell, double? BestBuy)> amarrTask;
 
@@ -432,6 +434,7 @@ public sealed class MiningMarketService
 
             await Task.WhenAll(
                 rawVolumeTask,
+                compressedVolumeTask,
                 jitaTask,
                 amarrTask).ConfigureAwait(false);
 
@@ -489,6 +492,7 @@ public sealed class MiningMarketService
 
                 // The physical volume is still the raw mined unit volume.
                 UnitVolumeM3 = rawVolume,
+                CompressedUnitVolumeM3 = await compressedVolumeTask.ConfigureAwait(false),
 
                 JitaBestSell = jita.BestSell,
                 JitaBestBuy = jita.BestBuy,
@@ -561,6 +565,13 @@ public sealed class MiningMarketService
 
         var first = types[0];
         return (first.GetProperty("id").GetInt32(), first.GetProperty("name").GetString() ?? name);
+    }
+
+    private static async Task<double> FetchOptionalCompressedVolumeAsync(int typeId, CancellationToken cancellationToken)
+    {
+        try { return await FetchTypeVolumeAsync(typeId, cancellationToken).ConfigureAwait(false); }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
+        catch { return 0; } // A missing compression volume must not break existing market valuation.
     }
 
     private static async Task<double> FetchTypeVolumeAsync(int typeId, CancellationToken cancellationToken)
@@ -714,6 +725,7 @@ public sealed record MiningMarketQuote
     public string OreName { get; init; } = "";
     public int TypeId { get; init; }
     public double UnitVolumeM3 { get; init; }
+    public double CompressedUnitVolumeM3 { get; init; }
     public double? JitaBestSell { get; init; }
     public double? JitaBestBuy { get; init; }
     public double? AmarrBestSell { get; init; }

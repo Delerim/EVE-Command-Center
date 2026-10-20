@@ -715,6 +715,16 @@ public partial class MiningFleetOverviewWindow : Window
         if (!_prefs.FleetOverviewVertical) Height=Math.Max(MinHeight,Height+(enabled?85:-85));
         RefreshCards();
     }
+    private void MiningHold_RightClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    {
+        if (sender is not FrameworkElement { DataContext: FleetCard card } element ||
+            !_pilotIntel.TryGetValue(card.Character, out var intel) || !MiningHoldCapacity.IsExhumer(intel.CurrentShip.ShipTypeId)) return;
+        var menu = new System.Windows.Controls.ContextMenu();
+        var empty = new System.Windows.Controls.MenuItem { Header = "Mark mining hold empty" };
+        empty.Click += (_, _) => { _tracker.MiningHold.Empty(card.Character, DateTime.UtcNow); RefreshCards(); };
+        menu.Items.Add(empty); menu.PlacementTarget = element; menu.IsOpen = true; e.Handled = true;
+    }
+
     private void SetRocks_Click(object sender,RoutedEventArgs e)
     {
         if(sender is System.Windows.Controls.Button button && button.DataContext is FleetCard card)
@@ -1064,6 +1074,18 @@ public partial class MiningFleetOverviewWindow : Window
                     );
             }
 
+            var rings = _tracker.GetMiningRings(character, fittedLaserCount, isOrca, alarmMuted, shipIntel?.CurrentShip.ShipItemId ?? 0);
+            var holdRows = new List<MiningHoldSnapshots.Row>();
+            void AppendHold(string name, EveShipHoldSnapshot hold)
+            { if (hold.Supported) holdRows.Add(MiningHoldSnapshots.Present(name, hold, DateTimeOffset.UtcNow)); }
+            if (shipIntel != null && MiningHoldCapacity.IsExhumer(shipIntel.CurrentShip.ShipTypeId))
+            {
+                _tracker.MiningHold.Configure(character, shipIntel.CurrentShip.ShipItemId, DateTime.UtcNow);
+                holdRows.Add(_tracker.MiningHold.Present(character, shipIntel.MiningHoldCapacityM3, ore =>
+                    _tracker.TryGetMiningQuote(ore, out var quote) ? (quote.UnitVolumeM3, quote.CompressedUnitVolumeM3) : (0, 0)));
+            }
+            if (isOrca) AppendHold("Fleet", shipIntel?.FleetHangar ?? new());
+
             string statusText = isOrca
                 ? "Drone mining"
                 : alarmMuted
@@ -1209,7 +1231,11 @@ public partial class MiningFleetOverviewWindow : Window
                 LaserPrimaryCrystal = laserPrimaryCrystal,
                 LaserSecondaryText = laserSecondaryText,
                 LaserSecondaryCrystal = laserSecondaryCrystal,
-                LaserToolTip = laserToolTip,
+                LaserToolTip = laserToolTip + "\nRings independently track inferred mining streams, not physical module slots. Hover each ring for its confidence and timing.",
+                StatusRings = rings,
+                RingsVisibility = rings.Count == 0 ? Visibility.Collapsed : Visibility.Visible,
+                LaserFallbackVisibility = rings.Count == 0 ? Visibility.Visible : Visibility.Collapsed,
+                HoldRows = holdRows,
                 EhpText =
                     shipIntel?.Defense.Available == true
                         ? shipIntel.Defense
@@ -1383,13 +1409,14 @@ public partial class MiningFleetOverviewWindow : Window
             card.CardWidth = cardWidth;
             card.CardPadding = new Thickness(8, _prefs.FleetOverviewVertical ? 3 : 6, 8, _prefs.FleetOverviewVertical ? 3 : 6);
             card.CardMargin = new Thickness(0, 0, 6, _prefs.FleetOverviewVertical ? 3 : 6);
-            card.CardMinHeight = _prefs.FleetOverviewVertical ? 0 : 174 + (_tracker.RockTracking.Enabled ? 85 : 0);
+            card.CardMinHeight = _prefs.FleetOverviewVertical ? 0 : 248 + (_tracker.RockTracking.Enabled ? 85 : 0);
             card.PreviewHeight = _prefs.FleetOverviewVertical ? 60 : 115;
             card.DetailedMiningVisibility = !_prefs.FleetOverviewVertical && OverviewMode == "MINING" ? Visibility.Visible : Visibility.Collapsed;
             card.CompactMiningVisibility = _prefs.FleetOverviewVertical && OverviewMode == "MINING" ? Visibility.Visible : Visibility.Collapsed;
             card.CanSwitch = _prefs.CombinedCharacterOverview;
             bool compact=OverviewMode=="CHARACTERS";
             card.MiningVisibility=OverviewMode=="MINING"?Visibility.Visible:Visibility.Collapsed;
+            card.HoldVisibility = OverviewMode == "MINING" && card.HoldRows.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
             card.CombatVisibility=OverviewMode is "PVE" or "PVP"?Visibility.Visible:Visibility.Collapsed;
             card.PreviewVisibility=compact?Visibility.Visible:Visibility.Collapsed;
             if(OverviewMode!="MINING")card.RockVisibility=Visibility.Collapsed;
@@ -2040,7 +2067,7 @@ public partial class MiningFleetOverviewWindow : Window
     private void Close_Click(object sender, RoutedEventArgs e) => Close();
 
     internal static string FormatWaste(long residueUnits, double minedUnits) =>
-        minedUnits > 0 ? $"WASTE {residueUnits * 100.0 / minedUnits:0.0}%" : "WASTE --";
+        minedUnits > 0 ? $"W: {residueUnits * 100.0 / minedUnits:0.0}%" : "W: --";
 
     private sealed class FleetCard : System.ComponentModel.INotifyPropertyChanged
     {
@@ -2132,6 +2159,11 @@ public partial class MiningFleetOverviewWindow : Window
         public string LaserSecondaryText { get; set; } = "";
         public string LaserSecondaryCrystal { get; set; } = "";
         public string LaserToolTip { get; set; } = "";
+        public IReadOnlyList<MiningStatusRings.Row> StatusRings { get; set; } = Array.Empty<MiningStatusRings.Row>();
+        public Visibility HoldVisibility { get; set; } = Visibility.Collapsed;
+        public IReadOnlyList<MiningHoldSnapshots.Row> HoldRows { get; set; } = Array.Empty<MiningHoldSnapshots.Row>();
+        public Visibility RingsVisibility { get; set; } = Visibility.Collapsed;
+        public Visibility LaserFallbackVisibility { get; set; } = Visibility.Visible;
         public string EhpText { get; set; } = "";
         public string EhpToolTip { get; set; } = "";
         public bool IsDroneMining { get; set; }

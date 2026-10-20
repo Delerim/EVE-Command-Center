@@ -69,6 +69,7 @@ public sealed class EveSsoService
 
     private sealed class AssetCacheEntry
     {
+        public DateTimeOffset ObservedUtc { get; init; }
         public DateTimeOffset ExpiresAt { get; init; }
         public List<EveAssetItem> Items { get; init; } = new();
     }
@@ -630,6 +631,16 @@ public sealed class EveSsoService
             }
         }
 
+        EveShipHoldSnapshot fleetHold = new();
+        try
+        {
+            if (ship.IsOrca) fleetHold = await MiningHoldSnapshots.ReadAsync(ship, assets,
+                _assetCache.GetValueOrDefault(pilot.CharacterId)?.ObservedUtc ?? default,
+                id => GetUniverseTypeAsync(id, cancellationToken));
+        }
+        catch (OperationCanceledException) { throw; }
+        catch (Exception ex) { Debug.WriteLine("[PilotFit] Hold snapshot unavailable: " + ex.GetType().Name); }
+
         return new EveMiningShipIntel
         {
             SyncedUtc = DateTimeOffset.UtcNow,
@@ -650,6 +661,8 @@ public sealed class EveSsoService
                     .ToArray(),
             Defense = defense,
             ShieldBoost = shieldBoost,
+            MiningHoldCapacityM3 = MiningHoldCapacity.For(await GetUniverseTypeAsync(ship.ShipTypeId, cancellationToken), skills.Skills),
+            FleetHangar = fleetHold,
             AssetsAvailable = true
         };
     }
@@ -1513,6 +1526,7 @@ public sealed class EveSsoService
         _assetCache[characterId] =
             new AssetCacheEntry
             {
+                ObservedUtc = DateTimeOffset.UtcNow,
                 ExpiresAt =
                     DateTimeOffset.UtcNow.AddMinutes(3),
                 Items = items

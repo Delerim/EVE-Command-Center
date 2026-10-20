@@ -21,6 +21,13 @@ public sealed class StatTrackerService
 {
     private readonly ConcurrentDictionary<string, CharacterStats> _stats = new(StringComparer.OrdinalIgnoreCase);
     public CombatTelemetry Combat { get; } = new();
+    internal LiveMiningHold MiningHold { get; } = new();
+    private readonly ConcurrentDictionary<string, (long Ship, DateTime Started)> _miningRingShips = new(StringComparer.OrdinalIgnoreCase);
+    internal void RecordHoldEvent(HoldLogEvent item)
+    {
+        MiningHold.Record(item, DateTime.UtcNow);
+        if (!string.IsNullOrWhiteSpace(item.Ore)) _ = _miningMarket.EnsureQuoteAsync(item.Ore);
+    }
     private readonly TimeSpan _windowDuration = TimeSpan.FromSeconds(30); // AHK: WINDOW_SECS := 30
     public RockTrackingService RockTracking { get; } = new();
     private static readonly TimeSpan MiningRateWindow = TimeSpan.FromMinutes(2);
@@ -164,6 +171,7 @@ public sealed class StatTrackerService
         }
         var stats = GetOrCreate(character);
         var now = timestampUtc ?? DateTime.UtcNow;
+        MiningHold.Record(new(character, now, "mined", oreType, amount), DateTime.UtcNow);
         var entry = new TimedValue(now, amount);
         oreType = oreType?.Trim() ?? "";
         mineType = string.IsNullOrWhiteSpace(mineType) ? "ore" : mineType.ToLowerInvariant();
@@ -539,6 +547,16 @@ public sealed class StatTrackerService
                 valued.Count
         };
     }
+    internal IReadOnlyList<MiningStatusRings.Row> GetMiningRings(string character, int fitted, bool droneMining, bool muted, long ship)
+    {
+        if (ship <= 0) return Array.Empty<MiningStatusRings.Row>();
+        var context = _miningRingShips.AddOrUpdate(character, _ => (ship, DateTime.UtcNow), (_, old) => old.Ship == ship ? old : (ship, DateTime.UtcNow));
+        var pulls = _stats.TryGetValue(character, out var stats)
+            ? stats.MiningCycles.Where(c => c.MineType == "ore" && c.Timestamp >= context.Started).Select(c => new MiningStatusRings.Pull(c.Timestamp, c.Units, c.OreType, c.IsCritical)).ToArray()
+            : Array.Empty<MiningStatusRings.Pull>();
+        return MiningStatusRings.Build(fitted, droneMining, muted, pulls, DateTime.UtcNow);
+    }
+
     public MiningLaserTiming GetMiningLaserTiming(
         string character,
         double? fittedBaseCycleSeconds = null)
