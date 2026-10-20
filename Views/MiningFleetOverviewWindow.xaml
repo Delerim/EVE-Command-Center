@@ -13,6 +13,33 @@
             <MenuItem Header="Move: hold Alt and drag anywhere" IsEnabled="False"/></ContextMenu>
     </Window.ContextMenu>
     <Window.Resources>
+        <DataTemplate x:Key="MiningCycleRing">
+            <Grid Width="36" Height="36">
+                <Grid.Style>
+                    <Style TargetType="Grid">
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding PulseStopped}" Value="True">
+                                <DataTrigger.EnterActions>
+                                    <BeginStoryboard x:Name="StoppedPulse">
+                                        <Storyboard RepeatBehavior="Forever" AutoReverse="True">
+                                            <DoubleAnimation Storyboard.TargetProperty="Opacity" From="1" To="0.4" Duration="0:0:0.7" />
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </DataTrigger.EnterActions>
+                                <DataTrigger.ExitActions><RemoveStoryboard BeginStoryboardName="StoppedPulse" /></DataTrigger.ExitActions>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Grid.Style>
+                <Ellipse Stroke="#294349" StrokeThickness="2" Margin="3" />
+                <Path Data="{Binding ArcData}" Stroke="{Binding Accent}" StrokeThickness="2.5" StrokeStartLineCap="Round" StrokeEndLineCap="Round" />
+                <TextBlock Text="{Binding CentreText}" FontSize="10" FontWeight="SemiBold" Foreground="{Binding Accent}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                <Rectangle Width="9" Height="9" RadiusX="1" RadiusY="1" Fill="{Binding Accent}" HorizontalAlignment="Center" VerticalAlignment="Center">
+                    <Rectangle.Style><Style TargetType="Rectangle"><Setter Property="Visibility" Value="Collapsed" /><Style.Triggers><DataTrigger Binding="{Binding IsStopped}" Value="True"><Setter Property="Visibility" Value="Visible" /></DataTrigger></Style.Triggers></Style></Rectangle.Style>
+                </Rectangle>
+            </Grid>
+        </DataTemplate>
+
         <DataTemplate x:Key="HoldBarTemplate">
                                                 <Border CornerRadius="4" Padding="3,2" Margin="0,0,0,2" ToolTip="{Binding Detail}">
                                                     <Border.Style><Style TargetType="Border"><Setter Property="Background" Value="#102327" /><Style.Triggers><Trigger Property="IsMouseOver" Value="True"><Setter Property="Background" Value="#203B40" /></Trigger></Style.Triggers></Style></Border.Style>
@@ -571,7 +598,7 @@
                                         <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
                                         <ItemsControl.ItemTemplate><DataTemplate>
                                             <StackPanel Orientation="Horizontal" Margin="0,2,10,1" ToolTip="{Binding Detail}">
-                                                <Grid Width="25" Height="25" Margin="0,0,4,0"><Ellipse Stroke="{Binding Accent}" StrokeThickness="1.5"/><TextBlock Text="{Binding CycleText}" Foreground="{Binding Accent}" FontSize="7" HorizontalAlignment="Center" VerticalAlignment="Center" /></Grid>
+                                                <Viewbox Width="25" Height="25" Margin="0,0,4,0"><ContentControl Content="{Binding}" ContentTemplate="{StaticResource MiningCycleRing}" /></Viewbox>
                                                 <StackPanel Width="65" VerticalAlignment="Center"><TextBlock Text="{Binding CrystalText}" Foreground="{Binding Accent}" FontSize="9" /><TextBlock Text="{Binding OreText}" ToolTip="{Binding OreText}" Foreground="#B6DBD5" FontSize="8" TextTrimming="CharacterEllipsis" /></StackPanel>
                                             </StackPanel>
                                         </DataTemplate></ItemsControl.ItemTemplate>
@@ -592,11 +619,7 @@
                                                     <StackPanel>
                                                         <StackPanel Orientation="Horizontal">
                                                             <Viewbox Width="38" Height="38" Margin="0,0,5,0">
-                                                                <Grid Width="36" Height="36">
-                                                                    <Ellipse Stroke="#294349" StrokeThickness="2" Margin="3" />
-                                                                    <Path Data="{Binding ArcData}" Stroke="{Binding Accent}" StrokeThickness="2.5" StrokeStartLineCap="Round" StrokeEndLineCap="Round" />
-                                                                    <TextBlock Text="{Binding CycleText}" FontSize="10" FontWeight="SemiBold" Foreground="{Binding Accent}" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                                                </Grid>
+                                                                <ContentControl Content="{Binding}" ContentTemplate="{StaticResource MiningCycleRing}" />
                                                             </Viewbox>
                                                             <StackPanel VerticalAlignment="Center" Width="42">
                                                                 <TextBlock Text="{Binding CrystalText}" Foreground="#ADDAD2" FontSize="9" TextTrimming="CharacterEllipsis" />

@@ -1,3 +1,7 @@
+# EVE Command Center v3.6.87
+
+- **Clear stopped-miner indicator.** A stopped stream shows a square stop symbol instead of its previous cycle duration, with a gentle red pulse on that ring only. Running streams retain their cycle time and progress arc. The same indicator works in compact mode; muted streams do not flash.
+
 # EVE Command Center v3.6.86
 
 - **Separate staggered mining streams.** Repeating short/long gaps now establish the full recurrence before assigning equal-yield pulls. This prevents 8/16-second and 11/13-second staggered miners from collapsing into one faster stream and causing false red/learning flicker. Recent recurrence evidence is retained within the observation window when one stream stops. Fitted count alone never creates another active stream.

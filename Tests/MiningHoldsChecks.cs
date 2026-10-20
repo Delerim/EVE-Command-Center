@@ -130,6 +130,10 @@ internal static partial class Program
             }
             Check(stable,"Recorded staggered mining cadence remains green and visible at every replayed second");
         }
+        Check(mixedStopped.Count(r=>r.IsStopped && r.PulseStopped && r.CentreText=="")==1 && mixedStopped.Count(r=>!r.IsStopped && r.CentreText==r.CycleText && r.CentreText!="--")==1,
+            "Stopped stream replaces its cycle label with a stop indicator while the running stream retains its time");
+        Check(MiningStatusRings.Build(2,false,true,oneContinues,now.AddSeconds(217)).All(r=>!r.PulseStopped),
+            "Muted mining streams do not flash a red alert");
         var ship = new EveCurrentShipView {ShipItemId=100, ShipTypeId=28606};
         var assets = new List<EveAssetItem> {
             new() {ItemId=100, TypeId=28606},
