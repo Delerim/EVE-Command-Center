@@ -1,3 +1,9 @@
+# EVE Command Center v3.6.83
+
+- **Ore names on each mining stream.** Each ring shows the resource that its log stream is tracking, beneath the cycle timer and crystal label. Full resource names are available on hover; unobserved streams do not invent an ore assignment.
+- **Shorter mining cards.** Mining mode sizes to its contents instead of reserving preview height. The Orca fleet-hangar bar moves into its unused drone area, removing the second-hold gap above every exhumer mining bar. Cards and bottom alarm controls remain aligned.
+- Character preview and combat modes retain their existing height. Fleet inventory remains explicitly cached; mining holds and stream timers remain log-derived estimates.
+
 # EVE Command Center v3.6.82
 
 - **Mining cycles no longer restart when ore names alternate.** Each inferred stream tracks its own resource. Supplemental critical-yield messages are counted for cargo but do not create another laser cycle. Equal-yield coincident streams can learn their common timing.

@@ -13,6 +13,15 @@
             <MenuItem Header="Move: hold Alt and drag anywhere" IsEnabled="False"/></ContextMenu>
     </Window.ContextMenu>
     <Window.Resources>
+        <DataTemplate x:Key="HoldBarTemplate">
+                                                <Border CornerRadius="4" Padding="3,2" Margin="0,0,0,2" ToolTip="{Binding Detail}">
+                                                    <Border.Style><Style TargetType="Border"><Setter Property="Background" Value="#102327" /><Style.Triggers><Trigger Property="IsMouseOver" Value="True"><Setter Property="Background" Value="#203B40" /></Trigger></Style.Triggers></Style></Border.Style>
+                                                    <StackPanel>
+                                                        <DockPanel><TextBlock Text="{Binding Label}" Width="39" FontSize="9" Foreground="#9ABCB9" /><TextBlock Text="{Binding VolumeText}" FontSize="9" Foreground="#C6E0DB" TextAlignment="Right" /></DockPanel>
+                                                        <ProgressBar Value="{Binding Percent}" Maximum="100" Height="3" Margin="0,2,0,0" Foreground="{Binding Accent}" Background="#294044" BorderThickness="0" />
+                                                    </StackPanel>
+                                                </Border>
+                                            </DataTemplate>
         <Style TargetType="Button">
             <Setter Property="Background" Value="#17312D"/>
             <Setter Property="Foreground" Value="#EAF7F4"/>
@@ -563,7 +572,7 @@
                                         <ItemsControl.ItemTemplate><DataTemplate>
                                             <StackPanel Orientation="Horizontal" Margin="0,2,10,1" ToolTip="{Binding Detail}">
                                                 <Grid Width="25" Height="25" Margin="0,0,4,0"><Ellipse Stroke="{Binding Accent}" StrokeThickness="1.5"/><TextBlock Text="{Binding CycleText}" Foreground="{Binding Accent}" FontSize="7" HorizontalAlignment="Center" VerticalAlignment="Center" /></Grid>
-                                                <TextBlock Text="{Binding CrystalText}" Foreground="{Binding Accent}" FontSize="9" VerticalAlignment="Center" />
+                                                <StackPanel Width="65" VerticalAlignment="Center"><TextBlock Text="{Binding CrystalText}" Foreground="{Binding Accent}" FontSize="9" /><TextBlock Text="{Binding OreText}" ToolTip="{Binding OreText}" Foreground="#B6DBD5" FontSize="8" TextTrimming="CharacterEllipsis" /></StackPanel>
                                             </StackPanel>
                                         </DataTemplate></ItemsControl.ItemTemplate>
                                     </ItemsControl>
@@ -580,21 +589,27 @@
                                                         <Setter Property="Background" Value="#10262B" /><Setter Property="BorderBrush" Value="#244349" />
                                                         <Style.Triggers><Trigger Property="IsMouseOver" Value="True"><Setter Property="Background" Value="#204148" /><Setter Property="BorderBrush" Value="#609A9E" /></Trigger></Style.Triggers>
                                                     </Style></Border.Style>
-                                                    <StackPanel Orientation="Horizontal">
-                                                        <Grid Width="36" Height="36" Margin="0,0,3,0">
-                                                            <Ellipse Stroke="#294349" StrokeThickness="2" Margin="3" />
-                                                            <Path Data="{Binding ArcData}" Stroke="{Binding Accent}" StrokeThickness="2.5" StrokeStartLineCap="Round" StrokeEndLineCap="Round" />
-                                                            <TextBlock Text="{Binding CycleText}" FontSize="9" FontWeight="SemiBold" Foreground="{Binding Accent}" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                                        </Grid>
-                                                        <StackPanel VerticalAlignment="Center" Width="38">
-                                                            <TextBlock Text="{Binding CrystalText}" Foreground="#ADDAD2" FontSize="9" TextTrimming="CharacterEllipsis" />
-                                                            <TextBlock Text="{Binding Timing}" Foreground="{Binding Accent}" FontSize="8" />
+                                                    <StackPanel Width="79">
+                                                        <StackPanel Orientation="Horizontal">
+                                                            <Viewbox Width="30" Height="30" Margin="0,0,5,0">
+                                                                <Grid Width="36" Height="36">
+                                                                    <Ellipse Stroke="#294349" StrokeThickness="2" Margin="3" />
+                                                                    <Path Data="{Binding ArcData}" Stroke="{Binding Accent}" StrokeThickness="2.5" StrokeStartLineCap="Round" StrokeEndLineCap="Round" />
+                                                                    <TextBlock Text="{Binding CycleText}" FontSize="10" FontWeight="SemiBold" Foreground="{Binding Accent}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                                </Grid>
+                                                            </Viewbox>
+                                                            <StackPanel VerticalAlignment="Center" Width="42">
+                                                                <TextBlock Text="{Binding CrystalText}" Foreground="#ADDAD2" FontSize="9" TextTrimming="CharacterEllipsis" />
+                                                                <TextBlock Text="{Binding Timing}" Foreground="{Binding Accent}" FontSize="8" />
+                                                            </StackPanel>
                                                         </StackPanel>
+                                                        <TextBlock Text="{Binding OreText}" ToolTip="{Binding OreText}" Foreground="#B6DBD5" FontSize="8" TextTrimming="CharacterEllipsis" />
                                                     </StackPanel>
                                                 </Border>
                                             </DataTemplate></ItemsControl.ItemTemplate>
                                         </ItemsControl>
                                         <TextBlock Text="{Binding LaserText}" Visibility="{Binding LaserFallbackVisibility}" Foreground="#ADDAD2" FontSize="10" TextTrimming="CharacterEllipsis" />
+                                        <ItemsControl ItemsSource="{Binding FleetHoldRows}" ItemTemplate="{StaticResource HoldBarTemplate}" />
                                     </StackPanel>
 
                                     <Grid Visibility="{Binding MiningVisibility}" Grid.Row="6" Margin="0,2,0,0">
@@ -722,18 +737,10 @@
                                             </Button>
                                         </StackPanel>
                                     </Grid>
-                                    <StackPanel Grid.Row="4" VerticalAlignment="Bottom" Visibility="{Binding HoldVisibility}" Margin="0,5,0,0" MouseRightButtonUp="MiningHold_RightClick">
+                                    <StackPanel Grid.Row="4" VerticalAlignment="Bottom" Visibility="{Binding HoldVisibility}" Margin="0,2,0,0" MouseRightButtonUp="MiningHold_RightClick">
                                         <TextBlock Text="HOLD" FontSize="8" Foreground="#829C9F" Margin="0,0,0,2" />
-                                        <ItemsControl ItemsSource="{Binding HoldRows}">
-                                            <ItemsControl.ItemTemplate><DataTemplate>
-                                                <Border CornerRadius="4" Padding="3,2" Margin="0,0,0,2" ToolTip="{Binding Detail}">
-                                                    <Border.Style><Style TargetType="Border"><Setter Property="Background" Value="#102327" /><Style.Triggers><Trigger Property="IsMouseOver" Value="True"><Setter Property="Background" Value="#203B40" /></Trigger></Style.Triggers></Style></Border.Style>
-                                                    <StackPanel>
-                                                        <DockPanel><TextBlock Text="{Binding Label}" Width="39" FontSize="9" Foreground="#9ABCB9" /><TextBlock Text="{Binding VolumeText}" FontSize="9" Foreground="#C6E0DB" TextAlignment="Right" /></DockPanel>
-                                                        <ProgressBar Value="{Binding Percent}" Maximum="100" Height="3" Margin="0,2,0,0" Foreground="{Binding Accent}" Background="#294044" BorderThickness="0" />
-                                                    </StackPanel>
-                                                </Border>
-                                            </DataTemplate></ItemsControl.ItemTemplate>
+                                        <ItemsControl ItemsSource="{Binding MainHoldRows}" ItemTemplate="{StaticResource HoldBarTemplate}">
+
                                         </ItemsControl>
                                     </StackPanel>
                                     <StackPanel Grid.Row="5" Margin="0,6,0,0" Visibility="{Binding RockVisibility}">

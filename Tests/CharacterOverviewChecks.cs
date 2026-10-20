@@ -128,9 +128,9 @@ internal static partial class Program
         prefs.CharacterOverviewLivePreview=true;Refresh();
         Check(items.Items.Cast<object>().All(c=>(bool)cardType.GetProperty("LivePreview")!.GetValue(c)!),"Live preview preference reaches every character card");
         prefs.CharacterOverviewMiningMode=true;Refresh();
-        Check((double)cardType.GetProperty("CardWidth")!.GetValue(items.Items[0])! == characterWidth && (double)cardType.GetProperty("CardMinHeight")!.GetValue(items.Items[0])! == characterHeight,"Character and mining modes share the same frame dimensions");
+        Check((double)cardType.GetProperty("CardWidth")!.GetValue(items.Items[0])! == characterWidth && (double)cardType.GetProperty("CardMinHeight")!.GetValue(items.Items[0])! == 0,"Mining cards keep their width and size height to content");
         Check(items.Items.Cast<object>().All(c=>!(bool)cardType.GetProperty("LivePreview")!.GetValue(c)!),"Mining mode disables native preview surfaces");
-        Check(Math.Abs(FrameHeight()-measuredCharacterHeight)<1,"Actual rendered card heights stay unchanged when switching modes");
+        Check(FrameHeight()<measuredCharacterHeight,"Mining cards remove the unused preview-height space");
         Check(items.Items.Count==3&&items.Items.Cast<object>().All(c=>State(c,"MiningVisibility")==Visibility.Visible&&State(c,"PreviewVisibility")==Visibility.Collapsed),"Mining mode keeps idle clients clickable while showing their mining details");
         prefs.CharacterOverviewCombatMode="PVE";Refresh();
         Check(items.Items.Count==3&&items.Items.Cast<object>().All(c=>State(c,"CombatVisibility")==Visibility.Visible&&State(c,"MiningVisibility")==Visibility.Collapsed),"PvE mode includes idle clients and hides mining statistics");

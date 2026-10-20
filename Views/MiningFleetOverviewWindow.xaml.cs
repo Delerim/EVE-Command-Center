@@ -1418,7 +1418,7 @@ public partial class MiningFleetOverviewWindow : Window
             card.CardWidth = cardWidth;
             card.CardPadding = new Thickness(8, _prefs.FleetOverviewVertical ? 3 : 6, 8, _prefs.FleetOverviewVertical ? 3 : 6);
             card.CardMargin = new Thickness(0, 0, 6, _prefs.FleetOverviewVertical ? 3 : 6);
-            card.CardMinHeight = _prefs.FleetOverviewVertical ? 0 : 252 + (_tracker.RockTracking.Enabled ? 85 : 0);
+            card.CardMinHeight = _prefs.FleetOverviewVertical || OverviewMode == "MINING" ? 0 : 252 + (_tracker.RockTracking.Enabled ? 85 : 0);
             card.PreviewHeight = _prefs.FleetOverviewVertical ? 60 : 115;
             card.DetailedMiningVisibility = !_prefs.FleetOverviewVertical && OverviewMode == "MINING" ? Visibility.Visible : Visibility.Collapsed;
             card.CompactMiningVisibility = _prefs.FleetOverviewVertical && OverviewMode == "MINING" ? Visibility.Visible : Visibility.Collapsed;
@@ -2171,6 +2171,8 @@ public partial class MiningFleetOverviewWindow : Window
         public IReadOnlyList<MiningStatusRings.Row> StatusRings { get; set; } = Array.Empty<MiningStatusRings.Row>();
         public Visibility HoldVisibility { get; set; } = Visibility.Collapsed;
         public IReadOnlyList<MiningHoldSnapshots.Row> HoldRows { get; set; } = Array.Empty<MiningHoldSnapshots.Row>();
+        public IReadOnlyList<MiningHoldSnapshots.Row> MainHoldRows => DetailedMiningVisibility == Visibility.Visible ? HoldRows.Where(r => r.Label != "Fleet").ToArray() : HoldRows;
+        public IReadOnlyList<MiningHoldSnapshots.Row> FleetHoldRows => HoldRows.Where(r => r.Label == "Fleet").ToArray();
         public Visibility RingsVisibility { get; set; } = Visibility.Collapsed;
         public Visibility LaserFallbackVisibility { get; set; } = Visibility.Visible;
         public string EhpText { get; set; } = "";

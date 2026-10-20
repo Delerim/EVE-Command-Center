@@ -3,7 +3,7 @@ namespace EveCommandCenter.Services;
 // Tracks inferred pull streams, never physical module slots. Ambiguous pulls suppress red states.
 internal static class MiningStatusRings
 {
-    internal sealed record Row(string Label, string Timing, string Accent, double Progress = 0, string Detail = "", string CycleText = "--", string CrystalText = "")
+    internal sealed record Row(string Label, string Timing, string Accent, double Progress = 0, string Detail = "", string CycleText = "--", string CrystalText = "", string OreText = "")
     {
         public string ArcData
         {
@@ -98,10 +98,10 @@ internal static class MiningStatusRings
             return new Row(label, !ready ? "Learning" : stopped ? "Stopped" : $"~{Math.Max(0, track!.Cycle - elapsed):0}s",
                 muted || !ready ? "#829C9F" : stopped ? "#E88991" : "#65D5B6",
                 ready ? Math.Clamp(elapsed / track!.Cycle * 100, 0, 100) : 0,
-                "Inferred mining stream " + label + ". Timing and yield identify a stream, not a module slot. " +
+                "Inferred mining stream " + label + (track == null ? "" : " - " + track.Ore) + ". Timing and yield identify a stream, not a module slot. " +
                 (!ready ? "Learning or ambiguous pulls; no stopped claim." : $"Typical cycle {track!.Cycle:0.#}s. Last pull {elapsed:0}s ago.") +
                 (muted ? " Alarm muted." : "") + " Equal-yield coincident streams are interchangeable, not physical module identities.",
-                ready ? $"{track!.Cycle:0.#}s" : "--");
+                ready ? $"{track!.Cycle:0.#}s" : "--", OreText: track?.Ore ?? "");
         }).ToArray();
     }
 }

@@ -29,3 +29,7 @@ Orca now also has a log-driven mining-hold estimate. Industrial Command Ships ad
 ## v3.6.82 follow-up
 
 Rings show learned cycle duration in their centre, fitted crystal class or ORE beside them, and remaining time underneath. Fit-wide crystal labels are not physical slot assignments. Per-stream resource tracking supports different ores on simultaneous miners; supplemental critical lines do not restart learning. Identical coincident streams can learn a common cycle without claiming module identity. Hold rows align to the bottom of their shared row, reducing the gap above status/alarm controls.
+
+## v3.6.83 follow-up
+
+Each inferred stream displays its own observed ore beneath the timer/crystal label. Mining mode uses content height, independently of preview/combat height. Orca cached fleet inventory occupies its drone area; only its mining hold shares the exhumer hold row. Compact vertical mode retains both hold rows. No extra ESI queries or physical module identity assumptions are introduced.
