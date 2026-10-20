@@ -1,3 +1,10 @@
+# EVE Command Center v3.6.82
+
+- **Mining cycles no longer restart when ore names alternate.** Each inferred stream tracks its own resource. Supplemental critical-yield messages are counted for cargo but do not create another laser cycle. Equal-yield coincident streams can learn their common timing.
+- **Cycle time inside the rings.** The learned duration replaces A/B, with fitted crystal class (or ORE) beside it and a remaining-time countdown below. Crystal labels describe the fit; logs do not identify physical module slots. Initial learning still needs several complete cycles.
+- **Tighter hold and alarm spacing.** Hold bars sit directly above the bottom status/alarm controls while Orca and exhumer cards retain equal heights. Both rings remain side by side at normal card width.
+- Verified with mixed-resource, critical-yield, independently stopped-stream and rendered-layout checks. Mining timing and hold amounts remain inferred from logs.
+
 # EVE Command Center v3.6.81
 
 - **Orca mining hold added.** Orca cards now show their log-driven mining-hold estimate alongside the separately labelled cached fleet hangar. Capacity uses hull dogma and the pilot's Industrial Command Ships level. Personal cargo stays hidden.

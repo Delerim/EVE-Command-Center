@@ -1,6 +1,6 @@
 # Mining rings and holds - v3.6.80
 
-Open Character Overview and select Mining. Each fitted laser gets a compact inferred-stream ring; only a stream whose learned pull deadline has passed turns red. Ring A/B ordering follows learned yield, not module slot order. The countdown and arc are estimated. Hover for timing/confidence. Ambiguous pulls, missing fit data, and a new ship do not assert a stopped module. Orca drones have no strip-miner rings. Existing ship-level alarm sounds remain separate.
+Open Character Overview and select Mining. Each fitted laser gets a compact inferred-stream ring; only a stream whose learned pull deadline has passed turns red. Stream ordering follows learned yield, not module slot order. The countdown and arc are estimated. Hover for timing/confidence. Ambiguous pulls, missing fit data, and a new ship do not assert a stopped module. Orca drones have no strip-miner rings. Existing ship-level alarm sounds remain separate.
 
 The mining hold is directly beneath the rings; Stable/Idle and alarm controls stay at the bottom. Personal cargo is omitted. Vertical mode uses smaller stream indicators and the same hold bar, with scrolling when needed.
 
@@ -25,3 +25,7 @@ The supplied reference was inspected statically to understand log-derived behavi
 ## v3.6.81 follow-up
 
 Orca now also has a log-driven mining-hold estimate. Industrial Command Ships adjusts the hull capacity using dogma attribute 3212 (currently 5% per level); with base 150,000 and level V this is 187,500 cubic metres. The fleet hangar retains its separately labelled cached source. Shared grid rows align cards and their bottom controls. Capacity is delivered before slower fitting/defence work finishes.
+
+## v3.6.82 follow-up
+
+Rings show learned cycle duration in their centre, fitted crystal class or ORE beside them, and remaining time underneath. Fit-wide crystal labels are not physical slot assignments. Per-stream resource tracking supports different ores on simultaneous miners; supplemental critical lines do not restart learning. Identical coincident streams can learn a common cycle without claiming module identity. Hold rows align to the bottom of their shared row, reducing the gap above status/alarm controls.

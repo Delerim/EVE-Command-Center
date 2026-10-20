@@ -83,10 +83,23 @@ internal static partial class Program
         var identical = Enumerable.Range(0, 6).SelectMany(n => new[] {
             new MiningStatusRings.Pull(now.AddSeconds(n * 12), 80, "Ore", false),
             new MiningStatusRings.Pull(now.AddSeconds(n * 12), 80, "Ore", false)});
-        Check(MiningStatusRings.Build(2, false, false, identical, now.AddSeconds(65)).All(r => r.Accent == "#829C9F"),
-            "Coincident identical pulls do not claim confident individual module states");
+        Check(MiningStatusRings.Build(2, false, false, identical, now.AddSeconds(65)).All(r => r.CycleText == "12s"),
+            "Coincident identical pulls learn their common cycle without inventing physical slot identity");
         Check(MiningStatusRings.Build(2, false, false, pulls, now.AddMinutes(20)).All(r => r.Timing == "Learning"),
             "Stale streams expire rather than producing indefinite inferred alarms");
+        var mixedOre = Enumerable.Range(0, 8).SelectMany(n => new[] {
+            new MiningStatusRings.Pull(now.AddSeconds(n * 24), n == 5 ? 53 : 54, "Bitumens", false),
+            new MiningStatusRings.Pull(now.AddSeconds(n * 24), 162, "Bitumens", true),
+            new MiningStatusRings.Pull(now.AddSeconds(n * 24 + 1), 54, "Brimful Bitumens", false),
+            new MiningStatusRings.Pull(now.AddSeconds(n * 24 + 1), 162, "Brimful Bitumens", true) }).ToArray();
+        var mixedRows = MiningStatusRings.Build(2, false, false, mixedOre, now.AddSeconds(170));
+        Check(mixedRows.All(r => r.CycleText == "24s" && r.Accent == "#65D5B6"),
+            "ORE strip miners learn alternating ore streams despite supplemental critical yields and unit rounding");
+        var oneContinues = mixedOre.Append(new MiningStatusRings.Pull(now.AddSeconds(192), 54, "Brimful Bitumens", false))
+            .Append(new MiningStatusRings.Pull(now.AddSeconds(216), 54, "Brimful Bitumens", false));
+        var mixedStopped = MiningStatusRings.Build(2, false, false, oneContinues, now.AddSeconds(217));
+        Check(mixedStopped.Count(r => r.Accent == "#E88991") == 1 && mixedStopped.Count(r => r.Accent == "#65D5B6") == 1,
+            "Only the stopped ore stream turns red while the other resource continues");
         var ship = new EveCurrentShipView {ShipItemId=100, ShipTypeId=28606};
         var assets = new List<EveAssetItem> {
             new() {ItemId=100, TypeId=28606},
@@ -127,7 +140,7 @@ internal static partial class Program
             type.GetProperty("PreviewVisibility")!.SetValue(card, Visibility.Collapsed);
             type.GetProperty("MiningVisibility")!.SetValue(card, Visibility.Visible);
             type.GetProperty("CombatVisibility")!.SetValue(card, Visibility.Collapsed);
-            type.GetProperty("StatusRings")!.SetValue(card, stopped);
+            type.GetProperty("StatusRings")!.SetValue(card, stopped.Select(r => r with { CrystalText = "ORE" }).ToArray());
             type.GetProperty("RingsVisibility")!.SetValue(card, Visibility.Visible);
             type.GetProperty("LaserFallbackVisibility")!.SetValue(card, Visibility.Collapsed);
             type.GetProperty("HoldRows")!.SetValue(card, new[] {new MiningHoldSnapshots.Row("Mining","~9,250 / 11,500 m\u00b3",80.4,"#E0BA68","Live estimate")});
@@ -155,6 +168,9 @@ internal static partial class Program
         var frames=Walk(items).OfType<Border>().Where(b=>b.CornerRadius.TopLeft==7 && b.ActualWidth>150).ToArray();
         Check(frames.Length>=2 && frames.Max(b=>b.ActualHeight)-frames.Min(b=>b.ActualHeight)<1,
             "Orca with two holds and exhumer with rings have equal rendered card heights");
+        var pills=Walk(items).OfType<Border>().Where(b=>b.CornerRadius.TopLeft==8 && b.DataContext is MiningStatusRings.Row).ToArray();
+        Check(pills.Length==2 && Math.Abs(pills[0].TranslatePoint(new Point(), items).Y-pills[1].TranslatePoint(new Point(), items).Y)<1,
+            "Both mining rings fit side by side at normal card width");
         window.Close();
     }
 }

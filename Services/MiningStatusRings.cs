@@ -3,7 +3,7 @@ namespace EveCommandCenter.Services;
 // Tracks inferred pull streams, never physical module slots. Ambiguous pulls suppress red states.
 internal static class MiningStatusRings
 {
-    internal sealed record Row(string Label, string Timing, string Accent, double Progress = 0, string Detail = "")
+    internal sealed record Row(string Label, string Timing, string Accent, double Progress = 0, string Detail = "", string CycleText = "--", string CrystalText = "")
     {
         public string ArcData
         {
@@ -18,6 +18,7 @@ internal static class MiningStatusRings
     private sealed class Track
     {
         internal DateTime Last;
+        internal string Ore = "";
         internal double Yield;
         internal List<double> Gaps = new();
         internal double Cycle => Gaps.Count == 0 ? 0 : Gaps.TakeLast(2).Average();
@@ -28,13 +29,17 @@ internal static class MiningStatusRings
         if (droneMining || fitted <= 0) return Array.Empty<Row>();
         fitted = Math.Min(fitted, 8);
         var tracks = new List<Track>();
-        string ore = ""; DateTime uncertainUntil = default;
+        DateTime uncertainUntil = default;
+        var lastNormal = new Dictionary<string, DateTime>(StringComparer.OrdinalIgnoreCase);
         foreach (var pull in source.Where(p => p.Units > 0 && double.IsFinite(p.Units) && p.Utc <= now && p.Utc >= now.AddMinutes(-10)).OrderBy(p => p.Utc).TakeLast(100))
         {
-            if (ore != pull.Ore) { tracks.Clear(); ore = pull.Ore; }
+            // EVE writes critical bonus units as a second line for the same completed cycle.
+            if (pull.Critical && lastNormal.TryGetValue(pull.Ore, out var normalAt) && (pull.Utc - normalAt).TotalSeconds <= 1) continue;
+            if (!pull.Critical) lastNormal[pull.Ore] = pull.Utc;
             var candidates = new List<(Track Track, double Score, double Gap, int Cycles)>();
             foreach (var track in tracks)
             {
+                if (!string.Equals(track.Ore, pull.Ore, StringComparison.OrdinalIgnoreCase)) continue;
                 double gap = (pull.Utc - track.Last).TotalSeconds;
                 if (gap < Math.Max(6, track.Cycle * .5)) continue;
                 double error = Math.Abs(pull.Units - track.Yield), tolerance = Math.Max(1.5, track.Yield * .012);
@@ -53,7 +58,9 @@ internal static class MiningStatusRings
                     candidates.Add((track, 2 + error / tolerance, gap, cycles));
             }
             var ordered = candidates.OrderBy(c => c.Score).ToArray();
-            if (ordered.Length > 1 && ordered[1].Score - ordered[0].Score < .2)
+            if (ordered.Length > 1 && ordered[1].Score - ordered[0].Score < .2 &&
+                !(Math.Abs(ordered[0].Track.Yield - ordered[1].Track.Yield) <= 1.5 &&
+                  Math.Abs(ordered[0].Track.Cycle - ordered[1].Track.Cycle) <= 1))
             {
                 uncertainUntil = pull.Utc.AddSeconds(Math.Max(30, tracks.Max(t => t.Cycle) * 2));
                 continue;
@@ -70,7 +77,12 @@ internal static class MiningStatusRings
                 if (!pull.Critical) chosen.Track.Yield = chosen.Track.Yield * .75 + pull.Units * .25;
             }
             else if (!pull.Critical && tracks.Count < fitted)
-                tracks.Add(new() { Last = pull.Utc, Yield = pull.Units });
+                tracks.Add(new() { Last = pull.Utc, Yield = pull.Units, Ore = pull.Ore });
+            else if (!pull.Critical && !tracks.Any(t => t.Ore == pull.Ore) &&
+                tracks.FirstOrDefault(t => (pull.Utc - t.Last).TotalSeconds > Math.Max(30, t.Cycle + 8)) is { } replaced)
+            {
+                replaced.Ore = pull.Ore; replaced.Last = pull.Utc; replaced.Yield = pull.Units; replaced.Gaps.Clear();
+            }
             else
                 uncertainUntil = pull.Utc.AddSeconds(Math.Max(30, tracks.Count == 0 ? 30 : tracks.Max(t => t.Cycle) * 2));
         }
@@ -88,7 +100,8 @@ internal static class MiningStatusRings
                 ready ? Math.Clamp(elapsed / track!.Cycle * 100, 0, 100) : 0,
                 "Inferred mining stream " + label + ". Timing and yield identify a stream, not a module slot. " +
                 (!ready ? "Learning or ambiguous pulls; no stopped claim." : $"Typical cycle {track!.Cycle:0.#}s. Last pull {elapsed:0}s ago.") +
-                (muted ? " Alarm muted." : ""));
+                (muted ? " Alarm muted." : "") + " Equal-yield coincident streams are interchangeable, not physical module identities.",
+                ready ? $"{track!.Cycle:0.#}s" : "--");
         }).ToArray();
     }
 }

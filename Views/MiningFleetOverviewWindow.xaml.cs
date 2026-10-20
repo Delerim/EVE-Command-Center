@@ -1079,6 +1079,11 @@ public partial class MiningFleetOverviewWindow : Window
             }
 
             var rings = _tracker.GetMiningRings(character, fittedLaserCount, isOrca, alarmMuted, shipIntel?.CurrentShip.ShipItemId ?? 0);
+            var crystalLabels = shipIntel?.MiningLasers.Select(l => l.ShortCrystal).Where(c => !string.IsNullOrWhiteSpace(c)).Distinct().ToArray() ?? Array.Empty<string>();
+            string crystalLabel = crystalLabels.Length > 0 ? "Type " + string.Join(" / ", crystalLabels) :
+                shipIntel?.MiningLasers.Any(l => l.Name.Contains("ORE", StringComparison.OrdinalIgnoreCase)) == true ? "ORE" : "No crystal";
+            rings = rings.Select(r => r with { CrystalText = crystalLabel,
+                Detail = r.Detail + "\nFitted crystals: " + crystalLabel + ". Crystal labels describe the fit; logs do not identify physical module slots." }).ToArray();
             var holdRows = new List<MiningHoldSnapshots.Row>();
             void AppendHold(string name, EveShipHoldSnapshot hold)
             { if (hold.Supported) holdRows.Add(MiningHoldSnapshots.Present(name, hold, DateTimeOffset.UtcNow)); }

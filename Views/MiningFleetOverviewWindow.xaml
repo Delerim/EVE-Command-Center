@@ -562,8 +562,8 @@
                                         <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
                                         <ItemsControl.ItemTemplate><DataTemplate>
                                             <StackPanel Orientation="Horizontal" Margin="0,2,10,1" ToolTip="{Binding Detail}">
-                                                <Grid Width="17" Height="17" Margin="0,0,4,0"><Ellipse Stroke="{Binding Accent}" StrokeThickness="1.5"/><TextBlock Text="{Binding Label}" Foreground="{Binding Accent}" FontSize="9" HorizontalAlignment="Center" VerticalAlignment="Center" /></Grid>
-                                                <TextBlock Text="{Binding Timing}" Foreground="{Binding Accent}" FontSize="9" VerticalAlignment="Center" />
+                                                <Grid Width="25" Height="25" Margin="0,0,4,0"><Ellipse Stroke="{Binding Accent}" StrokeThickness="1.5"/><TextBlock Text="{Binding CycleText}" Foreground="{Binding Accent}" FontSize="7" HorizontalAlignment="Center" VerticalAlignment="Center" /></Grid>
+                                                <TextBlock Text="{Binding CrystalText}" Foreground="{Binding Accent}" FontSize="9" VerticalAlignment="Center" />
                                             </StackPanel>
                                         </DataTemplate></ItemsControl.ItemTemplate>
                                     </ItemsControl>
@@ -575,18 +575,21 @@
                                         <ItemsControl ItemsSource="{Binding StatusRings}" Visibility="{Binding RingsVisibility}" Margin="0,3,0,0">
                                             <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
                                             <ItemsControl.ItemTemplate><DataTemplate>
-                                                <Border Padding="5,3" Margin="0,0,5,2" CornerRadius="8" BorderThickness="1" ToolTip="{Binding Detail}">
+                                                <Border Padding="3,3" Margin="0,0,4,2" CornerRadius="8" BorderThickness="1" ToolTip="{Binding Detail}">
                                                     <Border.Style><Style TargetType="Border">
                                                         <Setter Property="Background" Value="#10262B" /><Setter Property="BorderBrush" Value="#244349" />
                                                         <Style.Triggers><Trigger Property="IsMouseOver" Value="True"><Setter Property="Background" Value="#204148" /><Setter Property="BorderBrush" Value="#609A9E" /></Trigger></Style.Triggers>
                                                     </Style></Border.Style>
                                                     <StackPanel Orientation="Horizontal">
-                                                        <Grid Width="36" Height="36" Margin="0,0,5,0">
+                                                        <Grid Width="36" Height="36" Margin="0,0,3,0">
                                                             <Ellipse Stroke="#294349" StrokeThickness="2" Margin="3" />
                                                             <Path Data="{Binding ArcData}" Stroke="{Binding Accent}" StrokeThickness="2.5" StrokeStartLineCap="Round" StrokeEndLineCap="Round" />
-                                                            <TextBlock Text="{Binding Label}" FontSize="12" FontWeight="SemiBold" Foreground="{Binding Accent}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                            <TextBlock Text="{Binding CycleText}" FontSize="9" FontWeight="SemiBold" Foreground="{Binding Accent}" HorizontalAlignment="Center" VerticalAlignment="Center" />
                                                         </Grid>
-                                                        <TextBlock Text="{Binding Timing}" Foreground="{Binding Accent}" FontSize="10" VerticalAlignment="Center" MinWidth="40" />
+                                                        <StackPanel VerticalAlignment="Center" Width="38">
+                                                            <TextBlock Text="{Binding CrystalText}" Foreground="#ADDAD2" FontSize="9" TextTrimming="CharacterEllipsis" />
+                                                            <TextBlock Text="{Binding Timing}" Foreground="{Binding Accent}" FontSize="8" />
+                                                        </StackPanel>
                                                     </StackPanel>
                                                 </Border>
                                             </DataTemplate></ItemsControl.ItemTemplate>
@@ -719,7 +722,7 @@
                                             </Button>
                                         </StackPanel>
                                     </Grid>
-                                    <StackPanel Grid.Row="4" Visibility="{Binding HoldVisibility}" Margin="0,5,0,0" MouseRightButtonUp="MiningHold_RightClick">
+                                    <StackPanel Grid.Row="4" VerticalAlignment="Bottom" Visibility="{Binding HoldVisibility}" Margin="0,5,0,0" MouseRightButtonUp="MiningHold_RightClick">
                                         <TextBlock Text="HOLD" FontSize="8" Foreground="#829C9F" Margin="0,0,0,2" />
                                         <ItemsControl ItemsSource="{Binding HoldRows}">
                                             <ItemsControl.ItemTemplate><DataTemplate>
