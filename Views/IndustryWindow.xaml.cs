@@ -6,6 +6,11 @@ using EveCommandCenter.Services;
 namespace EveCommandCenter.Views;
 public partial class IndustryWindow : Window
 {
+    internal void ShowProductionMaterials()
+    {
+        IndustryTabs.SelectedItem = ProductionTab;
+        ProductionWorkspace.OpenMaterials();
+    }
     private readonly IndustryService _service=BackgroundOperations.Current.Industry;
     private readonly EveSsoService _sso=BackgroundOperations.Current.Sso;
     private readonly CancellationTokenSource _life=new();

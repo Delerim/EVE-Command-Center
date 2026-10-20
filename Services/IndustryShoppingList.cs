@@ -8,14 +8,15 @@ public static class IndustryShoppingList
     public sealed record Row(int TypeId, decimal Required, decimal Reserved, decimal Unreserved,
         decimal FreeStock, string Projects, string Review)
     {
+        public bool IncompleteInventory { get; init; }
         public bool ConfirmedEmpty { get; init; }
         public bool HasVerifiedStock { get; init; }
         public string OwnedLabel => HasVerifiedStock ? Owned.ToString("N0") : ConfirmedEmpty ? "N/A" : "Unknown";
         public string FreeLabel => Review.StartsWith("Reservation/source") ? "Review" : HasVerifiedStock ? FreeStock.ToString("N0") : ConfirmedEmpty ? "N/A" : "Unknown";
-        public decimal? SortMissing => FreeLabel is "Unknown" or "Review" ? null : Math.Max(0, Required - Reserved - FreeStock);
+        public decimal? SortMissing => FreeLabel is "Unknown" or "Review" || (IncompleteInventory && Required > Reserved + FreeStock) ? null : Math.Max(0, Required - Reserved - FreeStock);
         public decimal? SortAvailable => FreeLabel is "Unknown" or "Review" ? null : FreeStock;
         public decimal? SortOwned => HasVerifiedStock ? Owned : ConfirmedEmpty ? 0 : null;
-        public string MissingLabel => FreeLabel is "Unknown" or "Review" ? FreeLabel : Math.Max(0, Required - Reserved - FreeStock).ToString("N0");
+        public string MissingLabel => FreeLabel == "Review" ? "Review" : SortMissing?.ToString("N0") ?? "Unknown";
         public string StockColor => MissingLabel is "Unknown" or "Review" ? "#A5BBC1" : Math.Max(0, Required - Reserved - FreeStock) > 0 ? "#EDAD83" : "#76D7CB";
         public string StockStatus => MissingLabel is "Unknown" or "Review" ? "Check inventory" : Math.Max(0, Required - Reserved - FreeStock) > 0 ? "Shortfall" : "Stock covers demand";
         public decimal Owned { get; init; }
@@ -54,8 +55,9 @@ public static class IndustryShoppingList
             if (group.Any(d => d.Node.Strategy == "Make")) notes += "; Make leaf has no input plan";
             if (group.Any(d => d.Project.Nodes.Any(n => n.Strategy == "Make" && d.Project.Nodes.Any(c => c.ParentId == n.Id) && state.Reservations.Any(r => r.NodeId == n.Id))))
                 notes += "; parent stock reserved: child demand not reduced; review sourcing strategy";
+            if (!inventoryComplete) notes += "; partial inventory: a shortage cannot be confirmed";
             return new Row(group.Key, required, reserved, Math.Max(0, required - reserved), review ? 0 : free,
-                string.Join(" | ", group.Select(d => d.Project.Name).Distinct()), notes) { ConfirmedEmpty = inventoryComplete && !stock.Any(s => s.TypeId == group.Key), HasVerifiedStock = stock.Any(s => s.TypeId == group.Key && s.Verified && IndustryWorkspaceInventory.Recent(s.SnapshotUtc, now)), Owned = stock.Where(s => s.TypeId == group.Key && s.Verified && IndustryWorkspaceInventory.Recent(s.SnapshotUtc, now)).GroupBy(s => (s.OwnerId, s.ItemId)).Sum(g => (decimal)g.First().Quantity), TotalReserved = state.Reservations.Where(r => r.TypeId == group.Key).Sum(r => (decimal)r.Quantity) };
+                string.Join(" | ", group.Select(d => d.Project.Name).Distinct()), notes) { IncompleteInventory = !inventoryComplete, ConfirmedEmpty = inventoryComplete && !stock.Any(s => s.TypeId == group.Key), HasVerifiedStock = stock.Any(s => s.TypeId == group.Key && s.Verified && IndustryWorkspaceInventory.Recent(s.SnapshotUtc, now)), Owned = stock.Where(s => s.TypeId == group.Key && s.Verified && IndustryWorkspaceInventory.Recent(s.SnapshotUtc, now)).GroupBy(s => (s.OwnerId, s.ItemId)).Sum(g => (decimal)g.First().Quantity), TotalReserved = state.Reservations.Where(r => r.TypeId == group.Key).Sum(r => (decimal)r.Quantity) };
         }).OrderBy(r => r.Name).ToArray();
     }
 }

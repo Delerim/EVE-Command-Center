@@ -1,3 +1,12 @@
+# EVE Command Center v3.6.76
+
+- **Production materials on the main dashboard.** See active-project demand, shared available stock, reserved quantities and missing stock together, with item names/icons and understated coverage colours. Paused projects keep their reservations but do not add demand; archived projects do not add demand.
+- **Open the materials workspace directly.** The dashboard action opens Industry > Production Queue > All project materials, including when the embedded workspace has not finished loading. An empty workspace opens the project gallery.
+- Sort by material, quantities, status or projects. Numeric headings and values share alignment, and column widths/order are remembered independently of production plans.
+- **Unknown inventory is not a shortage.** Dashboard and consolidated materials now use the same conservative rule: incomplete inventories cannot prove a deficit. Known verified stock may still prove coverage. Stale, unauthorized or moved reservation sources require review. Coverage does not claim delivery, skills or manufacturing readiness.
+- Reuse existing saved assets, project state and reservations without new ESI requests or a second ledger. Dashboard materials refresh at most every 30 seconds unless the saved project revision changes; a workspace failure clears previous quantities.
+- This is another Phase E increment. Confirmed job/delivery/consumption reconciliation, full batch costing and realized profit remain future work. Backup behaviour from v3.6.75 is unchanged.
+
 # EVE Command Center v3.6.75
 
 - **Full backups from the existing Back up now button.** Includes saved Command Center history, consistent SQLite snapshots, linked EVE logins and external Documents/EVE/logs. Encryption and Google sign-in are unchanged. No new test button.

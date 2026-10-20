@@ -1,4 +1,15 @@
-# Industry, Market & Wallet testing guide - v3.6.55
+# Industry, Market & Wallet testing guide - v3.6.76
+
+## New in v3.6.76: dashboard production materials
+
+1. Open the main Dashboard. Under Production, Market & Wallet, the Production materials panel lists shared demand for active projects. Green means stock covers demand; amber means a confirmed shortage; grey means inventory needs checking. These are material counts, not counts of ready projects.
+2. Compare Available, Reserved here, Missing stock and Required. Free stock excludes all reservations, including paused projects. Two builds sharing Tritanium must be compared against the same pool once.
+3. Click column headings to sort. Resize/reorder columns, leave and reopen the page: those preferences should persist.
+4. Choose Open production materials. Industry opens its existing consolidated materials tab. No new project, reservation or EVE request should be created. With no projects, it opens the gallery.
+5. Refresh Industry through its existing action and return to Dashboard. Stock updates appear within 30 seconds; saved project changes appear on the next dashboard refresh. Missing authorization, stale snapshots or moved reservations must not claim zero stock or confirmed shortages. Known sufficient stock can still show coverage when another inventory is unavailable.
+6. Pause a project: its demand disappears, but its stock reservations remain held. Archive/delete using the existing project controls and check that totals change accordingly.
+
+This patch advances Phase E; it does not complete the remaining Phase B/C/D reconciliation or profit work. The existing four phases with outstanding requirements still need further increments.
 
 ## New in v3.6.55: assign confirmed charges
 

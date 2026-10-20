@@ -249,3 +249,16 @@ Wallet activity now offers an amount-based project split editor for confirmed ne
 Schema 6 adds owner/entry-keyed expense_allocations with a source foreign key and append-only expense_allocation_audit. Migration creates a populated schema-5 backup. Saves atomically validate source eligibility, positive decimal amounts, aggregate capacity, unique identities, active project destinations and optimistic revision. Unchanged historical assignments survive deleted or archived projects; they can be removed, but cannot receive changed amounts. Original wallet evidence is never edited. No-op saves are idempotent.
 
 Project Finances reads trades and charges in one SQLite snapshot. Charges have their own total and sortable detail table; the selected pilot and period apply to all figures. Cash difference now subtracts explicitly assigned charges. This still is not profit: unassigned costs, consumed-stock valuation and full batch provenance remain outstanding. Allocation panes defer automatic repaint while open and reuse saved column/pane sizing. Native WPF fixtures and regression checks cover persistence, limits, rollback, migration, filters and UI actions.
+
+
+## v3.6.76 - Phase E production-material dashboard
+
+ProductionDashboard composes the existing IndustryShoppingList and IndustryWorkspaceInventory projections. Consolidated quantities use personal stock once across active projects; paused reservations still reduce free stock. The shared shopping-row projection now withholds a numeric deficit if inventory coverage is incomplete, while known sufficient stock can prove coverage. Dashboard and material detail therefore agree. Unknown or moved reservations stay reviewable.
+
+ProductionSummaryView is embedded below the existing project/market/wallet cards. It exposes sortable named/icon material rows, available/reserved/missing/required quantities and textual coverage status. Column widths/order persist in a separate UI preference file through WorkspaceLayout.AttachTable; no ledger or financial state is changed. A deferred navigation request opens the existing consolidated-material tab after workspace initialization, preserving the selected project identity. Empty workspaces return to the gallery.
+
+Refresh reads saved state only, throttled to 30 seconds unless workspace revision changes. No additional ESI endpoint, authorization scope, schema migration, asset reservation or financial attribution is introduced. Failed workspace reads clear the widget. Stock coverage is not manufacturing readiness, and corporation stock, delivery/consumption evidence and batch profit remain incomplete requirements.
+
+Synthetic tests cover shared demand, paused reservations, moved/stale sources, partial permissions/snapshots, confirmed empty inventories, shared calculation consistency, archived projects, column persistence and deferred navigation without ledger mutation. Native WPF render fixtures were visually reviewed both alone and inside the dashboard; this is not a claim of full live mouse automation.
+
+Validation: 878 full regression checks passed; 17 focused production-dashboard checks passed. Normal Release compilation, self-contained Windows x64 single-file publish, release-note validation and git diff --check passed. Render fixtures use synthetic projects and inventory; production ledgers were not modified by testing.

@@ -16,6 +16,13 @@ public partial class IndustryWorkspaceView : System.Windows.Controls.UserControl
     private bool _loading;
     private IReadOnlyList<IndustryBlueprintLibrary.Blueprint> _blueprints = Array.Empty<IndustryBlueprintLibrary.Blueprint>();
     private bool _initialized;
+    private bool _openMaterialsPending;
+    internal void OpenMaterials()
+    {
+        _openMaterialsPending = true;
+        if (!_initialized) return;
+        RefreshAll();
+    }
     private readonly Dictionary<(long Owner, long Location), string> _displayPaths = new();
     private string DisplayPath(long owner, long location)
     {
@@ -88,6 +95,16 @@ public partial class IndustryWorkspaceView : System.Windows.Controls.UserControl
         finally { _loading = false; }
         RefreshBlueprintLocations();
         ShowProject();
+        if (_openMaterialsPending)
+        {
+            _openMaterialsPending = false;
+            if (_projectId.HasValue)
+            {
+                OpenProject();
+                WorkspaceTabs.SelectedItem = MaterialsTab;
+            }
+            else BackProjects_Click(this, new RoutedEventArgs());
+        }
     }
     private static void Select(System.Windows.Controls.ComboBox box, long? id) => box.SelectedItem = box.Items.Cast<PilotOption>().FirstOrDefault(p => p.Id == id);
     private void ResizeTable_DragDelta(object sender, System.Windows.Controls.Primitives.DragDeltaEventArgs e)

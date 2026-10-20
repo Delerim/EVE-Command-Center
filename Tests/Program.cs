@@ -28,6 +28,12 @@ internal static partial class Program
     [STAThread]
     private static void Main(string[] args)
     {
+        if (args.FirstOrDefault() == "--audit-production-dashboard")
+        {
+            var fixtureApp = new System.Windows.Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
+            CheckProductionDashboard(args.Length > 1 ? args[1] : null);
+            Console.WriteLine($"{_checks} production dashboard checks passed."); return;
+        }
         if (args.FirstOrDefault() == "--check-cloud-backup")
         {
             CheckCloudBackupPortable(); CheckCloudHistoryAudit(); CheckVerifiedCloudBackup();
@@ -214,6 +220,7 @@ internal static partial class Program
         CheckCloudBackupLayout();
         CheckCloudBackupPortable();
         CheckVerifiedCloudBackup();
+        CheckProductionDashboard();
         CheckCloudBackupLiveSqlite();
         CheckCloudHistoryAudit();
         CheckPermanentHistoricalRetention();

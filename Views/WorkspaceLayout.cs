@@ -18,6 +18,36 @@ internal static class WorkspaceLayout
         public Dictionary<string, double[]> Columns { get; set; } = new();
     }
     internal static string PreferencePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "EVE Command Center", "industry-layout.json");
+    public static void AttachTable(DataGrid grid)
+    {
+        string path = Path.ChangeExtension(PreferencePath, grid.Name + ".json");
+        TableSorting.Attach(grid);
+        grid.CanUserResizeColumns = grid.CanUserReorderColumns = true;
+        grid.Loaded += (_, _) =>
+        {
+            try
+            {
+                var columns = JsonSerializer.Deserialize<Dictionary<string, double[]>>(File.ReadAllText(path)) ?? new();
+                foreach (var column in grid.Columns)
+                    if (columns.TryGetValue(column.Header.ToString()!, out var saved) && saved.Length == 3 && double.IsFinite(saved[0]) && saved[0] > 0)
+                    {
+                        bool star = saved[2] == (int)DataGridLengthUnitType.Star;
+                        column.Width = new DataGridLength(Math.Clamp(saved[0], star ? .1 : 40, star ? 10 : 1600), star ? DataGridLengthUnitType.Star : DataGridLengthUnitType.Pixel);
+                        if (saved[1] >= 0 && saved[1] < grid.Columns.Count) column.DisplayIndex = (int)saved[1];
+                    }
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException) { }
+        };
+        void Save()
+        {
+            var columns = grid.Columns.ToDictionary(c => c.Header.ToString()!, c => new[] { c.Width.Value, (double)c.DisplayIndex, (double)c.Width.UnitType });
+            try { Directory.CreateDirectory(Path.GetDirectoryName(path)!); File.WriteAllText(path + ".tmp", JsonSerializer.Serialize(columns)); File.Move(path + ".tmp", path, true); }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+        }
+        grid.AddHandler(Thumb.DragCompletedEvent, new DragCompletedEventHandler((_, _) => Save()));
+        grid.ColumnReordered += (_, _) => Save();
+        grid.Unloaded += (_, _) => Save();
+    }
     public static void Attach(IndustryWorkspaceView view)
     {
         string FileName = PreferencePath;
