@@ -33,3 +33,7 @@ Rings show learned cycle duration in their centre, fitted crystal class or ORE b
 ## v3.6.83 follow-up
 
 Each inferred stream displays its own observed ore beneath the timer/crystal label. Mining mode uses content height, independently of preview/combat height. Orca cached fleet inventory occupies its drone area; only its mining hold shares the exhumer hold row. Compact vertical mode retains both hold rows. No extra ESI queries or physical module identity assumptions are introduced.
+
+## v3.6.84 follow-up
+
+Laser tiles use slightly larger rings and omit the separate remaining-seconds label. The centre still shows cycle duration; progress arcs and hover details retain timing context. Crystal and ore labels remain visible.

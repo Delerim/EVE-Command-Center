@@ -1,3 +1,7 @@
+# EVE Command Center v3.6.84
+
+- **Cleaner laser tiles.** Removed the separate remaining-seconds label. Slightly larger rings retain the cycle duration inside, ORE/crystal type beside them and the tracked ore underneath. Progress arcs, independent stopped-stream colours and hover details remain available.
+
 # EVE Command Center v3.6.83
 
 - **Ore names on each mining stream.** Each ring shows the resource that its log stream is tracking, beneath the cycle timer and crystal label. Full resource names are available on hover; unobserved streams do not invent an ore assignment.

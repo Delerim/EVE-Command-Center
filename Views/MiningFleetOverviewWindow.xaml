@@ -589,9 +589,9 @@
                                                         <Setter Property="Background" Value="#10262B" /><Setter Property="BorderBrush" Value="#244349" />
                                                         <Style.Triggers><Trigger Property="IsMouseOver" Value="True"><Setter Property="Background" Value="#204148" /><Setter Property="BorderBrush" Value="#609A9E" /></Trigger></Style.Triggers>
                                                     </Style></Border.Style>
-                                                    <StackPanel Width="79">
+                                                    <StackPanel Width="83">
                                                         <StackPanel Orientation="Horizontal">
-                                                            <Viewbox Width="30" Height="30" Margin="0,0,5,0">
+                                                            <Viewbox Width="34" Height="34" Margin="0,0,5,0">
                                                                 <Grid Width="36" Height="36">
                                                                     <Ellipse Stroke="#294349" StrokeThickness="2" Margin="3" />
                                                                     <Path Data="{Binding ArcData}" Stroke="{Binding Accent}" StrokeThickness="2.5" StrokeStartLineCap="Round" StrokeEndLineCap="Round" />
@@ -600,7 +600,6 @@
                                                             </Viewbox>
                                                             <StackPanel VerticalAlignment="Center" Width="42">
                                                                 <TextBlock Text="{Binding CrystalText}" Foreground="#ADDAD2" FontSize="9" TextTrimming="CharacterEllipsis" />
-                                                                <TextBlock Text="{Binding Timing}" Foreground="{Binding Accent}" FontSize="8" />
                                                             </StackPanel>
                                                         </StackPanel>
                                                         <TextBlock Text="{Binding OreText}" ToolTip="{Binding OreText}" Foreground="#B6DBD5" FontSize="8" TextTrimming="CharacterEllipsis" />
