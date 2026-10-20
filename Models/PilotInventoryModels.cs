@@ -394,6 +394,7 @@ public sealed class EveMiningShipIntel
 
     public double MiningHoldCapacityM3 { get; set; }
     public EveShipHoldSnapshot FleetHangar { get; init; } = new();
+    public EveShipHoldSnapshot MiningHoldInventory { get; init; } = new();
     public bool IsOrca => CurrentShip.IsOrca;
 
     public double? RepresentativeLaserBaseCycleSeconds =>

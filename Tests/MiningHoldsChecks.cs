@@ -100,6 +100,36 @@ internal static partial class Program
         var mixedStopped = MiningStatusRings.Build(2, false, false, oneContinues, now.AddSeconds(217));
         Check(mixedStopped.Count(r => r.Accent == "#E88991") == 1 && mixedStopped.Count(r => r.Accent == "#65D5B6") == 1,
             "Only the stopped ore stream turns red while the other resource continues");
+        var singleRunning=Enumerable.Range(0,16).Select(n=>new MiningStatusRings.Pull(now.AddSeconds(n*24),54,"Bitumens",false));
+        var singleRows=MiningStatusRings.Build(2,false,false,singleRunning,now.AddSeconds(361));
+        Check(singleRows.Count(r=>r.Accent=="#65D5B6")==1 && singleRows.Count(r=>r.Timing=="Learning")==1,
+            "Two fitted modules alone do not invent a second active stream");
+        foreach (int stagger in new[] {8, 11, 13, 16})
+        {
+            var phased = Enumerable.Range(0, 16).SelectMany(n=>new[] {
+                new MiningStatusRings.Pull(now.AddSeconds(n*24),54,"Bitumens",false),
+                new MiningStatusRings.Pull(now.AddSeconds(n*24+stagger),54,"Bitumens",false) }).ToArray();
+            var rows = MiningStatusRings.Build(2,false,false,phased,now.AddSeconds(16*24-1));
+            Check(rows.All(r=>r.CycleText=="24s" && r.Accent=="#65D5B6"),
+                $"Staggered identical miners ({stagger}s offset) both retain their full cycle");
+            var continuing = phased.Concat(Enumerable.Range(16,4).Select(n=>new MiningStatusRings.Pull(now.AddSeconds(n*24),54,"Bitumens",false)));
+            rows=MiningStatusRings.Build(2,false,false,continuing,now.AddSeconds(19*24+1));
+            Check(rows.Count(r=>r.Accent=="#E88991")==1 && rows.Count(r=>r.Accent=="#65D5B6")==1,
+                $"Staggered miners ({stagger}s offset) keep the stopped stream separate");
+        }
+        int[] replay0 = new[] {0,13,24,37,48,62,72,86,96,110,120,134,144,159,170,183,194,207,218,231,242,255,266,279,290,303,315,327,339,351,363,375,387,400,411,424,436,448,460};
+        int[] replay1 = new[] {0,8,24,33,48,57,72,81,96,105,120,129,145,154,170,178,194,202,218,226,242,250,266,274,290,298,315,323,339,347,363,371,387,396,412,420,436,444,460,469};
+        foreach(var offsets in new[] {replay0,replay1})
+        {
+            var replay=offsets.Select(t=>new MiningStatusRings.Pull(now.AddSeconds(t),54,"Bitumens",false)).ToArray();
+            bool stable=true;
+            for(int second=120;second<=offsets[^1];second++)
+            {
+                var rows=MiningStatusRings.Build(2,false,false,replay,now.AddSeconds(second));
+                stable &= rows.All(r=>r.Accent=="#65D5B6" && double.TryParse(r.CycleText.TrimEnd('s'), out var cycle) && cycle>=23 && cycle<=25);
+            }
+            Check(stable,"Recorded staggered mining cadence remains green and visible at every replayed second");
+        }
         var ship = new EveCurrentShipView {ShipItemId=100, ShipTypeId=28606};
         var assets = new List<EveAssetItem> {
             new() {ItemId=100, TypeId=28606},
@@ -114,6 +144,11 @@ internal static partial class Program
         var fleet = MiningHoldSnapshots.ReadAsync(ship, assets, now, Type).GetAwaiter().GetResult();
         Check(fleet.Complete && fleet.UsedM3 == 16 && fleet.BaseCapacityM3 == 40000,
             "Fleet snapshot uses direct hold contents and packaged/singleton volume without nested double counting");
+        assets.Add(new() {ItemId=204,TypeId=1,LocationId=100,LocationFlag="SpecializedOreHold",Quantity=500,IsSingleton=false});
+        Task<EveUniverseType> MiningType(int id) => id==28606 ? Task.FromResult(new EveUniverseType {DogmaAttributes=new() {new() {AttributeId=1556,Value=150000}}}) : Type(id);
+        var miningInventory=MiningHoldSnapshots.ReadAsync(ship,assets,now,MiningType,"SpecializedOreHold",1556).GetAwaiter().GetResult();
+        Check(miningInventory.Complete && miningInventory.UsedM3==1000 && miningInventory.BaseCapacityM3==150000,
+            "Orca mining inventory includes compressed cargo already aboard and excludes fleet/cargo holds");
         assets.RemoveAt(0);
         Check(!MiningHoldSnapshots.ReadAsync(ship, assets, now, Type).GetAwaiter().GetResult().Complete,
             "Ship absent from snapshot cannot be declared an empty fleet hangar");

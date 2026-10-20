@@ -5,7 +5,7 @@ namespace EveCommandCenter.Services;
 internal static class MiningHoldSnapshots
 {
     internal static async Task<EveShipHoldSnapshot> ReadAsync(EveCurrentShipView ship, IReadOnlyList<EveAssetItem> assets,
-        DateTimeOffset observed, Func<int, Task<EveUniverseType>> typeLookup)
+        DateTimeOffset observed, Func<int, Task<EveUniverseType>> typeLookup, string flag = "FleetHangar", int capacityAttribute = 912)
     {
         var hull = await typeLookup(ship.ShipTypeId);
         bool shipPresent = assets.Any(a => a.ItemId == ship.ShipItemId && a.TypeId == ship.ShipTypeId);
@@ -37,10 +37,10 @@ internal static class MiningHoldSnapshots
             return new() { UsedM3 = used, BaseCapacityM3 = capacity, Complete = complete, ObservedUtc = observed,
                 Detail = complete ? "Cached inventory; base hull capacity excludes skills and fittings" : "Some item volumes could not be resolved" };
         }
-        return await Hold("FleetHangar", 912);
+        return await Hold(flag, capacityAttribute);
     }
     internal sealed record Row(string Label, string VolumeText, double Percent, string Accent, string Detail);
-    internal static Row Present(string label, EveShipHoldSnapshot hold, DateTimeOffset now)
+    internal static Row Present(string label, EveShipHoldSnapshot hold, DateTimeOffset now, bool adjustedCapacity = false)
     {
         bool stale = hold.ObservedUtc == default || hold.ObservedUtc < now.AddMinutes(-15) || hold.ObservedUtc > now.AddMinutes(5);
         bool known = hold.Complete && double.IsFinite(hold.UsedM3) && hold.UsedM3 >= 0 && double.IsFinite(hold.BaseCapacityM3) && hold.BaseCapacityM3 > 0;
@@ -51,7 +51,7 @@ internal static class MiningHoldSnapshots
             !known || stale ? "#829C9F" : fraction >= .8 ? "#D7B66B" : "#65CBB9",
             $"{label}: {(known ? $"{hold.UsedM3:N1} / {hold.BaseCapacityM3:N1} m\u00b3 capacity" : "Unknown volume")}\n" +
             (hold.ObservedUtc == default ? "No asset snapshot. " : $"Assets fetched {hold.ObservedUtc.ToLocalTime():dd MMM HH:mm}. ") +
-            "ESI-cached, not live. Capacity excludes skill and fitting bonuses.\n" + hold.Detail +
+            "ESI-cached, not live. " + (adjustedCapacity ? "Capacity includes pilot skill bonuses.\n" : "Capacity excludes skill and fitting bonuses.\n") + hold.Detail +
             (fraction > 1 ? "\nVolume exceeds base capacity; this does not imply the in-game hold is full." : ""));
     }
 }

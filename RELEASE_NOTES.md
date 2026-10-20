@@ -1,3 +1,9 @@
+# EVE Command Center v3.6.86
+
+- **Separate staggered mining streams.** Repeating short/long gaps now establish the full recurrence before assigning equal-yield pulls. This prevents 8/16-second and 11/13-second staggered miners from collapsing into one faster stream and causing false red/learning flicker. Recent recurrence evidence is retained within the observation window when one stream stops. Fitted count alone never creates another active stream.
+- **Orca mining inventory.** The overview now reads compressed and uncompressed contents from the Orca's mining-hold asset snapshot, separately from the fleet hangar, using pilot-adjusted capacity. It displays Cached/Old or Unavailable instead of a misleading empty-start log estimate. Existing asset refresh/cache rules apply; unlogged transfers are not live measurements. The estimate-only empty action is removed for Orca.
+- Verified with second-by-second replays of observed staggered timing, independent stops, mixed ores, critical yields, single active modules and separate hold inventory tests. Stream identities remain inferred rather than physical module slots.
+
 # EVE Command Center v3.6.85
 
 - **Full-width laser tiles.** Mining streams now divide the available card width evenly instead of using fixed-width tiles, removing the unused right-edge space. Slightly larger rings improve cycle readability while retaining the small gap between tiles.

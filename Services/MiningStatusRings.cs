@@ -20,18 +20,50 @@ internal static class MiningStatusRings
         internal DateTime Last;
         internal string Ore = "";
         internal double Yield;
+        internal double SeedCycle;
         internal List<double> Gaps = new();
-        internal double Cycle => Gaps.Count == 0 ? 0 : Gaps.TakeLast(2).Average();
+        internal double Cycle => Gaps.Count == 0 ? SeedCycle : Gaps.TakeLast(2).Average();
         internal bool Ready => Gaps.Count >= 3 && Gaps.Max() - Gaps.Min() <= Math.Max(3, Cycle * .3);
+    }
+    // A repeated short/long gap pair is two staggered pulls, not a faster module.
+    // Require observable alternation; fitted count alone must never manufacture a second stream.
+    private static Dictionary<string, double> StaggeredCadences(Pull[] observations, int fitted)
+    {
+        var result = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
+        if (fitted != 2) return result;
+        foreach (var group in observations.Where(p => !p.Critical).GroupBy(p => p.Ore, StringComparer.OrdinalIgnoreCase))
+        {
+            var pulls = group.ToArray();
+            if (pulls.Length < 10) continue;
+            double yield = pulls.Select(p=>p.Units).Order().ElementAt(pulls.Length/2);
+            pulls = pulls.Where(p=>Math.Abs(p.Units-yield)<=Math.Max(1.5,yield*.012)).ToArray();
+            if (pulls.Length < 10) continue;
+            // Keep a recently demonstrated cadence when one stream stops. Requiring the
+            // entire rolling window to remain paired would erase precisely that evidence.
+            for (int end = pulls.Length; end >= 10; end--)
+            {
+                var window = pulls.Skip(Math.Max(0,end-16)).Take(Math.Min(16,end)).ToArray();
+                var gaps = window.Zip(window.Skip(1), (a,b)=>(b.Utc-a.Utc).TotalSeconds).ToArray();
+                var pairs = gaps.Zip(gaps.Skip(1), (a,b)=>(Short:Math.Min(a,b), Long:Math.Max(a,b), Cycle:a+b)).ToArray();
+                double cycle = pairs.Select(p=>p.Cycle).Order().ElementAt(pairs.Length/2);
+                var stable = pairs.Where(p=>Math.Abs(p.Cycle-cycle)<=Math.Max(1.5,cycle*.06)).ToArray();
+                if (cycle >= 6 && stable.Length >= pairs.Length*.8 &&
+                    stable.Count(p=>p.Long-p.Short>=1.5 && p.Short<=p.Long*.9)>=Math.Max(4,pairs.Length*.25))
+                { result[group.Key]=cycle; break; }
+            }
+        }
+        return result;
     }
     internal static IReadOnlyList<Row> Build(int fitted, bool droneMining, bool muted, IEnumerable<Pull> source, DateTime now)
     {
         if (droneMining || fitted <= 0) return Array.Empty<Row>();
         fitted = Math.Min(fitted, 8);
+        var observations = source.Where(p => p.Units > 0 && double.IsFinite(p.Units) && p.Utc <= now && p.Utc >= now.AddMinutes(-10)).OrderBy(p => p.Utc).TakeLast(100).ToArray();
+        var cadence = StaggeredCadences(observations, fitted);
         var tracks = new List<Track>();
         DateTime uncertainUntil = default;
         var lastNormal = new Dictionary<string, DateTime>(StringComparer.OrdinalIgnoreCase);
-        foreach (var pull in source.Where(p => p.Units > 0 && double.IsFinite(p.Units) && p.Utc <= now && p.Utc >= now.AddMinutes(-10)).OrderBy(p => p.Utc).TakeLast(100))
+        foreach (var pull in observations)
         {
             // EVE writes critical bonus units as a second line for the same completed cycle.
             if (pull.Critical && lastNormal.TryGetValue(pull.Ore, out var normalAt) && (pull.Utc - normalAt).TotalSeconds <= 1) continue;
@@ -41,7 +73,7 @@ internal static class MiningStatusRings
             {
                 if (!string.Equals(track.Ore, pull.Ore, StringComparison.OrdinalIgnoreCase)) continue;
                 double gap = (pull.Utc - track.Last).TotalSeconds;
-                if (gap < Math.Max(6, track.Cycle * .5)) continue;
+                if (gap < Math.Max(6, track.Cycle * .65)) continue;
                 double error = Math.Abs(pull.Units - track.Yield), tolerance = Math.Max(1.5, track.Yield * .012);
                 int cycles = track.Cycle > 0 ? Math.Max(1, (int)Math.Round(gap / track.Cycle)) : 1;
                 double deviation = track.Cycle > 0 ? Math.Abs(gap - cycles * track.Cycle) : 0;
@@ -77,11 +109,11 @@ internal static class MiningStatusRings
                 if (!pull.Critical) chosen.Track.Yield = chosen.Track.Yield * .75 + pull.Units * .25;
             }
             else if (!pull.Critical && tracks.Count < fitted)
-                tracks.Add(new() { Last = pull.Utc, Yield = pull.Units, Ore = pull.Ore });
+                tracks.Add(new() { Last = pull.Utc, Yield = pull.Units, Ore = pull.Ore, SeedCycle = cadence.GetValueOrDefault(pull.Ore) });
             else if (!pull.Critical && !tracks.Any(t => t.Ore == pull.Ore) &&
                 tracks.FirstOrDefault(t => (pull.Utc - t.Last).TotalSeconds > Math.Max(30, t.Cycle + 8)) is { } replaced)
             {
-                replaced.Ore = pull.Ore; replaced.Last = pull.Utc; replaced.Yield = pull.Units; replaced.Gaps.Clear();
+                replaced.Ore = pull.Ore; replaced.Last = pull.Utc; replaced.Yield = pull.Units; replaced.Gaps.Clear(); replaced.SeedCycle = cadence.GetValueOrDefault(pull.Ore);
             }
             else
                 uncertainUntil = pull.Utc.AddSeconds(Math.Max(30, tracks.Count == 0 ? 30 : tracks.Max(t => t.Cycle) * 2));

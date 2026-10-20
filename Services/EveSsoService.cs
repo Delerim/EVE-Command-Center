@@ -636,11 +636,18 @@ public sealed class EveSsoService
         }
 
         EveShipHoldSnapshot fleetHold = new();
+        EveShipHoldSnapshot miningHoldInventory = new();
         try
         {
-            if (ship.IsOrca) fleetHold = await MiningHoldSnapshots.ReadAsync(ship, assets,
+            if (ship.IsOrca)
+            {
+                fleetHold = await MiningHoldSnapshots.ReadAsync(ship, assets,
                 _assetCache.GetValueOrDefault(pilot.CharacterId)?.ObservedUtc ?? default,
                 id => GetUniverseTypeAsync(id, cancellationToken));
+                miningHoldInventory = await MiningHoldSnapshots.ReadAsync(ship, assets,
+                    _assetCache.GetValueOrDefault(pilot.CharacterId)?.ObservedUtc ?? default,
+                    id => GetUniverseTypeAsync(id, cancellationToken), "SpecializedOreHold", 1556);
+            }
         }
         catch (OperationCanceledException) { throw; }
         catch (Exception ex) { Debug.WriteLine("[PilotFit] Hold snapshot unavailable: " + ex.GetType().Name); }
@@ -667,6 +674,7 @@ public sealed class EveSsoService
             ShieldBoost = shieldBoost,
             MiningHoldCapacityM3 = miningCapacity,
             FleetHangar = fleetHold,
+            MiningHoldInventory = miningHoldInventory,
             AssetsAvailable = true
         };
     }

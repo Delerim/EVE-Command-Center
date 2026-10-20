@@ -722,7 +722,7 @@ public partial class MiningFleetOverviewWindow : Window
     private void MiningHold_RightClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
     {
         if (sender is not FrameworkElement { DataContext: FleetCard card } element ||
-            !_pilotIntel.TryGetValue(card.Character, out var intel) || !MiningHoldCapacity.HasLiveMiningHold(intel.CurrentShip.ShipTypeId)) return;
+            !_pilotIntel.TryGetValue(card.Character, out var intel) || !MiningHoldCapacity.HasLiveMiningHold(intel.CurrentShip.ShipTypeId) || intel.IsOrca) return;
         var menu = new System.Windows.Controls.ContextMenu();
         var empty = new System.Windows.Controls.MenuItem { Header = "Mark mining hold empty" };
         empty.Click += (_, _) => { _tracker.MiningHold.Empty(card.Character, DateTime.UtcNow); RefreshCards(); };
@@ -1086,8 +1086,13 @@ public partial class MiningFleetOverviewWindow : Window
                 Detail = r.Detail + "\nFitted crystals: " + crystalLabel + ". Crystal labels describe the fit; logs do not identify physical module slots." }).ToArray();
             var holdRows = new List<MiningHoldSnapshots.Row>();
             void AppendHold(string name, EveShipHoldSnapshot hold)
-            { if (hold.Supported) holdRows.Add(MiningHoldSnapshots.Present(name, hold, DateTimeOffset.UtcNow)); }
-            if (shipIntel != null && MiningHoldCapacity.HasLiveMiningHold(shipIntel.CurrentShip.ShipTypeId))
+            { if (hold.Supported) holdRows.Add(MiningHoldSnapshots.Present(name, hold, DateTimeOffset.UtcNow, name == "Mining" && isOrca)); }
+            if (isOrca && shipIntel != null)
+            {
+                var inventory = shipIntel.MiningHoldInventory;
+                AppendHold("Mining", new EveShipHoldSnapshot { Supported = inventory.Supported, Complete = inventory.Complete, UsedM3 = inventory.UsedM3, BaseCapacityM3 = shipIntel.MiningHoldCapacityM3, ObservedUtc = inventory.ObservedUtc, Detail = "Mining-hold inventory with pilot-adjusted capacity. Transfers are not recorded by mining logs." });
+            }
+            else if (shipIntel != null && MiningHoldCapacity.HasLiveMiningHold(shipIntel.CurrentShip.ShipTypeId))
             {
                 _tracker.MiningHold.Configure(character, shipIntel.CurrentShip.ShipItemId, DateTime.UtcNow);
                 holdRows.Add(_tracker.MiningHold.Present(character, shipIntel.MiningHoldCapacityM3, ore =>
