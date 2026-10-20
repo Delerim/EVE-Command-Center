@@ -32,7 +32,7 @@ public partial class CommandCenterWindow
             _nextProductionMaterials = DateTimeOffset.UtcNow.AddSeconds(30);
         }
         var projects = workspace.Projects.Where(p => !p.Archived).ToArray();
-        DashboardProjects.Text = ops.IndustryWorkspace.Error.Length > 0 ? "Project data unavailable" : $"{projects.Length:N0} projects | {projects.Count(p => p.Paused):N0} paused\n{projects.Sum(p => p.Nodes.Count(n => n.ActualJob != null)):N0} linked EVE jobs";
+        DashboardProjects.Text = ops.IndustryWorkspace.Error.Length > 0 ? "Project data unavailable" : $"{projects.Length:N0} projects | {projects.Count(p => p.Paused):N0} paused\n{projects.Sum(p => p.Nodes.Sum(n => IndustryJobMatching.LinkedJobs(n).Count())):N0} linked EVE jobs";
         DashboardProjectNames.Text = projects.Length == 0 ? "Create a build in Industry > Production Queue." : string.Join(" / ", projects.Take(5).Select(p => p.Name)) + (projects.Length > 5 ? " / ..." : "");
         DashboardSync.Text = ops.SyncSettings.Error.Length > 0 ? ops.SyncSettings.Error : "Choose automatic sync and independent dashboard visibility in Command Center Setup.";
     }

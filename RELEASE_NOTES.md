@@ -1,3 +1,11 @@
+# EVE Command Center v3.6.78
+
+- **Multiple manufacturing batches per component.** Link several EVE jobs without replacing earlier associations. Each job remains exclusive to one component across all projects; relinking the same batch does not duplicate output.
+- **Inspect and unlink individual batches.** Assign & track distinguishes linked batches from candidates, shows expected output units alongside runs, and retains saved links when they disappear from current snapshots. Unlink selected batch leaves the others intact.
+- **Combined production quantities.** Production & delivery totals all linked batches by stage, including partial runs and surplus. A missing or stale batch keeps totals Unknown rather than claiming complete coverage. Manufacturing, collection, stock reservations and confirmed receipts remain separate.
+- The dashboard counts linked jobs across every batch. Existing builder and selected-blueprint checks remain in force; this does not yet split one component between multiple builders or different selected blueprint instances.
+- Adding another batch upgrades the workspace to schema 3 in the existing storage. Earlier single-job plans remain readable, while older app versions refuse the newer payload rather than discard batch links. Delivery confirmations preserve this version. Consumption, automatic historical job-transition capture and realized profit remain future work.
+
 # EVE Command Center v3.6.77
 
 - **Moon drill refresh no longer shows false unscheduled drills.** Apply the complete extraction list before asynchronous moon-name lookups. Previously the drill timer could redraw midway through refresh, showing 64 running and 63 not set even though all 127 schedules were present. Genuine missing schedules remain distinguishable; no schedules are invented.

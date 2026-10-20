@@ -48,6 +48,7 @@ public sealed class IndustryProjectNode
     public long? BlueprintLocationId { get; set; }
     public long? BlueprintRunsAvailable { get; set; }
     public IndustryJobLink? ActualJob { get; set; }
+    public List<IndustryJobLink> AdditionalJobs { get; set; } = new();
     public bool TransferNeeded { get; set; }
     public string TransferNote { get; set; } = "";
     public Guid? PlannedJobId { get; set; }

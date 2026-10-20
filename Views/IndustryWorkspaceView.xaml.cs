@@ -191,7 +191,7 @@ public partial class IndustryWorkspaceView : System.Windows.Controls.UserControl
         JobFacility.Text = node.PlannedJobFacilityId?.ToString() ?? "";
         PlannedJobStatus.ToolTip = null;
         PlannedJobPanel.IsEnabled = node.ActualJob == null;
-        PlannedJobStatus.Text = node.ActualJob != null ? $"EVE job linked to {Pilot(node.ActualJob.InstallerId)}. Unlink it below before changing this assignment." : node.PlannedJobId.HasValue
+        PlannedJobStatus.Text = node.ActualJob != null ? $"{IndustryJobMatching.LinkedJobs(node).Count()} EVE batches linked to {Pilot(node.ActualJob.InstallerId)}. Unlink all batches before changing this assignment." : node.PlannedJobId.HasValue
             ? $"Assigned to {Pilot(node.ExecutorId)} | {node.PlannedRuns:N0} runs | {node.PlannedOutput:N0} units. Waiting for an EVE job to be linked."
             : "Choose the builder above, then save who will build this component.";
         RefreshComponentDetails(node);
@@ -220,11 +220,15 @@ public partial class IndustryWorkspaceView : System.Windows.Controls.UserControl
         ComponentBlueprintOwner.SelectedIndex = 0;
         RefreshComponentBlueprintLocations();
         ComponentBlueprintHint.Text = node.BlueprintItemId.HasValue ? $"Selected instance | {Pilot(node.BlueprintOwnerId)} | ME {node.MaterialEfficiency}%" : "Select an owned instance to apply its ME and runs. Location and availability remain visible per copy.";
-        var jobs = ReadJobs().Where(j => j.ProductTypeId == node.TypeId && j.BlueprintTypeId == node.BlueprintTypeId).OrderByDescending(j => j.StartUtc).ToArray();
-        ExistingJobs.ItemsSource = jobs.Select(j => new JobRow(j, Pilot(j.InstallerId), FacilityName(j.OwnerId, j.FacilityId))).ToArray();
+        var savedJobs = IndustryJobMatching.LinkedJobs(node).ToArray();
+        var observedJobs = ReadJobs().Where(j => j.ProductTypeId == node.TypeId && j.BlueprintTypeId == node.BlueprintTypeId).ToArray();
+        var jobs = observedJobs.Concat(savedJobs.Where(saved => !observedJobs.Any(j => j.OwnerId == saved.OwnerId && j.JobId == saved.JobId)))
+            .OrderByDescending(j => savedJobs.Any(saved => saved.OwnerId == j.OwnerId && saved.JobId == j.JobId)).ThenByDescending(j => j.StartUtc).ToArray();
+        ExistingJobs.ItemsSource = jobs.Select(j => new JobRow(j, Pilot(j.InstallerId), FacilityName(j.OwnerId, j.FacilityId),
+            savedJobs.Any(saved => saved.OwnerId == j.OwnerId && saved.JobId == j.JobId), observedJobs.Contains(j))).ToArray();
         ActualJobPanel.Visibility = node.Strategy == "Make" && node.BlueprintTypeId.HasValue ? Visibility.Visible : Visibility.Collapsed;
-        ActualJobStatus.Text = node.ActualJob == null ? (jobs.Length == 0 ? "No matching jobs in the current authorized snapshots. Refresh Industry after starting the job in EVE." : "Candidates share this product and blueprint type. Inspect the evidence, then explicitly link your job.") :
-            jobs.FirstOrDefault(j => j.JobId == node.ActualJob.JobId) is {} current && IndustryWorkspaceInventory.Recent(current.SnapshotUtc, DateTimeOffset.UtcNow) ? $"Linked | {Pilot(current.InstallerId)} | {IndustryJobMatching.Describe(current)}" : "Link retained | current job observation unavailable or stale. Completion and delivery are unverified.";
+        ActualJobStatus.Text = savedJobs.Length == 0 ? (jobs.Length == 0 ? "No matching jobs in the current snapshots. Refresh Industry after starting a job in EVE." : "Select a manufacturing batch to link to this component.") :
+            $"{savedJobs.Length} batches linked. Link another batch or select one to unlink. Each EVE job can belong to only one component.";
         JobEvidence.Text = "Select a row to review the blueprint, installer, facility and timing.";
         MatchJobButton.IsEnabled = false;
         TransferNeeded.IsChecked = node.TransferNeeded; TransferNote.Text = node.TransferNote;
@@ -264,7 +268,7 @@ public partial class IndustryWorkspaceView : System.Windows.Controls.UserControl
         if (ExistingJobs.SelectedItem is not JobRow row) { MatchJobButton.IsEnabled = false; return; }
         var j = row.Link;
         JobEvidence.Text = $"{IndustryCatalog.Name(j.BlueprintTypeId)}\nInstaller: {row.Owner} | {row.Facility}\n{j.StartUtc.UtcDateTime:dd MMM HH:mm} to {j.EndUtc.UtcDateTime:dd MMM HH:mm} EVE | {j.Runs:N0} runs\nObserved {j.SnapshotUtc.UtcDateTime:dd MMM HH:mm} EVE. Partial batches and surplus do not change reserved or delivered stock.";
-        MatchJobButton.IsEnabled = IndustryWorkspaceInventory.Recent(j.SnapshotUtc, DateTimeOffset.UtcNow);
+        MatchJobButton.IsEnabled = row.Observed && IndustryWorkspaceInventory.Recent(j.SnapshotUtc, DateTimeOffset.UtcNow);
     }
     private void MatchJob_Click(object sender, RoutedEventArgs e) => Action(() =>
     {
@@ -273,7 +277,12 @@ public partial class IndustryWorkspaceView : System.Windows.Controls.UserControl
         if (latest == null || latest != row.Link) throw new InvalidOperationException("Job evidence changed. Reload and review it before linking.");
         _store.MatchJob(id, node.Id, latest, LinkedIds, DateTimeOffset.UtcNow);
     }, "EVE job linked explicitly. Stock, consumption and delivery remain separate.");
-    private void UnmatchJob_Click(object sender, RoutedEventArgs e) => Action(() => { if (_projectId is {} id && Node is {} node) _store.UnmatchJob(id, node.Id); }, "EVE job unlinked; history retained.");
+    private void UnmatchJob_Click(object sender, RoutedEventArgs e) => Action(() =>
+    {
+        if (_projectId is not {} id || Node is not {} node || ExistingJobs.SelectedItem is not JobRow { Linked: true } row)
+            throw new InvalidOperationException("Select a linked batch to unlink.");
+        _store.UnmatchJob(id, node.Id, row.Link.JobId);
+    }, "Selected batch unlinked; other batches and history retained.");
     private void Transfer_Click(object sender, RoutedEventArgs e) => Action(() => { if (_projectId is {} id && Node is {} node) _store.MarkTransfer(id, node.Id, TransferNeeded.IsChecked == true, TransferNote.Text); }, "Transfer requirement saved; no delivery inferred.");
     private sealed record InputRow(Guid Id, string Name, int TypeId, long Quantity, string Strategy, decimal Reserved, string Free)
     {
@@ -285,8 +294,8 @@ public partial class IndustryWorkspaceView : System.Windows.Controls.UserControl
         public string StockColor => Available == null ? "#A5BBC1" : Quantity - Reserved - Available > 0 ? "#EDAD83" : "#76D7CB";
         public string StockStatus => Available == null ? "Check inventory" : Quantity - Reserved - Available > 0 ? "Shortfall" : "Stock covers demand";
     }
-    private sealed record JobRow(IndustryJobLink Link, string Owner, string Facility)
-    { public string Status => IndustryJobMatching.Describe(Link); public string End => Link.EndUtc.UtcDateTime.ToString("dd MMM HH:mm"); }
+    private sealed record JobRow(IndustryJobLink Link, string Owner, string Facility, bool Linked, bool Observed)
+    { public string Output => IndustryJobMatching.OutputUnits(Link)?.ToString("N0") ?? "Unknown"; public decimal? OutputQuantity => IndustryJobMatching.OutputUnits(Link); public string Association => Linked ? "Linked" : "Candidate"; public string Status => Observed ? IndustryJobMatching.Describe(Link) : "Saved evidence; refresh to check"; public string End => Link.EndUtc.UtcDateTime.ToString("dd MMM HH:mm"); }
     private void StockOwner_Changed(object sender, SelectionChangedEventArgs e) => RefreshStockLocations();
     private void StockLocation_Changed(object sender, SelectionChangedEventArgs e) { if (_initialized) RefreshStock(); }
     private void RefreshStockLocations()

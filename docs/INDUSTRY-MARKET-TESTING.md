@@ -84,3 +84,12 @@ The brief defines five phases, A through E. All five have now been started; no a
 - A root receipt covering the required output changes the project card to Delivered; child-only receipts do not finish the parent. Paused/archived labels take precedence. Delivery does not assert consumption or profit.
 - Link a partial manufacturing job: In production uses actual runs times product output. Only ESI ready status populates To collect. ESI delivered requires explicit project receipt. Stale/missing job observations show Unknown, never assumed completion.
 - One EVE job per component is still the limit. Multiple batch reconciliation, consumption and realized profit are not complete phases in this patch.
+
+
+## v3.6.78 - Multiple manufacturing batches
+
+A component retains its original ActualJob plus AdditionalJobs. Linking another batch no longer replaces the first. The workspace upgrades to schema 3 only when adding an additional link; older payloads remain compatible. Delivery updates retain the highest schema version. Global uniqueness, immutable job identity, fresh observations, selected blueprint and executor checks apply to all batches. Removing the primary link promotes a remaining batch; ambiguous bulk unlinking is refused. JSON/SQLite persistence and existing audit are reused.
+
+Production & delivery sums recipe output per actual run across all linked observations. Unknown/stale batches make stage totals Unknown, preserving conservative semantics. Surplus is visible without increasing required demand or receipts. The inspector shows Linked/Candidate, expected output and saved-only evidence, and requires selecting the exact batch to unlink. Dashboard job counts include all batches.
+
+Test: link two matching jobs with different statuses; verify separate production/collection totals, relink without duplication, restart, then unlink one while retaining the other. Attempt sharing an additional batch across projects and changing its identity: both must fail. A missing current observation must remain visible as saved evidence and must not become a fresh candidate. Confirm a delivery after adding batches: receipts stay separate and schema 3 persists. Builder and selected blueprint remain fixed for a component; multi-builder splitting, automatic permanent job-transition capture, consumption and realized profit are still outstanding.

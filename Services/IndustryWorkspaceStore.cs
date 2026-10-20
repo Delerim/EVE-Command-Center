@@ -30,7 +30,7 @@ public sealed class IndustryWorkspaceStore
     {
         string json = File.ReadAllText(path);
         using var doc = JsonDocument.Parse(json);
-        Require(doc.RootElement.TryGetProperty("SchemaVersion", out var version) && version.GetInt32() is 1 or 2, "Missing or unsupported planning schema; use a compatible application version.");
+        Require(doc.RootElement.TryGetProperty("SchemaVersion", out var version) && version.GetInt32() is 1 or 2 or 3, "Missing or unsupported planning schema; use a compatible application version.");
         var state = JsonSerializer.Deserialize<IndustryWorkspace>(json) ?? throw new InvalidDataException("Empty planning document.");
         Validate(state); return state;
     }
@@ -78,7 +78,7 @@ public sealed class IndustryWorkspaceStore
                 {
                     using var document = JsonDocument.Parse(File.ReadAllText(_path));
                     if (document.RootElement.TryGetProperty("SchemaVersion", out var version))
-                        Require(version.GetInt32() <= 2, "This file belongs to a newer schema; do not downgrade it using an old backup.");
+                        Require(version.GetInt32() <= 3, "This file belongs to a newer schema; do not downgrade it using an old backup.");
                 }
                 catch (JsonException) { }
             }
@@ -226,14 +226,34 @@ public sealed class IndustryWorkspaceStore
             Require(IndustryJobMatching.Valid(job) && IndustryWorkspaceInventory.Recent(job.SnapshotUtc, now), "A recent complete job observation is required.");
             Require(node.ExecutorId == null || node.ExecutorId == job.InstallerId, "Choose the job's executing character before matching.");
             Require(node.BlueprintItemId == null || node.BlueprintItemId == job.BlueprintItemId, "This job used a different blueprint instance.");
-            Require(!s.Projects.SelectMany(x => x.Nodes).Any(n => n.Id != nodeId && n.ActualJob?.JobId == job.JobId),
+            Require(!s.Projects.SelectMany(x => x.Nodes).Any(n => n.Id != nodeId && IndustryJobMatching.LinkedJobs(n).Any(j => j.JobId == job.JobId)),
                 "This EVE job is already linked to another component. Unlink it there first.");
-            node.ActualJob = job; node.ExecutorId = job.InstallerId;
+            var existing = IndustryJobMatching.LinkedJobs(node).FirstOrDefault(j => j.JobId == job.JobId);
+            Require(existing == null || (IndustryJobMatching.SameIdentity(existing, job) && job.SnapshotUtc >= existing.SnapshotUtc),
+                "This job's identity changed or its observation is older than the saved evidence. Reload and review it.");
+            if (node.ActualJob == null || node.ActualJob.JobId == job.JobId) node.ActualJob = job;
+            else
+            {
+                node.AdditionalJobs.RemoveAll(j => j.JobId == job.JobId);
+                node.AdditionalJobs.Add(job);
+                s.SchemaVersion = 3;
+            }
+            node.ExecutorId = job.InstallerId;
         }, $"Manually matched EVE job {job.JobId} to component {nodeId}; no stock, consumption or transfer inferred. Evidence: {JsonSerializer.Serialize(job)}", projectId);
     }
-    public void UnmatchJob(Guid projectId, Guid nodeId) => Change(s =>
-        Project(s, projectId).Nodes.Single(n => n.Id == nodeId).ActualJob = null,
-        "Removed EVE job association; previous matching evidence remains in event history.", projectId);
+    public void UnmatchJob(Guid projectId, Guid nodeId, long? jobId = null) => Change(s =>
+    {
+        var project = Project(s, projectId);
+        Require(!project.Archived, "Reopen the project before unlinking a job.");
+        var node = project.Nodes.Single(n => n.Id == nodeId);
+        var jobs = IndustryJobMatching.LinkedJobs(node).ToList();
+        Require(jobId.HasValue || jobs.Count <= 1, "Select the batch to unlink; other batches will be retained.");
+        long? selected = jobId ?? node.ActualJob?.JobId;
+        Require(selected == null || jobs.Any(j => j.JobId == selected), "The selected job is not linked to this component.");
+        jobs.RemoveAll(j => j.JobId == selected);
+        node.ActualJob = jobs.FirstOrDefault();
+        node.AdditionalJobs = jobs.Skip(1).ToList();
+    }, "Removed selected EVE job association; other batches and previous evidence retained.", projectId);
     public void MarkTransfer(Guid projectId, Guid nodeId, bool needed, string note) => Change(s =>
     {
         var p = Project(s, projectId); Require(!p.Archived, "Reopen the project before editing.");
@@ -304,7 +324,7 @@ public sealed class IndustryWorkspaceStore
                     DeliveryNote = note.Trim()
                 });
             }
-            s.SchemaVersion = 2; // Older clients must refuse edits rather than discard delivery evidence.
+            s.SchemaVersion = Math.Max(s.SchemaVersion, 2); // Older clients must refuse edits rather than discard delivery evidence.
         }, $"Confirmed {quantity:N0} delivered to {destination.Owner}. {note.Trim()} Stock remains reserved; consumption is not inferred.", projectId);
     }
     public void UndoDelivery(Guid reservationId)
@@ -338,15 +358,16 @@ public sealed class IndustryWorkspaceStore
     private static IndustryProject Project(IndustryWorkspace state, Guid id) => state.Projects.Single(p => p.Id == id);
     internal static void Validate(IndustryWorkspace state)
     {
-        Require(state.SchemaVersion is 1 or 2, "Unsupported planning schema; use a compatible application version.");
+        Require(state.SchemaVersion is 1 or 2 or 3, "Unsupported planning schema; use a compatible application version.");
         Require(state.Revision >= 0, "Invalid planning revision.");
         Require(state.Projects.Select(p => p.Id).Distinct().Count() == state.Projects.Count, "Duplicate project IDs.");
         var allNodes = state.Projects.SelectMany(p => p.Nodes).ToArray();
         Require(allNodes.Select(n => n.Id).Distinct().Count() == allNodes.Length, "Duplicate node IDs.");
-        var actualJobs = allNodes.Where(n => n.ActualJob != null).ToArray();
-        Require(actualJobs.Select(n => n.ActualJob!.JobId).Distinct().Count() == actualJobs.Length, "Duplicate EVE job links.");
-        Require(actualJobs.All(n => IndustryJobMatching.Valid(n.ActualJob!) && n.TypeId == n.ActualJob!.ProductTypeId &&
-            n.BlueprintTypeId == n.ActualJob.BlueprintTypeId && n.ExecutorId == n.ActualJob.InstallerId && n.Strategy == "Make"), "Invalid EVE job association.");
+        Require(allNodes.All(n => n.AdditionalJobs != null && (n.AdditionalJobs.Count == 0 || (state.SchemaVersion >= 3 && n.ActualJob != null))), "Invalid manufacturing batch collection.");
+        var actualJobs = allNodes.SelectMany(n => IndustryJobMatching.LinkedJobs(n).Select(j => (Node: n, Job: j))).ToArray();
+        Require(actualJobs.Select(x => x.Job.JobId).Distinct().Count() == actualJobs.Length, "Duplicate EVE job links.");
+        Require(actualJobs.All(x => IndustryJobMatching.Valid(x.Job) && x.Node.TypeId == x.Job.ProductTypeId &&
+            x.Node.BlueprintTypeId == x.Job.BlueprintTypeId && x.Node.ExecutorId == x.Job.InstallerId && x.Node.Strategy == "Make"), "Invalid EVE job association.");
         var plannedJobs = allNodes.Where(n => n.PlannedJobId.HasValue).ToArray();
         Require(plannedJobs.Select(n => n.PlannedJobId).Distinct().Count() == plannedJobs.Length,
             "Duplicate planned job IDs.");

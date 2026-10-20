@@ -20,21 +20,17 @@ public static class IndustryProductionProgress
         decimal reserved = reservations.Sum(r => (decimal)r.Quantity), delivered = reservations.Sum(r => (decimal)r.DeliveredQuantity);
         decimal? production = 0, collection = 0;
         string status = node.PlannedJobId.HasValue ? "Assigned; no EVE job linked" : "No EVE job linked";
-        if (node.ActualJob is {} linked)
+        var statuses = new List<string>();
+        foreach (var linked in IndustryJobMatching.LinkedJobs(node))
         {
-            var current = observations.FirstOrDefault(j => j.OwnerId == linked.OwnerId && j.JobId == linked.JobId &&
-                j.BlueprintItemId == linked.BlueprintItemId && j.ProductTypeId == node.TypeId && j.InstallerId == linked.InstallerId &&
-                j.BlueprintTypeId == linked.BlueprintTypeId && j.Runs == linked.Runs && j.StartUtc == linked.StartUtc);
+            var current = observations.FirstOrDefault(j => IndustryJobMatching.SameIdentity(j, linked));
             if (current == null || !IndustryWorkspaceInventory.Recent(current.SnapshotUtc, now))
             { production = collection = null; status = "Refresh Industry to check linked job"; }
             else
             {
-                var recipe = IndustryCatalog.Recipes.FirstOrDefault(r => r.Blueprint == current.BlueprintTypeId && r.Activity == "manufacturing");
-                double perRun = recipe?.Products.GetValueOrDefault(node.TypeId) ?? 0;
-                decimal? output = perRun > 0 && double.IsFinite(perRun) && perRun <= (double)decimal.MaxValue / current.Runs
-                    ? (decimal)perRun * current.Runs : null;
-                if (current.Status is "active" or "paused") production = output;
-                if (current.Status == "ready") collection = output;
+                decimal? output = IndustryJobMatching.OutputUnits(current);
+                if (current.Status is "active" or "paused") production += output;
+                if (current.Status == "ready") collection += output;
                 status = current.Status switch
                 {
                     "active" => "Manufacturing", "paused" => "Job paused", "ready" => "Collect in EVE",
@@ -42,7 +38,9 @@ public static class IndustryProductionProgress
                     _ => "Job cancelled / reverted"
                 };
             }
+            statuses.Add(status);
         }
+        if (statuses.Count > 1) status = string.Join(" | ", statuses.GroupBy(x => x).Select(g => $"{g.Count()} {g.Key}"));
         return new(node.Id, node.TypeId, IndustryCatalog.HasName(node.TypeId) ? IndustryCatalog.Name(node.TypeId) : node.Name,
             node.Quantity, reserved, delivered, production, collection, status,
             delivered >= node.Quantity ? "Delivered" : delivered > 0 ? "Partially delivered" : "Not delivered");

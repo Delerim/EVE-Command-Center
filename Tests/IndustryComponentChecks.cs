@@ -33,6 +33,56 @@ internal static partial class Program
         Check(Reject(() => store.MatchJob(second, secondRoot.Id, job, linked, now)), "One EVE job cannot satisfy two project nodes");
         Check(Reject(() => store.EditNode(project, root.Id, 10, 43, "Make", "", linked)) &&
             Reject(() => store.SelectBlueprint(project, root.Id, bp)), "Linked manufacturing evidence cannot be silently reassigned or recalculated away");
+        var batchTwo = job with { JobId = 123457, Runs = 3, Status = "ready" };
+        store.MatchJob(project, root.Id, batchTwo, linked, now);
+        var batches = store.Snapshot();
+        var batchNode = batches.Projects.Single(p => p.Id == project).Nodes[0];
+        Check(batches.SchemaVersion == 3 && IndustryJobMatching.LinkedJobs(batchNode).Count() == 2 && batchNode.ActualJob == job,
+            "Adding a second batch preserves the original association and upgrades workspace compatibility");
+        var progress = IndustryProductionProgress.Build(batchNode, batches, new[] { job, batchTwo }, now);
+        Check(progress.InProduction == 4 && progress.AwaitingCollection == 3 && progress.Delivered == 0 && progress.Reserved == 0,
+            "Multiple batches aggregate each production stage without manufacturing stock or receipts");
+        var third = job with { JobId = 123458, Runs = 8 };
+        store.MatchJob(project, root.Id, third, linked, now);
+        batchNode = store.Snapshot().Projects.Single(p => p.Id == project).Nodes[0];
+        progress = IndustryProductionProgress.Build(batchNode, store.Snapshot(), new[] { job, batchTwo, third }, now);
+        Check(progress.InProduction == 12 && progress.Required == 10 && progress.StillToDeliver == 10,
+            "Batch surplus remains visible without expanding demand or implying delivery");
+        store.MatchJob(project, root.Id, third, linked, now);
+        Check(IndustryJobMatching.LinkedJobs(store.Snapshot().Projects.Single(p => p.Id == project).Nodes[0]).Count() == 3,
+            "Relinking the same batch never duplicates output");
+        Check(Reject(() => store.MatchJob(second, secondRoot.Id, batchTwo, linked, now)), "Additional batches cannot be shared across projects");
+        Check(Reject(() => store.MatchJob(project, root.Id, third with { Runs = 9 }, linked, now)), "An existing batch cannot silently change immutable identity");
+        Check(Reject(() => store.UnmatchJob(project, root.Id)), "Multiple batches require selecting the exact job to unlink");
+        progress = IndustryProductionProgress.Build(batchNode, batches, new[] { job, batchTwo }, now);
+        Check(progress.InProduction == null && progress.AwaitingCollection == null, "A missing linked batch prevents a falsely complete total");
+        var reopenedBatches = new IndustryWorkspaceStore(Path.Combine(folder, "component-flow"));
+        Check(reopenedBatches.Error == "" && IndustryJobMatching.LinkedJobs(reopenedBatches.Snapshot().Projects.Single(p => p.Id == project).Nodes[0]).Count() == 3,
+            "All batch links survive reopening");
+        var finishedStock = new IndustryStockSource(42, "Builder", 777, root.TypeId, 60003760, "Hangar", "Assembly", 1, now, true, "Observed");
+        store.Reserve(project, root.Id, finishedStock, 1, now, new[] { finishedStock });
+        var receipt = store.Snapshot().Reservations.Single().Id;
+        store.ConfirmDelivery(receipt, finishedStock, 1, "Checked at assembly", now, new[] { finishedStock });
+        Check(store.Snapshot().SchemaVersion == 3, "Recording a receipt cannot downgrade the multi-batch workspace schema");
+        new IndustryLedger(Path.Combine(folder, "component-flow")).Ensure();
+        Check(IndustryJobMatching.LinkedJobs(new IndustryWorkspaceStore(Path.Combine(folder, "component-flow")).Snapshot().Projects.Single(p => p.Id == project).Nodes[0]).Count() == 3,
+            "Batch associations survive authoritative SQLite migration");
+        store.UndoDelivery(receipt); store.Release(receipt);
+        var batchView = new EveCommandCenter.Views.IndustryWorkspaceView();
+        batchView.Initialize(store, () => Array.Empty<IndustryPilot>(), new());
+        var batchGrid = (System.Windows.Controls.DataGrid)batchView.FindName("ExistingJobs");
+        Check(batchGrid.Items.Count == 3 && batchGrid.Items.Cast<object>().All(r => (bool)r.GetType().GetProperty("Linked")!.GetValue(r)!),
+            "Inspector retains every saved linked batch when current EVE observations are absent");
+        batchGrid.SelectedIndex = 1;
+        Check(!((System.Windows.Controls.Button)batchView.FindName("MatchJobButton")).IsEnabled,
+            "Saved-only batch evidence cannot be offered as a fresh linking observation");
+        store.UnmatchJob(project, root.Id, job.JobId);
+        batchNode = store.Snapshot().Projects.Single(p => p.Id == project).Nodes[0];
+        Check(batchNode.ActualJob == batchTwo && batchNode.AdditionalJobs.Single() == third,
+            "Unlinking the original batch promotes a remaining link and preserves other batches");
+        store.UnmatchJob(project, root.Id, third.JobId);
+        store.UnmatchJob(project, root.Id, batchTwo.JobId);
+        store.MatchJob(project, root.Id, job, linked, now);
         store.MarkTransfer(project, root.Id, true, "Builder to assembly hangar");
         Check(store.Snapshot().Projects.Single(p => p.Id == project).Nodes[0].TransferNeeded,
             "Transfer requirement is explicit persisted intent, independent of job completion");
