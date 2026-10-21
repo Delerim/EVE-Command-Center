@@ -1301,7 +1301,7 @@ public partial class MiningFleetOverviewWindow : Window
                 StatusRings = rings,
                 CompactClassicVisibility = !_prefs.ShowMiningCircles && rings.Count > 0 ? Visibility.Visible : Visibility.Collapsed,
                 RingsVisibility = !_prefs.ShowMiningCircles || rings.Count == 0 ? Visibility.Collapsed : Visibility.Visible,
-                LaserFallbackVisibility = !_prefs.ShowMiningCircles || rings.Count == 0 ? Visibility.Visible : Visibility.Collapsed,
+                LaserFallbackVisibility = rings.Count == 0 ? Visibility.Visible : Visibility.Collapsed,
                 HoldRows = holdRows,
                 EhpText =
                     shipIntel?.Defense.Available == true
@@ -2229,7 +2229,7 @@ public partial class MiningFleetOverviewWindow : Window
         public IReadOnlyList<MiningStatusRings.Row> StatusRings { get; set; } = Array.Empty<MiningStatusRings.Row>();
         public Visibility HoldVisibility { get; set; } = Visibility.Collapsed;
         public IReadOnlyList<MiningHoldSnapshots.Row> HoldRows { get; set; } = Array.Empty<MiningHoldSnapshots.Row>();
-        public IReadOnlyList<MiningHoldSnapshots.Row> MainHoldRows => DetailedMiningVisibility == Visibility.Visible ? HoldRows.Where(r => r.Label != "Fleet").ToArray() : HoldRows;
+        public IReadOnlyList<MiningHoldSnapshots.Row> MainHoldRows => HoldRows;
         public IReadOnlyList<MiningHoldSnapshots.Row> FleetHoldRows => HoldRows.Where(r => r.Label == "Fleet").ToArray();
         public Visibility CompactClassicVisibility { get; set; } = Visibility.Collapsed;
         public Visibility RingsVisibility { get; set; } = Visibility.Collapsed;

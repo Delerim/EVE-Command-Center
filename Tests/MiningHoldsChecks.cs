@@ -96,6 +96,8 @@ internal static partial class Program
         pulls.Add(new(now.AddSeconds(84), 80, "Ore", false));
         var stopped = MiningStatusRings.Build(2, false, false, pulls, now.AddSeconds(85));
         Check(stopped[0].Accent == "#65D5B6" && stopped[1].Accent == "#E88991", "Only the stopped stream turns red");
+        Check(stopped[0].StatusSymbol=="\u25B6" && stopped[1].StatusSymbol=="\u25A0" && stopped[1].ClassicText=="L2" && stopped[1].PulseStopped,
+            "Classic labels show play for running and pulsing stop without a stale cycle duration");
         pulls.Add(new(now.AddSeconds(86), 90, "Ore", false));
         Check(MiningStatusRings.Build(2, false, false, pulls, now.AddSeconds(87)).All(r => r.Accent == "#65D5B6"),
             "Resuming stream recovers its own ring");
@@ -219,7 +221,7 @@ internal static partial class Program
         Check(((IReadOnlyList<MiningStatusRings.Row>)pendingCard.GetType().GetProperty("StatusRings")!.GetValue(pendingCard)!).Count==2,
             "A zero-laser cached fit on an exhumer keeps log-learning rings visible");
         Check((Visibility)pendingCard.GetType().GetProperty("RingsVisibility")!.GetValue(pendingCard)! ==Visibility.Collapsed &&
-            (Visibility)pendingCard.GetType().GetProperty("LaserFallbackVisibility")!.GetValue(pendingCard)! ==Visibility.Visible,
+            (Visibility)pendingCard.GetType().GetProperty("CompactClassicVisibility")!.GetValue(pendingCard)! ==Visibility.Visible,
             "Classic text is displayed by default while circles are hidden");
         prefs.ShowMiningCircles=true;
         typeof(MiningFleetOverviewWindow).GetMethod("RefreshCards", flags)!.Invoke(window, null);
@@ -231,6 +233,7 @@ internal static partial class Program
         foreach (var classicCard in items.Items)
         {
             var classicType=classicCard.GetType();
+            classicType.GetProperty("StatusRings")!.SetValue(classicCard, stopped.Select(r => r with { CrystalText="ORE" }).ToArray());
             classicType.GetProperty("LaserPrimaryText")!.SetValue(classicCard,"L1 24.0s ");
             classicType.GetProperty("LaserPrimaryCrystal")!.SetValue(classicCard,"B");
             classicType.GetProperty("LaserSecondaryText")!.SetValue(classicCard,"   L2 24.5s ");
@@ -239,6 +242,12 @@ internal static partial class Program
         items.Items.Refresh();
         window.Width=800;
         Render(window, render + ".classic.png");
+        var classicLabels=Walk(items).OfType<TextBlock>().Where(t=>t.DataContext is MiningStatusRings.Row r && t.Text==r.ClassicText && t.ActualHeight>0).ToArray();
+        var classicHolds=Walk(items).OfType<Border>().Where(b=>b.DataContext is MiningHoldSnapshots.Row r && r.Label=="Mining" && b.CornerRadius.TopLeft==4).ToArray();
+        Check(classicLabels.Length==2 && classicHolds.Length==2 && classicHolds[1].TranslatePoint(new Point(),items).Y - (classicLabels[0].TranslatePoint(new Point(),items).Y+classicLabels[0].ActualHeight)<20,
+            "Classic L1/L2 and mining hold stay flush even with an Orca fleet hangar in another card");
+        Check(Walk(items).OfType<System.Windows.Shapes.Path>().Count(p=>p.DataContext is MiningStatusRings.Row && p.Width==7 && p.ActualHeight>0)==2,
+            "Classic play/stop icons use small vector shapes without circular animations");
         foreach (var card in items.Items)
         {
             var type = card.GetType();
@@ -248,6 +257,7 @@ internal static partial class Program
             type.GetProperty("CombatVisibility")!.SetValue(card, Visibility.Collapsed);
             type.GetProperty("StatusRings")!.SetValue(card, stopped.Select(r => r with { CrystalText = "ORE", OreText = "Brimful Bitumens" }).ToArray());
             type.GetProperty("RingsVisibility")!.SetValue(card, Visibility.Visible);
+            type.GetProperty("CompactClassicVisibility")!.SetValue(card, Visibility.Collapsed);
             type.GetProperty("LaserFallbackVisibility")!.SetValue(card, Visibility.Collapsed);
             type.GetProperty("HoldRows")!.SetValue(card, new[] {new MiningHoldSnapshots.Row("Mining","~9,250 / 11,500 m\u00b3",80.4,"#E0BA68","Live estimate", "Pilot B")});
         }

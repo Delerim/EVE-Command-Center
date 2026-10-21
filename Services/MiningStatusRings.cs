@@ -5,6 +5,11 @@ internal static class MiningStatusRings
 {
     internal sealed record Row(string Label, string Timing, string Accent, double Progress = 0, string Detail = "", string CycleText = "--", string CrystalText = "", string OreText = "")
     {
+        public string ClassicText => $"L{(Label.Length == 1 ? Label[0] - 'A' + 1 : 1)}" + (IsStopped ? "" : $" {CycleText}");
+        public string StatusSymbol => IsStopped ? "\u25A0" : Timing == "Learning" ? "-" : "\u25B6";
+        public string StatusGeometry => IsStopped ? "M0,0 H7 V7 H0 Z" : Timing == "Learning" ? "M0,3 H7 V4 H0 Z" : "M0,0 L7,4 L0,8 Z";
+        public string ClassicCrystalText => CrystalText.StartsWith("Type ", StringComparison.Ordinal) ? CrystalText[5..] : CrystalText == "ORE" ? "ORE" : "?";
+        public string ClassicCrystalColor => CrystalText.StartsWith("Type ", StringComparison.Ordinal) ? "#64C7FF" : Accent;
         public bool IsStopped => Timing == "Stopped";
         public bool PulseStopped => IsStopped && Accent == "#E88991";
         public string CentreText => IsStopped ? "" : CycleText;

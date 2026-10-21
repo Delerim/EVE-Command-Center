@@ -1,3 +1,9 @@
+# EVE Command Center v3.6.94
+
+- **Compact classic laser status.** L1/L2 now each show a small play/stop icon and their own stream colour. Stopped streams pulse red and omit the stale cycle duration; running streams return to green. Learning/ambiguous streams remain grey, and muted alarms do not pulse. Crystal letters stay blue; ORE labels use the stream colour.
+- **Hold sits directly below the lasers.** Orca fleet storage is grouped with the holds, and hold rows align to the top, removing the reserved gap above mining cargo across the fleet.
+- Live cargo estimates, Reset, and the optional circle display remain available.
+
 # EVE Command Center v3.6.93
 
 - **Classic L1/L2 display restored by default.** The pre-circle text presentation returns, with cycle text and blue crystal labels. Applies to horizontal and compact vertical mining views.

@@ -40,6 +40,20 @@
             </Grid>
         </DataTemplate>
 
+        <DataTemplate x:Key="ClassicLaserStatus">
+            <StackPanel Orientation="Horizontal" Margin="0,1,8,0" ToolTip="{Binding Detail}">
+                <StackPanel.Style><Style TargetType="StackPanel"><Style.Triggers>
+                    <DataTrigger Binding="{Binding PulseStopped}" Value="True">
+                        <DataTrigger.EnterActions><BeginStoryboard x:Name="ClassicStopPulse"><Storyboard RepeatBehavior="Forever" AutoReverse="True"><DoubleAnimation Storyboard.TargetProperty="Opacity" From="1" To="0.4" Duration="0:0:0.7"/></Storyboard></BeginStoryboard></DataTrigger.EnterActions>
+                        <DataTrigger.ExitActions><RemoveStoryboard BeginStoryboardName="ClassicStopPulse"/></DataTrigger.ExitActions>
+                    </DataTrigger>
+                </Style.Triggers></Style></StackPanel.Style>
+                <Path Data="{Binding StatusGeometry}" Fill="{Binding Accent}" Width="7" Height="8" Stretch="Uniform" VerticalAlignment="Center" Margin="0,0,3,0"/>
+                <TextBlock Text="{Binding ClassicText}" Foreground="{Binding Accent}" FontSize="10" FontWeight="SemiBold"/>
+                <TextBlock Text="{Binding ClassicCrystalText}" Foreground="{Binding ClassicCrystalColor}" FontSize="9" Margin="3,0,0,0" VerticalAlignment="Center"/>
+            </StackPanel>
+        </DataTemplate>
+
         <DataTemplate x:Key="HoldBarTemplate">
                                                 <Border CornerRadius="4" Padding="3,2" Margin="0,0,0,2" ToolTip="{Binding Detail}">
                                                     <Border.Style><Style TargetType="Border"><Setter Property="Background" Value="#102327" /><Style.Triggers><Trigger Property="IsMouseOver" Value="True"><Setter Property="Background" Value="#203B40" /></Trigger></Style.Triggers></Style></Border.Style>
@@ -609,10 +623,8 @@
                                             </StackPanel>
                                         </DataTemplate></ItemsControl.ItemTemplate>
                                     </ItemsControl>
-<TextBlock Visibility="{Binding CompactClassicVisibility}" FontSize="10.5" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" ToolTip="{Binding LaserToolTip}">
-                                            <Run Text="{Binding LaserPrimaryText}" Foreground="#7FDCC5"/><Run Text="{Binding LaserPrimaryCrystal}" Foreground="#64C7FF" FontWeight="Bold"/>
-                                            <Run Text="{Binding LaserSecondaryText}" Foreground="#7FDCC5"/><Run Text="{Binding LaserSecondaryCrystal}" Foreground="#64C7FF" FontWeight="Bold"/>
-                                        </TextBlock></StackPanel>
+<ItemsControl ItemsSource="{Binding StatusRings}" ItemTemplate="{StaticResource ClassicLaserStatus}" Visibility="{Binding CompactClassicVisibility}"><ItemsControl.ItemsPanel><ItemsPanelTemplate><UniformGrid Rows="1"/></ItemsPanelTemplate></ItemsControl.ItemsPanel></ItemsControl>
+                                        </StackPanel>
                                     <StackPanel Visibility="{Binding DetailedMiningVisibility}" Grid.Row="3" Margin="0,4,0,0" ToolTip="{Binding LaserToolTip}">
                                         <DockPanel>
                                             <TextBlock Text="{Binding EhpText}" Foreground="#8EC9E8" FontSize="10" DockPanel.Dock="Right" ToolTip="{Binding EhpToolTip}" />
@@ -640,11 +652,9 @@
                                                 </Border>
                                             </DataTemplate></ItemsControl.ItemTemplate>
                                         </ItemsControl>
-                                        <TextBlock Visibility="{Binding LaserFallbackVisibility}" FontSize="10.5" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" ToolTip="{Binding LaserToolTip}">
-                                            <Run Text="{Binding LaserPrimaryText}" Foreground="#7FDCC5"/><Run Text="{Binding LaserPrimaryCrystal}" Foreground="#64C7FF" FontWeight="Bold"/>
-                                            <Run Text="{Binding LaserSecondaryText}" Foreground="#7FDCC5"/><Run Text="{Binding LaserSecondaryCrystal}" Foreground="#64C7FF" FontWeight="Bold"/>
-                                        </TextBlock>
-                                        <ItemsControl ItemsSource="{Binding FleetHoldRows}" ItemTemplate="{StaticResource HoldBarTemplate}" />
+                                        <ItemsControl ItemsSource="{Binding StatusRings}" ItemTemplate="{StaticResource ClassicLaserStatus}" Visibility="{Binding CompactClassicVisibility}"><ItemsControl.ItemsPanel><ItemsPanelTemplate><UniformGrid Rows="1"/></ItemsPanelTemplate></ItemsControl.ItemsPanel></ItemsControl>
+                                        <TextBlock Text="{Binding LaserText}" Foreground="#7FDCC5" FontSize="10" Visibility="{Binding LaserFallbackVisibility}"/>
+
                                     </StackPanel>
 
                                     <Grid Visibility="{Binding MiningVisibility}" Grid.Row="6" Margin="0,2,0,0">
@@ -772,7 +782,7 @@
                                             </Button>
                                         </StackPanel>
                                     </Grid>
-                                    <StackPanel Grid.Row="4" VerticalAlignment="Bottom" Visibility="{Binding HoldVisibility}" Margin="0,2,0,0">
+                                    <StackPanel Grid.Row="4" VerticalAlignment="Top" Visibility="{Binding HoldVisibility}" Margin="0,2,0,0">
                                         <TextBlock Text="HOLD" FontSize="8" Foreground="#829C9F" Margin="0,0,0,2" />
                                         <ItemsControl ItemsSource="{Binding MainHoldRows}" ItemTemplate="{StaticResource HoldBarTemplate}">
 
