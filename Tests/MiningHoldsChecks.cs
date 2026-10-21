@@ -9,6 +9,11 @@ internal static partial class Program
 {
     private static void CheckMiningHolds(string? render = null)
     {
+        Check(!new MiningDashboardPreferences().ShowMiningCircles &&
+            !System.Text.Json.JsonSerializer.Deserialize<MiningDashboardPreferences>("{}")!.ShowMiningCircles,
+            "New and existing preferences default to classic L1/L2");
+        Check(System.Text.Json.JsonSerializer.Deserialize<MiningDashboardPreferences>(System.Text.Json.JsonSerializer.Serialize(new MiningDashboardPreferences {ShowMiningCircles=true}))!.ShowMiningCircles,
+            "Circle opt-in survives preference serialization");
         var now = new DateTime(2026, 10, 20, 12, 0, 0, DateTimeKind.Utc);
         var hull = new EveUniverseType { DogmaAttributes = new()
         {
@@ -213,6 +218,27 @@ internal static partial class Program
         var pendingCard = items.Items.Cast<object>().Single(c => (string)c.GetType().GetProperty("Character")!.GetValue(c)! == "Pilot B");
         Check(((IReadOnlyList<MiningStatusRings.Row>)pendingCard.GetType().GetProperty("StatusRings")!.GetValue(pendingCard)!).Count==2,
             "A zero-laser cached fit on an exhumer keeps log-learning rings visible");
+        Check((Visibility)pendingCard.GetType().GetProperty("RingsVisibility")!.GetValue(pendingCard)! ==Visibility.Collapsed &&
+            (Visibility)pendingCard.GetType().GetProperty("LaserFallbackVisibility")!.GetValue(pendingCard)! ==Visibility.Visible,
+            "Classic text is displayed by default while circles are hidden");
+        prefs.ShowMiningCircles=true;
+        typeof(MiningFleetOverviewWindow).GetMethod("RefreshCards", flags)!.Invoke(window, null);
+        var enabledCard=items.Items.Cast<object>().Single(c=>(string)c.GetType().GetProperty("Character")!.GetValue(c)! =="Pilot B");
+        Check((Visibility)enabledCard.GetType().GetProperty("RingsVisibility")!.GetValue(enabledCard)! ==Visibility.Visible,
+            "Enabling circles switches the rendered card presentation");
+        prefs.ShowMiningCircles=false;
+        typeof(MiningFleetOverviewWindow).GetMethod("RefreshCards", flags)!.Invoke(window, null);
+        foreach (var classicCard in items.Items)
+        {
+            var classicType=classicCard.GetType();
+            classicType.GetProperty("LaserPrimaryText")!.SetValue(classicCard,"L1 24.0s ");
+            classicType.GetProperty("LaserPrimaryCrystal")!.SetValue(classicCard,"B");
+            classicType.GetProperty("LaserSecondaryText")!.SetValue(classicCard,"   L2 24.5s ");
+            classicType.GetProperty("LaserSecondaryCrystal")!.SetValue(classicCard,"B");
+        }
+        items.Items.Refresh();
+        window.Width=800;
+        Render(window, render + ".classic.png");
         foreach (var card in items.Items)
         {
             var type = card.GetType();

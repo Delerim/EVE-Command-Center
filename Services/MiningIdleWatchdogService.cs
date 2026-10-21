@@ -9,6 +9,7 @@ namespace EveCommandCenter.Services;
 
 public sealed class MiningDashboardPreferences
 {
+    public bool ShowMiningCircles { get; set; } = false;
     public int PreferencesVersion { get; set; } = 11;
 
     public bool JitaEnabled { get; set; } = true;

@@ -765,6 +765,13 @@ public partial class MiningFleetOverviewWindow : Window
     }
 
     private void Notifications_Click(object sender,RoutedEventArgs e)=>BackgroundOperations.Current.OpenNotifications();
+    private void MiningCircles_Click(object sender, RoutedEventArgs e)
+    {
+        _prefs.ShowMiningCircles = !_prefs.ShowMiningCircles;
+        MiningDashboardPreferencesStore.Save(_prefs);
+        RefreshCards();
+    }
+
     private void RockToggle_Click(object sender, RoutedEventArgs e)
     {
         bool enabled=!_tracker.RockTracking.Enabled;
@@ -812,6 +819,8 @@ public partial class MiningFleetOverviewWindow : Window
     private bool _refreshingCards;
     private void RefreshCards()
     {
+        CircleToggle0.IsChecked = CircleToggle1.IsChecked = CircleToggle2.IsChecked = _prefs.ShowMiningCircles;
+
         UpdateAudioButton();
         if(_refreshingCards)return;
         _refreshingCards=true;
@@ -1009,7 +1018,7 @@ public partial class MiningFleetOverviewWindow : Window
                     $"This tile uses drone-mining mode; strip-miner timing is hidden.{Environment.NewLine}" +
                     $"Mining alarm suppression is automatic while this pilot is in the Orca.";
             }
-            else if (fittedLaserCount == 0)
+            else if (fittedLaserCount == 0 && !MiningHoldCapacity.IsExhumer(shipIntel?.CurrentShip.ShipTypeId ?? 0))
             {
                 laserText =
                     "NO MINING LASERS";
@@ -1089,7 +1098,7 @@ public partial class MiningFleetOverviewWindow : Window
                 "";
 
             if (!isOrca &&
-                fittedLaserCount != 0 &&
+                (fittedLaserCount != 0 || MiningHoldCapacity.IsExhumer(shipIntel?.CurrentShip.ShipTypeId ?? 0)) &&
                 laserTiming.Ready &&
                 laserTiming.Laser1CycleSeconds.HasValue &&
                 laserTiming.Laser2CycleSeconds.HasValue)
@@ -1290,8 +1299,9 @@ public partial class MiningFleetOverviewWindow : Window
                 LaserSecondaryCrystal = laserSecondaryCrystal,
                 LaserToolTip = laserToolTip + "\nRings independently track inferred mining streams, not physical module slots. Hover each ring for its confidence and timing.",
                 StatusRings = rings,
-                RingsVisibility = rings.Count == 0 ? Visibility.Collapsed : Visibility.Visible,
-                LaserFallbackVisibility = rings.Count == 0 ? Visibility.Visible : Visibility.Collapsed,
+                CompactClassicVisibility = !_prefs.ShowMiningCircles && rings.Count > 0 ? Visibility.Visible : Visibility.Collapsed,
+                RingsVisibility = !_prefs.ShowMiningCircles || rings.Count == 0 ? Visibility.Collapsed : Visibility.Visible,
+                LaserFallbackVisibility = !_prefs.ShowMiningCircles || rings.Count == 0 ? Visibility.Visible : Visibility.Collapsed,
                 HoldRows = holdRows,
                 EhpText =
                     shipIntel?.Defense.Available == true
@@ -2221,6 +2231,7 @@ public partial class MiningFleetOverviewWindow : Window
         public IReadOnlyList<MiningHoldSnapshots.Row> HoldRows { get; set; } = Array.Empty<MiningHoldSnapshots.Row>();
         public IReadOnlyList<MiningHoldSnapshots.Row> MainHoldRows => DetailedMiningVisibility == Visibility.Visible ? HoldRows.Where(r => r.Label != "Fleet").ToArray() : HoldRows;
         public IReadOnlyList<MiningHoldSnapshots.Row> FleetHoldRows => HoldRows.Where(r => r.Label == "Fleet").ToArray();
+        public Visibility CompactClassicVisibility { get; set; } = Visibility.Collapsed;
         public Visibility RingsVisibility { get; set; } = Visibility.Collapsed;
         public Visibility LaserFallbackVisibility { get; set; } = Visibility.Visible;
         public string EhpText { get; set; } = "";

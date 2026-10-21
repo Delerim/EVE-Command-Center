@@ -160,7 +160,7 @@
                     <Button Content="TOOLS" Height="21" FontSize="10" Margin="5,0" Click="Tools_Click"><Button.ContextMenu><ContextMenu>
                         <MenuItem Header="Pilots" Click="OpenPilotCommandCenter_Click"/><MenuItem Header="Omega" Click="OpenOmega_Click"/><MenuItem Header="Notifications" Click="Notifications_Click"/><Separator/>
                         <MenuItem Header="Moons" Click="OpenMoonReport_Click"/><MenuItem Header="Contracts" Click="OpenContracts_Click"/><MenuItem Header="Industry" Click="OpenIndustry_Click"/><MenuItem Header="Planetary Industry" Click="OpenPlanetary_Click"/><Separator/>
-                        <MenuItem Header="Client settings" Click="OpenClientSettings_Click"/><MenuItem Header="Preview settings" Click="OpenPreviewSettings_Click"/><MenuItem Header="Cloud backup" Click="OpenCloudBackup_Click"/>
+                        <MenuItem Header="Client settings" Click="OpenClientSettings_Click"/><MenuItem x:Name="CircleToggle0" Header="Show mining circles" IsCheckable="True" Click="MiningCircles_Click"/><MenuItem Header="Preview settings" Click="OpenPreviewSettings_Click"/><MenuItem Header="Cloud backup" Click="OpenCloudBackup_Click"/>
                     </ContextMenu></Button.ContextMenu></Button>
                     <Button x:Name="OrderButton" Content="ORDER CLIENTS" MinWidth="58" Height="21" Padding="7,1" FontSize="10" FontWeight="SemiBold" Click="OrderMode_Click" MouseRightButtonUp="OrderButton_MouseRightButtonUp" ToolTip="Click to enable tile reordering, drag tiles left/right, then click DONE. Right-click to reset."/>
                 </WrapPanel>
@@ -180,7 +180,7 @@
                         <MenuItem Header="Snapshot - periodic captures" Click="UseSnapshotPreview_Click"/>
                     </ContextMenu></Button.ContextMenu></Button>
                     <Button Content="TOOLS" Height="23" FontSize="10" Margin="5,0" Click="Tools_Click"><Button.ContextMenu><ContextMenu>
-                        <MenuItem Header="Mining" Click="OpenMiningCommandCenter_Click"/><MenuItem Header="Pilots" Click="OpenPilotCommandCenter_Click"/><MenuItem Header="Planetary Industry" Click="OpenPlanetary_Click"/><MenuItem Header="Industry" Click="OpenIndustry_Click"/><MenuItem Header="Omega" Click="OpenOmega_Click"/><MenuItem Header="Notifications" Click="Notifications_Click"/><MenuItem Header="Moons" Click="OpenMoonReport_Click"/><MenuItem Header="Contracts" Click="OpenContracts_Click"/><Separator/><MenuItem Header="Settings" Click="OpenClientSettings_Click"/><MenuItem Header="Preview settings" Click="OpenPreviewSettings_Click"/><MenuItem Header="Cloud backup" Click="OpenCloudBackup_Click"/><MenuItem Header="Reorder characters" Click="OrderMode_Click"/><MenuItem Header="Toggle rock tracking" Click="RockToggle_Click"/>
+                        <MenuItem Header="Mining" Click="OpenMiningCommandCenter_Click"/><MenuItem Header="Pilots" Click="OpenPilotCommandCenter_Click"/><MenuItem Header="Planetary Industry" Click="OpenPlanetary_Click"/><MenuItem Header="Industry" Click="OpenIndustry_Click"/><MenuItem Header="Omega" Click="OpenOmega_Click"/><MenuItem Header="Notifications" Click="Notifications_Click"/><MenuItem Header="Moons" Click="OpenMoonReport_Click"/><MenuItem Header="Contracts" Click="OpenContracts_Click"/><Separator/><MenuItem Header="Settings" Click="OpenClientSettings_Click"/><MenuItem Header="Preview settings" Click="OpenPreviewSettings_Click"/><MenuItem Header="Cloud backup" Click="OpenCloudBackup_Click"/><MenuItem Header="Reorder characters" Click="OrderMode_Click"/><MenuItem Header="Toggle rock tracking" Click="RockToggle_Click"/><MenuItem x:Name="CircleToggle1" Header="Show mining circles" IsCheckable="True" Click="MiningCircles_Click"/>
                     </ContextMenu></Button.ContextMenu></Button>
                     <Button Content="SEPARATE PREVIEWS" Height="23" FontSize="10" Click="Combine_Click" ToolTip="Restore the independent preview windows"/>
                 </WrapPanel>
@@ -231,7 +231,7 @@
                         <MenuItem Header="Client settings" Click="OpenClientSettings_Click"/>
                         <MenuItem Header="Settings" Click="OpenPreviewSettings_Click"/>
                         <MenuItem Header="Cloud backup" Click="OpenCloudBackup_Click"/>
-                        <MenuItem Header="Rock tracking" Click="RockToggle_Click"/>
+                        <MenuItem Header="Rock tracking" Click="RockToggle_Click"/><MenuItem x:Name="CircleToggle2" Header="Show mining circles" IsCheckable="True" Click="MiningCircles_Click"/>
                     </ContextMenu></Button.ContextMenu></Button>
                 </WrapPanel>
                 <TextBlock Foreground="#EAF7F4" FontSize="10" ToolTip="{Binding Text, ElementName=DayText}"><Run Text="PLEX BUY "/><Run Text="{Binding Text, ElementName=PlexBuyText}"/><Run Text=" | SELL "/><Run Text="{Binding Text, ElementName=PlexSellText}"/></TextBlock>
@@ -600,7 +600,7 @@
                                         </DockPanel>
                                     </Grid>
 
-                                    <ItemsControl Grid.Row="3" ItemsSource="{Binding StatusRings}" Visibility="{Binding CompactMiningVisibility}">
+<StackPanel Grid.Row="3" Visibility="{Binding CompactMiningVisibility}">                                    <ItemsControl ItemsSource="{Binding StatusRings}" Visibility="{Binding RingsVisibility}">
                                         <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
                                         <ItemsControl.ItemTemplate><DataTemplate>
                                             <StackPanel Orientation="Horizontal" Margin="0,2,10,1" ToolTip="{Binding Detail}">
@@ -609,6 +609,10 @@
                                             </StackPanel>
                                         </DataTemplate></ItemsControl.ItemTemplate>
                                     </ItemsControl>
+<TextBlock Visibility="{Binding CompactClassicVisibility}" FontSize="10.5" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" ToolTip="{Binding LaserToolTip}">
+                                            <Run Text="{Binding LaserPrimaryText}" Foreground="#7FDCC5"/><Run Text="{Binding LaserPrimaryCrystal}" Foreground="#64C7FF" FontWeight="Bold"/>
+                                            <Run Text="{Binding LaserSecondaryText}" Foreground="#7FDCC5"/><Run Text="{Binding LaserSecondaryCrystal}" Foreground="#64C7FF" FontWeight="Bold"/>
+                                        </TextBlock></StackPanel>
                                     <StackPanel Visibility="{Binding DetailedMiningVisibility}" Grid.Row="3" Margin="0,4,0,0" ToolTip="{Binding LaserToolTip}">
                                         <DockPanel>
                                             <TextBlock Text="{Binding EhpText}" Foreground="#8EC9E8" FontSize="10" DockPanel.Dock="Right" ToolTip="{Binding EhpToolTip}" />
@@ -636,7 +640,10 @@
                                                 </Border>
                                             </DataTemplate></ItemsControl.ItemTemplate>
                                         </ItemsControl>
-                                        <TextBlock Text="{Binding LaserText}" Visibility="{Binding LaserFallbackVisibility}" Foreground="#ADDAD2" FontSize="10" TextTrimming="CharacterEllipsis" />
+                                        <TextBlock Visibility="{Binding LaserFallbackVisibility}" FontSize="10.5" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" ToolTip="{Binding LaserToolTip}">
+                                            <Run Text="{Binding LaserPrimaryText}" Foreground="#7FDCC5"/><Run Text="{Binding LaserPrimaryCrystal}" Foreground="#64C7FF" FontWeight="Bold"/>
+                                            <Run Text="{Binding LaserSecondaryText}" Foreground="#7FDCC5"/><Run Text="{Binding LaserSecondaryCrystal}" Foreground="#64C7FF" FontWeight="Bold"/>
+                                        </TextBlock>
                                         <ItemsControl ItemsSource="{Binding FleetHoldRows}" ItemTemplate="{StaticResource HoldBarTemplate}" />
                                     </StackPanel>
 

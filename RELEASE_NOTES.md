@@ -1,3 +1,9 @@
+# EVE Command Center v3.6.93
+
+- **Classic L1/L2 display restored by default.** The pre-circle text presentation returns, with cycle text and blue crystal labels. Applies to horizontal and compact vertical mining views.
+- **Circles are optional.** Use Show mining circles in the overview tools/context menus to enable or disable them. The preference is remembered; existing settings without this option default to classic text.
+- Live mining/compression cargo estimates and the per-pilot Reset button remain unchanged.
+
 # EVE Command Center v3.6.92
 
 - **Live mining-hold estimate restored.** Mining and compression log events update the mining bar immediately. A small Reset button beside the value marks that pilot's hold empty after unloading; it does not reset mining statistics, other pilots or the fleet hangar. Ship capacity still comes from the ship and skills. Starting contents are unknown until reset/full; the tilde identifies an estimate.
