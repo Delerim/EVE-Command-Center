@@ -1818,6 +1818,7 @@ public sealed class EveSsoService
                     "Type B",
                     StringComparison.OrdinalIgnoreCase))
                 return "B";
+            if (name.Contains("Type C", StringComparison.OrdinalIgnoreCase)) return "C";
         }
 
         return "";

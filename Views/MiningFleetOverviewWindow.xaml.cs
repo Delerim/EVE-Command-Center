@@ -620,6 +620,16 @@ public partial class MiningFleetOverviewWindow : Window
         }
         if (!IsMouseOver) RefreshCards();
     }
+    private void ResetMiningHold_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is System.Windows.Controls.Button { DataContext: MiningHoldSnapshots.Row row } && row.CanReset)
+        {
+            _tracker.MiningHold.Empty(row.ResetPilot, DateTime.UtcNow);
+            RefreshCards();
+            e.Handled = true;
+        }
+    }
+
     private async Task RefreshHoldsAsync()
     {
         if (_holdRefreshBusy || _holdRefreshLifetime.IsCancellationRequested || !IsVisible || WindowState == WindowState.Minimized) return;
@@ -630,7 +640,7 @@ public partial class MiningFleetOverviewWindow : Window
             var profiles = await operations.Sso.LoadPilotsAsync();
             var wanted = new HashSet<string>(_tracker.GetMiningDashboardCharacters(), StringComparer.OrdinalIgnoreCase);
             var candidates = profiles.Where(p => wanted.Contains(p.CharacterName) && operations.SyncSettings.Enabled(p.CharacterId, "pilot") &&
-                _pilotIntel.TryGetValue(p.CharacterName, out var intel) && MiningHoldCapacity.HasLiveMiningHold(intel.CurrentShip.ShipTypeId))
+                _pilotIntel.TryGetValue(p.CharacterName, out var intel) && intel.CurrentShip.IsOrca)
                 .OrderBy(p => _pilotIntel[p.CharacterName].MiningHoldInventory.ObservedUtc).ToArray();
             using var workers = new SemaphoreSlim(2, 2);
             await Task.WhenAll(candidates.Select(async pilot =>
@@ -1112,10 +1122,13 @@ public partial class MiningFleetOverviewWindow : Window
                     );
             }
 
-            var rings = _tracker.GetMiningRings(character, fittedLaserCount, isOrca, alarmMuted, shipIntel?.CurrentShip.ShipItemId ?? 0);
+            // Exhumers can have stale/missing fitted assets after a refit. Let log evidence
+            // learn up to two streams; Build never invents activity from the slot count alone.
+            int trackedLaserCount = fittedLaserCount <= 0 && MiningHoldCapacity.IsExhumer(shipIntel?.CurrentShip.ShipTypeId ?? 0) ? 2 : fittedLaserCount;
+            var rings = _tracker.GetMiningRings(character, trackedLaserCount, isOrca, alarmMuted, shipIntel?.CurrentShip.ShipItemId ?? 0);
             var crystalLabels = shipIntel?.MiningLasers.Select(l => l.ShortCrystal).Where(c => !string.IsNullOrWhiteSpace(c)).Distinct().ToArray() ?? Array.Empty<string>();
             string crystalLabel = crystalLabels.Length > 0 ? "Type " + string.Join(" / ", crystalLabels) :
-                shipIntel?.MiningLasers.Any(l => l.Name.Contains("ORE", StringComparison.OrdinalIgnoreCase)) == true ? "ORE" : "No crystal";
+                shipIntel?.MiningLasers.Any(l => l.Name.Contains("ORE", StringComparison.OrdinalIgnoreCase)) == true ? "ORE" : fittedLaserCount <= 0 ? "Fit pending" : "Crystal ?";
             rings = rings.Select(r => r with { CrystalText = crystalLabel,
                 Detail = r.Detail + "\nFitted crystals: " + crystalLabel + ". Crystal labels describe the fit; logs do not identify physical module slots." }).ToArray();
             var holdRows = new List<MiningHoldSnapshots.Row>();
@@ -1123,8 +1136,10 @@ public partial class MiningFleetOverviewWindow : Window
             { if (hold.Supported) holdRows.Add(MiningHoldSnapshots.Present(name, hold, DateTimeOffset.UtcNow, name == "Mining")); }
             if (shipIntel != null && MiningHoldCapacity.HasLiveMiningHold(shipIntel.CurrentShip.ShipTypeId))
             {
-                var inventory = shipIntel.MiningHoldInventory;
-                AppendHold("Mining", new EveShipHoldSnapshot { Supported = inventory.Supported, Complete = inventory.Complete, UsedM3 = inventory.UsedM3, BaseCapacityM3 = shipIntel.MiningHoldCapacityM3, ObservedUtc = inventory.ObservedUtc, Detail = "Periodically refreshed mining-hold inventory with pilot-adjusted capacity. Unloading appears when EVE updates its asset data." });
+                _tracker.MiningHold.Configure(character, shipIntel.CurrentShip.ShipItemId, DateTime.UtcNow);
+                var liveHold = _tracker.MiningHold.Present(character, shipIntel.MiningHoldCapacityM3,
+                    ore => _tracker.TryGetMiningQuote(ore, out var quote) ? (quote.UnitVolumeM3, quote.CompressedUnitVolumeM3) : (0, 0));
+                holdRows.Add(liveHold with { ResetPilot = character });
             }
             if (isOrca) AppendHold("Fleet", shipIntel?.FleetHangar ?? new());
 

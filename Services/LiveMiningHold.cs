@@ -75,7 +75,7 @@ internal sealed class LiveMiningHold
                 missing ? "#829C9F" : fraction >= .85 ? "#E88991" : fraction >= .5 ? "#E0BA68" : "#65D5B6",
                 $"Live log estimate. {state.Anchor} since {state.Started.ToLocalTime():HH:mm:ss}.\n" +
                 "Mining adds volume; compression reduces it; a full notification anchors it to capacity. " +
-                "Unlogged transfers and unloading can cause drift. Right-click the hold to mark it empty after unloading. " +
+                "Unlogged transfers and unloading can cause drift. Use Reset beside the hold after unloading. " +
                 "Starting contents are unknown until an empty/full anchor. Changing ships starts a new estimate.");
         }
     }

@@ -44,7 +44,13 @@
                                                 <Border CornerRadius="4" Padding="3,2" Margin="0,0,0,2" ToolTip="{Binding Detail}">
                                                     <Border.Style><Style TargetType="Border"><Setter Property="Background" Value="#102327" /><Style.Triggers><Trigger Property="IsMouseOver" Value="True"><Setter Property="Background" Value="#203B40" /></Trigger></Style.Triggers></Style></Border.Style>
                                                     <StackPanel>
-                                                        <DockPanel><TextBlock Text="{Binding Label}" Width="39" FontSize="9" Foreground="#9ABCB9" /><TextBlock Text="{Binding VolumeText}" FontSize="9" Foreground="#C6E0DB" TextAlignment="Right" /></DockPanel>
+                                                        <DockPanel>
+                                                            <Button DockPanel.Dock="Right" Content="Reset" Background="#17312D" Foreground="#C6E0DB" BorderBrush="#39796C" Cursor="Hand" Click="ResetMiningHold_Click" FontSize="8" Padding="3,0" Margin="4,0,0,0" ToolTip="Mark this pilot's mining hold empty after unloading. Resets only the live cargo estimate.">
+                                                                <Button.Style><Style TargetType="Button"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding CanReset}" Value="True"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style></Button.Style>
+                                                            </Button>
+                                                            <TextBlock Text="{Binding Label}" Width="31" FontSize="9" Foreground="#9ABCB9" />
+                                                            <TextBlock Text="{Binding VolumeText}" FontSize="9" Foreground="#C6E0DB" TextAlignment="Right" />
+                                                        </DockPanel>
                                                         <ProgressBar Value="{Binding Percent}" Maximum="100" Height="3" Margin="0,2,0,0" Foreground="{Binding Accent}" Background="#294044" BorderThickness="0" />
                                                     </StackPanel>
                                                 </Border>

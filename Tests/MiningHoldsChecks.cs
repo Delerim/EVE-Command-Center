@@ -44,6 +44,10 @@ internal static partial class Program
         var changedShip = new EveMiningShipIntel { CurrentShip = new() { ShipItemId=456 } };
         Check(!BackgroundPilotRefresh.MergeSnapshot(priorityIntel, changedShip).MiningHoldInventory.Complete,
             "Priority inventory is never carried into a different ship");
+        Check(new EveMiningLaserView { CrystalClass="C" }.ShortCrystal == "C", "Type C crystal label is preserved");
+        var laserDetector = typeof(EveSsoService).GetMethod("IsMiningLaserType", BindingFlags.NonPublic | BindingFlags.Static)!;
+        Check((bool)laserDetector.Invoke(null, new object[] { new EveUniverseType { Name="Modulated Strip Miner II", GroupId=464 } })!,
+            "Modulated strip miners are classified as mining lasers");
         var tracker = new LiveMiningHold();
         tracker.Configure("A", 42, now);
         (double, double) Volumes(string _) => (10, .1);
@@ -203,9 +207,12 @@ internal static partial class Program
         prefs.FleetOverviewAutoFit = false;
         var intel = (Dictionary<string, EveMiningShipIntel>)typeof(MiningFleetOverviewWindow).GetField("_pilotIntel", flags)!.GetValue(window)!;
         intel["Pilot A"] = new() {CurrentShip=new() {TypeName="Orca",ShipTypeId=28606,ShipItemId=1},MiningLaserCount=0,MiningHoldCapacityM3=187500};
-        intel["Pilot B"] = new() {CurrentShip=new() {TypeName="Mackinaw",ShipTypeId=22548,ShipItemId=2},MiningLaserCount=2,MiningHoldCapacityM3=44296.875};
+        intel["Pilot B"] = new() {CurrentShip=new() {TypeName="Mackinaw",ShipTypeId=22548,ShipItemId=2},MiningLaserCount=0,MiningHoldCapacityM3=44296.875};
         typeof(MiningFleetOverviewWindow).GetMethod("RefreshCards", flags)!.Invoke(window, null);
         var items = (ItemsControl)window.FindName("MinerItems");
+        var pendingCard = items.Items.Cast<object>().Single(c => (string)c.GetType().GetProperty("Character")!.GetValue(c)! == "Pilot B");
+        Check(((IReadOnlyList<MiningStatusRings.Row>)pendingCard.GetType().GetProperty("StatusRings")!.GetValue(pendingCard)!).Count==2,
+            "A zero-laser cached fit on an exhumer keeps log-learning rings visible");
         foreach (var card in items.Items)
         {
             var type = card.GetType();
@@ -216,7 +223,7 @@ internal static partial class Program
             type.GetProperty("StatusRings")!.SetValue(card, stopped.Select(r => r with { CrystalText = "ORE", OreText = "Brimful Bitumens" }).ToArray());
             type.GetProperty("RingsVisibility")!.SetValue(card, Visibility.Visible);
             type.GetProperty("LaserFallbackVisibility")!.SetValue(card, Visibility.Collapsed);
-            type.GetProperty("HoldRows")!.SetValue(card, new[] {new MiningHoldSnapshots.Row("Mining","~9,250 / 11,500 m\u00b3",80.4,"#E0BA68","Live estimate")});
+            type.GetProperty("HoldRows")!.SetValue(card, new[] {new MiningHoldSnapshots.Row("Mining","~9,250 / 11,500 m\u00b3",80.4,"#E0BA68","Live estimate", "Pilot B")});
         }
         var orcaCard = items.Items[0]; var orcaType = orcaCard.GetType();
         orcaType.GetProperty("StatusRings")!.SetValue(orcaCard, Array.Empty<MiningStatusRings.Row>());
@@ -225,7 +232,7 @@ internal static partial class Program
         orcaType.GetProperty("LaserText")!.SetValue(orcaCard, "DRONE MINING");
         orcaType.GetProperty("HoldVisibility")!.SetValue(orcaCard, Visibility.Visible);
         orcaType.GetProperty("HoldRows")!.SetValue(orcaCard, new[] {
-            new MiningHoldSnapshots.Row("Mining", "~12,500 / 187,500 m\u00b3", 6.67, "#65D5B6", "Live estimate"),
+            new MiningHoldSnapshots.Row("Mining", "~12,500 / 187,500 m\u00b3", 6.67, "#65D5B6", "Live estimate", "Pilot A"),
             new MiningHoldSnapshots.Row("Fleet", "Cached: 30,772 / 40,000 m\u00b3", 76.93, "#65D5B6", "Cached inventory") });
         items.Items.Refresh();
         window.Width = 800;
@@ -249,6 +256,19 @@ internal static partial class Program
             "Mining hold sits directly below the rings without a reserved second-hold gap");
         Check(Walk(items).OfType<TextBlock>().Any(t=>t.Text.StartsWith("Cached: 30,772")),
             "Compact Orca still displays its separately labelled fleet inventory");
+        var resets = Walk(items).OfType<Button>().Where(b=>Equals(b.Content,"Reset") && b.Visibility==Visibility.Visible).ToArray();
+        Check(resets.Length==2 && resets.All(b=>b.DataContext is MiningHoldSnapshots.Row { Label: "Mining" }),
+            "Each mining bar has a small Reset button; cached fleet inventory has none");
+        var liveTracker = (StatTrackerService)typeof(MiningFleetOverviewWindow).GetField("_tracker", flags)!.GetValue(window)!;
+        var stamp = DateTime.UtcNow;
+        liveTracker.MiningHold.Configure("Pilot A",1,stamp.AddSeconds(-2));
+        liveTracker.MiningHold.Configure("Pilot B",2,stamp.AddSeconds(-2));
+        liveTracker.MiningHold.Record(new("Pilot A",stamp,"mined","Ore",100),stamp);
+        liveTracker.MiningHold.Record(new("Pilot B",stamp,"mined","Ore",100),stamp);
+        var resetA = resets.Single(b=>((MiningHoldSnapshots.Row)b.DataContext).ResetPilot=="Pilot A");
+        resetA.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        Check(liveTracker.MiningHold.Present("Pilot A",10000,Volumes).Percent==0 && liveTracker.MiningHold.Present("Pilot B",10000,Volumes).Percent==10,
+            "Reset button clears only its pilot's estimate");
         window.Close();
     }
 }

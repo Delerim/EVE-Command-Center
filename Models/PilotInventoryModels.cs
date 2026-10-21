@@ -195,7 +195,7 @@ public sealed class EveMiningLaserView
     public bool DynamicCycle { get; init; }
 
     public string ShortCrystal =>
-        CrystalClass is "A" or "B"
+        CrystalClass is "A" or "B" or "C"
             ? CrystalClass
             : "";
 }

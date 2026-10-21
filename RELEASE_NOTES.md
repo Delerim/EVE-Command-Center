@@ -1,3 +1,9 @@
+# EVE Command Center v3.6.92
+
+- **Live mining-hold estimate restored.** Mining and compression log events update the mining bar immediately. A small Reset button beside the value marks that pilot's hold empty after unloading; it does not reset mining statistics, other pilots or the fleet hangar. Ship capacity still comes from the ship and skills. Starting contents are unknown until reset/full; the tilde identifies an estimate.
+- **Streams continue through stale fit data.** Exhumers with absent/zero fitted-laser snapshots can learn up to two streams from logs instead of showing no rings. Activity is inferred from pulls, not invented from fitted slots. Pending fit/crystal labels remain explicit; Type C crystal classification is now supported. Crystal updates still depend on ESI fit freshness.
+- Orca fleet inventory stays separately labelled as cached. The dedicated inventory timer now serves Orca fleet snapshots; it does not overwrite live mining estimates. No OCR feature is enabled.
+
 # EVE Command Center v3.6.91
 
 - **Dedicated mining-hold refresh.** While the mining overview is visible, a separate 30-second check refreshes tracked, sync-enabled exhumer and Orca holds, oldest snapshots first. Two bounded workers use the shared asset cache without waiting for the five-minute full skills/fit refresh.

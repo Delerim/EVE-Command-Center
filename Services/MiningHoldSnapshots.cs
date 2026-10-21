@@ -39,7 +39,8 @@ internal static class MiningHoldSnapshots
         }
         return await Hold(flag, capacityAttribute);
     }
-    internal sealed record Row(string Label, string VolumeText, double Percent, string Accent, string Detail);
+    internal sealed record Row(string Label, string VolumeText, double Percent, string Accent, string Detail, string ResetPilot = "")
+    { public bool CanReset => !string.IsNullOrWhiteSpace(ResetPilot); }
     internal static Row Present(string label, EveShipHoldSnapshot hold, DateTimeOffset now, bool adjustedCapacity = false)
     {
         bool stale = hold.ObservedUtc == default || hold.ObservedUtc < now.AddMinutes(-15) || hold.ObservedUtc > now.AddMinutes(5);
