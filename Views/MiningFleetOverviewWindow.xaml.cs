@@ -40,6 +40,11 @@ public partial class MiningFleetOverviewWindow : Window
         RefreshCards();
     }
 
+    // The Alt gesture is intercepted on the control Window before child buttons,
+    // matching the existing preview wall behaviour without sacrificing clicks.
+    internal static bool IsControlStripDragGesture(ModifierKeys modifiers, MouseButtonState button)
+        => (modifiers & ModifierKeys.Alt) != 0 && button == MouseButtonState.Pressed;
+
     private void EnsureSeparateControlWindow()
     {
         if (_controlTile != null || !IsLoaded) return;
@@ -62,7 +67,7 @@ public partial class MiningFleetOverviewWindow : Window
             Height = 40,
             SizeToContent = SizeToContent.Height,
             WindowStyle = WindowStyle.None,
-            ResizeMode = ResizeMode.NoResize,
+            ResizeMode = ResizeMode.NoResize, // Controls stay automatically sized; Alt+drag moves them.
             AllowsTransparency = true,
             Background = System.Windows.Media.Brushes.Transparent,
             Topmost = Topmost,
@@ -76,7 +81,7 @@ public partial class MiningFleetOverviewWindow : Window
                     (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#2C6D60")),
                 BorderThickness = new Thickness(1),
                 CornerRadius = new CornerRadius(7),
-                Padding = new Thickness(6, 3, 6, 3),
+                Padding = new Thickness(8, 6, 8, 6),
                 Child = OverviewHeader
             }
         };
@@ -93,6 +98,12 @@ public partial class MiningFleetOverviewWindow : Window
         }
         _controlTile = toolbar;
         Title = "EVE Command Center Preview Wall";
+        toolbar.PreviewMouseLeftButtonDown += (_, e) => {
+            if (!IsControlStripDragGesture(Keyboard.Modifiers, e.LeftButton)) return;
+            e.Handled = true;
+            try { toolbar.DragMove(); }
+            catch (InvalidOperationException) { /* Drag ended before WPF began capture. */ }
+        };
         toolbar.LocationChanged += (_, _) => SaveControlTile();
         toolbar.Closing += (_, e) => {
             if (_tileClosing) return;

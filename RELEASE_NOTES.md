@@ -1,3 +1,9 @@
+# EVE Command Center v3.6.97
+
+- **Control strip moves with Alt + drag.** The separate toolbar intercepts the Alt + left-mouse gesture even over buttons, while normal button clicks continue working and preview wall movement remains independent.
+- **Single centred toolbar row.** The version, EVE clock, local clock and client count appear on the far right before X. The title, LIVE badge, day, PLEX, daily ISK and controls have consistent vertical alignment with symmetrical top/bottom padding.
+- **No manual toolbar resizing.** The control strip retains its automatic width; the card preview wall remains independently auto-fitting. Regression checks cover the drag gesture, fixed resize mode, right-hand time placement and padding.
+
 # EVE Command Center v3.6.96
 
 - **Two independently sized windows.** The existing full-width PLEX/TODAY, contract indicator and action toolbar are reparented to their own "EVE Command Center Control" window. The overview window becomes a header-free preview wall; it auto-fits independently to character and mining cards.

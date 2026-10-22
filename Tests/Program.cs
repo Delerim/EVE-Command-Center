@@ -93,6 +93,29 @@ internal static partial class Program
             Check(tile is Window strip && strip.IsVisible && overview.IsVisible &&
                   strip.Title == "EVE Command Center Control",
                 "Overview opens a dedicated persistent control strip beside its preview wall");
+            Check(MiningFleetOverviewWindow.IsControlStripDragGesture(
+                      System.Windows.Input.ModifierKeys.Alt,
+                      System.Windows.Input.MouseButtonState.Pressed) &&
+                  !MiningFleetOverviewWindow.IsControlStripDragGesture(
+                      System.Windows.Input.ModifierKeys.None,
+                      System.Windows.Input.MouseButtonState.Pressed),
+                "Alt + left drag is recognized for moving the separate control strip");
+            var controlBorder = (Border)((Window)tile!).Content;
+            Check(controlBorder.Padding.Top == controlBorder.Padding.Bottom &&
+                  controlBorder.Padding.Top >= 6 &&
+                  ((Window)tile!).ResizeMode == ResizeMode.NoResize,
+                "Control strip remains auto-sized with equal top and bottom padding");
+            var clock = (TextBlock)overview.FindName("UpdatedText");
+            var controlRight = (Grid)clock.Parent;
+            Check(controlRight.ColumnDefinitions.Count == 3 &&
+                  Grid.GetColumn(clock) == 1 &&
+                  controlRight.Children.OfType<Button>().Any(button =>
+                      Equals(button.Content, "X") && Grid.GetColumn(button) == 2),
+                "Version, EVE and local time occupy the right column immediately before X");
+            var titleRow = (WrapPanel)((Grid)overview.FindName("OverviewHeader")).Children
+                .OfType<WrapPanel>().Single(p => Grid.GetColumn(p) == 0);
+            Check(titleRow.ItemHeight == 25,
+                "Title, LIVE and PLEX information use a centred common control height");
             var wallGrid = (Grid)((Border)overview.Content).Child;
             Check(!wallGrid.Children.Contains((UIElement)overview.FindName("OverviewHeader")) &&
                   wallGrid.RowDefinitions[0].Height.Value == 0,

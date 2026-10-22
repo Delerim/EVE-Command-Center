@@ -93,7 +93,7 @@
                     <ColumnDefinition Width="44*"/>
                     <ColumnDefinition Width="56*"/>
                 </Grid.ColumnDefinitions>
-                <WrapPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                <WrapPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" ItemHeight="25">
                 <TextBlock Grid.Column="0"
                            Text="EVE COMMAND CENTER CONTROL"
                            Foreground="#F1F7F5"
@@ -117,7 +117,7 @@
 
                 <WrapPanel Grid.Row="1" Grid.ColumnSpan="7" Margin="0,0,8,0"
                             Orientation="Horizontal"
-                            VerticalAlignment="Center">
+                            VerticalAlignment="Center" ItemHeight="25">
 
                     <TextBlock x:Name="DayText" Margin="6,0,0,0"
                                Foreground="#7EA99F"
@@ -179,15 +179,14 @@
                                    TextAlignment="Center"/>
                     </Border>
                 </WrapPanel>
-                <TextBlock x:Name="UpdatedText" Foreground="#6F8F88" FontSize="10"
-                           Margin="10,0,4,0" VerticalAlignment="Center"/>
                 </WrapPanel>
                 <Grid Grid.Column="1" VerticalAlignment="Center">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
-                <WrapPanel x:Name="FullActions" Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="12,0,2,0">
+                <WrapPanel x:Name="FullActions" Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" ItemHeight="25" Margin="12,0,2,0">
                     <Button x:Name="FullMuteButton" Content="MUTE EVE" Click="MuteAllClients_Click" FontSize="9" Margin="0,0,4,0" ToolTip="Mute all tracked EVE clients without changing comms or saved volume levels. Click again to unmute."/>
                     <Button x:Name="HorizontalFitButton" Click="AutoFit_Click" FontSize="9" Margin="0,0,5,0" ToolTip="Auto-fit sizes the overview and locks its resize handles. Switch to manual to resize."/>
                     <Button Content="VERTICAL" Click="Orientation_Click" FontSize="10" Margin="0,0,5,0"/>
@@ -202,7 +201,7 @@
                     </ContextMenu></Button.ContextMenu></Button>
                     <Button x:Name="OrderButton" Content="ORDER CLIENTS" MinWidth="58" Height="21" Padding="7,1" FontSize="10" FontWeight="SemiBold" Click="OrderMode_Click" MouseRightButtonUp="OrderButton_MouseRightButtonUp" ToolTip="Click to enable tile reordering, drag tiles left/right, then click DONE. Right-click to reset."/>
                 </WrapPanel>
-                <WrapPanel x:Name="CompactActions" Grid.Column="0" Orientation="Horizontal" Visibility="Collapsed">
+                <WrapPanel x:Name="CompactActions" Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" ItemHeight="25" Visibility="Collapsed">
                     <Button x:Name="CompactFitButton" Click="AutoFit_Click" FontSize="9" Margin="0,0,5,0"/>
                     <Button Content="VERTICAL" Click="Orientation_Click" FontSize="10" Margin="0,0,5,0"/>
                     <Button Content="COMMAND CENTER" Height="23" FontSize="10" Margin="0,0,5,0" Click="OpenCommandCenter_Click"/>
@@ -222,13 +221,17 @@
                     </ContextMenu></Button.ContextMenu></Button>
                     <Button Content="SEPARATE PREVIEWS" Height="23" FontSize="10" Click="Combine_Click" ToolTip="Restore the independent preview windows"/>
                 </WrapPanel>
-
-
-                <Button Grid.Column="1"
+                <!-- Always right of the buttons, immediately before the close icon. -->
+                <TextBlock x:Name="UpdatedText" Grid.Column="1"
+                           Foreground="#8DA8A2" FontSize="9.5"
+                           Margin="10,0,6,0" TextWrapping="NoWrap"
+                           VerticalAlignment="Center" TextAlignment="Right"/>
+                <Button Grid.Column="2"
                         Content="X"
                         Width="25"
                         Height="21"
                         Click="Close_Click"
+                        VerticalAlignment="Center"
                         Margin="5,0,0,0"/>
                 </Grid>
             </Grid>
