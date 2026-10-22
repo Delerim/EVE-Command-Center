@@ -12,6 +12,11 @@ internal static partial class Program
         Check(!new MiningDashboardPreferences().ShowMiningCircles &&
             !System.Text.Json.JsonSerializer.Deserialize<MiningDashboardPreferences>("{}")!.ShowMiningCircles,
             "New and existing preferences default to classic L1/L2");
+        Check(new MiningDashboardPreferences().ShowMiningHolds &&
+            System.Text.Json.JsonSerializer.Deserialize<MiningDashboardPreferences>("{}")!.ShowMiningHolds &&
+            !System.Text.Json.JsonSerializer.Deserialize<MiningDashboardPreferences>(
+                System.Text.Json.JsonSerializer.Serialize(new MiningDashboardPreferences { ShowMiningHolds = false }))!.ShowMiningHolds,
+            "Mining holds are on by default but can be hidden independently");
         Check(System.Text.Json.JsonSerializer.Deserialize<MiningDashboardPreferences>(System.Text.Json.JsonSerializer.Serialize(new MiningDashboardPreferences {ShowMiningCircles=true}))!.ShowMiningCircles,
             "Circle opt-in survives preference serialization");
         var now = new DateTime(2026, 10, 20, 12, 0, 0, DateTimeKind.Utc);
@@ -212,6 +217,8 @@ internal static partial class Program
         var prefs = (MiningDashboardPreferences)typeof(MiningFleetOverviewWindow).GetField("_prefs", flags)!.GetValue(window)!;
         prefs.CharacterOverviewMiningMode = true;
         prefs.FleetOverviewAutoFit = false;
+        // The default is visible; leave it enabled for the render tests.
+        prefs.ShowMiningHolds = true;
         var intel = (Dictionary<string, EveMiningShipIntel>)typeof(MiningFleetOverviewWindow).GetField("_pilotIntel", flags)!.GetValue(window)!;
         intel["Pilot A"] = new() {CurrentShip=new() {TypeName="Orca",ShipTypeId=28606,ShipItemId=1},MiningLaserCount=0,MiningHoldCapacityM3=187500};
         intel["Pilot B"] = new() {CurrentShip=new() {TypeName="Mackinaw",ShipTypeId=22548,ShipItemId=2},MiningLaserCount=0,MiningHoldCapacityM3=44296.875};
@@ -267,9 +274,10 @@ internal static partial class Program
         orcaType.GetProperty("LaserFallbackVisibility")!.SetValue(orcaCard, Visibility.Visible);
         orcaType.GetProperty("LaserText")!.SetValue(orcaCard, "DRONE MINING");
         orcaType.GetProperty("HoldVisibility")!.SetValue(orcaCard, Visibility.Visible);
+        // The production overview deliberately displays ONLY Orca mining cargo.
+        // Do not re-introduce the removed Fleet Hangar in the visual test fixture.
         orcaType.GetProperty("HoldRows")!.SetValue(orcaCard, new[] {
-            new MiningHoldSnapshots.Row("Mining", "~12,500 / 187,500 m\u00b3", 6.67, "#65D5B6", "Live estimate", "Pilot A"),
-            new MiningHoldSnapshots.Row("Fleet", "Cached: 30,772 / 40,000 m\u00b3", 76.93, "#65D5B6", "Cached inventory") });
+            new MiningHoldSnapshots.Row("Mining", "~12,500 / 187,500 m\u00b3", 6.67, "#65D5B6", "Live estimate", "Pilot A") });
         items.Items.Refresh();
         window.Width = 800;
         Render(window, render);
@@ -282,16 +290,18 @@ internal static partial class Program
             }
         }
         var frames=Walk(items).OfType<Border>().Where(b=>b.CornerRadius.TopLeft==7 && b.ActualWidth>150).ToArray();
-        Check(frames.Length>=2 && frames.Max(b=>b.ActualHeight)-frames.Min(b=>b.ActualHeight)<1,
-            "Orca with two holds and exhumer with rings have equal rendered card heights");
+        Check(frames.Length>=2 && !Grid.GetIsSharedSizeScope(items) &&
+              Walk(items).OfType<Grid>().Where(g=>g.RowDefinitions.Count==9).All(g=>
+                  g.RowDefinitions.Cast<RowDefinition>().All(row=>string.IsNullOrEmpty(row.SharedSizeGroup))),
+            "Orca and exhumer cards measure independently instead of reserving the largest hold row");
         var pills=Walk(items).OfType<Border>().Where(b=>b.CornerRadius.TopLeft==8 && b.DataContext is MiningStatusRings.Row).ToArray();
         Check(pills.Length==2 && Math.Abs(pills[0].TranslatePoint(new Point(), items).Y-pills[1].TranslatePoint(new Point(), items).Y)<1,
             "Both mining rings fit side by side at normal card width");
         var miningBars=Walk(items).OfType<Border>().Where(b=>b.CornerRadius.TopLeft==4 && b.DataContext is MiningHoldSnapshots.Row r && r.Label=="Mining").ToArray();
         Check(miningBars.Length==2 && pills.Length==2 && miningBars[1].TranslatePoint(new Point(), items).Y-(pills[0].TranslatePoint(new Point(), items).Y+pills[0].ActualHeight)<24,
             "Mining hold sits directly below the rings without a reserved second-hold gap");
-        Check(Walk(items).OfType<TextBlock>().Any(t=>t.Text.StartsWith("Cached: 30,772")),
-            "Compact Orca still displays its separately labelled fleet inventory");
+        Check(!Walk(items).OfType<Border>().Any(b=>b.DataContext is MiningHoldSnapshots.Row r && r.Label=="Fleet"),
+            "Orca Fleet Hangar is not rendered; only Mining cargo remains");
         var resets = Walk(items).OfType<Button>().Where(b=>Equals(b.Content,"Reset") && b.Visibility==Visibility.Visible).ToArray();
         Check(resets.Length==2 && resets.All(b=>b.DataContext is MiningHoldSnapshots.Row { Label: "Mining" }),
             "Each mining bar has a small Reset button; cached fleet inventory has none");
@@ -305,6 +315,24 @@ internal static partial class Program
         resetA.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
         Check(liveTracker.MiningHold.Present("Pilot A",10000,Volumes).Percent==0 && liveTracker.MiningHold.Present("Pilot B",10000,Volumes).Percent==10,
             "Reset button clears only its pilot's estimate");
+        // Use existing ESI ore-inventory data for Orcas, never calling it live.
+        intel["Pilot A"].MiningHoldInventory = new EveShipHoldSnapshot {
+            UsedM3 = 51250, BaseCapacityM3 = 150000, Complete = true,
+            ObservedUtc = DateTimeOffset.UtcNow, Detail = "Test snapshot"
+        };
+        typeof(MiningFleetOverviewWindow).GetMethod("RefreshCards", flags)!.Invoke(window, null);
+        var orcaCardEsi=items.Items.Cast<object>().Single(c=>
+            (string)c.GetType().GetProperty("Character")!.GetValue(c)! == "Pilot A");
+        var esiRows=(IReadOnlyList<MiningHoldSnapshots.Row>)orcaCardEsi.GetType().GetProperty("HoldRows")!.GetValue(orcaCardEsi)!;
+        Check(esiRows.Count==1 && esiRows[0].Label=="Mining" &&
+              esiRows[0].VolumeText.StartsWith("Cached:") &&
+              !esiRows[0].CanReset && esiRows[0].Detail.Contains("transfers from other ships"),
+            "Orca shows labeled cached ESI mining inventory without Fleet Hangar");
+        prefs.ShowMiningHolds=false;
+        typeof(MiningFleetOverviewWindow).GetMethod("RefreshCards", flags)!.Invoke(window, null);
+        Check(items.Items.Cast<object>().All(c=>(Visibility)c.GetType()
+            .GetProperty("HoldVisibility")!.GetValue(c)! == Visibility.Collapsed),
+            "Hold visibility toggle hides all bars while keeping mining telemetry");
         window.Close();
     }
 }

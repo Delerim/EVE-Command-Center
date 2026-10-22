@@ -10,6 +10,8 @@ namespace EveCommandCenter.Services;
 public sealed class MiningDashboardPreferences
 {
     public bool ShowMiningCircles { get; set; } = false;
+    // Keep cargo visible for miners by default; the switch is a display preference.
+    public bool ShowMiningHolds { get; set; } = true;
     public int PreferencesVersion { get; set; } = 11;
 
     public bool JitaEnabled { get; set; } = true;

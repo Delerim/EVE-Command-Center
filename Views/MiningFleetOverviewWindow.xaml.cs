@@ -24,43 +24,18 @@ public partial class MiningFleetOverviewWindow : Window
     }
     private Window? _controlTile;
     private bool _tileClosing;
+    // Retained entry point: keep the existing original toolbar inside the overview.
+    // The former Command Deck detached controls and suppressed both headers.
     internal void ShowControlTile()
     {
-        if (_controlTile != null) { _controlTile.Show(); _controlTile.WindowState = WindowState.Normal; return; }
-        if (!_prefs.CompactControlTileApplied) { _prefs.ControlTileWidth = 240; _prefs.CompactControlTileApplied = true; }
-        var controls = (System.Windows.Controls.Panel)OverviewHeader.Child;
-        OverviewHeader.Child = null;
-        OverviewHeader.Visibility = Visibility.Collapsed;
-        VerticalHeader.Visibility = Visibility.Collapsed;
-        var launch = new System.Windows.Controls.Button { Content = "SHOW CHARACTER OVERVIEW", Margin = new Thickness(0,0,0,8), Padding = new Thickness(10,5,10,5) };
-        // Launch restores the EXISTING mode, not an implicit switch to Combined.
-        launch.Click += (_,_) => { Show(); WindowState = WindowState.Normal; Activate(); ApplyCombinedMode(); };
-        var tileContent = BuildControlTileContent(controls, launch);
-        _controlTile = new Window {
-            Title = "EVE Command Center | Controls", Width = Math.Max(210,_prefs.ControlTileWidth),
-            MinWidth = 210, SizeToContent = SizeToContent.Height, ResizeMode = ResizeMode.CanResizeWithGrip,
-            ShowInTaskbar = true, Topmost = _prefs.FleetOverviewTopmost,
-            WindowStyle = WindowStyle.None, AllowsTransparency = true,
-            Background = System.Windows.Media.Brushes.Transparent,
-            Content = tileContent
-        };
-        _controlTile.Resources = Resources;
-        if (_prefs.ControlTileX is double x && _prefs.ControlTileY is double y) {
-            var screen = System.Windows.Forms.Screen.FromPoint(new System.Drawing.Point((int)x,(int)y)).WorkingArea;
-            var safe = RecoverOverviewPosition(new System.Drawing.Rectangle((int)x,(int)y,(int)_controlTile.Width,200),screen);
-            _controlTile.Left = safe.X; _controlTile.Top = safe.Y;
-        }
-        _controlTile.Closing += (_,e) => {
-            if (!_tileClosing && RunningApp?.IsShuttingDown != true) { e.Cancel = true; _controlTile.Hide(); }
-            SaveControlTile();
-        };
-        _controlTile.LocationChanged += (_,_) => SaveControlTile();
-        _controlTile.SizeChanged += (_,_) => SaveControlTile();
-        _controlTile.Show();
+        Show();
+        if (WindowState == WindowState.Minimized) WindowState = WindowState.Normal;
+        ApplyOrientation();
         ApplyCombinedMode();
-        _ = RefreshPlexMarketAsync();
+        Activate();
         RefreshCards();
     }
+
     private void SaveControlTile()
     {
         if (_controlTile == null) return;
@@ -93,9 +68,9 @@ public partial class MiningFleetOverviewWindow : Window
     {
         bool vertical = _prefs.FleetOverviewVertical;
         CardOrientation = vertical ? System.Windows.Controls.Orientation.Vertical : System.Windows.Controls.Orientation.Horizontal;
-        OverviewHeader.Visibility = _controlTile != null ? Visibility.Collapsed : vertical ? Visibility.Collapsed : Visibility.Visible;
-        VerticalHeader.Visibility = _controlTile != null ? Visibility.Collapsed : vertical ? Visibility.Visible : Visibility.Collapsed;
-        MinWidth = vertical ? 260 : 620;
+        OverviewHeader.Visibility = vertical ? Visibility.Collapsed : Visibility.Visible;
+        VerticalHeader.Visibility = vertical ? Visibility.Visible : Visibility.Collapsed;
+        MinWidth = vertical ? 260 : OverviewMode == "CHARACTERS" ? 300 : 620;
         ApplyResizeMode();
         if (vertical)
         {
@@ -771,6 +746,12 @@ public partial class MiningFleetOverviewWindow : Window
         MiningDashboardPreferencesStore.Save(_prefs);
         RefreshCards();
     }
+    private void MiningHolds_Click(object sender, RoutedEventArgs e)
+    {
+        _prefs.ShowMiningHolds = !_prefs.ShowMiningHolds;
+        MiningDashboardPreferencesStore.Save(_prefs);
+        RefreshCards();
+    }
 
     private void RockToggle_Click(object sender, RoutedEventArgs e)
     {
@@ -820,6 +801,7 @@ public partial class MiningFleetOverviewWindow : Window
     private void RefreshCards()
     {
         CircleToggle0.IsChecked = CircleToggle1.IsChecked = CircleToggle2.IsChecked = _prefs.ShowMiningCircles;
+        HoldToggle0.IsChecked = HoldToggle1.IsChecked = HoldToggle2.IsChecked = _prefs.ShowMiningHolds;
 
         UpdateAudioButton();
         if(_refreshingCards)return;
@@ -1141,16 +1123,56 @@ public partial class MiningFleetOverviewWindow : Window
             rings = rings.Select(r => r with { CrystalText = crystalLabel,
                 Detail = r.Detail + "\nFitted crystals: " + crystalLabel + ". Crystal labels describe the fit; logs do not identify physical module slots." }).ToArray();
             var holdRows = new List<MiningHoldSnapshots.Row>();
-            void AppendHold(string name, EveShipHoldSnapshot hold)
-            { if (hold.Supported) holdRows.Add(MiningHoldSnapshots.Present(name, hold, DateTimeOffset.UtcNow, name == "Mining")); }
             if (shipIntel != null && MiningHoldCapacity.HasLiveMiningHold(shipIntel.CurrentShip.ShipTypeId))
             {
                 _tracker.MiningHold.Configure(character, shipIntel.CurrentShip.ShipItemId, DateTime.UtcNow);
-                var liveHold = _tracker.MiningHold.Present(character, shipIntel.MiningHoldCapacityM3,
-                    ore => _tracker.TryGetMiningQuote(ore, out var quote) ? (quote.UnitVolumeM3, quote.CompressedUnitVolumeM3) : (0, 0));
-                holdRows.Add(liveHold with { ResetPilot = character });
+                if (_prefs.ShowMiningHolds)
+                {
+                    var logged = _tracker.MiningHold.Present(character, shipIntel.MiningHoldCapacityM3,
+                        ore => _tracker.TryGetMiningQuote(ore, out var quote) ? (quote.UnitVolumeM3, quote.CompressedUnitVolumeM3) : (0, 0));
+                    // Miners retain their original log-based cargo and Reset button.
+                    // Manual transfers into an Orca do NOT appear in the mining logs.
+                    // ESI can supply a delayed SpecializedOreHold inventory instead.
+                    var esi = shipIntel.MiningHoldInventory;
+                    bool usableOrcaSnapshot = isOrca && esi.Complete && esi.Supported &&
+                        esi.ObservedUtc != default && esi.ObservedUtc <= DateTimeOffset.UtcNow.AddMinutes(5) &&
+                        double.IsFinite(esi.UsedM3) && esi.UsedM3 >= 0 &&
+                        double.IsFinite(esi.BaseCapacityM3) && esi.BaseCapacityM3 > 0;
+                    if (usableOrcaSnapshot)
+                    {
+                        // Existing ESI snapshot capacity is unskilled hull base.
+                        // Display the same adjusted capacity already used by the tile.
+                        var corrected = new EveShipHoldSnapshot {
+                            UsedM3 = esi.UsedM3,
+                            BaseCapacityM3 = shipIntel.MiningHoldCapacityM3 > 0
+                                ? shipIntel.MiningHoldCapacityM3 : esi.BaseCapacityM3,
+                            Complete = true, Supported = true,
+                            ObservedUtc = esi.ObservedUtc, Detail = esi.Detail
+                        };
+                        var cached = MiningHoldSnapshots.Present("Mining", corrected, DateTimeOffset.UtcNow, true);
+                        // No Reset control for cached ESI: Reset only clears log estimates.
+                        holdRows.Add(cached with {
+                            Detail = cached.Detail +
+                                "\nOrca transfers from other ships are not visible in mining logs. " +
+                                "The ESI asset snapshot can be delayed by its cache. " +
+                                "\nIndependent log-only estimate: " + logged.VolumeText
+                        });
+                    }
+                    else
+                    {
+                        // ESI unavailable: use the log estimate with explicit warning.
+                        holdRows.Add(logged with {
+                            ResetPilot = character,
+                            Detail = logged.Detail + (isOrca
+                                ? "\nOrca transfers from other ships are not logged. " +
+                                  "No usable ESI mining-hold snapshot is available."
+                                : "")
+                        });
+                    }
+                }
             }
-            if (isOrca) AppendHold("Fleet", shipIntel?.FleetHangar ?? new());
+            // Never render Orca Fleet Hangar: its ESI inventory is delayed and
+            // the second cargo row unnecessarily enlarged every mining tile.
 
             string statusText = isOrca
                 ? "Drone mining"
@@ -1476,14 +1498,17 @@ public partial class MiningFleetOverviewWindow : Window
             card.CardWidth = cardWidth;
             card.CardPadding = new Thickness(8, _prefs.FleetOverviewVertical ? 3 : 6, 8, _prefs.FleetOverviewVertical ? 3 : 6);
             card.CardMargin = new Thickness(0, 0, 6, _prefs.FleetOverviewVertical ? 3 : 6);
-            card.CardMinHeight = _prefs.FleetOverviewVertical || OverviewMode == "MINING" ? 0 : 252 + (_tracker.RockTracking.Enabled ? 85 : 0);
+            // Preview-only cards should follow their actual thumbnail/content height.
+            // Keep the existing deliberate minimum for PvE and PvP cards.
+            card.CardMinHeight = _prefs.FleetOverviewVertical || OverviewMode == "MINING" || OverviewMode == "CHARACTERS"
+                ? 0 : 252 + (_tracker.RockTracking.Enabled ? 85 : 0);
             card.PreviewHeight = _prefs.FleetOverviewVertical ? 60 : 115;
             card.DetailedMiningVisibility = !_prefs.FleetOverviewVertical && OverviewMode == "MINING" ? Visibility.Visible : Visibility.Collapsed;
             card.CompactMiningVisibility = _prefs.FleetOverviewVertical && OverviewMode == "MINING" ? Visibility.Visible : Visibility.Collapsed;
             card.CanSwitch = _prefs.CombinedCharacterOverview;
             bool compact=OverviewMode=="CHARACTERS";
             card.MiningVisibility=OverviewMode=="MINING"?Visibility.Visible:Visibility.Collapsed;
-            card.HoldVisibility = OverviewMode == "MINING" && card.HoldRows.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+            card.HoldVisibility = _prefs.ShowMiningHolds && OverviewMode == "MINING" && card.HoldRows.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
             card.CombatVisibility=OverviewMode is "PVE" or "PVP"?Visibility.Visible:Visibility.Collapsed;
             card.PreviewVisibility=compact?Visibility.Visible:Visibility.Collapsed;
             if(OverviewMode!="MINING")card.RockVisibility=Visibility.Collapsed;
@@ -1516,9 +1541,16 @@ public partial class MiningFleetOverviewWindow : Window
         ApplyResizeMode();
 
         var fleetValue=_tracker.GetTodayFleetMiningValue();
-        FleetTodayProfit.Text=$"TODAY ~{fleetValue.Value:N0} ISK"+(fleetValue.MissingQuotes>0?" *":"");
+        string todayShort = fleetValue.Value >= 1_000_000_000d
+            ? $"{fleetValue.Value / 1_000_000_000d:N2}B"
+            : fleetValue.Value >= 1_000_000d
+                ? $"{fleetValue.Value / 1_000_000d:N2}M"
+                : fleetValue.Value >= 1_000d
+                    ? $"{fleetValue.Value / 1_000d:N1}K"
+                    : $"{fleetValue.Value:N0}";
+        FleetTodayProfit.Text=$"TODAY ~{todayShort} ISK"+(fleetValue.MissingQuotes>0?" *":"");
         UpdateCompactDeck(fleetValue.Value);
-        FleetTodayProfit.ToolTip=$"Today's fleet mining value estimate, including offline miners. Mining day starts at 04:00 local. Before taxes, fees and operating costs; not realized net profit. {fleetValue.MissingQuotes} ore types lack enabled-market quotes.";
+        FleetTodayProfit.ToolTip=$"Today's fleet mining estimate: {fleetValue.Value:N0} ISK, including offline miners. Mining day starts at 04:00 local. Before taxes, fees and costs; not realized net profit. {fleetValue.MissingQuotes} ore types lack enabled-market quotes.";
         DayText.Text = $"DAY {_tracker.GetMiningDayLabel()}";
         UpdatedText.Text =
             _tileReorderMode
@@ -1541,7 +1573,7 @@ public partial class MiningFleetOverviewWindow : Window
                       ? "clients"
                       : "miners");
 
-        MinWidth = _prefs.FleetOverviewVertical ? 260 : 620;
+        MinWidth = _prefs.FleetOverviewVertical ? 260 : OverviewMode == "CHARACTERS" ? 300 : 620;
         if (_prefs.FleetOverviewAutoFit && !_prefs.FleetOverviewVertical)
         {
             double desiredWidth = minerCount > 0
@@ -2108,7 +2140,7 @@ public partial class MiningFleetOverviewWindow : Window
     private void UpdateAccess()
     {
         // Secondary tools now live under TOOLS and the full Command Center.
-        MinWidth = _prefs.FleetOverviewVertical ? 260 : 620;
+        MinWidth = _prefs.FleetOverviewVertical ? 260 : OverviewMode == "CHARACTERS" ? 300 : 620;
         if (Width < MinWidth) Width = MinWidth;
     }
 

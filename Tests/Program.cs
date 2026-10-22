@@ -88,16 +88,26 @@ internal static partial class Program
             var appFixture = new System.Windows.Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
             var overview = CheckCharacterOverview();
             overview.ShowControlTile();
-            var tile = (Window)typeof(MiningFleetOverviewWindow).GetField("_controlTile",System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.Instance)!.GetValue(overview)!;
-            Check(tile.IsVisible && !overview.IsVisible, "Control tile opens without launching character cards");
-            overview.Show(); overview.Close();
-            Check(!overview.IsVisible && tile.IsVisible, "Closing character cards keeps controls alive");
-            Check(((FrameworkElement)overview.FindName("OverviewHeader")).Visibility == Visibility.Collapsed, "Card window has no toolbar after controls move to their tile");
-            if(args.Length>1) Render(tile,args[1]);
-            typeof(MiningFleetOverviewWindow).GetField("_tileClosing",System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.Instance)!.SetValue(overview,true);
+            var tile = typeof(MiningFleetOverviewWindow).GetField("_controlTile",
+                System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.Instance)!.GetValue(overview);
+            Check(tile is null, "Opening overview does not detach controls to a floating deck");
+            Check(overview.IsVisible &&
+                  ((FrameworkElement)overview.FindName("OverviewHeader")).Visibility == Visibility.Visible,
+                "Overview and inline toolbar become visible together");
+            var plex = (TextBlock)overview.FindName("PlexSellText");
+            var today = (TextBlock)overview.FindName("FleetTodayProfit");
+            Check(ReferenceEquals(plex.Parent, today.Parent),
+                "Today's ISK stays in the same horizontal PLEX information row");
+            Check(today.Visibility == Visibility.Visible && today.Text.StartsWith("TODAY ~") &&
+                  today.Text.Contains(" ISK") && today.Text.Length <= 28,
+                "Compact daily ISK total is visible beside PLEX");
+            Check(((Panel)overview.FindName("CompactActions")).Children.OfType<Button>()
+                .Any(b => Equals(b.Content, "SETTINGS")),
+                "Original overview settings button remains attached to header");
+            if(args.Length > 1) Render(overview, args[1]);
             overview.Close();
-            Check(!tile.IsVisible, "Final overview disposal closes the control tile");
-            Console.WriteLine($"{_checks} control tile checks passed."); return;
+            Check(!overview.IsVisible, "Closing overview does not leave a floating deck behind");
+            Console.WriteLine($"{_checks} inline toolbar checks passed."); return;
         }
         if(args.FirstOrDefault() == "--audit-active")
         {

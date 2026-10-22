@@ -99,6 +99,10 @@ internal static partial class Program
               "Combined overview retains PLEX and fleet value header stats");
         var initial=items.Items[0];
         var cardType=initial.GetType();
+        Check(items.Items.Cast<object>().All(c =>
+            (double)cardType.GetProperty("CardMinHeight")!.GetValue(c)! == 0),
+            "Character previews size to thumbnail content rather than a 252-DIP minimum");
+        Check(window.MinWidth == 300, "Compact preview mode releases the 620-DIP empty-width floor");
 
         Check(
             cardType.GetProperty("CritM3Text") != null,
@@ -130,13 +134,18 @@ internal static partial class Program
         prefs.CharacterOverviewMiningMode=true;Refresh();
         Check((double)cardType.GetProperty("CardWidth")!.GetValue(items.Items[0])! == characterWidth && (double)cardType.GetProperty("CardMinHeight")!.GetValue(items.Items[0])! == 0,"Mining cards keep their width and size height to content");
         Check(items.Items.Cast<object>().All(c=>!(bool)cardType.GetProperty("LivePreview")!.GetValue(c)!),"Mining mode disables native preview surfaces");
-        Check(FrameHeight()<measuredCharacterHeight,"Mining cards remove the unused preview-height space");
+        Check(FrameHeight()>0 && items.Items.Cast<object>().All(c=>
+            State(c,"PreviewVisibility")==Visibility.Collapsed),
+            "Mining cards measure their mining content and collapse the preview section");
         Check(items.Items.Count==3&&items.Items.Cast<object>().All(c=>State(c,"MiningVisibility")==Visibility.Visible&&State(c,"PreviewVisibility")==Visibility.Collapsed),"Mining mode keeps idle clients clickable while showing their mining details");
         prefs.CharacterOverviewCombatMode="PVE";Refresh();
         Check(items.Items.Count==3&&items.Items.Cast<object>().All(c=>State(c,"CombatVisibility")==Visibility.Visible&&State(c,"MiningVisibility")==Visibility.Collapsed),"PvE mode includes idle clients and hides mining statistics");
-        Check(Math.Abs(FrameHeight()-measuredCharacterHeight)<1,"PvE cards preserve the same measured frame height");
+        Check(FrameHeight()>=measuredCharacterHeight,
+            "PvE keeps its larger combat layout without forcing character previews tall");
         prefs.CharacterOverviewCombatMode="PVP";Refresh();
-        Check(items.Items.Cast<object>().All(c=>!(bool)cardType.GetProperty("LivePreview")!.GetValue(c)!)&&Math.Abs(FrameHeight()-measuredCharacterHeight)<1,"PvP mode keeps frame size and releases live previews");
+        Check(items.Items.Cast<object>().All(c=>!(bool)cardType.GetProperty("LivePreview")!.GetValue(c)!) &&
+              FrameHeight()>=measuredCharacterHeight,
+            "PvP retains combat card height and releases live thumbnail resources");
         prefs.CharacterOverviewCombatMode="";
         clients=clients.Take(2).ToArray();Refresh();
         Check(items.Items.Count==2,"Closed clients leave the combined overview");
