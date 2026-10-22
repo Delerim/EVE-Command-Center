@@ -24,16 +24,93 @@ public partial class MiningFleetOverviewWindow : Window
     }
     private Window? _controlTile;
     private bool _tileClosing;
-    // Retained entry point: keep the existing original toolbar inside the overview.
-    // The former Command Deck detached controls and suppressed both headers.
+    // One owner renders the cards; the actual XAML toolbar moves into a second,
+    // independently positioned window. No duplicated buttons, event handlers or ESI.
     internal void ShowControlTile()
     {
-        Show();
+        if (!IsVisible) Show();
         if (WindowState == WindowState.Minimized) WindowState = WindowState.Normal;
+        EnsureSeparateControlWindow();
+        if (_controlTile?.WindowState == WindowState.Minimized)
+            _controlTile.WindowState = WindowState.Normal;
+        _controlTile?.Show();
+        _controlTile?.Activate();
         ApplyOrientation();
         ApplyCombinedMode();
-        Activate();
         RefreshCards();
+    }
+
+    private void EnsureSeparateControlWindow()
+    {
+        if (_controlTile != null || !IsLoaded) return;
+        // Both controls and cards already exist in this window's XAML namescope.
+        // Reparent the real header to preserve all bindings and Click handlers.
+        var border = (System.Windows.Controls.Border)Content;
+        var grid = (System.Windows.Controls.Grid)border.Child;
+        if (!grid.Children.Contains(OverviewHeader))
+            throw new InvalidOperationException("Overview header was already detached without an owner.");
+        grid.Children.Remove(OverviewHeader);
+        grid.RowDefinitions[0].Height = new GridLength(0);
+        VerticalHeader.Visibility = Visibility.Collapsed;
+        OverviewHeader.Visibility = Visibility.Visible;
+        OverviewHeader.Margin = new Thickness(3, 0, 3, 0);
+
+        var toolbar = new Window {
+            Title = "EVE Command Center Control",
+            Width = Math.Min(1900, Math.Max(820, SystemParameters.WorkArea.Width)),
+            MinWidth = 650,
+            Height = 40,
+            SizeToContent = SizeToContent.Height,
+            WindowStyle = WindowStyle.None,
+            ResizeMode = ResizeMode.NoResize,
+            AllowsTransparency = true,
+            Background = System.Windows.Media.Brushes.Transparent,
+            Topmost = Topmost,
+            ShowInTaskbar = false,
+            WindowStartupLocation = WindowStartupLocation.Manual,
+            Resources = Resources,
+            Content = new System.Windows.Controls.Border {
+                Background = new System.Windows.Media.SolidColorBrush(
+                    (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#F20B1416")),
+                BorderBrush = new System.Windows.Media.SolidColorBrush(
+                    (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#2C6D60")),
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(7),
+                Padding = new Thickness(6, 3, 6, 3),
+                Child = OverviewHeader
+            }
+        };
+        // The former tiny Command Deck used these preferences too. Don't restore
+        // its 260px geometry as if it were this full-width toolbar.
+        if (_prefs.ControlTileWidth > 900 && _prefs.ControlTileX.HasValue && _prefs.ControlTileY.HasValue) {
+            toolbar.Left = _prefs.ControlTileX.Value;
+            toolbar.Top = _prefs.ControlTileY.Value;
+        } else {
+            double initialLeft = double.IsFinite(Left) ? Left : SystemParameters.WorkArea.Left;
+            double initialTop = double.IsFinite(Top) ? Top : SystemParameters.WorkArea.Top + 50;
+            toolbar.Left = Math.Max(SystemParameters.VirtualScreenLeft, initialLeft);
+            toolbar.Top = Math.Max(SystemParameters.VirtualScreenTop, initialTop - 45);
+        }
+        _controlTile = toolbar;
+        Title = "EVE Command Center Preview Wall";
+        toolbar.LocationChanged += (_, _) => SaveControlTile();
+        toolbar.Closing += (_, e) => {
+            if (_tileClosing) return;
+            e.Cancel = true;
+            // Close the owning wall, then both windows dispose together.
+            Dispatcher.BeginInvoke(new Action(Close));
+        };
+        toolbar.Show();
+        // For an existing wall at the screen top, initially place the cards
+        // immediately below the controls. Afterwards both windows move independently.
+        if (!double.IsFinite(Top) ||
+            (Top < toolbar.Top + toolbar.ActualHeight + 3 &&
+             (!double.IsFinite(Left) || Math.Abs(Left - toolbar.Left) < 500))) {
+            Top = Math.Min(SystemParameters.WorkArea.Bottom - MinHeight,
+                toolbar.Top + toolbar.ActualHeight + 5);
+            if (!double.IsFinite(Left)) Left = toolbar.Left;
+        }
+        ApplyOrientation();
     }
 
     private void SaveControlTile()
@@ -68,8 +145,13 @@ public partial class MiningFleetOverviewWindow : Window
     {
         bool vertical = _prefs.FleetOverviewVertical;
         CardOrientation = vertical ? System.Windows.Controls.Orientation.Vertical : System.Windows.Controls.Orientation.Horizontal;
-        OverviewHeader.Visibility = vertical ? Visibility.Collapsed : Visibility.Visible;
-        VerticalHeader.Visibility = vertical ? Visibility.Visible : Visibility.Collapsed;
+        // Before detaching, respect the normal horizontal/vertical header choice.
+        // After detaching, the real horizontal toolbar belongs to the separate
+        // Control window and must remain visible in every card orientation.
+        OverviewHeader.Visibility = _controlTile != null || !vertical
+            ? Visibility.Visible : Visibility.Collapsed;
+        VerticalHeader.Visibility = _controlTile == null && vertical
+            ? Visibility.Visible : Visibility.Collapsed;
         MinWidth = vertical ? 260 : OverviewMode == "CHARACTERS" ? 300 : 620;
         ApplyResizeMode();
         if (vertical)
@@ -281,6 +363,7 @@ public partial class MiningFleetOverviewWindow : Window
         Loaded +=
             async (_, _) =>
             {
+                EnsureSeparateControlWindow();
                 RefreshCards();
                 QueuePositionRecovery();
 
@@ -295,11 +378,18 @@ public partial class MiningFleetOverviewWindow : Window
             QueuePositionRecovery();
         };
 
-        Closing += (_,e) => { if (!_tileClosing && _controlTile != null && RunningApp?.IsShuttingDown != true) { e.Cancel = true; Hide(); MiningDashboardPreferencesStore.Save(_prefs); } };
+        // The preview wall owns the toolbar lifetime. Closing either closes both.
+        Closing += (_, _) => {
+            if (_controlTile != null) SaveControlTile();
+        };
         Closed += (_, _) =>
         {
             _tileClosing = true;
-            _controlTile?.Close();
+            if (_controlTile != null) {
+                SaveControlTile();
+                _controlTile.Close();
+                _controlTile = null;
+            }
             if (_focusManager != null) _focusManager.OverviewForegroundChanged -= UpdateActiveClient;
             _positionRecovery.Stop();
             _portraits.Dispose();
@@ -1769,10 +1859,12 @@ public partial class MiningFleetOverviewWindow : Window
 
     private void Header_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
-        if (e.LeftButton == MouseButtonState.Pressed)
-        {
-            MoveOverview();
-        }
+        if (e.LeftButton != MouseButtonState.Pressed) return;
+        // Drag the control strip, not the independent card wall.
+        if (_controlTile != null) {
+            try { _controlTile.DragMove(); }
+            catch (InvalidOperationException) { }
+        } else MoveOverview();
     }
 
     private void OrderMode_Click(

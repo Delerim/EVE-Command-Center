@@ -208,7 +208,7 @@ internal static partial class Program
             "Vertical overview keeps card width in a compact bounded sidebar");
         Check(((ScrollViewer)window.FindName("MinerScroll")).VerticalScrollBarVisibility == ScrollBarVisibility.Auto &&
             ((FrameworkElement)window.FindName("OverviewHeader")).Visibility == Visibility.Collapsed,
-            "Vertical overview scrolls the fleet and replaces the wide header");
+            "Before detaching, vertical overview uses its compact vertical header and scrollable cards");
         var verticalRoot = (FrameworkElement)window.Content;
         verticalRoot.Measure(new System.Windows.Size(260, 200));
         verticalRoot.Arrange(new Rect(0, 0, 260, 200));

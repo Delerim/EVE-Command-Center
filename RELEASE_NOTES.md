@@ -1,3 +1,10 @@
+# EVE Command Center v3.6.96
+
+- **Two independently sized windows.** The existing full-width PLEX/TODAY, contract indicator and action toolbar are reparented to their own "EVE Command Center Control" window. The overview window becomes a header-free preview wall; it auto-fits independently to character and mining cards.
+- **Preserved interactions.** Real WPF controls and handlers are moved, not cloned; mining, alarms, Combine/Separate, mode selection, live thumbnails and reset actions keep the existing code paths. Vertical view no longer hides the toolbar.
+- **Independent geometry and lifecycle.** Dragging controls no longer moves the preview wall. Closing the preview wall disposes both windows; the toolbar X button also closes the owner. First launch places the wall immediately below the toolbar when previously docked at screen top.
+- Regression assertions cover split ownership, no reserved header row, control-strip visibility and both-window cleanup.
+
 # EVE Command Center v3.6.95
 
 - **Pending contract indicator.** A small yellow circled `!` appears beside the overview PLEX/TODAY summary while a linked corporation has outstanding, unaccepted, unexpired contracts. It disappears after ESI confirms acceptance or expiry, not merely after opening the Contracts window.

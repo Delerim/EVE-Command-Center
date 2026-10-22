@@ -90,10 +90,32 @@ internal static partial class Program
             overview.ShowControlTile();
             var tile = typeof(MiningFleetOverviewWindow).GetField("_controlTile",
                 System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.Instance)!.GetValue(overview);
-            Check(tile is null, "Opening overview does not detach controls to a floating deck");
-            Check(overview.IsVisible &&
-                  ((FrameworkElement)overview.FindName("OverviewHeader")).Visibility == Visibility.Visible,
-                "Overview and inline toolbar become visible together");
+            Check(tile is Window strip && strip.IsVisible && overview.IsVisible &&
+                  strip.Title == "EVE Command Center Control",
+                "Overview opens a dedicated persistent control strip beside its preview wall");
+            var wallGrid = (Grid)((Border)overview.Content).Child;
+            Check(!wallGrid.Children.Contains((UIElement)overview.FindName("OverviewHeader")) &&
+                  wallGrid.RowDefinitions[0].Height.Value == 0,
+                "Preview wall owns only cards and reserves no header row");
+            var stripWidth = ((Window)tile!).Width;
+            typeof(MiningFleetOverviewWindow).GetMethod("RefreshCards",
+                System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.Instance)!.Invoke(overview,null);
+            Check(Math.Abs(((Window)tile!).Width - stripWidth) < 0.01,
+                "Auto-fitting and refreshing preview cards never resize the control strip");
+            var controlPrefs = (MiningDashboardPreferences)typeof(MiningFleetOverviewWindow)
+                .GetField("_prefs", System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.Instance)!
+                .GetValue(overview)!;
+            bool initialVertical = controlPrefs.FleetOverviewVertical;
+            controlPrefs.FleetOverviewVertical = true;
+            typeof(MiningFleetOverviewWindow).GetMethod("ApplyOrientation",
+                System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.Instance)!.Invoke(overview,null);
+            Check(((FrameworkElement)overview.FindName("OverviewHeader")).Visibility == Visibility.Visible &&
+                  ((FrameworkElement)overview.FindName("VerticalHeader")).Visibility == Visibility.Collapsed &&
+                  ((Grid)((Border)overview.Content).Child).RowDefinitions[0].Height.Value == 0,
+                "Vertical preview wall keeps the full control strip visible separately without taking header space");
+            controlPrefs.FleetOverviewVertical = initialVertical;
+            typeof(MiningFleetOverviewWindow).GetMethod("ApplyOrientation",
+                System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.Instance)!.Invoke(overview,null);
             var plex = (TextBlock)overview.FindName("PlexSellText");
             var today = (TextBlock)overview.FindName("FleetTodayProfit");
             Check(ReferenceEquals(plex.Parent, today.Parent),
@@ -129,10 +151,12 @@ internal static partial class Program
             Check(((Panel)overview.FindName("CompactActions")).Children.OfType<Button>()
                 .Any(b => Equals(b.Content, "SETTINGS")),
                 "Original overview settings button remains attached to header");
-            if(args.Length > 1) Render(overview, args[1]);
+            // Render the control strip itself; the wall is separately renderable via --audit-ui.
+            if(args.Length > 1) Render((Window)tile!, args[1]);
             overview.Close();
-            Check(!overview.IsVisible, "Closing overview does not leave a floating deck behind");
-            Console.WriteLine($"{_checks} inline toolbar checks passed."); return;
+            Check(!overview.IsVisible && !((Window)tile!).IsVisible,
+                "Closing the preview wall also closes its control strip");
+            Console.WriteLine($"{_checks} split overview toolbar checks passed."); return;
         }
         if(args.FirstOrDefault() == "--audit-active")
         {
@@ -201,6 +225,10 @@ internal static partial class Program
                 typeof(MiningFleetOverviewWindow).GetMethod("ApplyOrientation",flags)!.Invoke(overview,null);
                 typeof(MiningFleetOverviewWindow).GetMethod("RefreshCards",flags)!.Invoke(overview,null);
             }
+            // Render the actual cards-only wall after the controls have detached.
+            overview.ShowControlTile();
+            Check(((Grid)((Border)overview.Content).Child).RowDefinitions[0].Height.Value == 0,
+                "The screenshot fixture has no header row in the preview wall");
             Render(overview,args[1]);overview.Close();return;
         }
         if (args.FirstOrDefault() == "--native-preview") { CheckNativeOverviewPreview(args.Skip(1).FirstOrDefault()); return; }

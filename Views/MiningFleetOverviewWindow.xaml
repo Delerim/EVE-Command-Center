@@ -78,8 +78,9 @@
         </Style>
     </Window.Resources>
 
+    <!-- Card wall only after Loaded moves the header to the independent control strip. -->
     <Border Background="#F20B1416" BorderBrush="#2C6D60" BorderThickness="1"
-            CornerRadius="8" Padding="8">
+            CornerRadius="8" Padding="6">
         <Grid>
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
@@ -94,7 +95,7 @@
                 </Grid.ColumnDefinitions>
                 <WrapPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
                 <TextBlock Grid.Column="0"
-                           Text="CHARACTER OVERVIEW"
+                           Text="EVE COMMAND CENTER CONTROL"
                            Foreground="#F1F7F5"
                            FontWeight="SemiBold"
                            FontSize="14"
