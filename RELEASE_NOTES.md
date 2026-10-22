@@ -1,3 +1,9 @@
+# EVE Command Center v3.6.98
+
+- **Restore fleet-wide mining alarm toggle.** The ALL ALARMS OFF / ALL ALARMS ON button is now visible beside MUTE EVE in both full and compact control strips. These are different functions: MUTE EVE affects client audio; the restored toggle suppresses or re-enables mining alarms for currently tracked non-Orca miners.
+- **Reuse existing per-pilot alarm handling.** The old Command Deck handler updates and persists the alarm state for each eligible miner, leaving Orca drone-mining indicators unchanged. Button labels and tooltips refresh with current state.
+- **Regression coverage.** Focused control-strip checks verify both buttons exist and track the muted/unmuted fleet states without changing live user preferences during testing.
+
 # EVE Command Center v3.6.97
 
 - **Control strip moves with Alt + drag.** The separate toolbar intercepts the Alt + left-mouse gesture even over buttons, while normal button clicks continue working and preview wall movement remains independent.

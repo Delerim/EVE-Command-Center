@@ -24,7 +24,9 @@ public partial class MiningFleetOverviewWindow
             _deckMining.ToolTip = FleetTodayProfit.Text;
         }
         if (_deckStatus != null) _deckStatus.Text = $"EVE {System.DateTime.UtcNow:HH:mm} | {_clientSource().Count()} clients";
-        foreach(var button in _allAlarmButtons) {
+        // The old floating Command Deck is no longer shown. Keep its bulk-alarm
+        // action available in both versions of the real split control strip.
+        foreach (var button in _allAlarmButtons.Concat(new[] { FullAllAlarmsButton, CompactAllAlarmsButton })) {
             var characters = AlarmControlCharacters();
             bool muted = characters.Length > 0 && characters.All(_watchdog.IsCharacterAlarmMuted);
             button.Content = button.Tag?.ToString()=="icon" ? (muted ? "\uE7ED" : "\uEA8F") : (muted ? "ALL ALARMS ON" : "ALL ALARMS OFF");

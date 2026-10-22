@@ -174,6 +174,30 @@ internal static partial class Program
             Check(((Panel)overview.FindName("CompactActions")).Children.OfType<Button>()
                 .Any(b => Equals(b.Content, "SETTINGS")),
                 "Original overview settings button remains attached to header");
+            var fullAlarms=(Button)overview.FindName("FullAllAlarmsButton");
+            var compactAlarms=(Button)overview.FindName("CompactAllAlarmsButton");
+            Check(fullAlarms.Parent == overview.FindName("FullActions") &&
+                  compactAlarms.Parent == overview.FindName("CompactActions"),
+                  "Bulk mining alarm control is present in both split control-strip modes");
+            var flags=System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.Instance;
+            var alertWatchdog=(MiningIdleWatchdogService)typeof(MiningFleetOverviewWindow)
+                .GetField("_watchdog",flags)!.GetValue(overview)!;
+            var alarmPilots=(string[])typeof(MiningFleetOverviewWindow)
+                .GetMethod("AlarmControlCharacters",flags)!.Invoke(overview,null)!;
+            Check(alarmPilots.Length>0,
+                "Bulk alarm fixture has at least one active non-Orca miner");
+            // Simulate state changes without invoking the persistence-writing Click
+            // event; the real buttons bind to the existing ToggleAllAlarms handler.
+            alertWatchdog.SetCharacterAlarmsMuted(alarmPilots,true,save:false);
+            typeof(MiningFleetOverviewWindow).GetMethod("RefreshCards",flags)!.Invoke(overview,null);
+            Check(Equals(fullAlarms.Content,"ALL ALARMS ON") &&
+                  Equals(compactAlarms.Content,"ALL ALARMS ON"),
+                  "Both bulk alarm buttons offer re-enabling after the fleet is muted");
+            alertWatchdog.SetCharacterAlarmsMuted(alarmPilots,false,save:false);
+            typeof(MiningFleetOverviewWindow).GetMethod("RefreshCards",flags)!.Invoke(overview,null);
+            Check(Equals(fullAlarms.Content,"ALL ALARMS OFF") &&
+                  Equals(compactAlarms.Content,"ALL ALARMS OFF"),
+                  "Both bulk alarm buttons offer suppression when miners are unmuted");
             // Render the control strip itself; the wall is separately renderable via --audit-ui.
             if(args.Length > 1) Render((Window)tile!, args[1]);
             overview.Close();

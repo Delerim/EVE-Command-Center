@@ -188,6 +188,7 @@
                     </Grid.ColumnDefinitions>
                 <WrapPanel x:Name="FullActions" Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" ItemHeight="25" Margin="12,0,2,0">
                     <Button x:Name="FullMuteButton" Content="MUTE EVE" Click="MuteAllClients_Click" FontSize="9" Margin="0,0,4,0" ToolTip="Mute all tracked EVE clients without changing comms or saved volume levels. Click again to unmute."/>
+                    <Button x:Name="FullAllAlarmsButton" Content="ALL ALARMS OFF" Click="ToggleAllAlarms" FontSize="9" Height="21" Padding="7,2" Margin="0,0,5,0" ToolTip="Mute mining alarms on all tracked miners. Orca drone indicators stay unchanged."/>
                     <Button x:Name="HorizontalFitButton" Click="AutoFit_Click" FontSize="9" Margin="0,0,5,0" ToolTip="Auto-fit sizes the overview and locks its resize handles. Switch to manual to resize."/>
                     <Button Content="VERTICAL" Click="Orientation_Click" FontSize="10" Margin="0,0,5,0"/>
                     <Button Content="COMMAND CENTER" Height="21" FontSize="10" FontWeight="SemiBold" Click="OpenCommandCenter_Click" Margin="0,0,5,0" ToolTip="Restore the full EVE Command Center dashboard"/>
@@ -206,6 +207,7 @@
                     <Button Content="VERTICAL" Click="Orientation_Click" FontSize="10" Margin="0,0,5,0"/>
                     <Button Content="COMMAND CENTER" Height="23" FontSize="10" Margin="0,0,5,0" Click="OpenCommandCenter_Click"/>
                     <Button x:Name="CompactMuteButton" Content="MUTE EVE" Click="MuteAllClients_Click" FontSize="9" Margin="0,0,4,0" ToolTip="Mute all tracked EVE clients without changing comms or saved volume levels. Click again to unmute."/>
+                    <Button x:Name="CompactAllAlarmsButton" Content="ALL ALARMS OFF" Click="ToggleAllAlarms" FontSize="9" Height="23" Padding="7,2" Margin="0,0,5,0" ToolTip="Mute mining alarms on all tracked miners. Orca drone indicators stay unchanged."/>
                     <Button x:Name="ModeButton" Content="MODE: CHARACTERS" Height="23" FontSize="10" Click="Mode_Click" ToolTip="Choose character, mining, PvE or PvP cards"><Button.ContextMenu><ContextMenu>
                         <MenuItem Header="Characters - previews" Tag="CHARACTERS" Click="OverviewMode_Click"/>
                         <MenuItem Header="Mining - yield and alarms" Tag="MINING" Click="OverviewMode_Click"/>
