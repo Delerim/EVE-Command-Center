@@ -739,6 +739,15 @@ public partial class MiningFleetOverviewWindow : Window
         catch { /* Cosmetic lookup cannot prevent fitting data from loading. */ }
     }
 
+    // Uses already-refreshed corporation contract state. No independent ESI calls.
+    internal void UpdatePendingContractsBadge(ContractState? state, DateTimeOffset now)
+    {
+        var snapshot = PendingContractIndicator.Summarize(state, now);
+        PendingContractsBadge.Visibility = snapshot.Count > 0
+            ? Visibility.Visible : Visibility.Collapsed;
+        PendingContractsBadge.ToolTip = snapshot.ToolTip;
+    }
+
     private void Notifications_Click(object sender,RoutedEventArgs e)=>BackgroundOperations.Current.OpenNotifications();
     private void MiningCircles_Click(object sender, RoutedEventArgs e)
     {
@@ -1552,6 +1561,9 @@ public partial class MiningFleetOverviewWindow : Window
         UpdateCompactDeck(fleetValue.Value);
         FleetTodayProfit.ToolTip=$"Today's fleet mining estimate: {fleetValue.Value:N0} ISK, including offline miners. Mining day starts at 04:00 local. Before taxes, fees and costs; not realized net profit. {fleetValue.MissingQuotes} ore types lack enabled-market quotes.";
         DayText.Text = $"DAY {_tracker.GetMiningDayLabel()}";
+        // One-second overview refresh reuses the background service's cached ESI result.
+        // The nullable accessor avoids creating background polling in isolated UI tests.
+        UpdatePendingContractsBadge(BackgroundOperations.Existing?.Contracts.State, DateTimeOffset.UtcNow);
         UpdatedText.Text =
             _tileReorderMode
                 ? (_prefs.CombinedCharacterOverview

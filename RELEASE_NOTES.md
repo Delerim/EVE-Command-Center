@@ -1,3 +1,10 @@
+# EVE Command Center v3.6.95
+
+- **Pending contract indicator.** A small yellow circled `!` appears beside the overview PLEX/TODAY summary while a linked corporation has outstanding, unaccepted, unexpired contracts. It disappears after ESI confirms acceptance or expiry, not merely after opening the Contracts window.
+- **Accurate alert source.** Reuses the existing paced ESI corporation-contract snapshots without additional network polling; duplicate and cross-corporation contracts are excluded. Tooltip shows the pending count, last check time and cached-data warning when appropriate.
+- **Automatic update release.** This version is intended for a proper tagged GitHub Release. `v3.6.95` must contain the `EVE.Command.Center.exe` asset before installed v3.6.94 clients can offer it. A main-branch build artifact alone does not trigger auto-update prompts.
+- Existing mining cargo tracking, Orca display, compact previews and overview controls are unchanged.
+
 # EVE Command Center v3.6.94
 
 - **Compact classic laser status.** L1/L2 now each show a small play/stop icon and their own stream colour. Stopped streams pulse red and omit the stale cycle duration; running streams return to green. Learning/ambiguous streams remain grey, and muted alarms do not pulse. Crystal letters stay blue; ORE labels use the stream colour.

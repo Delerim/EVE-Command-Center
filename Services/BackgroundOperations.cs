@@ -12,6 +12,8 @@ public sealed partial class BackgroundOperations : IDisposable
 {
     private static BackgroundOperations? _current;
     public static BackgroundOperations Current => _current ??= new();
+    // Reading current cached status must never start ESI polling from an overview test.
+    public static BackgroundOperations? Existing => _current;
     public static void Stop() { _current?.Dispose(); _current = null; }
     public EveSsoService Sso { get; } = new();
     public MoonReportService Moons { get; }

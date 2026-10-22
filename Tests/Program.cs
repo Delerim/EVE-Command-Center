@@ -98,6 +98,31 @@ internal static partial class Program
             var today = (TextBlock)overview.FindName("FleetTodayProfit");
             Check(ReferenceEquals(plex.Parent, today.Parent),
                 "Today's ISK stays in the same horizontal PLEX information row");
+            var contractsBadge = (Border)overview.FindName("PendingContractsBadge");
+            var sampleNow = new DateTimeOffset(2026, 10, 22, 11, 0, 0, TimeSpan.Zero);
+            var contractState = new ContractState {
+                CorporationId = 2001, LastRefreshUtc = sampleNow,
+                Rows = new() { new ContractRow {
+                    CorporationId = 2001,
+                    Contract = new CorporationContract {
+                        Id = 1001, AssigneeId = 2001, Status = "outstanding",
+                        Expires = sampleNow.AddDays(1)
+                    }
+                } }
+            };
+            Check(contractsBadge.Visibility == Visibility.Collapsed,
+                "Contract warning starts hidden before an ESI observation");
+            overview.UpdatePendingContractsBadge(contractState, sampleNow);
+            Check(contractsBadge.Visibility == Visibility.Visible &&
+                  contractsBadge.ToolTip?.ToString()?.Contains("1 corporation contract awaiting acceptance") == true,
+                "Inline overview shows a yellow contract badge for outstanding acceptance");
+            contractState.Rows[0].Contract.Status = "in_progress";
+            overview.UpdatePendingContractsBadge(contractState, sampleNow);
+            Check(contractsBadge.Visibility == Visibility.Collapsed,
+                "Accepting a contract hides the inline contract warning");
+            // Leave the fixture active so --audit-controls renders the actual yellow badge.
+            contractState.Rows[0].Contract.Status = "outstanding";
+            overview.UpdatePendingContractsBadge(contractState, sampleNow);
             Check(today.Visibility == Visibility.Visible && today.Text.StartsWith("TODAY ~") &&
                   today.Text.Contains(" ISK") && today.Text.Length <= 28,
                 "Compact daily ISK total is visible beside PLEX");
@@ -227,6 +252,7 @@ internal static partial class Program
         CheckOmegaBudget();
         CheckRockTracking();
         CheckNotificationCenter();
+        CheckPendingContractIndicator();
         CheckMiningRates();
         CheckMiningHolds();
         CheckMiningDailyActivityAccumulator();
