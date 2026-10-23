@@ -281,14 +281,14 @@ public sealed class StatTrackerService
     public Dictionary<string, double> GetFleetMiningSessionUnitsByOre() =>
         _dailyMiningStore.GetFleetUnitsByOre();
 
+    // TODAY is inventory-style CCP average valuation of cumulative mined ore.
+    // Per-market rates and buyback calculations remain unchanged elsewhere.
     public (double Value, int MissingQuotes) GetTodayFleetMiningValue() => CalculateFleetMiningValue(
         GetFleetMiningSessionUnitsByOre(), ore =>
         {
-            if(!_miningMarket.TryGetQuote(ore,out var quote)||!quote.IsAvailable)return null;
-            double price=0;
-            if(_settings.MiningMarketJitaEnabled)price=Math.Max(price,GetMarketUnitPrice(quote,"Jita",_settings.MiningMarketPriceMode));
-            if(_settings.MiningMarketAmarrEnabled)price=Math.Max(price,GetMarketUnitPrice(quote,"Amarr",_settings.MiningMarketPriceMode));
-            return price>0?price:null;
+            if (!_miningMarket.TryGetQuote(ore, out var quote)) return null;
+            return quote.CcpAveragePrice is double average && double.IsFinite(average) && average > 0
+                ? average : null;
         });
     internal static (double Value, int MissingQuotes) CalculateFleetMiningValue(
         IReadOnlyDictionary<string,double> units, Func<string,double?> price)

@@ -32,6 +32,70 @@ public sealed class MiningMarketService
     private static readonly TimeSpan ErrorRetryTtl = TimeSpan.FromSeconds(30);
     private const string EsiCompatibilityDate = "2026-08-18";
 
+    // CCP's public average_price is an inventory-style value; adjusted_price
+    // is for industry calculations, live hub bids/asks for trading.
+    private static readonly SemaphoreSlim InventoryAverageGate = new(1, 1);
+    private static IReadOnlyDictionary<int, double> InventoryAveragePrices =
+        new Dictionary<int, double>();
+    private static DateTime InventoryAverageRefreshAfterUtc = DateTime.MinValue;
+
+    internal static Dictionary<int, double> ParseInventoryAveragePrices(JsonElement rows)
+    {
+        var result = new Dictionary<int, double>();
+        if (rows.ValueKind != JsonValueKind.Array) return result;
+        foreach (var row in rows.EnumerateArray())
+        {
+            if (row.ValueKind != JsonValueKind.Object) continue;
+            if (!row.TryGetProperty("type_id", out var type) || !type.TryGetInt32(out int typeId) ||
+                !row.TryGetProperty("average_price", out var value) || !value.TryGetDouble(out double price) ||
+                !double.IsFinite(price) || price <= 0) continue;
+            result[typeId] = price;
+        }
+        return result;
+    }
+
+    private static async Task<double?> GetInventoryAveragePriceAsync(int typeId, CancellationToken cancellationToken)
+    {
+        if (DateTime.UtcNow >= InventoryAverageRefreshAfterUtc)
+        {
+            await InventoryAverageGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                if (DateTime.UtcNow >= InventoryAverageRefreshAfterUtc)
+                {
+                    // One ESI response covers all ore types. Retry an outage later,
+                    // without making a request for every miner or resource.
+                    InventoryAverageRefreshAfterUtc = DateTime.UtcNow.AddMinutes(2);
+                    try
+                    {
+                        using var response = await Http.GetAsync(
+                            "https://esi.evetech.net/latest/markets/prices/?datasource=tranquility",
+                            cancellationToken).ConfigureAwait(false);
+                        response.EnsureSuccessStatusCode();
+                        using var body = await response.Content.ReadAsStreamAsync(cancellationToken)
+                            .ConfigureAwait(false);
+                        using var document = await JsonDocument.ParseAsync(body,
+                            cancellationToken: cancellationToken).ConfigureAwait(false);
+                        var prices = ParseInventoryAveragePrices(document.RootElement);
+                        if (prices.Count == 0) throw new InvalidOperationException("ESI returned no average prices.");
+                        InventoryAveragePrices = prices;
+                        InventoryAverageRefreshAfterUtc = DateTime.UtcNow.AddHours(1);
+                    }
+                    catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                    {
+                        throw;
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine("[MiningMarket] CCP average prices delayed: " + ex.Message);
+                    }
+                }
+            }
+            finally { InventoryAverageGate.Release(); }
+        }
+        return InventoryAveragePrices.TryGetValue(typeId, out double value) ? value : null;
+    }
+
     private readonly ConcurrentDictionary<string, MiningMarketQuote> _quotes =
         new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, Task<MiningMarketQuote?>> _inFlight =
@@ -481,6 +545,12 @@ public sealed class MiningMarketService
                 amarr = await rawAmarrTask.ConfigureAwait(false);
             }
 
+            // Inventory-style headline prices the same traded type as the
+            // market quote (compressed ore when its compressed type is traded).
+            // Absence of an average must stay explicit, not fall back to best sell.
+            double? inventoryAverage = isPlex ? null : await GetInventoryAveragePriceAsync(
+                marketTypeId, cancellationToken).ConfigureAwait(false);
+
             var quote = new MiningMarketQuote
             {
                 // Keep the resource name exactly as the mining logs know it.
@@ -496,6 +566,7 @@ public sealed class MiningMarketService
 
                 JitaBestSell = jita.BestSell,
                 JitaBestBuy = jita.BestBuy,
+                CcpAveragePrice = inventoryAverage,
                 AmarrBestSell = amarr.BestSell,
                 AmarrBestBuy = amarr.BestBuy,
                 MarketItemName = marketItemName,
@@ -728,6 +799,8 @@ public sealed record MiningMarketQuote
     public double CompressedUnitVolumeM3 { get; init; }
     public double? JitaBestSell { get; init; }
     public double? JitaBestBuy { get; init; }
+    // Public ESI /markets/prices/ average_price, never adjusted_price.
+    public double? CcpAveragePrice { get; init; }
     public double? AmarrBestSell { get; init; }
     public double? AmarrBestBuy { get; init; }
 

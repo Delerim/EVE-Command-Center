@@ -58,6 +58,20 @@ internal static partial class Program
         var laserDetector = typeof(EveSsoService).GetMethod("IsMiningLaserType", BindingFlags.NonPublic | BindingFlags.Static)!;
         Check((bool)laserDetector.Invoke(null, new object[] { new EveUniverseType { Name="Modulated Strip Miner II", GroupId=464 } })!,
             "Modulated strip miners are classified as mining lasers");
+        using (var pricesJson = System.Text.Json.JsonDocument.Parse(
+            "[{\"type_id\":101,\"average_price\":45.5,\"adjusted_price\":990}," +
+            "{\"type_id\":102,\"adjusted_price\":100}," +
+            "{\"type_id\":103,\"average_price\":0}]"))
+        {
+            var ccp = MiningMarketService.ParseInventoryAveragePrices(pricesJson.RootElement);
+            Check(ccp.Count == 1 && ccp[101] == 45.5 && !ccp.ContainsKey(102),
+                "Inventory valuation uses ESI average_price, never industry adjusted_price");
+            var averageFleet = StatTrackerService.CalculateFleetMiningValue(
+                new Dictionary<string, double> { ["Ore A"] = 100, ["Missing"] = 20 },
+                ore => ore == "Ore A" ? ccp[101] : null);
+            Check(averageFleet.Value == 4550 && averageFleet.MissingQuotes == 1,
+                "Fleet TODAY uses CCP averages and flags missing official prices");
+        }
         var tracker = new LiveMiningHold();
         tracker.Configure("A", 42, now);
         (double, double) Volumes(string _) => (10, .1);
@@ -70,6 +84,36 @@ internal static partial class Program
         Check(tracker.Present("A", 10000, Volumes).Percent == 100, "Full notification anchors to actual ship capacity");
         Add("compress", 100);
         Check(Math.Abs(tracker.Present("A", 10000, Volumes).Percent - 90.1) < .0001, "Compression reduces an anchored full hold");
+        // Regression: a miner hits 100%, compresses in space, and restarts its
+        // lasers. It must not require the user to hit Reset after each cycle.
+        var recover = new LiveMiningHold();
+        var anchor = DateTime.UtcNow.AddSeconds(-20);
+        recover.Configure("Sikran", 42, anchor);
+        recover.Record(new("Sikran", anchor.AddSeconds(1), "full"), anchor.AddSeconds(1));
+        Check(recover.Present("Sikran", 10000, Volumes).Percent == 100,
+            "A real full-hold notification anchors the miner at capacity");
+        var compressed = LiveMiningHold.Parse(
+            $"[ {anchor.AddSeconds(3):yyyy.MM.dd HH:mm:ss} ] (notify) Successfully compressed 100 Ore into 100 Compressed Ore.", "Sikran");
+        Check(compressed is { Kind: "compress", Units: 100, Ore: "Ore" },
+            "Compression with a source quantity is accepted as the pilot's own event");
+        recover.Record(compressed!, anchor.AddSeconds(3));
+        Check(Math.Abs(recover.Present("Sikran", 10000, Volumes).Percent - 90.1) < .0001,
+            "Successful compression unpins a full mining hold without a Reset click");
+        recover.Record(new("Sikran", anchor.AddSeconds(5), "mined", "Ore", 50), anchor.AddSeconds(5));
+        Check(Math.Abs(recover.Present("Sikran", 10000, Volumes).Percent - 95.1) < .0001,
+            "New laser pulls accumulate automatically after a full/compression cycle");
+        recover.Record(new("Sikran", anchor.AddSeconds(1), "full"), anchor.AddSeconds(6));
+        Check(Math.Abs(recover.Present("Sikran", 10000, Volumes).Percent - 95.1) < .0001,
+            "Delayed duplicate full warnings do not overwrite later compression and mining");
+        recover.Record(compressed!, anchor.AddSeconds(7));
+        Check(Math.Abs(recover.Present("Sikran", 10000, Volumes).Percent - 95.1) < .0001,
+            "Replayed compression notifications do not subtract cargo twice");
+        recover.Record(new("Sikran", anchor.AddSeconds(8), "full"), anchor.AddSeconds(8));
+        Check(recover.Present("Sikran", 10000, Volumes).Percent == 100,
+            "A genuinely new full-hold notification can anchor the next cycle");
+        Check(LiveMiningHold.Parse(
+            $"[ {anchor.AddSeconds(9):yyyy.MM.dd HH:mm:ss} ] (notify) Other Miner compressed 100 Ore using your compression services.", "Sikran") == null,
+            "Another pilot's compression service remains excluded");
         tracker.Empty("A", now.AddSeconds(2));
         Check(tracker.Present("A", 10000, Volumes).Percent == 0, "Explicit empty correction resets accumulated contents");
         Add("mined", 100);
@@ -146,6 +190,21 @@ internal static partial class Program
             fullRestart.Add(new(now.AddSeconds(second),54,"Bitumens",false));
         Check(MiningStatusRings.Build(2,false,false,fullRestart,now.AddSeconds(323)).All(r=>r.Accent=="#65D5B6"),
             "Full hold partial pull and changed restart phase recover both mining streams");
+        // After an extended 100%-hold stoppage, a new full-size observed yield
+        // must relearn rather than preserve dead track identities indefinitely.
+        var beforeFull = Enumerable.Range(0, 12).SelectMany(n => new[] {
+            new MiningStatusRings.Pull(now.AddSeconds(n * 24), 50, "Ore", false),
+            new MiningStatusRings.Pull(now.AddSeconds(n * 24 + 10), 50, "Ore", false)
+        });
+        var afterFull = Enumerable.Range(0, 6).SelectMany(n => new[] {
+            new MiningStatusRings.Pull(now.AddSeconds(420 + n * 24), 85, "Ore", false),
+            new MiningStatusRings.Pull(now.AddSeconds(430 + n * 24), 85, "Ore", false)
+        });
+        var restartRows = MiningStatusRings.Build(2, false, false,
+            beforeFull.Concat(afterFull), now.AddSeconds(551));
+        Check(restartRows.Count == 2 && restartRows.All(r =>
+            r.Accent == "#65D5B6" && r.CycleText == "24s"),
+            "Both laser streams relearn changed yield after a full-hold pause without Reset");
         var singleRunning=Enumerable.Range(0,16).Select(n=>new MiningStatusRings.Pull(now.AddSeconds(n*24),54,"Bitumens",false));
         var singleRows=MiningStatusRings.Build(2,false,false,singleRunning,now.AddSeconds(361));
         Check(singleRows.Count(r=>r.Accent=="#65D5B6")==1 && singleRows.Count(r=>r.Timing=="Learning")==1,

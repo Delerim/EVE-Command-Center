@@ -40,13 +40,22 @@ internal sealed class LiveMiningHold
         lock (_gate)
         {
             if (!_pilots.TryGetValue(item.Character, out var state) ||
-                item.Utc < state.Started || item.Utc < received.AddSeconds(-30) || item.Utc > received.AddSeconds(5)) return;
+                item.Utc < state.Started || item.Utc < received.AddSeconds(-120) || item.Utc > received.AddSeconds(5)) return;
             if (item.Kind == "full")
             {
+                // EVE can flush an older full warning after a successful compression.
+                // Never let that stale warning overwrite confirmed newer activity.
+                if (state.Events.Any(e => e.Utc > item.Utc)) return;
+                if (state.Full && item.Utc <= state.Started) return;
                 state.Full = true; state.Anchor = "Full notification"; state.Started = item.Utc;
                 state.Events.Clear(); state.Overflow = false; return;
             }
             if (item.Kind is not ("mined" or "compress") || item.Units <= 0 || string.IsNullOrWhiteSpace(item.Ore)) return;
+            // Deduplicate replayed compression notices without suppressing legitimate
+            // identical same-second laser pulls from two independent modules.
+            if (item.Kind == "compress" && state.Events.Any(e => e.Kind == "compress" &&
+                e.Utc == item.Utc && e.Units == item.Units &&
+                string.Equals(e.Ore, item.Ore, StringComparison.OrdinalIgnoreCase))) return;
             if (state.Events.Count >= 10000) { state.Overflow = true; return; }
             state.Events.Add(item);
         }
@@ -86,12 +95,24 @@ internal sealed class LiveMiningHold
         var stamp = Regex.Match(line, @"^\s*\[\s*(?<time>\d{4}\.\d{2}\.\d{2} \d{2}:\d{2}:\d{2})\s*\]");
         if (!DateTime.TryParseExact(stamp.Groups["time"].Value, "yyyy.MM.dd HH:mm:ss", CultureInfo.InvariantCulture,
             DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out var utc)) return null;
-        string text = Regex.Replace(line, "<[^>]*>", "");
-        if (Regex.IsMatch(text, @"(?:Ship's cargo|Your mining|Your cargo) hold is full", RegexOptions.IgnoreCase))
+        string text = Regex.Replace(line, "<[^>]*>", "").Replace('\u00a0', ' ').Trim();
+        // Notifications differ across client versions (ore/mining/cargo hold).
+        if (Regex.IsMatch(text,
+            @"(?:Ship['’]s cargo|Your (?:ore|mining|cargo)) hold is full\b",
+            RegexOptions.IgnoreCase))
             return new(character, utc, "full");
-        var match = Regex.Match(text, @"Successfully compressed (?<ore>.+?) into (?<units>[\d, ]+) Compressed (?<output>.+?)\.\s*$");
-        if (!match.Success || !match.Groups["ore"].Value.Equals(match.Groups["output"].Value, StringComparison.OrdinalIgnoreCase)) return null;
+        // Only the pilot's own successful compression has this wording. Other
+        // pilots using Orca compression services must never adjust this hold.
+        var match = Regex.Match(text,
+            @"\bSuccessfully\s+compressed\s+(?<source>.+?)\s+into\s+(?<units>[\d][\d,. ]*)\s+Compressed\s+(?<output>.+?)\s*[.!]?\s*$",
+            RegexOptions.IgnoreCase);
+        if (!match.Success) return null;
+        string output = match.Groups["output"].Value.Trim().TrimEnd('.', '!').Trim();
+        string source = match.Groups["source"].Value.Trim();
+        // Some notifications prefix the original ore with its quantity.
+        source = Regex.Replace(source, @"^[\d][\d,. ]*\s+(?=\S)", "").Trim();
+        if (!source.Equals(output, StringComparison.OrdinalIgnoreCase)) return null;
         if (!long.TryParse(Regex.Replace(match.Groups["units"].Value, @"[^\d]", ""), out long units) || units <= 0) return null;
-        return new(character, utc, "compress", match.Groups["ore"].Value, units);
+        return new(character, utc, "compress", output, units);
     }
 }

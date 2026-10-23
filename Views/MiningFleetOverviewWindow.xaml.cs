@@ -1658,9 +1658,9 @@ public partial class MiningFleetOverviewWindow : Window
                 : fleetValue.Value >= 1_000d
                     ? $"{fleetValue.Value / 1_000d:N1}K"
                     : $"{fleetValue.Value:N0}";
-        FleetTodayProfit.Text=$"TODAY ~{todayShort} ISK"+(fleetValue.MissingQuotes>0?" *":"");
+        FleetTodayProfit.Text=$"TODAY AVG ~{todayShort} ISK"+(fleetValue.MissingQuotes>0?" *":"");
         UpdateCompactDeck(fleetValue.Value);
-        FleetTodayProfit.ToolTip=$"Today's fleet mining estimate: {fleetValue.Value:N0} ISK, including offline miners. Mining day starts at 04:00 local. Before taxes, fees and costs; not realized net profit. {fleetValue.MissingQuotes} ore types lack enabled-market quotes.";
+        FleetTodayProfit.ToolTip=$"CCP ESI average-price valuation of today's mined ore: {fleetValue.Value:N0} ISK, including offline miners. Uses the compressed type's average when the quote is for compressed ore. Mining day starts at 04:00 local. Cumulative mined volume is NOT current inventory holdings or realized cash. Before fees and costs. {fleetValue.MissingQuotes} ore types lack CCP average prices (asterisk means partial). Jita/Amarr market and buyback prices are still available in the mining dashboard.";
         DayText.Text = $"DAY {_tracker.GetMiningDayLabel()}";
         // One-second overview refresh reuses the background service's cached ESI result.
         // The nullable accessor avoids creating background polling in isolated UI tests.

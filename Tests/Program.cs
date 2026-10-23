@@ -168,9 +168,9 @@ internal static partial class Program
             // Leave the fixture active so --audit-controls renders the actual yellow badge.
             contractState.Rows[0].Contract.Status = "outstanding";
             overview.UpdatePendingContractsBadge(contractState, sampleNow);
-            Check(today.Visibility == Visibility.Visible && today.Text.StartsWith("TODAY ~") &&
+            Check(today.Visibility == Visibility.Visible && today.Text.StartsWith("TODAY AVG ~") &&
                   today.Text.Contains(" ISK") && today.Text.Length <= 28,
-                "Compact daily ISK total is visible beside PLEX");
+                "CCP-average daily ISK total is visible beside PLEX");
             Check(((Panel)overview.FindName("CompactActions")).Children.OfType<Button>()
                 .Any(b => Equals(b.Content, "SETTINGS")),
                 "Original overview settings button remains attached to header");

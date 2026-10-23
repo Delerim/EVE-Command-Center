@@ -33,6 +33,39 @@ internal static class MiningStatusRings
         internal double Cycle => Gaps.Count == 0 ? SeedCycle : Gaps.TakeLast(2).Average();
         internal bool Ready => Gaps.Count >= 3 && Gaps.Max() - Gaps.Min() <= Math.Max(3, Cycle * .3);
     }
+    // Keep the restart decision outside the already large Build method.
+    // After a full hold and a prolonged pause, a new observed full-size pull
+    // may have a changed yield. Never infer a restart from time or compression.
+    private static bool TryResumeChangedYield(List<Track> tracks, Pull pull)
+    {
+        Track? candidate = null;
+        foreach (Track track in tracks)
+        {
+            if (!track.Ready || track.Cycle <= 0 ||
+                !string.Equals(track.Ore, pull.Ore, StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            double previousCycle = track.Cycle;
+            double elapsed = (pull.Utc - track.Last).TotalSeconds;
+            double yieldDifference = Math.Abs(pull.Units - track.Yield);
+            if (elapsed <= Math.Max(75, previousCycle * 3) ||
+                pull.Units < track.Yield * .8 ||
+                yieldDifference <= Math.Max(1.5, track.Yield * .2))
+                continue;
+
+            if (candidate == null || track.Last < candidate.Last)
+                candidate = track;
+        }
+        if (candidate == null) return false;
+
+        double seedCycle = candidate.Cycle;
+        candidate.Last = pull.Utc;
+        candidate.Yield = pull.Units;
+        candidate.Gaps.Clear();
+        candidate.SeedCycle = seedCycle;
+        return true;
+    }
+
     // A repeated short/long gap pair is two staggered pulls, not a faster module.
     // Require observable alternation; fitted count alone must never manufacture a second stream.
     private static Dictionary<string, double> StaggeredCadences(Pull[] observations, int fitted)
@@ -126,6 +159,15 @@ internal static class MiningStatusRings
                 tracks.FirstOrDefault(t => (pull.Utc - t.Last).TotalSeconds > Math.Max(30, t.Cycle + 8)) is { } replaced)
             {
                 replaced.Ore = pull.Ore; replaced.Last = pull.Utc; replaced.Yield = pull.Units; replaced.Gaps.Clear(); replaced.SeedCycle = cadence.GetValueOrDefault(pull.Ore);
+            }
+            // If a hold stopped the lasers for several cycles, their restarted
+            // full-size pulls may have a new effective yield (boost/crystal/ore).
+            // Relearn from the observed pull instead of leaving both lanes
+            // permanently stuck on old stopped/learning tracks. Never infer a
+            // restart from compression or elapsed time alone.
+            else if (!pull.Critical && TryResumeChangedYield(tracks, pull))
+            {
+                // Successful recovery is based on an actual new laser pull.
             }
             // A short final pull when the hold fills is not a new yield/cadence.
             // Keep established tracks; subsequent full pulls can re-anchor a stopped stream.

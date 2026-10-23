@@ -1,3 +1,12 @@
+# EVE Command Center v3.6.99
+
+- **Inventory-style TODAY valuation.** The overview headline uses CCP ESI `average_price` for the ore trading type (compressed where available) instead of the highest enabled hub quote. Missing official prices remain explicitly partial, never an inflated fallback.
+- **Public average-price caching.** One shared ESI price request per hour, with retry after outages; live Jita/Amarr mining and corporate buyback pricing stay unchanged. TODAY counts all mined ore, not just what is still in a ship inventory.
+
+- **Recover mining after cargo-full compression.** Hardened the pilot's own successful-compression log parser for variant spacing, source quantities and punctuation; recognised ore-hold warnings; accepted mildly delayed events; and ignored stale full warnings and replayed compression notices so a full cargo bar can decrease automatically without pressing Reset.
+- **Laser recovery after a full-hold pause.** Previously learned mining streams can relearn from real resumed pulls when their effective yield changed after an extended stop. No activity is inferred merely from passing time or compressing ore.
+- **Regression replays** cover full -> compression -> resumed mining -> full, stale/duplicate notifications, foreign-pilot compression, and a long stop followed by changed-yield lasers. Unlogged transfers still cannot be inferred from EVE logs.
+
 # EVE Command Center v3.6.98
 
 - **Restore fleet-wide mining alarm toggle.** The ALL ALARMS OFF / ALL ALARMS ON button is now visible beside MUTE EVE in both full and compact control strips. These are different functions: MUTE EVE affects client audio; the restored toggle suppresses or re-enables mining alarms for currently tracked non-Orca miners.
