@@ -363,6 +363,7 @@ internal static partial class Program
         CheckPermanentHistoricalRetention();
         CheckBuybackIndexPolicy();
         CheckFuelAlignment();
+        CheckAbyssalWatch();
         CheckReleaseMonitor().GetAwaiter().GetResult();
         CheckAccessAsync().GetAwaiter().GetResult();
         var moonSnapshot = CheckMoonRecovery();

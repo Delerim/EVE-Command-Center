@@ -243,6 +243,11 @@ public partial class App : Application
 
             // 6. Create alert hub
             _alertHub = new AlertHub(_settings.Settings);
+            // Public MutaMarket watch: independent of EVE auth and open Market window.
+            AbyssalWatchService.Instance.NewDeals += deals => Dispatcher.BeginInvoke(new Action(() => {
+                if (!_isShuttingDown) AbyssalWatchToast.Show(deals);
+            }));
+            AbyssalWatchService.Instance.Start();
             _alertHub.FocusCharacterRequested += (charName) =>
             {
                 Debug.WriteLine($"[AlertHub:Focus] 🎯 Focus requested for '{charName}'");
@@ -1342,6 +1347,7 @@ public partial class App : Application
         _isShuttingDown = true;
 
         // Single disposal path — ExitApplication calls Shutdown() which triggers this
+        AbyssalWatchService.Instance.Dispose();
         _releaseMonitor?.Dispose();
         WindowLayoutService.Current.Dispose();
         BackgroundOperations.Stop();

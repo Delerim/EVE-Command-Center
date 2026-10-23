@@ -1,3 +1,10 @@
+# EVE Command Center v3.6.100
+
+- **Abyssal Market Watch in Market & Wallet.** Configurable automatic public MutaMarket monitoring for both ORE Strip Miner and Modulated Strip Miner II; independent of selected source model, no new EVE permissions or executable execution.
+- **Configurable popup alerts.** Default minimum asking price 400M ISK (separate optional estimated-value threshold), minimum 140 m³ mining amount and 3.30 effective m³/s, at most +2 CPU and +2 PG; single-abyssal-item contracts by default. Open exact listing or inspect matches in the watch window. Settings and seen module/contract IDs persist between restarts. First scan baselines existing listings to avoid alert storms; regular scan uses newest first public API, default five minutes. Listings are subject to MutaMarket's public-contract ingestion lag (approximately 30 minutes).
+- **Control strip width polish.** Reduce automatic maximum width by about 50 DIP while preserving auto-fit/no resize, independent preview wall and Alt+drag.
+- Automated regression checks cover both strip-miner models, asking-price, quality/penalty limits, bundle rejection and listing identity.
+
 # EVE Command Center v3.6.99
 
 - **Inventory-style TODAY valuation.** The overview headline uses CCP ESI `average_price` for the ore trading type (compressed where available) instead of the highest enabled hub quote. Missing official prices remain explicitly partial, never an inflated fallback.

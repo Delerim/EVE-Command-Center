@@ -46,6 +46,12 @@ public partial class MarketOrdersWindow : Window
         _service = service; _pilots = pilots; RebuildPilots(); RenderOrders();
     }
     private void SyncSettings_Click(object sender, RoutedEventArgs e) => (System.Windows.Application.Current as App)?.OpenCommandCenterModule("setup");
+    private void AbyssalWatch_Click(object sender, RoutedEventArgs e)
+    {
+        var existing = System.Windows.Application.Current.Windows.OfType<AbyssalWatchWindow>().FirstOrDefault();
+        if (existing != null) { existing.Activate(); return; }
+        new AbyssalWatchWindow().Show();
+    }
     private long _activePilot;
     private void RebuildPilots()
     {
