@@ -33,5 +33,14 @@ internal static partial class Program
         var seen = new HashSet<string> { ore.Key };
         Check(seen.Add(ore.Key) == false && seen.Add(modulated.Key), "Distinct module-contract combinations deduplicate repeat alerts");
         Check(ore.Url == "https://mutamarket.com/modules/abyssal-test-1234", "Watch links open only the precise module detail");
+        Check(ore.MiningAmountText == "150.00" && ore.CycleText == "45.00" &&
+            ore.EffectiveSpeedText == "3.40" && ore.CpuDeltaText == "+1.00" &&
+            ore.PowergridDeltaText == "+1.00", "Hunter displays useful rounded mining and fitting numbers");
+        Check(ore.PriceAdvantageText.StartsWith("+") && ore.EstimateText == "500M", "Hunter shows estimated-value gap without confusing it with asking price");
+        Check(AbyssalWatchService.ParseNextCursor("{\"meta\":{\"next_cursor\":\"abcXYZ==\"}}") == "abcXYZ==" &&
+            AbyssalWatchService.ParseNextCursor("{\"data\":[]}") == null,
+            "Hunter accepts only documented paginated API cursors");
+        Check(!AbyssalWatchService.Matches(ore with { ExpiryUtc = "2020-01-01T00:00:00Z" }, settings),
+            "Expired public contracts never produce attractive deal alerts");
     }
 }

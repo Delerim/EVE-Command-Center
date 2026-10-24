@@ -88,7 +88,7 @@ public partial class MiningFleetOverviewWindow : Window
         };
         // The former tiny Command Deck used these preferences too. Don't restore
         // its 260px geometry as if it were this full-width toolbar.
-        if (_prefs.ControlTileWidth > 900 && _prefs.ControlTileX.HasValue && _prefs.ControlTileY.HasValue) {
+        if (_prefs.ControlTileWidth > 620 && _prefs.ControlTileX.HasValue && _prefs.ControlTileY.HasValue) {
             toolbar.Left = _prefs.ControlTileX.Value;
             toolbar.Top = _prefs.ControlTileY.Value;
         } else {
@@ -98,6 +98,7 @@ public partial class MiningFleetOverviewWindow : Window
             toolbar.Top = Math.Max(SystemParameters.VirtualScreenTop, initialTop - 45);
         }
         _controlTile = toolbar;
+        InstallControlCapsule(toolbar);
         Title = "EVE Command Center Preview Wall";
         toolbar.PreviewMouseLeftButtonDown += (_, e) => {
             if (!IsControlStripDragGesture(Keyboard.Modifiers, e.LeftButton)) return;
@@ -162,6 +163,7 @@ public partial class MiningFleetOverviewWindow : Window
         // Control window and must remain visible in every card orientation.
         OverviewHeader.Visibility = _controlTile != null || !vertical
             ? Visibility.Visible : Visibility.Collapsed;
+        RefreshControlCapsuleVisibility();
         VerticalHeader.Visibility = _controlTile == null && vertical
             ? Visibility.Visible : Visibility.Collapsed;
         MinWidth = vertical ? 260 : OverviewMode == "CHARACTERS" ? 300 : 620;
@@ -1661,11 +1663,13 @@ public partial class MiningFleetOverviewWindow : Window
                     : $"{fleetValue.Value:N0}";
         FleetTodayProfit.Text=$"TODAY AVG ~{todayShort} ISK"+(fleetValue.MissingQuotes>0?" *":"");
         UpdateCompactDeck(fleetValue.Value);
+        RefreshControlCapsule();
         FleetTodayProfit.ToolTip=$"CCP ESI average-price valuation of today's mined ore: {fleetValue.Value:N0} ISK, including offline miners. Uses the compressed type's average when the quote is for compressed ore. Mining day starts at 04:00 local. Cumulative mined volume is NOT current inventory holdings or realized cash. Before fees and costs. {fleetValue.MissingQuotes} ore types lack CCP average prices (asterisk means partial). Jita/Amarr market and buyback prices are still available in the mining dashboard.";
         DayText.Text = $"DAY {_tracker.GetMiningDayLabel()}";
         // One-second overview refresh reuses the background service's cached ESI result.
         // The nullable accessor avoids creating background polling in isolated UI tests.
         UpdatePendingContractsBadge(BackgroundOperations.Existing?.Contracts.State, DateTimeOffset.UtcNow);
+        RefreshControlCapsule();
         UpdatedText.Text =
             _tileReorderMode
                 ? (_prefs.CombinedCharacterOverview

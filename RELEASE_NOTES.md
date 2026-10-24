@@ -1,3 +1,10 @@
+# EVE Command Center v3.7.0
+
+- **Abyssal Hunter.** Replaces the plain white Abyssal Watch list with dark, sortable market intelligence, cleanly formatted mining/cycle/crit/CPU/PG stats, mutaplasmid identity, estimated value vs asking price, contract expiry, explicit selection details and search.
+- **Matching, browsing and alert history.** Browse up to three cursor pages per family on demand; background checks retain first-page polling. Historical matches/price reductions are persisted without spamming existing listings on the initial scan.
+- **Control capsule.** The independent control strip defaults to a narrow, movable essentials-only capsule: PLEX, TODAY AVG, contract warning, alarms, audio mute, mode and MORE. MORE restores all existing controls; COMPACT shrinks it again. Each mode preserves Alt+drag and the separate preview wall.
+- **Regression guards.** Additional checks for persisted capsule preferences, price-drop matching, expired contracts and paginated API contracts. No new EVE scopes, pilots, or user data uploads.
+
 # EVE Command Center v3.6.100
 
 - **Abyssal Market Watch in Market & Wallet.** Configurable automatic public MutaMarket monitoring for both ORE Strip Miner and Modulated Strip Miner II; independent of selected source model, no new EVE permissions or executable execution.
