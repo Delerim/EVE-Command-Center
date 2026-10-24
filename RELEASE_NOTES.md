@@ -1,3 +1,13 @@
+# EVE Command Center v3.8.0
+
+- **Seller Command Center.** Select and persist a linked market character; browse personal hangar stock including nested containers, grouped and searchable with EVE type icons.
+- **Actual stock vs orders.** Available inventory stock and active market-order units are shown separately. Selling one of ten products leaves nine units shown as ready stock, rather than erroneously deducting orders twice.
+- **Jita/Amarr comparisons.** Compare lowest public sell prices at Jita IV - Moon 4 - Caldari Navy Assembly Plant and Amarr VIII (Oris) - Emperor Family Academy, including station-specific differences and market movement since the previous stored quote.
+- **Actionable dashboard.** Highlights items without an order, undercut orders, stored items with active orders, and stale market information. All money figures are indicative before taxes, fees and transport.
+- **Cosmetic exclusion.** SKINs, SKINR, Apparel and Personalization inventory categories are excluded, with defensive name filtering; SKINR Paragon Hub inventories are not requested.
+- **No automatic trading.** Read-only ESI, scoped to a selected character, using cached assets/orders and rate-limited public station market queries.
+- **Validation.** Adds dedicated regression checks for nested containers, SKIN exclusions, price comparisons, active listings, stale orders and cyclic ESI parent chains.
+
 # EVE Command Center v3.7.1
 
 - **Restore the original full control toolbar.** Remove the compact/expanded capsule introduced in v3.7.0 and its dedicated source; retain the familiar complete tool strip, Alt+drag, separate preview wall, bulk alarms, PLEX and TODAY AVG.
