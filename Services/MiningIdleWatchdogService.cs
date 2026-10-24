@@ -55,7 +55,6 @@ public sealed class MiningDashboardPreferences
     public double? ControlTileX { get; set; }
     public double? ControlTileY { get; set; }
     public double ControlTileWidth { get; set; } = 620;
-    public bool ControlCapsuleExpanded { get; set; } = false;
     public bool FleetOverviewVertical { get; set; }
     public double FleetOverviewVerticalHeight { get; set; } = 850;
     public bool CombinedCharacterOverview { get; set; }

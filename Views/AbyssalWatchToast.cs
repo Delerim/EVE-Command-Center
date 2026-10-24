@@ -22,12 +22,12 @@ public static class AbyssalWatchToast
         Process.Start(new ProcessStartInfo(uri.AbsoluteUri) { UseShellExecute = true });
     }
 
-    public static void Show(IReadOnlyList<AbyssalWatchListing> listings)
+    public static void Show(IReadOnlyList<AbyssalWatchListing> listings, bool preview = false)
     {
         if (listings.Count == 0) return;
         var best = listings.OrderByDescending(x => x.EffectiveSpeed).First();
         var win = new Window {
-            Title = "Abyssal Market Watch", Width = 405, Height = 183,
+            Title = preview ? "Abyssal Market Watch - Alert Preview" : "Abyssal Market Watch", Width = 405, Height = 183,
             WindowStyle = WindowStyle.ToolWindow, ResizeMode = ResizeMode.NoResize,
             Topmost = true, ShowActivated = false, ShowInTaskbar = false,
             Background = new SolidColorBrush(Color.FromRgb(10, 30, 34)),
@@ -37,7 +37,7 @@ public static class AbyssalWatchToast
         win.Top = Math.Max(SystemParameters.WorkArea.Top, SystemParameters.WorkArea.Bottom - win.Height - 25);
         var box = new StackPanel { Margin = new Thickness(15) };
         win.Content = box;
-        box.Children.Add(new TextBlock { Text = listings.Count == 1 ? "NEW ABYSSAL STRIP MINER MATCH" : $"{listings.Count} NEW ABYSSAL STRIP MINER MATCHES", FontWeight = FontWeights.Bold, Foreground = Brushes.Gold });
+        box.Children.Add(new TextBlock { Text = preview ? "ALERT PREVIEW - EXISTING MATCH" : listings.Count == 1 ? "NEW ABYSSAL STRIP MINER MATCH" : $"{listings.Count} NEW ABYSSAL STRIP MINER MATCHES", FontWeight = FontWeights.Bold, Foreground = Brushes.Gold });
         box.Children.Add(new TextBlock { Text = $"{best.Source}  |  {best.PriceText}", FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 9, 0, 3) });
         box.Children.Add(new TextBlock { Text = best.QualityText, FontSize = 11, TextWrapping = TextWrapping.Wrap });
         var actions = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 10, 0, 0) };

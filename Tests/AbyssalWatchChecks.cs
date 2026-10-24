@@ -1,4 +1,5 @@
 using EveCommandCenter.Services;
+using EveCommandCenter.Views;
 
 internal static partial class Program
 {
@@ -33,6 +34,13 @@ internal static partial class Program
         var seen = new HashSet<string> { ore.Key };
         Check(seen.Add(ore.Key) == false && seen.Add(modulated.Key), "Distinct module-contract combinations deduplicate repeat alerts");
         Check(ore.Url == "https://mutamarket.com/modules/abyssal-test-1234", "Watch links open only the precise module detail");
+        var allModules = new[] { ore, modulated };
+        Check(AbyssalWatchWindow.RowsForTab(0, allModules, allModules, Array.Empty<AbyssalWatchListing>()).Count == 2 &&
+              AbyssalWatchWindow.RowsForTab(1, allModules, allModules, Array.Empty<AbyssalWatchListing>()).Single().Source == "ORE Strip Miner" &&
+              AbyssalWatchWindow.RowsForTab(2, allModules, allModules, Array.Empty<AbyssalWatchListing>()).Single().Source == "Modulated Strip Miner II" &&
+              AbyssalWatchWindow.RowsForTab(3, allModules, allModules, Array.Empty<AbyssalWatchListing>()).Count == 2 &&
+              AbyssalWatchWindow.RowsForTab(4, allModules, allModules, Array.Empty<AbyssalWatchListing>()).Count == 0,
+              "Hunter tabs separate matches, ORE, Modulated II, browse and alert history");
         Check(ore.MiningAmountText == "150.00" && ore.CycleText == "45.00" &&
             ore.EffectiveSpeedText == "3.40" && ore.CpuDeltaText == "+1.00" &&
             ore.PowergridDeltaText == "+1.00", "Hunter displays useful rounded mining and fitting numbers");

@@ -1,3 +1,11 @@
+# EVE Command Center v3.7.1
+
+- **Restore the original full control toolbar.** Remove the compact/expanded capsule introduced in v3.7.0 and its dedicated source; retain the familiar complete tool strip, Alt+drag, separate preview wall, bulk alarms, PLEX and TODAY AVG.
+- **Abyssal Hunter model tabs.** Add Matches, ORE Strip Miner, Modulated II, Browse All and Alert History. Family tabs show all fetched contracts of that model, while Matches still enforces saved alert thresholds.
+- **Improve readability.** Wider row spacing, colored yield/effective speed, fitting deltas, asking prices, value gaps and expiry status. Retain sortable dark table and direct listing links.
+- **Preview alerts on demand.** PREVIEW ALERT demonstrates the exact popup using a currently matching listing without creating a fake new contract or rewriting deduplication history. Explain that the initial scan is intentionally quiet; later new matches and meaningful price drops notify normally.
+- **Avoid browser-induced alerts.** Manual LOAD MORE pagination does not trigger popups for older listings exposed by expanded browsing.
+
 # EVE Command Center v3.7.0
 
 - **Abyssal Hunter.** Replaces the plain white Abyssal Watch list with dark, sortable market intelligence, cleanly formatted mining/cycle/crit/CPU/PG stats, mutaplasmid identity, estimated value vs asking price, contract expiry, explicit selection details and search.

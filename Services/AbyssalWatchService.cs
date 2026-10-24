@@ -175,7 +175,7 @@ public sealed class AbyssalWatchService : IDisposable
             Latest = AllListings.Where(item => Matches(item, Options)).ToArray();
             // A changed asking price is a fresh opportunity even for an old listing.
             // Only notify on a meaningful (>=10%) drop, never a tiny market edit.
-            var newDeals = _initialized ? Latest.Where(item => !_seen.Contains(item.Key) ||
+            var newDeals = _initialized && !includeMorePages ? Latest.Where(item => !_seen.Contains(item.Key) ||
                 _lastPrices.TryGetValue(item.Key, out double previous) && previous > 0 &&
                 item.AskingPrice > 0 && item.AskingPrice <= previous * 0.90).ToArray()
                 : Array.Empty<AbyssalWatchListing>();

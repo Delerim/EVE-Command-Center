@@ -41,7 +41,7 @@ public sealed class AbyssalWatchWindow : Window
     private readonly TextBox _search = new() { Width = 230, ToolTip = "Search model, mutaplasmid, contract or module ID" };
     private readonly DataGrid _results = new() { AutoGenerateColumns = false, IsReadOnly = true,
         CanUserAddRows = false, CanUserDeleteRows = false, CanUserSortColumns = true,
-        EnableRowVirtualization = true, RowHeight = 36, FontSize = 12,
+        EnableRowVirtualization = true, RowHeight = 42, FontSize = 12,
         SelectionMode = DataGridSelectionMode.Single,
         HeadersVisibility = DataGridHeadersVisibility.Column,
         GridLinesVisibility = DataGridGridLinesVisibility.Horizontal };
@@ -72,6 +72,9 @@ public sealed class AbyssalWatchWindow : Window
         top.Children.Add(buttons);
         var scan = ActionButton("CHECK NOW", buttons, "Refresh the latest public contracts");
         scan.Click += async (_, _) => { if (Save()) await _watch.RefreshAsync(); };
+        var previewAlert = ActionButton("PREVIEW ALERT", buttons,
+            "Show the actual popup for the selected matching contract without marking it new");
+        previewAlert.Click += (_, _) => PreviewAlert();
         var browse = ActionButton("LOAD MORE", buttons, "Scan up to three pages per model for browsing. Background monitoring stays lightweight.");
         browse.Click += async (_, _) => { if (Save()) await _watch.RefreshAsync(includeMorePages: true); };
         var filterButton = ActionButton("FILTERS", buttons, "Show or hide saved hunter thresholds");
@@ -129,9 +132,11 @@ public sealed class AbyssalWatchWindow : Window
         _tabs.Margin = new Thickness(0, 8, 0, 7);
         _tabs.Background = Ink(11, 37, 40);
         _tabs.BorderBrush = Ink(45, 84, 86);
-        _tabs.Items.Add(new TabItem { Header = "MATCHES" });
-        _tabs.Items.Add(new TabItem { Header = "BROWSE" });
-        _tabs.Items.Add(new TabItem { Header = "ALERT HISTORY" });
+        _tabs.Items.Add(HunterTab("MATCHES"));
+        _tabs.Items.Add(HunterTab("ORE STRIP MINER"));
+        _tabs.Items.Add(HunterTab("MODULATED II"));
+        _tabs.Items.Add(HunterTab("BROWSE ALL"));
+        _tabs.Items.Add(HunterTab("ALERT HISTORY"));
         _tabs.SelectionChanged += (_, e) => { if (e.Source == _tabs) Refresh(); };
         header.Children.Add(_tabs);
 
@@ -146,13 +151,14 @@ public sealed class AbyssalWatchWindow : Window
         _results.ColumnHeaderStyle.Setters.Add(new Setter(DataGridColumnHeader.BackgroundProperty, Ink(18, 55, 59)));
         _results.ColumnHeaderStyle.Setters.Add(new Setter(DataGridColumnHeader.ForegroundProperty, Teal));
         _results.ColumnHeaderStyle.Setters.Add(new Setter(DataGridColumnHeader.FontWeightProperty, FontWeights.SemiBold));
-        _results.ColumnHeaderStyle.Setters.Add(new Setter(DataGridColumnHeader.HeightProperty, 34d));
+        _results.ColumnHeaderStyle.Setters.Add(new Setter(DataGridColumnHeader.HeightProperty, 38d));
         _results.CellStyle = new Style(typeof(DataGridCell));
         _results.CellStyle.Setters.Add(new Setter(DataGridCell.BackgroundProperty, Brushes.Transparent));
         _results.CellStyle.Setters.Add(new Setter(DataGridCell.ForegroundProperty, Ink(220, 240, 237)));
         _results.CellStyle.Setters.Add(new Setter(DataGridCell.BorderThicknessProperty, new Thickness(0)));
         _results.RowStyle = new Style(typeof(DataGridRow));
         _results.RowStyle.Setters.Add(new Setter(DataGridRow.BackgroundProperty, Brushes.Transparent));
+        _results.RowStyle.Setters.Add(new Setter(DataGridRow.MinHeightProperty, 42d));
         var selected = new Trigger { Property = DataGridRow.IsSelectedProperty, Value = true };
         selected.Setters.Add(new Setter(DataGridRow.BackgroundProperty, Ink(26, 85, 79)));
         selected.Setters.Add(new Setter(DataGridRow.ForegroundProperty, Brushes.White));
@@ -203,9 +209,90 @@ public sealed class AbyssalWatchWindow : Window
         Refresh();
     }
 
-    private void AddColumn(string caption, string path, double width) =>
-        _results.Columns.Add(new DataGridTextColumn { Header = caption,
-            Binding = new Binding(path), Width = new DataGridLength(width) });
+    // All tabs share the same listing rows; the family tabs deliberately show
+    // *all* observed contracts for their base module, not just alert matches.
+    public static IReadOnlyList<AbyssalWatchListing> RowsForTab(int tab,
+        IReadOnlyList<AbyssalWatchListing> matches,
+        IReadOnlyList<AbyssalWatchListing> all,
+        IReadOnlyList<AbyssalWatchListing> history) => tab switch
+    {
+        1 => all.Where(x => x.Source == "ORE Strip Miner").ToArray(),
+        2 => all.Where(x => x.Source == "Modulated Strip Miner II").ToArray(),
+        3 => all,
+        4 => history,
+        _ => matches
+    };
+
+    private static TabItem HunterTab(string label) => new()
+    {
+        Header = label, Background = Ink(17, 48, 51), Foreground = Teal,
+        BorderBrush = Ink(43, 100, 91), Margin = new Thickness(0, 0, 7, 0),
+        Padding = new Thickness(15, 7, 15, 7), MinHeight = 32,
+        FontSize = 11, FontWeight = FontWeights.SemiBold
+    };
+
+    private sealed class HunterStatColor : IValueConverter
+    {
+        private readonly string _column;
+        public HunterStatColor(string column) { _column = column; }
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            var raw = value?.ToString() ?? "";
+            bool valid = double.TryParse(raw.TrimEnd('%'), NumberStyles.Float,
+                CultureInfo.InvariantCulture, out var number);
+            if (_column == "PriceText") return Ink(244, 206, 135);
+            if (_column == "ExpiryText" && raw == "EXPIRED") return Ink(235, 121, 134);
+            if (_column == "EffectiveSpeedText" && valid)
+                return number >= 3.30 ? Ink(100, 224, 177) : Ink(235, 187, 113);
+            if (_column == "MiningAmountText" && valid)
+                return number >= 140 ? Ink(100, 224, 177) : Ink(235, 187, 113);
+            if ((_column == "CpuDeltaText" || _column == "PowergridDeltaText") && valid)
+                return number <= 0 ? Ink(100, 224, 177) : number <= 2 ? Ink(238, 201, 123) : Ink(240, 123, 140);
+            if (_column == "PriceAdvantageText" && valid)
+                return number >= 10 ? Ink(100, 224, 177) : number >= 0 ? Ink(238, 201, 123) : Ink(240, 123, 140);
+            return Ink(211, 234, 234);
+        }
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+            => throw new NotSupportedException();
+    }
+
+    private void AddColumn(string caption, string path, double width)
+    {
+        // Bind within a DataTemplate, not via Style.Setter.Value: WPF setters
+        // cannot directly hold a Binding object for a data-row property.
+        var cell = new FrameworkElementFactory(typeof(TextBlock));
+        cell.SetBinding(TextBlock.TextProperty, new Binding(path));
+        cell.SetBinding(TextBlock.ForegroundProperty,
+            new Binding(path) { Converter = new HunterStatColor(path) });
+        cell.SetValue(TextBlock.MarginProperty, new Thickness(8, 0, 8, 0));
+        cell.SetValue(TextBlock.VerticalAlignmentProperty, VerticalAlignment.Center);
+        cell.SetValue(TextBlock.FontWeightProperty, FontWeights.SemiBold);
+        if (path is "MiningAmountText" or "CycleText" or "EffectiveSpeedText" or
+            "CpuDeltaText" or "PowergridDeltaText" or "PriceText" or
+            "EstimateText" or "PriceAdvantageText")
+            cell.SetValue(TextBlock.TextAlignmentProperty, TextAlignment.Right);
+        var template = new DataTemplate { VisualTree = cell };
+        _results.Columns.Add(new DataGridTemplateColumn
+        {
+            Header = caption, CellTemplate = template, SortMemberPath = path,
+            Width = new DataGridLength(width)
+        });
+    }
+
+    private void PreviewAlert()
+    {
+        var item = _results.SelectedItem as AbyssalWatchListing;
+        if (item == null || !AbyssalWatchService.Matches(item, _watch.Options))
+            item = _watch.Latest.FirstOrDefault();
+        if (item == null)
+        {
+            System.Windows.MessageBox.Show(this,
+                "No current listings pass your saved alert filters. Try CHECK NOW or adjust FILTERS.",
+                "Abyssal Hunter", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+        AbyssalWatchToast.Show(new[] { item }, preview: true);
+    }
 
     private static Button ActionButton(string title, Panel parent, string tooltip)
     {
@@ -259,7 +346,12 @@ public sealed class AbyssalWatchWindow : Window
     {
         if (!Dispatcher.CheckAccess()) { Dispatcher.BeginInvoke(new Action(Refresh)); return; }
         var options = _tabs.SelectedIndex;
-        var source = options == 1 ? _watch.AllListings : options == 2 ? _watch.RecentAlerts : _watch.Latest;
+        var source = RowsForTab(options, _watch.Latest, _watch.AllListings, _watch.RecentAlerts);
+        ((TabItem)_tabs.Items[0]).Header = $"MATCHES  {_watch.Latest.Count}";
+        ((TabItem)_tabs.Items[1]).Header = $"ORE STRIP MINER  {_watch.AllListings.Count(x => x.Source == "ORE Strip Miner")}";
+        ((TabItem)_tabs.Items[2]).Header = $"MODULATED II  {_watch.AllListings.Count(x => x.Source == "Modulated Strip Miner II")}";
+        ((TabItem)_tabs.Items[3]).Header = $"BROWSE ALL  {_watch.AllListings.Count}";
+        ((TabItem)_tabs.Items[4]).Header = $"ALERT HISTORY  {_watch.RecentAlerts.Count}";
         string needle = _search.Text.Trim();
         var filtered = source.Where(x => needle.Length == 0 ||
             x.Source.Contains(needle, StringComparison.OrdinalIgnoreCase) ||
@@ -273,7 +365,7 @@ public sealed class AbyssalWatchWindow : Window
         _summary.Text = $"{_watch.Latest.Count} MATCHES   ·   {_watch.AllListings.Count} BROWSED   ·   {_watch.RecentAlerts.Count} ALERTS";
         _status.Text = $"Last check: {_watch.LastChecked?.ToLocalTime().ToString("dd MMM HH:mm") ?? "never"}  |  " +
             (string.IsNullOrWhiteSpace(_watch.LastError) ? "Watching public contracts" : _watch.LastError) +
-            "  |  MutaMarket can discover contracts with a delay";
+            "  |  Popups only for NEW matches or 10%+ price drops; first scan is a quiet baseline. Use PREVIEW ALERT to test.";
         RefreshSelection();
     }
     private void RefreshSelection()

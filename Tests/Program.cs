@@ -121,9 +121,8 @@ internal static partial class Program
                   wallGrid.RowDefinitions[0].Height.Value == 0,
                 "Preview wall owns only cards and reserves no header row");
             var stripWidth = ((Window)tile!).Width;
-            Check(stripWidth <= 820 && stripWidth >= 520, "Default control capsule no longer spans the EVE title bar");
-            Check(!controlBorder.Child.Equals(overview.FindName("OverviewHeader")),
-                "Full toolbar and compact capsule share a stable parent instead of being recreated");
+            Check(ReferenceEquals(controlBorder.Child, overview.FindName("OverviewHeader")),
+                "Original complete control toolbar is restored without a compact capsule");
             typeof(MiningFleetOverviewWindow).GetMethod("RefreshCards",
                 System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.Instance)!.Invoke(overview,null);
             Check(Math.Abs(((Window)tile!).Width - stripWidth) < 0.01,
@@ -135,13 +134,10 @@ internal static partial class Program
             controlPrefs.FleetOverviewVertical = true;
             typeof(MiningFleetOverviewWindow).GetMethod("ApplyOrientation",
                 System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.Instance)!.Invoke(overview,null);
-            Check(((FrameworkElement)overview.FindName("OverviewHeader")).Visibility == Visibility.Collapsed &&
-                  ((FrameworkElement)typeof(MiningFleetOverviewWindow).GetField("_controlCapsule",
-                      System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!
-                      .GetValue(overview)!).Visibility == Visibility.Visible &&
+            Check(((FrameworkElement)overview.FindName("OverviewHeader")).Visibility == Visibility.Visible &&
                   ((FrameworkElement)overview.FindName("VerticalHeader")).Visibility == Visibility.Collapsed &&
                   ((Grid)((Border)overview.Content).Child).RowDefinitions[0].Height.Value == 0,
-                "Vertical wall leaves compact control capsule independently visible with no header gap");
+                "Vertical preview wall keeps the restored full toolbar visible independently");
             controlPrefs.FleetOverviewVertical = initialVertical;
             typeof(MiningFleetOverviewWindow).GetMethod("ApplyOrientation",
                 System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.Instance)!.Invoke(overview,null);
@@ -370,9 +366,6 @@ internal static partial class Program
         CheckBuybackIndexPolicy();
         CheckFuelAlignment();
         CheckAbyssalWatch();
-        Check(!new MiningDashboardPreferences().ControlCapsuleExpanded &&
-            System.Text.Json.JsonSerializer.Deserialize<MiningDashboardPreferences>("{}")!.ControlCapsuleExpanded == false,
-            "New and existing profiles default to a compact independent control capsule");
         CheckReleaseMonitor().GetAwaiter().GetResult();
         CheckAccessAsync().GetAwaiter().GetResult();
         var moonSnapshot = CheckMoonRecovery();
