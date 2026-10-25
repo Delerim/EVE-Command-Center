@@ -1,3 +1,10 @@
+### v3.8.2 — Abyssal Hunter browsing and UI polish
+
+- Dedicated Browse ORE and Browse Modulated tabs, separate from qualifying match tabs.
+- Clearer market statistics with aligned headers, numeric sorting, responsive columns and saved sort selection.
+- Redesigned non-blocking, single-instance abyssal alert toast with performance, fitting and value intelligence.
+- Tighter balanced control-strip padding and buttons right-aligned before EVE/local clocks.
+
 # EVE Command Center v3.8.1
 
 - **Integrated Market workspace.** Market & Wallet, Seller Command Center and Abyssal Hunter now live in a single top-level Market window, as three tabs. Legacy shortcuts navigate to a tab rather than spawning windows; Abyssal alert View All opens its tab.

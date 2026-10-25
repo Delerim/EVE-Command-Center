@@ -186,18 +186,18 @@
                         <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
-                <ScrollViewer Grid.Column="0" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled" VerticalAlignment="Center" CanContentScroll="False" PanningMode="HorizontalOnly">
-                <Grid>
-                <StackPanel x:Name="FullActions" Orientation="Horizontal" VerticalAlignment="Center" Margin="7,0,2,0">
-                    <Button x:Name="FullMuteButton" Content="MUTE EVE" Click="MuteAllClients_Click" FontSize="9" Margin="0,0,4,0" ToolTip="Mute all tracked EVE clients without changing comms or saved volume levels. Click again to unmute."/>
-                    <Button x:Name="FullAllAlarmsButton" Content="ALL ALARMS OFF" Click="ToggleAllAlarms" FontSize="9" Height="21" Padding="7,2" Margin="0,0,5,0" ToolTip="Mute mining alarms on all tracked miners. Orca drone indicators stay unchanged."/>
-                    <Button x:Name="HorizontalFitButton" Click="AutoFit_Click" FontSize="9" Margin="0,0,5,0" ToolTip="Auto-fit sizes the overview and locks its resize handles. Switch to manual to resize."/>
-                    <Button Content="VERTICAL" Click="Orientation_Click" FontSize="10" Margin="0,0,5,0"/>
-                    <Button Content="COMMAND CENTER" Height="21" FontSize="10" FontWeight="SemiBold" Click="OpenCommandCenter_Click" Margin="0,0,5,0" ToolTip="Restore the full EVE Command Center dashboard"/>
-                    <Button Content="COMBINE PREVIEWS" Height="21" FontSize="10" Click="Combine_Click" Margin="0,0,5,0"/>
-                    <Button x:Name="RockToggle" Content="ROCKS OFF" Height="21" Padding="7,1" FontSize="10" Margin="0,0,5,0" Click="RockToggle_Click" ToolTip="Toggle estimated per-laser rock tracking"/>
+                <ScrollViewer Grid.Column="0" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled" VerticalAlignment="Center" HorizontalContentAlignment="Right" CanContentScroll="False" PanningMode="HorizontalOnly">
+                <Grid HorizontalAlignment="Right">
+                <StackPanel x:Name="FullActions" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="2,0,0,0">
+                    <Button x:Name="FullMuteButton" Content="MUTE EVE" Click="MuteAllClients_Click" FontSize="9" Margin="0,0,3,0" ToolTip="Mute all tracked EVE clients without changing comms or saved volume levels. Click again to unmute."/>
+                    <Button x:Name="FullAllAlarmsButton" Content="ALL ALARMS OFF" Click="ToggleAllAlarms" FontSize="9" Height="21" Padding="5,1" Margin="0,0,3,0" ToolTip="Mute mining alarms on all tracked miners. Orca drone indicators stay unchanged."/>
+                    <Button x:Name="HorizontalFitButton" Click="AutoFit_Click" FontSize="9" Margin="0,0,3,0" ToolTip="Auto-fit sizes the overview and locks its resize handles. Switch to manual to resize."/>
+                    <Button Content="VERTICAL" Click="Orientation_Click" FontSize="10" Margin="0,0,3,0"/>
+                    <Button Content="COMMAND CENTER" Height="21" FontSize="10" FontWeight="SemiBold" Click="OpenCommandCenter_Click" Margin="0,0,3,0" ToolTip="Restore the full EVE Command Center dashboard"/>
+                    <Button Content="COMBINE PREVIEWS" Height="21" FontSize="10" Click="Combine_Click" Margin="0,0,3,0"/>
+                    <Button x:Name="RockToggle" Content="ROCKS OFF" Height="21" Padding="7,1" FontSize="10" Margin="0,0,3,0" Click="RockToggle_Click" ToolTip="Toggle estimated per-laser rock tracking"/>
                     <Button Content="MINING" MinWidth="58" Height="21" Padding="7,1" FontSize="10" FontWeight="SemiBold" Click="OpenMiningCommandCenter_Click" ToolTip="Open Mining Command Center"/>
-                    <Button Content="SETTINGS" Height="21" FontSize="10" Margin="5,0" Click="Tools_Click"><Button.ContextMenu><ContextMenu>
+                    <Button Content="SETTINGS" Height="21" FontSize="10" Margin="3,0" Click="Tools_Click"><Button.ContextMenu><ContextMenu>
                         <MenuItem Header="Pilots" Click="OpenPilotCommandCenter_Click"/><MenuItem Header="Omega" Click="OpenOmega_Click"/><MenuItem Header="Notifications" Click="Notifications_Click"/><Separator/>
                         <MenuItem Header="Moons" Click="OpenMoonReport_Click"/><MenuItem Header="Contracts" Click="OpenContracts_Click"/><MenuItem Header="Industry" Click="OpenIndustry_Click"/><MenuItem Header="Planetary Industry" Click="OpenPlanetary_Click"/><Separator/>
                         <MenuItem Header="Client settings" Click="OpenClientSettings_Click"/><MenuItem x:Name="CircleToggle0" Header="Show mining circles" IsCheckable="True" Click="MiningCircles_Click"/><MenuItem x:Name="HoldToggle0" Header="Show mining holds (estimated)" IsCheckable="True" Click="MiningHolds_Click"/><MenuItem Header="Preview settings" Click="OpenPreviewSettings_Click"/><MenuItem Header="Cloud backup" Click="OpenCloudBackup_Click"/>
@@ -205,11 +205,11 @@
                     <Button x:Name="OrderButton" Content="ORDER CLIENTS" MinWidth="58" Height="21" Padding="7,1" FontSize="10" FontWeight="SemiBold" Click="OrderMode_Click" MouseRightButtonUp="OrderButton_MouseRightButtonUp" ToolTip="Click to enable tile reordering, drag tiles left/right, then click DONE. Right-click to reset."/>
                 </StackPanel>
                 <StackPanel x:Name="CompactActions" Orientation="Horizontal" VerticalAlignment="Center" Visibility="Collapsed">
-                    <Button x:Name="CompactFitButton" Click="AutoFit_Click" FontSize="9" Margin="0,0,5,0"/>
-                    <Button Content="VERTICAL" Click="Orientation_Click" FontSize="10" Margin="0,0,5,0"/>
-                    <Button Content="COMMAND CENTER" Height="23" FontSize="10" Margin="0,0,5,0" Click="OpenCommandCenter_Click"/>
-                    <Button x:Name="CompactMuteButton" Content="MUTE EVE" Click="MuteAllClients_Click" FontSize="9" Margin="0,0,4,0" ToolTip="Mute all tracked EVE clients without changing comms or saved volume levels. Click again to unmute."/>
-                    <Button x:Name="CompactAllAlarmsButton" Content="ALL ALARMS OFF" Click="ToggleAllAlarms" FontSize="9" Height="23" Padding="7,2" Margin="0,0,5,0" ToolTip="Mute mining alarms on all tracked miners. Orca drone indicators stay unchanged."/>
+                    <Button x:Name="CompactFitButton" Click="AutoFit_Click" FontSize="9" Margin="0,0,3,0"/>
+                    <Button Content="VERTICAL" Click="Orientation_Click" FontSize="10" Margin="0,0,3,0"/>
+                    <Button Content="COMMAND CENTER" Height="23" FontSize="10" Margin="0,0,3,0" Click="OpenCommandCenter_Click"/>
+                    <Button x:Name="CompactMuteButton" Content="MUTE EVE" Click="MuteAllClients_Click" FontSize="9" Margin="0,0,3,0" ToolTip="Mute all tracked EVE clients without changing comms or saved volume levels. Click again to unmute."/>
+                    <Button x:Name="CompactAllAlarmsButton" Content="ALL ALARMS OFF" Click="ToggleAllAlarms" FontSize="9" Height="23" Padding="5,1" Margin="0,0,3,0" ToolTip="Mute mining alarms on all tracked miners. Orca drone indicators stay unchanged."/>
                     <Button x:Name="ModeButton" Content="MODE: CHARACTERS" Height="23" FontSize="10" Click="Mode_Click" ToolTip="Choose character, mining, PvE or PvP cards"><Button.ContextMenu><ContextMenu>
                         <MenuItem Header="Characters - previews" Tag="CHARACTERS" Click="OverviewMode_Click"/>
                         <MenuItem Header="Mining - yield and alarms" Tag="MINING" Click="OverviewMode_Click"/>
@@ -220,7 +220,7 @@
                         <MenuItem Header="Live - real-time DWM" Click="UseLivePreview_Click"/>
                         <MenuItem Header="Snapshot - periodic captures" Click="UseSnapshotPreview_Click"/>
                     </ContextMenu></Button.ContextMenu></Button>
-                    <Button Content="SETTINGS" Height="23" FontSize="10" Margin="5,0" Click="Tools_Click"><Button.ContextMenu><ContextMenu>
+                    <Button Content="SETTINGS" Height="23" FontSize="10" Margin="3,0" Click="Tools_Click"><Button.ContextMenu><ContextMenu>
                         <MenuItem Header="Mining" Click="OpenMiningCommandCenter_Click"/><MenuItem Header="Pilots" Click="OpenPilotCommandCenter_Click"/><MenuItem Header="Planetary Industry" Click="OpenPlanetary_Click"/><MenuItem Header="Industry" Click="OpenIndustry_Click"/><MenuItem Header="Omega" Click="OpenOmega_Click"/><MenuItem Header="Notifications" Click="Notifications_Click"/><MenuItem Header="Moons" Click="OpenMoonReport_Click"/><MenuItem Header="Contracts" Click="OpenContracts_Click"/><Separator/><MenuItem Header="Settings" Click="OpenClientSettings_Click"/><MenuItem Header="Preview settings" Click="OpenPreviewSettings_Click"/><MenuItem Header="Cloud backup" Click="OpenCloudBackup_Click"/><MenuItem Header="Reorder characters" Click="OrderMode_Click"/><MenuItem Header="Toggle rock tracking" Click="RockToggle_Click"/><MenuItem x:Name="CircleToggle1" Header="Show mining circles" IsCheckable="True" Click="MiningCircles_Click"/><MenuItem x:Name="HoldToggle1" Header="Show mining holds (estimated)" IsCheckable="True" Click="MiningHolds_Click"/>
                     </ContextMenu></Button.ContextMenu></Button>
                     <Button Content="SEPARATE PREVIEWS" Height="23" FontSize="10" Click="Combine_Click" ToolTip="Restore the independent preview windows"/>

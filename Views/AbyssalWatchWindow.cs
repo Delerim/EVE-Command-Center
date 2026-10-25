@@ -135,7 +135,8 @@ public sealed class AbyssalWatchWindow : UserControl, IDisposable
         _tabs.Items.Add(HunterTab("MATCHES"));
         _tabs.Items.Add(HunterTab("ORE MATCHES"));
         _tabs.Items.Add(HunterTab("MODULATED MATCHES"));
-        _tabs.Items.Add(HunterTab("BROWSE ALL"));
+        _tabs.Items.Add(HunterTab("BROWSE ORE"));
+        _tabs.Items.Add(HunterTab("BROWSE MODULATED"));
         _tabs.Items.Add(HunterTab("ALERT HISTORY"));
         _tabs.SelectionChanged += (_, e) => { if (e.Source == _tabs) Refresh(); };
         header.Children.Add(_tabs);
@@ -151,30 +152,33 @@ public sealed class AbyssalWatchWindow : UserControl, IDisposable
         _results.ColumnHeaderStyle.Setters.Add(new Setter(DataGridColumnHeader.BackgroundProperty, Ink(18, 55, 59)));
         _results.ColumnHeaderStyle.Setters.Add(new Setter(DataGridColumnHeader.ForegroundProperty, Teal));
         _results.ColumnHeaderStyle.Setters.Add(new Setter(DataGridColumnHeader.FontWeightProperty, FontWeights.SemiBold));
-        _results.ColumnHeaderStyle.Setters.Add(new Setter(DataGridColumnHeader.HeightProperty, 38d));
+        _results.ColumnHeaderStyle.Setters.Add(new Setter(DataGridColumnHeader.HeightProperty, 44d));
+        _results.ColumnHeaderStyle.Setters.Add(new Setter(DataGridColumnHeader.PaddingProperty, new Thickness(10, 3, 10, 3)));
+        _results.ColumnHeaderStyle.Setters.Add(new Setter(DataGridColumnHeader.HorizontalContentAlignmentProperty,
+            System.Windows.HorizontalAlignment.Left));
         _results.CellStyle = new Style(typeof(DataGridCell));
         _results.CellStyle.Setters.Add(new Setter(DataGridCell.BackgroundProperty, Brushes.Transparent));
         _results.CellStyle.Setters.Add(new Setter(DataGridCell.ForegroundProperty, Ink(220, 240, 237)));
         _results.CellStyle.Setters.Add(new Setter(DataGridCell.BorderThicknessProperty, new Thickness(0)));
         _results.RowStyle = new Style(typeof(DataGridRow));
         _results.RowStyle.Setters.Add(new Setter(DataGridRow.BackgroundProperty, Brushes.Transparent));
-        _results.RowStyle.Setters.Add(new Setter(DataGridRow.MinHeightProperty, 42d));
+        _results.RowStyle.Setters.Add(new Setter(DataGridRow.MinHeightProperty, 46d));
         var selected = new Trigger { Property = DataGridRow.IsSelectedProperty, Value = true };
         selected.Setters.Add(new Setter(DataGridRow.BackgroundProperty, Ink(26, 85, 79)));
         selected.Setters.Add(new Setter(DataGridRow.ForegroundProperty, Brushes.White));
         _results.RowStyle.Triggers.Add(selected);
-        AddColumn("MODULE", "Source", 174);
-        AddColumn("MUTAPLASMID", "MutaplasmidName", 195);
-        AddColumn("YIELD m³", "MiningAmountText", 92);
-        AddColumn("CYCLE s", "CycleText", 92);
-        AddColumn("EFF. m³/s", "EffectiveSpeedText", 112);
-        AddColumn("CRIT", "CritText", 111);
-        AddColumn("CPU Δ", "CpuDeltaText", 84);
-        AddColumn("PG Δ", "PowergridDeltaText", 84);
-        AddColumn("ASK", "PriceText", 104);
-        AddColumn("EST.", "EstimateText", 102);
+        AddColumn("MODEL", "Source", 145);
+        AddColumn("MUTAPLASMID", "MutaplasmidName", 210);
+        AddColumn("YIELD (m³)", "MiningAmountText", 104);
+        AddColumn("CYCLE (s)", "CycleText", 91);
+        AddColumn("EFF. (m³/s)", "EffectiveSpeedText", 120);
+        AddColumn("CRIT CHANCE × BONUS", "CritText", 137);
+        AddColumn("CPU Δ (tf)", "CpuDeltaText", 100);
+        AddColumn("PG Δ (MW)", "PowergridDeltaText", 105);
+        AddColumn("ASK (ISK)", "PriceText", 113);
+        AddColumn("EST. VALUE", "EstimateText", 112);
         AddColumn("VALUE GAP", "PriceAdvantageText", 112);
-        AddColumn("EXPIRES", "ExpiryText", 160);
+        AddColumn("EXPIRY", "ExpiryText", 150);
         _results.SelectionChanged += (_, _) => RefreshSelection();
         _results.MouseDoubleClick += (_, _) => OpenSelected();
         root.Children.Add(_results);
@@ -209,8 +213,8 @@ public sealed class AbyssalWatchWindow : UserControl, IDisposable
         Refresh();
     }
 
-    // All tabs share the same listing rows; the family tabs deliberately show
-    // *all* observed contracts for their base module, not just alert matches.
+    // Match tabs apply the saved alert rules; Browse tabs are deliberately
+    // unfiltered within each module family. Never confuse browsing with an alert.
     public static IReadOnlyList<AbyssalWatchListing> RowsForTab(int tab,
         IReadOnlyList<AbyssalWatchListing> matches,
         IReadOnlyList<AbyssalWatchListing> all,
@@ -218,8 +222,9 @@ public sealed class AbyssalWatchWindow : UserControl, IDisposable
     {
         1 => matches.Where(x => x.Source == "ORE Strip Miner").ToArray(),
         2 => matches.Where(x => x.Source == "Modulated Strip Miner II").ToArray(),
-        3 => all,
-        4 => history,
+        3 => all.Where(x => x.Source == "ORE Strip Miner").ToArray(),
+        4 => all.Where(x => x.Source == "Modulated Strip Miner II").ToArray(),
+        5 => history,
         _ => matches
     };
 
@@ -243,7 +248,8 @@ public sealed class AbyssalWatchWindow : UserControl, IDisposable
             if (_column == "PriceText") return Ink(244, 206, 135);
             if (_column == "ExpiryText" && raw == "EXPIRED") return Ink(235, 121, 134);
             if (_column == "EffectiveSpeedText" && valid)
-                return number >= 3.30 ? Ink(100, 224, 177) : Ink(235, 187, 113);
+                return number >= AbyssalWatchService.Instance.Options.MinEffectiveSpeed
+                    ? Ink(100, 224, 177) : Ink(235, 187, 113);
             if (_column == "MiningAmountText" && valid)
                 return number >= 140 ? Ink(100, 224, 177) : Ink(235, 187, 113);
             if ((_column == "CpuDeltaText" || _column == "PowergridDeltaText") && valid)
@@ -264,7 +270,9 @@ public sealed class AbyssalWatchWindow : UserControl, IDisposable
         cell.SetBinding(TextBlock.TextProperty, new Binding(path));
         cell.SetBinding(TextBlock.ForegroundProperty,
             new Binding(path) { Converter = new HunterStatColor(path) });
-        cell.SetValue(TextBlock.MarginProperty, new Thickness(8, 0, 8, 0));
+        cell.SetValue(TextBlock.MarginProperty, new Thickness(10, 0, 10, 0));
+        cell.SetValue(TextBlock.TextTrimmingProperty, TextTrimming.CharacterEllipsis);
+        cell.SetValue(TextBlock.ToolTipProperty, new Binding(path));
         cell.SetValue(TextBlock.VerticalAlignmentProperty, VerticalAlignment.Center);
         cell.SetValue(TextBlock.FontWeightProperty, FontWeights.SemiBold);
         if (path is "MiningAmountText" or "CycleText" or "EffectiveSpeedText" or
@@ -288,7 +296,12 @@ public sealed class AbyssalWatchWindow : UserControl, IDisposable
         var column = new DataGridTemplateColumn
         {
             Header = caption, CellTemplate = template, SortMemberPath = sortPath,
-            Width = new DataGridLength(width)
+            MinWidth = width,
+            // Textual columns grow to occupy the workspace instead of leaving
+            // a large dead region while numeric data gets compressed together.
+            Width = path is "Source" or "MutaplasmidName" or "ExpiryText"
+                ? new DataGridLength(path == "MutaplasmidName" ? 2.0 : 1.15, DataGridLengthUnitType.Star)
+                : new DataGridLength(width)
         };
         if (sortPath != path)
         {
@@ -371,8 +384,9 @@ public sealed class AbyssalWatchWindow : UserControl, IDisposable
         ((TabItem)_tabs.Items[0]).Header = $"MATCHES  {_watch.Latest.Count}";
         ((TabItem)_tabs.Items[1]).Header = $"ORE MATCHES  {_watch.Latest.Count(x => x.Source == "ORE Strip Miner")}";
         ((TabItem)_tabs.Items[2]).Header = $"MODULATED MATCHES  {_watch.Latest.Count(x => x.Source == "Modulated Strip Miner II")}";
-        ((TabItem)_tabs.Items[3]).Header = $"BROWSE ALL  {_watch.AllListings.Count}";
-        ((TabItem)_tabs.Items[4]).Header = $"ALERT HISTORY  {_watch.RecentAlerts.Count}";
+        ((TabItem)_tabs.Items[3]).Header = $"BROWSE ORE  {_watch.AllListings.Count(x => x.Source == "ORE Strip Miner")}";
+        ((TabItem)_tabs.Items[4]).Header = $"BROWSE MODULATED  {_watch.AllListings.Count(x => x.Source == "Modulated Strip Miner II")}";
+        ((TabItem)_tabs.Items[5]).Header = $"ALERT HISTORY  {_watch.RecentAlerts.Count}";
         string needle = _search.Text.Trim();
         var filtered = source.Where(x => needle.Length == 0 ||
             x.Source.Contains(needle, StringComparison.OrdinalIgnoreCase) ||
@@ -381,13 +395,25 @@ public sealed class AbyssalWatchWindow : UserControl, IDisposable
             x.ItemId.ToString(CultureInfo.InvariantCulture).Contains(needle))
             .OrderByDescending(x => x.EffectiveSpeed).ToArray();
         var selectedId = (_results.SelectedItem as AbyssalWatchListing)?.Key;
+        // Preserve the user's chosen column sort after ESI refresh or tab changes.
+        var sorted = _results.Columns.FirstOrDefault(c => c.SortDirection.HasValue);
         _results.ItemsSource = filtered;
+        if (sorted != null && !string.IsNullOrWhiteSpace(sorted.SortMemberPath))
+        {
+            var view = CollectionViewSource.GetDefaultView(_results.ItemsSource);
+            if (view.CanSort)
+            {
+                view.SortDescriptions.Clear();
+                view.SortDescriptions.Add(new System.ComponentModel.SortDescription(
+                    sorted.SortMemberPath, sorted.SortDirection!.Value));
+            }
+        }
         if (selectedId != null) _results.SelectedItem = filtered.FirstOrDefault(x => x.Key == selectedId);
         _summary.Text = $"{_watch.Latest.Count} MATCHES   ·   {_watch.AllListings.Count} BROWSED   ·   {_watch.RecentAlerts.Count} ALERTS";
         _status.Text = $"Last check: {_watch.LastChecked?.ToLocalTime().ToString("dd MMM HH:mm") ?? "never"}  |  " +
             (string.IsNullOrWhiteSpace(_watch.LastError) ? "Watching public contracts" : _watch.LastError) +
-            "  |  Model tabs = qualifying matches; BROWSE ALL includes below-threshold rolls. " +
-            "Alerts only for NEW matches or 10%+ price drops; first scan establishes a quiet baseline.";
+            "  |  MATCHES obey saved thresholds; BROWSE ORE / MODULATED include weaker rolls. " +
+            "Popups: new matches or 10%+ drops after the initial quiet scan. PREVIEW ALERT tests the design.";
         RefreshSelection();
     }
     private void RefreshSelection()

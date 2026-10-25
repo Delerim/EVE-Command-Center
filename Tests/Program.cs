@@ -122,7 +122,7 @@ internal static partial class Program
                 "Alt + left drag is recognized for moving the separate control strip");
             var controlBorder = (Border)((Window)tile!).Content;
             Check(controlBorder.Padding.Top == controlBorder.Padding.Bottom &&
-                  controlBorder.Padding.Top >= 6 &&
+                  controlBorder.Padding.Top >= 4 &&
                   ((Window)tile!).ResizeMode == ResizeMode.NoResize,
                 "Control strip remains auto-sized with equal top and bottom padding");
             var clock = (TextBlock)overview.FindName("UpdatedText");
@@ -150,6 +150,10 @@ internal static partial class Program
                   barHeader.ColumnDefinitions[1].Width.IsStar &&
                   fullActions is StackPanel && compactActions is StackPanel,
                 "Full control bar gives its buttons remaining width and never wraps them into another row");
+            Check(((ScrollViewer)controlRight.Children.OfType<ScrollViewer>().Single()).HorizontalContentAlignment ==
+                  System.Windows.HorizontalAlignment.Right &&
+                  controlBorder.Padding.Left == 6 && controlBorder.Padding.Top == 4,
+                "Single-line controls align beside version and clocks with compact balanced padding");
             Check(controlRight.Children.OfType<ScrollViewer>().Any(scroll =>
                   scroll.HorizontalScrollBarVisibility == ScrollBarVisibility.Auto &&
                   scroll.Content is Grid buttonsHost &&

@@ -82,7 +82,7 @@ public partial class MiningFleetOverviewWindow : Window
                     (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#2C6D60")),
                 BorderThickness = new Thickness(1),
                 CornerRadius = new CornerRadius(7),
-                Padding = new Thickness(8, 6, 8, 6),
+                Padding = new Thickness(6, 4, 6, 4),
                 Child = OverviewHeader
             }
         };

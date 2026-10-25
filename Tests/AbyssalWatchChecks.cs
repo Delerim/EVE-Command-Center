@@ -38,15 +38,18 @@ internal static partial class Program
         Check(AbyssalWatchWindow.RowsForTab(0, allModules, allModules, Array.Empty<AbyssalWatchListing>()).Count == 2 &&
               AbyssalWatchWindow.RowsForTab(1, allModules, allModules, Array.Empty<AbyssalWatchListing>()).Single().Source == "ORE Strip Miner" &&
               AbyssalWatchWindow.RowsForTab(2, allModules, allModules, Array.Empty<AbyssalWatchListing>()).Single().Source == "Modulated Strip Miner II" &&
-              AbyssalWatchWindow.RowsForTab(3, allModules, allModules, Array.Empty<AbyssalWatchListing>()).Count == 2 &&
-              AbyssalWatchWindow.RowsForTab(4, allModules, allModules, Array.Empty<AbyssalWatchListing>()).Count == 0,
-              "Hunter tabs separate matches, ORE, Modulated II, browse and alert history");
+              AbyssalWatchWindow.RowsForTab(3, allModules, allModules, Array.Empty<AbyssalWatchListing>()).Single().Source == "ORE Strip Miner" &&
+              AbyssalWatchWindow.RowsForTab(4, allModules, allModules, Array.Empty<AbyssalWatchListing>()).Single().Source == "Modulated Strip Miner II" &&
+              AbyssalWatchWindow.RowsForTab(5, allModules, allModules, Array.Empty<AbyssalWatchListing>()).Count == 0,
+              "Match tabs filter; browse tabs separate ORE / Modulated and alert history remains available");
         var belowThreshold = modulated with { EffectiveSpeed = 3.10 };
         Check(AbyssalWatchWindow.RowsForTab(2, new[] { ore },
                 new[] { ore, belowThreshold }, Array.Empty<AbyssalWatchListing>()).Count == 0 &&
               AbyssalWatchWindow.RowsForTab(3, new[] { ore },
-                new[] { ore, belowThreshold }, Array.Empty<AbyssalWatchListing>()).Count == 2,
-              "Modulated qualifying tab excludes sub-threshold speeds; Browse All still includes them");
+                new[] { ore, belowThreshold }, Array.Empty<AbyssalWatchListing>()).Single().Source == "ORE Strip Miner" &&
+              AbyssalWatchWindow.RowsForTab(4, new[] { ore },
+                new[] { ore, belowThreshold }, Array.Empty<AbyssalWatchListing>()).Single().EffectiveSpeed == 3.10,
+              "Below-threshold Modulated appears only in Modulated browse, never in alert matches");
         Check(ore.PriceAdvantagePercent > 0 && modulated.PriceAdvantagePercent != null,
               "Value-gap sorting uses numeric values rather than formatted percent text");
         Check(ore.MiningAmountText == "150.00" && ore.CycleText == "45.00" &&
