@@ -49,6 +49,8 @@ public sealed record AbyssalWatchListing(
     public string CpuDeltaText => CpuPenalty.ToString("+0.00;-0.00;0.00", CultureInfo.InvariantCulture);
     public string PowergridDeltaText => PowergridPenalty.ToString("+0.00;-0.00;0.00", CultureInfo.InvariantCulture);
     public string CritText => $"{CriticalChancePercent:0.##}% ×{CriticalBonusFactor:0.##}";
+    public double? PriceAdvantagePercent => EstimatedValue is > 0 && AskingPrice > 0
+        ? (EstimatedValue.Value - AskingPrice) / AskingPrice * 100 : null;
     public string PriceAdvantageText => EstimatedValue is > 0 && AskingPrice > 0
         ? ((EstimatedValue.Value - AskingPrice) / AskingPrice * 100).ToString("+0.#;-0.#;0", CultureInfo.InvariantCulture) + "%"
         : "n/a";

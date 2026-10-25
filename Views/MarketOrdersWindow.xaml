@@ -3,9 +3,11 @@
  <Window.Resources><ResourceDictionary><ResourceDictionary.MergedDictionaries><ResourceDictionary Source="ContractsTheme.xaml"/><ResourceDictionary Source="IndustryWorkspaceTheme.xaml"/></ResourceDictionary.MergedDictionaries>
   <Style TargetType="TextBlock"><Setter Property="Foreground" Value="#B9D8D8"/></Style>
  </ResourceDictionary></Window.Resources>
+ <TabControl x:Name="WorkspaceTabs" Background="#07181B" Foreground="#DDF6F4" BorderBrush="#2C6D60" Padding="0" >
+  <TabItem Header="MARKET &amp; WALLET" Foreground="#73D7CA" Background="#123239" Padding="16,9" FontWeight="SemiBold">
  <DockPanel Margin="18">
   <StackPanel DockPanel.Dock="Top">
-   <DockPanel><Button DockPanel.Dock="Right" Content="Sync settings" HorizontalAlignment="Right" Click="SyncSettings_Click"/><Button DockPanel.Dock="Right" Content="SELLER COMMAND CENTER" Margin="0,0,10,0" Padding="12,5" Click="SellerDashboard_Click" ToolTip="Choose a market toon, reconcile personal inventory with sell orders, and compare Jita 4-4 / Amarr"/><Button DockPanel.Dock="Right" Content="ABYSSAL WATCH" Margin="0,0,10,0" Padding="12,5" Click="AbyssalWatch_Click" ToolTip="Configure strip-miner contract alerts across both abyssal models"/><TextBlock Text="MARKET &amp; WALLET" FontSize="26" Foreground="#55D7D2" FontWeight="Bold"/></DockPanel>
+   <DockPanel><Button DockPanel.Dock="Right" Content="Sync settings" HorizontalAlignment="Right" Click="SyncSettings_Click"/><Button DockPanel.Dock="Right" Content="OPEN SELLER TAB" Margin="0,0,10,0" Padding="12,5" Click="SellerDashboard_Click" ToolTip="Choose a market toon, reconcile personal inventory with sell orders, and compare Jita 4-4 / Amarr"/><Button DockPanel.Dock="Right" Content="OPEN ABYSSAL TAB" Margin="0,0,10,0" Padding="12,5" Click="AbyssalWatch_Click" ToolTip="Configure strip-miner contract alerts across both abyssal models"/><TextBlock Text="MARKET &amp; WALLET" FontSize="26" Foreground="#55D7D2" FontWeight="Bold"/></DockPanel>
    <TextBlock Text="Orders, purchases, sales and wallet activity for each pilot" Margin="0,6,0,12"/>
    <Expander Header="Pilots" Foreground="#74D6C9" IsExpanded="True">
     <StackPanel>
@@ -152,4 +154,12 @@
   </Border>
   </Grid>
  </DockPanel>
+  </TabItem>
+  <TabItem Header="SELLER COMMAND CENTER" Foreground="#73D7CA" Background="#123239" Padding="16,9" FontWeight="SemiBold">
+    <ContentControl x:Name="SellerPanelHost" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch"/>
+  </TabItem>
+  <TabItem Header="ABYSSAL HUNTER" Foreground="#73D7CA" Background="#123239" Padding="16,9" FontWeight="SemiBold">
+    <ContentControl x:Name="AbyssalPanelHost" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch"/>
+  </TabItem>
+ </TabControl>
 </Window>

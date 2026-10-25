@@ -11,6 +11,7 @@ using System.Windows.Threading;
 using System.Threading;
 using EveCommandCenter.Services;
 using EveCommandCenter.Models;
+using UserControl = System.Windows.Controls.UserControl;
 using Button = System.Windows.Controls.Button;
 using TextBox = System.Windows.Controls.TextBox;
 using ComboBox = System.Windows.Controls.ComboBox;
@@ -30,12 +31,14 @@ using Orientation = System.Windows.Controls.Orientation;
 
 namespace EveCommandCenter.Views;
 
-public sealed class SellerDashboardWindow : Window
+public sealed class SellerDashboardWindow : UserControl, IDisposable
 {
     private readonly SellerDashboardService _seller;
     private readonly CancellationTokenSource _life=new();
     private readonly DispatcherTimer _refreshTimer=new(){Interval=TimeSpan.FromMinutes(10)};
-    private readonly ComboBox _pilots=new(){MinWidth=200,Height=30};
+    private readonly ComboBox _pilots=new(){MinWidth=240,Height=30,
+        ToolTip="Select the character that owns the stock and active sell orders"};
+    private readonly Button _refreshButton;
     private readonly ComboBox _filter=new(){Width=145,Height=29};
     private readonly ComboBox _category=new(){Width=170,Height=29};
     private readonly TextBox _search=new(){Width=260,Height=29};
@@ -49,6 +52,8 @@ public sealed class SellerDashboardWindow : Window
     private readonly TextBlock _value=new();
     private bool _loadingPilots;
     private bool _closing;
+    private bool _started;
+    private bool _timerAttached;
     private static SolidColorBrush Ink(byte r,byte g,byte b)=>new(Color.FromRgb(r,g,b));
     private static readonly SolidColorBrush Teal=Ink(105,222,195),Muted=Ink(147,181,185),Yellow=Ink(253,194,112);
     private sealed record PilotChoice(long Id,string Name,string Detail)
@@ -56,9 +61,8 @@ public sealed class SellerDashboardWindow : Window
 
     public SellerDashboardWindow()
     {
-        Title="EVE Command Center | SELLER COMMAND CENTER";
-        Width=1590;Height=920;MinWidth=1100;MinHeight=680;
-        WindowStartupLocation=WindowStartupLocation.CenterScreen;
+        HorizontalAlignment=System.Windows.HorizontalAlignment.Stretch;
+        VerticalAlignment=System.Windows.VerticalAlignment.Stretch;
         Background=Ink(6,20,24);Foreground=Ink(230,245,244);
         var ops=BackgroundOperations.Current;
         _seller=new SellerDashboardService(ops.Sso,ops.MarketOrders);
@@ -70,7 +74,7 @@ public sealed class SellerDashboardWindow : Window
         header.Children.Add(hero);
         var actions=new StackPanel{Orientation=Orientation.Horizontal};
         DockPanel.SetDock(actions,Dock.Right);hero.Children.Add(actions);
-        MakeButton(actions,"REFRESH STOCK + ORDERS",async(_,_)=>await RefreshAsync());
+        _refreshButton=MakeButton(actions,"REFRESH STOCK + ORDERS",async(_,_)=>await RefreshAsync());
         MakeButton(actions,"LINKED ACCOUNTS",(_,_) =>
             (System.Windows.Application.Current as App)?.OpenCommandCenterModule("setup"));
         hero.Children.Add(new TextBlock{Text="SELLER COMMAND CENTER",FontSize=25,FontWeight=FontWeights.Bold,
@@ -165,11 +169,22 @@ public sealed class SellerDashboardWindow : Window
         _seller.Updated+=OnUpdated;
         Loaded+=async(_,_)=>
         {
-            await LoadPilots();
-            _refreshTimer.Tick+=async(_,_)=>await RefreshAsync();
-            _refreshTimer.Start();
+            if (_closing) return;
+            if (!_started)
+            {
+                _started=true;
+                await LoadPilots();
+            }
+            if (!_timerAttached)
+            {
+                _timerAttached=true;
+                _refreshTimer.Tick+=async(_,_)=>await RefreshAsync();
+            }
+            if (IsLoaded) _refreshTimer.Start();
         };
-        Closed+=(_,_)=>{_closing=true;_refreshTimer.Stop();_life.Cancel();_seller.Updated-=OnUpdated;_seller.Dispose();_life.Dispose();};
+        // Tab switches unload views in WPF. Stop the timer, but retain settings,
+        // results and subscriptions until the owning Market window closes.
+        Unloaded+=(_,_)=>_refreshTimer.Stop();
         Render();
     }
     private static TextBlock Label(string value,Thickness margin,SolidColorBrush? colour=null)=>new()
@@ -213,10 +228,15 @@ public sealed class SellerDashboardWindow : Window
         try
         {
             var pilots=await BackgroundOperations.Current.Sso.LoadPilotsAsync();
-            _pilots.ItemsSource=pilots.Select(p=>new PilotChoice(p.CharacterId,p.CharacterName,
+            var choices=pilots.Select(p=>new PilotChoice(p.CharacterId,p.CharacterName,
                 p.Scopes.Contains(SellerDashboardService.AssetsScope)&&p.Scopes.Contains(SellerDashboardService.OrdersScope)
                     ? "Ready" : "Reconnect required")).OrderBy(x=>x.Name).ToArray();
-            _pilots.SelectedItem=((IEnumerable<PilotChoice>)_pilots.ItemsSource).FirstOrDefault(p=>p.Id==_seller.SellerCharacterId);
+            _pilots.ItemsSource=choices;
+            var saved=choices.FirstOrDefault(p=>p.Id==_seller.SellerCharacterId);
+            _pilots.SelectedItem=saved;
+            if (saved == null)
+                _status.Text="SELECT YOUR TRADING CHARACTER above, then click REFRESH STOCK + ORDERS. " +
+                    "Only characters with Assets + Market Orders permissions can be refreshed.";
         }
         catch(Exception ex){_status.Text="Cannot load linked traders: "+ex.Message;}
         finally{_loadingPilots=false;}
@@ -224,9 +244,35 @@ public sealed class SellerDashboardWindow : Window
     }
     private async System.Threading.Tasks.Task RefreshAsync()
     {
-        if(_closing || _seller.Busy || _seller.SellerCharacterId<=0)return;
-        await _seller.RefreshAsync(_life.Token);
-        Render();
+        if (_closing) return;
+        if (_seller.Busy)
+        {
+            _status.Text="Seller refresh already running: " + _seller.Status;
+            return;
+        }
+        if (_seller.SellerCharacterId<=0)
+        {
+            if (_pilots.SelectedItem is PilotChoice choice)
+                _seller.SelectSeller(choice.Id);
+            else
+            {
+                _status.Text="SELECT A TRADING CHARACTER FIRST. Open the selector above. " +
+                    "The refresh cannot fetch assets without a chosen owner.";
+                _pilots.Focus();
+                _pilots.IsDropDownOpen=true;
+                return;
+            }
+        }
+        _refreshButton.IsEnabled=false;
+        _status.Text="Connecting to ESI for selected seller: inventory, orders and hub quotes...";
+        try
+        {
+            await _seller.RefreshAsync(_life.Token);
+            if (!_closing) Render();
+        }
+        catch (OperationCanceledException) when (_life.IsCancellationRequested) { }
+        catch (Exception ex) { if (!_closing) _status.Text="REFRESH FAILED: " + ex.Message; }
+        finally { if (!_closing) _refreshButton.IsEnabled=true; }
     }
     private void OnUpdated()
     {
@@ -267,4 +313,15 @@ public sealed class SellerDashboardWindow : Window
     }
     private void Detail()=>_detail.Text=(_grid.SelectedItem as SellerStockRow)?.Detail??
         "Choose an item for stock and order context. Undercut is based on public station prices; results can be cached or incomplete.";
+    public void Dispose()
+    {
+        if (_closing) return;
+        _closing=true;
+        _refreshTimer.Stop();
+        _life.Cancel();
+        _seller.Updated-=OnUpdated;
+        _seller.Dispose();
+        // CancellationTokenSource is disposed on owner close, not on tab switches.
+        _life.Dispose();
+    }
 }

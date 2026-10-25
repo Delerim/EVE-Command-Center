@@ -46,8 +46,13 @@ public static class AbyssalWatchToast
         open.Click += (_, _) => { OpenUrl(best.Url); win.Close(); };
         var review = new Button { Content = "VIEW ALL", Padding = new Thickness(8, 4, 8, 4), Margin = new Thickness(8, 0, 0, 0) };
         review.Click += (_, _) => {
-            var existing = Application.Current.Windows.OfType<AbyssalWatchWindow>().FirstOrDefault();
-            if (existing != null) existing.Activate(); else new AbyssalWatchWindow().Show();
+            var market = Application.Current.Windows.OfType<MarketOrdersWindow>().FirstOrDefault();
+            if (market == null)
+            {
+                (Application.Current as App)?.OpenCommandCenterModule("market");
+                market = Application.Current.Windows.OfType<MarketOrdersWindow>().FirstOrDefault();
+            }
+            market?.OpenAbyssalTab();
             win.Close();
         };
         var dismiss = new Button { Content = "DISMISS", Padding = new Thickness(8, 4, 8, 4), Margin = new Thickness(8, 0, 0, 0) };

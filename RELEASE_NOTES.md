@@ -1,3 +1,10 @@
+# EVE Command Center v3.8.1
+
+- **Integrated Market workspace.** Market & Wallet, Seller Command Center and Abyssal Hunter now live in a single top-level Market window, as three tabs. Legacy shortcuts navigate to a tab rather than spawning windows; Abyssal alert View All opens its tab.
+- **Visible seller refresh recovery.** First use requires selecting a dedicated trading character, with an explicit prompt instead of a silent no-op. Busy/permission/ESI errors are shown; switching tabs retains seller selection and stops inactive refresh timers.
+- **Abyssal Hunter qualified tabs and correct sorting.** ORE/Modulated tabs show qualifying matches, Browse All includes all fetched modules. Price, cycle, yield, effective speed, CPU/PG and value gap sort on numeric data rather than formatted display strings. Numeric headers align with values.
+- **Safety.** Seller remains read-only; no ESI order mutations. Alert popups remain available for new qualifying abyssal contracts, but browse/navigation is inside Market & Wallet.
+
 # EVE Command Center v3.8.0
 
 - **Seller Command Center.** Select and persist a linked market character; browse personal hangar stock including nested containers, grouped and searchable with EVE type icons.

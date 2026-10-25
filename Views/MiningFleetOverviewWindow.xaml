@@ -90,8 +90,8 @@
             <Grid x:Name="OverviewHeader" Grid.Row="0" Margin="2,0,0,6"
                   MouseLeftButtonDown="Header_MouseLeftButtonDown">
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="44*"/>
-                    <ColumnDefinition Width="56*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
                 <WrapPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" ItemHeight="25">
                 <TextBlock Grid.Column="0"
@@ -186,7 +186,9 @@
                         <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
-                <WrapPanel x:Name="FullActions" Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" ItemHeight="25" Margin="12,0,2,0">
+                <ScrollViewer Grid.Column="0" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled" VerticalAlignment="Center" CanContentScroll="False" PanningMode="HorizontalOnly">
+                <Grid>
+                <StackPanel x:Name="FullActions" Orientation="Horizontal" VerticalAlignment="Center" Margin="7,0,2,0">
                     <Button x:Name="FullMuteButton" Content="MUTE EVE" Click="MuteAllClients_Click" FontSize="9" Margin="0,0,4,0" ToolTip="Mute all tracked EVE clients without changing comms or saved volume levels. Click again to unmute."/>
                     <Button x:Name="FullAllAlarmsButton" Content="ALL ALARMS OFF" Click="ToggleAllAlarms" FontSize="9" Height="21" Padding="7,2" Margin="0,0,5,0" ToolTip="Mute mining alarms on all tracked miners. Orca drone indicators stay unchanged."/>
                     <Button x:Name="HorizontalFitButton" Click="AutoFit_Click" FontSize="9" Margin="0,0,5,0" ToolTip="Auto-fit sizes the overview and locks its resize handles. Switch to manual to resize."/>
@@ -201,8 +203,8 @@
                         <MenuItem Header="Client settings" Click="OpenClientSettings_Click"/><MenuItem x:Name="CircleToggle0" Header="Show mining circles" IsCheckable="True" Click="MiningCircles_Click"/><MenuItem x:Name="HoldToggle0" Header="Show mining holds (estimated)" IsCheckable="True" Click="MiningHolds_Click"/><MenuItem Header="Preview settings" Click="OpenPreviewSettings_Click"/><MenuItem Header="Cloud backup" Click="OpenCloudBackup_Click"/>
                     </ContextMenu></Button.ContextMenu></Button>
                     <Button x:Name="OrderButton" Content="ORDER CLIENTS" MinWidth="58" Height="21" Padding="7,1" FontSize="10" FontWeight="SemiBold" Click="OrderMode_Click" MouseRightButtonUp="OrderButton_MouseRightButtonUp" ToolTip="Click to enable tile reordering, drag tiles left/right, then click DONE. Right-click to reset."/>
-                </WrapPanel>
-                <WrapPanel x:Name="CompactActions" Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" ItemHeight="25" Visibility="Collapsed">
+                </StackPanel>
+                <StackPanel x:Name="CompactActions" Orientation="Horizontal" VerticalAlignment="Center" Visibility="Collapsed">
                     <Button x:Name="CompactFitButton" Click="AutoFit_Click" FontSize="9" Margin="0,0,5,0"/>
                     <Button Content="VERTICAL" Click="Orientation_Click" FontSize="10" Margin="0,0,5,0"/>
                     <Button Content="COMMAND CENTER" Height="23" FontSize="10" Margin="0,0,5,0" Click="OpenCommandCenter_Click"/>
@@ -222,7 +224,9 @@
                         <MenuItem Header="Mining" Click="OpenMiningCommandCenter_Click"/><MenuItem Header="Pilots" Click="OpenPilotCommandCenter_Click"/><MenuItem Header="Planetary Industry" Click="OpenPlanetary_Click"/><MenuItem Header="Industry" Click="OpenIndustry_Click"/><MenuItem Header="Omega" Click="OpenOmega_Click"/><MenuItem Header="Notifications" Click="Notifications_Click"/><MenuItem Header="Moons" Click="OpenMoonReport_Click"/><MenuItem Header="Contracts" Click="OpenContracts_Click"/><Separator/><MenuItem Header="Settings" Click="OpenClientSettings_Click"/><MenuItem Header="Preview settings" Click="OpenPreviewSettings_Click"/><MenuItem Header="Cloud backup" Click="OpenCloudBackup_Click"/><MenuItem Header="Reorder characters" Click="OrderMode_Click"/><MenuItem Header="Toggle rock tracking" Click="RockToggle_Click"/><MenuItem x:Name="CircleToggle1" Header="Show mining circles" IsCheckable="True" Click="MiningCircles_Click"/><MenuItem x:Name="HoldToggle1" Header="Show mining holds (estimated)" IsCheckable="True" Click="MiningHolds_Click"/>
                     </ContextMenu></Button.ContextMenu></Button>
                     <Button Content="SEPARATE PREVIEWS" Height="23" FontSize="10" Click="Combine_Click" ToolTip="Restore the independent preview windows"/>
-                </WrapPanel>
+                </StackPanel>
+                </Grid>
+                </ScrollViewer>
                 <!-- Always right of the buttons, immediately before the close icon. -->
                 <TextBlock x:Name="UpdatedText" Grid.Column="1"
                            Foreground="#8DA8A2" FontSize="9.5"

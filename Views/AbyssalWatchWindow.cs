@@ -8,6 +8,7 @@ using System.Windows.Data;
 using Binding = System.Windows.Data.Binding;
 using System.Windows.Media;
 using EveCommandCenter.Services;
+using UserControl = System.Windows.Controls.UserControl;
 using Button = System.Windows.Controls.Button;
 using TextBox = System.Windows.Controls.TextBox;
 using CheckBox = System.Windows.Controls.CheckBox;
@@ -24,7 +25,7 @@ namespace EveCommandCenter.Views;
 
 // Compact market-intelligence workspace. Reuses the background monitor; no
 // additional pilot authentication or market-order polling is introduced.
-public sealed class AbyssalWatchWindow : Window
+public sealed class AbyssalWatchWindow : UserControl, IDisposable
 {
     private readonly AbyssalWatchService _watch = AbyssalWatchService.Instance;
     private readonly CheckBox _enabled = new() { Content = "Popup alerts" };
@@ -56,9 +57,8 @@ public sealed class AbyssalWatchWindow : Window
 
     public AbyssalWatchWindow()
     {
-        Title = "EVE Command Center | Abyssal Hunter";
-        Width = 1520; Height = 900; MinWidth = 920; MinHeight = 610;
-        WindowStartupLocation = WindowStartupLocation.CenterScreen;
+        HorizontalAlignment = System.Windows.HorizontalAlignment.Stretch;
+        VerticalAlignment = System.Windows.VerticalAlignment.Stretch;
         Background = Ink(6, 20, 24); Foreground = Ink(224, 244, 244);
         var root = new DockPanel { Margin = new Thickness(15, 12, 15, 12) };
         Content = root;
@@ -133,8 +133,8 @@ public sealed class AbyssalWatchWindow : Window
         _tabs.Background = Ink(11, 37, 40);
         _tabs.BorderBrush = Ink(45, 84, 86);
         _tabs.Items.Add(HunterTab("MATCHES"));
-        _tabs.Items.Add(HunterTab("ORE STRIP MINER"));
-        _tabs.Items.Add(HunterTab("MODULATED II"));
+        _tabs.Items.Add(HunterTab("ORE MATCHES"));
+        _tabs.Items.Add(HunterTab("MODULATED MATCHES"));
         _tabs.Items.Add(HunterTab("BROWSE ALL"));
         _tabs.Items.Add(HunterTab("ALERT HISTORY"));
         _tabs.SelectionChanged += (_, e) => { if (e.Source == _tabs) Refresh(); };
@@ -204,8 +204,8 @@ public sealed class AbyssalWatchWindow : Window
         _cpu.Text = opt.MaxCpuPenalty.ToString(CultureInfo.InvariantCulture);
         _pg.Text = opt.MaxPowergridPenalty.ToString(CultureInfo.InvariantCulture);
         _minutes.SelectedItem = Math.Clamp(opt.PollMinutes, 2, 30);
-        _watch.Updated += Refresh;
-        Closed += (_, _) => _watch.Updated -= Refresh;
+        Loaded += (_, _) => { _watch.Updated -= Refresh; _watch.Updated += Refresh; Refresh(); };
+        Unloaded += (_, _) => _watch.Updated -= Refresh;
         Refresh();
     }
 
@@ -216,8 +216,8 @@ public sealed class AbyssalWatchWindow : Window
         IReadOnlyList<AbyssalWatchListing> all,
         IReadOnlyList<AbyssalWatchListing> history) => tab switch
     {
-        1 => all.Where(x => x.Source == "ORE Strip Miner").ToArray(),
-        2 => all.Where(x => x.Source == "Modulated Strip Miner II").ToArray(),
+        1 => matches.Where(x => x.Source == "ORE Strip Miner").ToArray(),
+        2 => matches.Where(x => x.Source == "Modulated Strip Miner II").ToArray(),
         3 => all,
         4 => history,
         _ => matches
@@ -272,11 +272,32 @@ public sealed class AbyssalWatchWindow : Window
             "EstimateText" or "PriceAdvantageText")
             cell.SetValue(TextBlock.TextAlignmentProperty, TextAlignment.Right);
         var template = new DataTemplate { VisualTree = cell };
-        _results.Columns.Add(new DataGridTemplateColumn
+        string sortPath = path switch
         {
-            Header = caption, CellTemplate = template, SortMemberPath = path,
+            "MiningAmountText" => nameof(AbyssalWatchListing.MiningAmount),
+            "CycleText" => nameof(AbyssalWatchListing.CycleSeconds),
+            "EffectiveSpeedText" => nameof(AbyssalWatchListing.EffectiveSpeed),
+            "CpuDeltaText" => nameof(AbyssalWatchListing.CpuPenalty),
+            "PowergridDeltaText" => nameof(AbyssalWatchListing.PowergridPenalty),
+            "PriceText" => nameof(AbyssalWatchListing.AskingPrice),
+            "EstimateText" => nameof(AbyssalWatchListing.EstimatedValue),
+            "PriceAdvantageText" => nameof(AbyssalWatchListing.PriceAdvantagePercent),
+            "ExpiryText" => nameof(AbyssalWatchListing.ExpiryUtc),
+            _ => path
+        };
+        var column = new DataGridTemplateColumn
+        {
+            Header = caption, CellTemplate = template, SortMemberPath = sortPath,
             Width = new DataGridLength(width)
-        });
+        };
+        if (sortPath != path)
+        {
+            var headerStyle = new Style(typeof(DataGridColumnHeader), _results.ColumnHeaderStyle);
+            headerStyle.Setters.Add(new Setter(DataGridColumnHeader.HorizontalContentAlignmentProperty,
+                System.Windows.HorizontalAlignment.Right));
+            column.HeaderStyle = headerStyle;
+        }
+        _results.Columns.Add(column);
     }
 
     private void PreviewAlert()
@@ -286,7 +307,7 @@ public sealed class AbyssalWatchWindow : Window
             item = _watch.Latest.FirstOrDefault();
         if (item == null)
         {
-            System.Windows.MessageBox.Show(this,
+            System.Windows.MessageBox.Show(Window.GetWindow(this),
                 "No current listings pass your saved alert filters. Try CHECK NOW or adjust FILTERS.",
                 "Abyssal Hunter", MessageBoxButton.OK, MessageBoxImage.Information);
             return;
@@ -321,13 +342,13 @@ public sealed class AbyssalWatchWindow : Window
             !ReadNumber(_speed, out var speed) || speed < 0 ||
             !ReadNumber(_cpu, out var cpu) || !ReadNumber(_pg, out var pg))
         {
-            System.Windows.MessageBox.Show(this, "Use numeric thresholds (a dot for decimals).", "Abyssal Hunter",
+            System.Windows.MessageBox.Show(Window.GetWindow(this), "Use numeric thresholds (a dot for decimals).", "Abyssal Hunter",
                 MessageBoxButton.OK, MessageBoxImage.Warning);
             return false;
         }
         if (_ore.IsChecked != true && _modulated.IsChecked != true)
         {
-            System.Windows.MessageBox.Show(this, "Select at least one strip-miner family.", "Abyssal Hunter",
+            System.Windows.MessageBox.Show(Window.GetWindow(this), "Select at least one strip-miner family.", "Abyssal Hunter",
                 MessageBoxButton.OK, MessageBoxImage.Warning); return false;
         }
         _watch.Save(new AbyssalWatchSettings {
@@ -348,8 +369,8 @@ public sealed class AbyssalWatchWindow : Window
         var options = _tabs.SelectedIndex;
         var source = RowsForTab(options, _watch.Latest, _watch.AllListings, _watch.RecentAlerts);
         ((TabItem)_tabs.Items[0]).Header = $"MATCHES  {_watch.Latest.Count}";
-        ((TabItem)_tabs.Items[1]).Header = $"ORE STRIP MINER  {_watch.AllListings.Count(x => x.Source == "ORE Strip Miner")}";
-        ((TabItem)_tabs.Items[2]).Header = $"MODULATED II  {_watch.AllListings.Count(x => x.Source == "Modulated Strip Miner II")}";
+        ((TabItem)_tabs.Items[1]).Header = $"ORE MATCHES  {_watch.Latest.Count(x => x.Source == "ORE Strip Miner")}";
+        ((TabItem)_tabs.Items[2]).Header = $"MODULATED MATCHES  {_watch.Latest.Count(x => x.Source == "Modulated Strip Miner II")}";
         ((TabItem)_tabs.Items[3]).Header = $"BROWSE ALL  {_watch.AllListings.Count}";
         ((TabItem)_tabs.Items[4]).Header = $"ALERT HISTORY  {_watch.RecentAlerts.Count}";
         string needle = _search.Text.Trim();
@@ -365,7 +386,8 @@ public sealed class AbyssalWatchWindow : Window
         _summary.Text = $"{_watch.Latest.Count} MATCHES   ·   {_watch.AllListings.Count} BROWSED   ·   {_watch.RecentAlerts.Count} ALERTS";
         _status.Text = $"Last check: {_watch.LastChecked?.ToLocalTime().ToString("dd MMM HH:mm") ?? "never"}  |  " +
             (string.IsNullOrWhiteSpace(_watch.LastError) ? "Watching public contracts" : _watch.LastError) +
-            "  |  Popups only for NEW matches or 10%+ price drops; first scan is a quiet baseline. Use PREVIEW ALERT to test.";
+            "  |  Model tabs = qualifying matches; BROWSE ALL includes below-threshold rolls. " +
+            "Alerts only for NEW matches or 10%+ price drops; first scan establishes a quiet baseline.";
         RefreshSelection();
     }
     private void RefreshSelection()
@@ -380,4 +402,5 @@ public sealed class AbyssalWatchWindow : Window
     {
         if (_results.SelectedItem is AbyssalWatchListing item) AbyssalWatchToast.OpenUrl(item.Url);
     }
+    public void Dispose() => _watch.Updated -= Refresh;
 }

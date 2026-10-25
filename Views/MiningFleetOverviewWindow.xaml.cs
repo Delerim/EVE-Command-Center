@@ -63,7 +63,7 @@ public partial class MiningFleetOverviewWindow : Window
         var toolbar = new Window {
             Title = "EVE Command Center Control",
             // Leave a little room for the EVE client window frame without wrapping controls.
-            Width = Math.Min(1850, Math.Max(820, SystemParameters.WorkArea.Width - 52)),
+            Width = Math.Min(2080, Math.Max(820, SystemParameters.WorkArea.Width - 12)),
             MinWidth = 650,
             Height = 40,
             SizeToContent = SizeToContent.Height,

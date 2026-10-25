@@ -28,6 +28,26 @@ internal static partial class Program
     [STAThread]
     private static void Main(string[] args)
     {
+        if (args.FirstOrDefault() == "--audit-market-tabs")
+        {
+            var appFixture = new System.Windows.Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
+            var market = new MarketOrdersWindow();
+            Check(market.WorkspaceTabs.Items.Count == 3,
+                "Market, Seller and Abyssal workspaces live in one Market window");
+            market.OpenSellerTab();
+            Check(market.WorkspaceTabs.SelectedIndex == 1 &&
+                  market.SellerPanelHost.Content is SellerDashboardWindow,
+                "Seller tab embeds dashboard without creating a seller popup");
+            market.OpenAbyssalTab();
+            Check(market.WorkspaceTabs.SelectedIndex == 2 &&
+                  market.AbyssalPanelHost.Content is AbyssalWatchWindow,
+                "Abyssal tab embeds hunter without creating another window");
+            Check(System.Windows.Application.Current.Windows.Cast<Window>().Count() == 1,
+                "Tab switching does not spawn multiple top-level windows");
+            market.Close();
+            Console.WriteLine($"{_checks} integrated market workspace checks passed.");
+            return;
+        }
         if (args.FirstOrDefault() == "--audit-esi")
         {
             CheckEsiQueue().GetAwaiter().GetResult();
@@ -123,6 +143,21 @@ internal static partial class Program
             var stripWidth = ((Window)tile!).Width;
             Check(ReferenceEquals(controlBorder.Child, overview.FindName("OverviewHeader")),
                 "Original complete control toolbar is restored without a compact capsule");
+            var barHeader = (Grid)overview.FindName("OverviewHeader");
+            var fullActions = (Panel)overview.FindName("FullActions");
+            var compactActions = (Panel)overview.FindName("CompactActions");
+            Check(barHeader.ColumnDefinitions[0].Width.IsAuto &&
+                  barHeader.ColumnDefinitions[1].Width.IsStar &&
+                  fullActions is StackPanel && compactActions is StackPanel,
+                "Full control bar gives its buttons remaining width and never wraps them into another row");
+            Check(controlRight.Children.OfType<ScrollViewer>().Any(scroll =>
+                  scroll.HorizontalScrollBarVisibility == ScrollBarVisibility.Auto &&
+                  scroll.Content is Grid buttonsHost &&
+                  buttonsHost.Children.Contains(fullActions) &&
+                  buttonsHost.Children.Contains(compactActions)),
+                "All buttons remain accessible by horizontal scrolling on narrower monitors");
+            Check(stripWidth >= Math.Min(2080, SystemParameters.WorkArea.Width - 14),
+                "Full control bar expands to the available monitor width");
             typeof(MiningFleetOverviewWindow).GetMethod("RefreshCards",
                 System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.Instance)!.Invoke(overview,null);
             Check(Math.Abs(((Window)tile!).Width - stripWidth) < 0.01,

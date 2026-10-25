@@ -41,6 +41,14 @@ internal static partial class Program
               AbyssalWatchWindow.RowsForTab(3, allModules, allModules, Array.Empty<AbyssalWatchListing>()).Count == 2 &&
               AbyssalWatchWindow.RowsForTab(4, allModules, allModules, Array.Empty<AbyssalWatchListing>()).Count == 0,
               "Hunter tabs separate matches, ORE, Modulated II, browse and alert history");
+        var belowThreshold = modulated with { EffectiveSpeed = 3.10 };
+        Check(AbyssalWatchWindow.RowsForTab(2, new[] { ore },
+                new[] { ore, belowThreshold }, Array.Empty<AbyssalWatchListing>()).Count == 0 &&
+              AbyssalWatchWindow.RowsForTab(3, new[] { ore },
+                new[] { ore, belowThreshold }, Array.Empty<AbyssalWatchListing>()).Count == 2,
+              "Modulated qualifying tab excludes sub-threshold speeds; Browse All still includes them");
+        Check(ore.PriceAdvantagePercent > 0 && modulated.PriceAdvantagePercent != null,
+              "Value-gap sorting uses numeric values rather than formatted percent text");
         Check(ore.MiningAmountText == "150.00" && ore.CycleText == "45.00" &&
             ore.EffectiveSpeedText == "3.40" && ore.CpuDeltaText == "+1.00" &&
             ore.PowergridDeltaText == "+1.00", "Hunter displays useful rounded mining and fitting numbers");

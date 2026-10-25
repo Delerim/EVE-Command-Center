@@ -9,6 +9,38 @@ namespace EveCommandCenter.Views;
 public partial class MarketOrdersWindow : Window
 {
     private readonly CancellationTokenSource _life = new();
+    private SellerDashboardWindow? _sellerPanel;
+    private AbyssalWatchWindow? _abyssalPanel;
+    public void OpenSellerTab()
+    {
+        WorkspaceTabs.SelectedIndex = 1;
+        EnsureMarketWorkspace(1);
+        if (IsVisible) Activate();
+    }
+    public void OpenAbyssalTab()
+    {
+        WorkspaceTabs.SelectedIndex = 2;
+        EnsureMarketWorkspace(2);
+        if (IsVisible) Activate();
+    }
+    private void EnsureMarketWorkspace(int index)
+    {
+        if (index == 1 && _sellerPanel == null)
+        {
+            _sellerPanel = new SellerDashboardWindow();
+            SellerPanelHost.Content = _sellerPanel;
+        }
+        if (index == 2 && _abyssalPanel == null)
+        {
+            _abyssalPanel = new AbyssalWatchWindow();
+            AbyssalPanelHost.Content = _abyssalPanel;
+        }
+    }
+    private void WorkspaceTabChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (!ReferenceEquals(e.Source, WorkspaceTabs)) return;
+        EnsureMarketWorkspace(WorkspaceTabs.SelectedIndex);
+    }
     private MarketOrdersService? _service;
     private IReadOnlyList<EvePilotProfile> _pilots = Array.Empty<EvePilotProfile>();
     private List<CharacterChoice> _choices = new();
@@ -20,6 +52,7 @@ public partial class MarketOrdersWindow : Window
     public MarketOrdersWindow()
     {
         InitializeComponent();
+        WorkspaceTabs.SelectionChanged += WorkspaceTabChanged;
         _progressTimer.Tick += (_, _) => ShowProgress();
         WorkspaceLayout.AttachMarket(this);
         _cacheTimer.Tick += (_, _) =>
@@ -39,25 +72,18 @@ public partial class MarketOrdersWindow : Window
             }
             catch (Exception ex) { Status.Text = "Market unavailable: " + MarketOrdersService.Failure(ex); }
         };
-        Closed += (_, _) => { _life.Cancel(); _progressTimer.Stop(); _cacheTimer.Stop(); };
+        Closed += (_, _) => {
+            _life.Cancel(); _progressTimer.Stop(); _cacheTimer.Stop();
+            _sellerPanel?.Dispose(); _abyssalPanel?.Dispose();
+        };
     }
     internal void Initialize(MarketOrdersService service, IReadOnlyList<EvePilotProfile> pilots)
     {
         _service = service; _pilots = pilots; RebuildPilots(); RenderOrders();
     }
     private void SyncSettings_Click(object sender, RoutedEventArgs e) => (System.Windows.Application.Current as App)?.OpenCommandCenterModule("setup");
-    private void SellerDashboard_Click(object sender, RoutedEventArgs e)
-    {
-        var existing = System.Windows.Application.Current.Windows.OfType<SellerDashboardWindow>().FirstOrDefault();
-        if (existing != null) { existing.Activate(); return; }
-        new SellerDashboardWindow().Show();
-    }
-    private void AbyssalWatch_Click(object sender, RoutedEventArgs e)
-    {
-        var existing = System.Windows.Application.Current.Windows.OfType<AbyssalWatchWindow>().FirstOrDefault();
-        if (existing != null) { existing.Activate(); return; }
-        new AbyssalWatchWindow().Show();
-    }
+    private void SellerDashboard_Click(object sender, RoutedEventArgs e) => OpenSellerTab();
+    private void AbyssalWatch_Click(object sender, RoutedEventArgs e) => OpenAbyssalTab();
     private long _activePilot;
     private void RebuildPilots()
     {
