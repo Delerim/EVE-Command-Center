@@ -61,5 +61,24 @@ internal static partial class Program
             "Hunter accepts only documented paginated API cursors");
         Check(!AbyssalWatchService.Matches(ore with { ExpiryUtc = "2020-01-01T00:00:00Z" }, settings),
             "Expired public contracts never produce attractive deal alerts");
+        string WithCursor(string json, string? cursor) => json[..^1] +
+            ",\"meta\":{\"next_cursor\":" + (cursor == null ? "null" : "\"" + cursor + "\"") + "}}";
+        var first = WithCursor(Sample("ORE Strip Miner", 2468, 111, 440000000, 155, 45, 60, 59, 12, 11), "nextPage");
+        var second = WithCursor(Sample("ORE Strip Miner", 2469, 112, 450000000, 157, 45, 60, 59, 12, 11), null);
+        var urls = new List<string>();
+        Task<string> Page(string url, CancellationToken _) {
+            urls.Add(url);
+            return Task.FromResult(url.Contains("cursor=nextPage") ? second : first);
+        }
+        var paginated = AbyssalWatchService.ReadAsync(90493, CancellationToken.None, 8,
+            (url, ct) => Page(url, ct)).GetAwaiter().GetResult();
+        Check(paginated.Count == 2 && urls.Count == 2 &&
+              urls[1].Contains("cursor=nextPage"),
+            "Background monitor fetches subsequent pages without a manual Load More click");
+        bool truncatedRejected = false;
+        try { AbyssalWatchService.ReadAsync(90493, CancellationToken.None, 1,
+            (url, ct) => Page(url, ct)).GetAwaiter().GetResult(); }
+        catch (System.IO.InvalidDataException) { truncatedRejected = true; }
+        Check(truncatedRejected, "An incomplete scan cannot masquerade as a complete market snapshot");
     }
 }

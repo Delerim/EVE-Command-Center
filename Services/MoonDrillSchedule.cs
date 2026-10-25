@@ -8,6 +8,20 @@ public sealed record MoonDrillRow(long StructureId, string System, string Moon, 
     public bool NotSet => Status == "NOT SET";
     public string StartText => Start?.ToUniversalTime().ToString("dd MMM yyyy HH:mm") ?? "-";
     public string ArrivalText => Arrival?.ToUniversalTime().ToString("dd MMM yyyy HH:mm") ?? "-";
+    // Sort on actual dates and elapsed-minute counts, never formatted month/day text.
+    public long DurationMinutes => Start.HasValue && Arrival.HasValue
+        ? Math.Max(0, (long)(Arrival.Value - Start.Value).TotalMinutes) : -1;
+    public long ElapsedMinutes => Minutes(Elapsed);
+    public long RemainingMinutes => Minutes(Remaining);
+    private static long Minutes(string text)
+    {
+        var match = global::System.Text.RegularExpressions.Regex.Match(text,
+            @"^(\d+)d (\d+)h (\d+)m$");
+        if (!match.Success) return -1;
+        return long.Parse(match.Groups[1].Value, global::System.Globalization.CultureInfo.InvariantCulture) * 1440
+             + long.Parse(match.Groups[2].Value, global::System.Globalization.CultureInfo.InvariantCulture) * 60
+             + long.Parse(match.Groups[3].Value, global::System.Globalization.CultureInfo.InvariantCulture);
+    }
 }
 
 internal static class MoonDrillSchedule

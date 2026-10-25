@@ -186,11 +186,11 @@
       <DataGridTextColumn Header="MOON" Binding="{Binding Moon}" Width="160"/>
       <DataGridTextColumn Header="STRUCTURE" Binding="{Binding Structure}" Width="*" MinWidth="170"/>
       <DataGridTextColumn Header="DRILL SERVICE" Binding="{Binding Service}" Width="105"/>
-      <DataGridTextColumn Header="START (UTC)" Binding="{Binding StartText}" Width="145"/>
-      <DataGridTextColumn Header="TOTAL DURATION" Binding="{Binding Duration}" Width="130"/>
-      <DataGridTextColumn Header="ELAPSED" Binding="{Binding Elapsed}" Width="110"/>
-      <DataGridTextColumn Header="REMAINING" Binding="{Binding Remaining}" Width="110"/>
-      <DataGridTextColumn Header="ARRIVAL (UTC)" Binding="{Binding ArrivalText}" Width="145"/>
+      <DataGridTextColumn Header="START (UTC)" Binding="{Binding StartText}" SortMemberPath="Start" Width="145"/>
+      <DataGridTextColumn Header="TOTAL DURATION" Binding="{Binding Duration}" SortMemberPath="DurationMinutes" Width="130"/>
+      <DataGridTextColumn Header="ELAPSED" Binding="{Binding Elapsed}" SortMemberPath="ElapsedMinutes" Width="110"/>
+      <DataGridTextColumn Header="REMAINING" Binding="{Binding Remaining}" SortMemberPath="RemainingMinutes" Width="110"/>
+      <DataGridTextColumn Header="ARRIVAL (UTC)" Binding="{Binding ArrivalText}" SortMemberPath="Arrival" Width="145"/>
      </DataGrid.Columns>
     </DataGrid>
    </Grid></TabItem>

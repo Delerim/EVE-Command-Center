@@ -48,6 +48,8 @@ public partial class MoonReportWindow : Window
     {
         InitializeComponent();
         LoadIntelligenceSchedule();
+        // Shared sort handler preserves selected date/numeric order across ESI refreshes.
+        TableSorting.Attach(DrillGrid);
         _service = BackgroundOperations.Current.Moons;
         _service.Refreshed += OnBackgroundRefresh;
         _drillTimer.Tick += (_, _) => { if (DrillScheduleTab.IsSelected && !EmbeddedModuleHost.IsInactive(this)) RefreshDrillSchedule(); };
@@ -194,10 +196,8 @@ public partial class MoonReportWindow : Window
     {
         var rows = _service.GetDrillSchedule();
         string search = SearchBox.Text.Trim();
-        var sort = DrillGrid.Items.SortDescriptions.ToArray();
         long? selected = (DrillGrid.SelectedItem as MoonDrillRow)?.StructureId;
         DrillGrid.ItemsSource = rows.Where(r => search.Length == 0 || Contains(r.System, search) || Contains(r.Moon, search) || Contains(r.Structure, search)).ToArray();
-        foreach (var description in sort) DrillGrid.Items.SortDescriptions.Add(description);
         if (selected.HasValue) DrillGrid.SelectedItem = DrillGrid.Items.Cast<MoonDrillRow>().FirstOrDefault(r => r.StructureId == selected);
 
         DrillSummary.Text = $"{rows.Count} drills | {rows.Count(r => r.NotSet)} not set | {rows.Count(r => r.Status == "RUNNING")} running | {rows.Count(r => r.Status == "READY TO FRACTURE")} ready";

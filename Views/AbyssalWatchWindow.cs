@@ -70,13 +70,11 @@ public sealed class AbyssalWatchWindow : UserControl, IDisposable
         var buttons = new StackPanel { Orientation = Orientation.Horizontal };
         DockPanel.SetDock(buttons, Dock.Right);
         top.Children.Add(buttons);
-        var scan = ActionButton("CHECK NOW", buttons, "Refresh the latest public contracts");
+        var scan = ActionButton("CHECK NOW", buttons, "Force a complete cursor-paginated scan now; automatic background checks use the same complete scan");
         scan.Click += async (_, _) => { if (Save()) await _watch.RefreshAsync(); };
         var previewAlert = ActionButton("PREVIEW ALERT", buttons,
             "Show the actual popup for the selected matching contract without marking it new");
         previewAlert.Click += (_, _) => PreviewAlert();
-        var browse = ActionButton("LOAD MORE", buttons, "Scan up to three pages per model for browsing. Background monitoring stays lightweight.");
-        browse.Click += async (_, _) => { if (Save()) await _watch.RefreshAsync(includeMorePages: true); };
         var filterButton = ActionButton("FILTERS", buttons, "Show or hide saved hunter thresholds");
         filterButton.Click += (_, _) => _filterPanel.Visibility = _filterPanel.Visibility == Visibility.Visible ? Visibility.Collapsed : Visibility.Visible;
         var open = ActionButton("OPEN MODULE", buttons, "Open the selected module on MutaMarket");
@@ -412,8 +410,9 @@ public sealed class AbyssalWatchWindow : UserControl, IDisposable
         _summary.Text = $"{_watch.Latest.Count} MATCHES   ·   {_watch.AllListings.Count} BROWSED   ·   {_watch.RecentAlerts.Count} ALERTS";
         _status.Text = $"Last check: {_watch.LastChecked?.ToLocalTime().ToString("dd MMM HH:mm") ?? "never"}  |  " +
             (string.IsNullOrWhiteSpace(_watch.LastError) ? "Watching public contracts" : _watch.LastError) +
-            "  |  MATCHES obey saved thresholds; BROWSE ORE / MODULATED include weaker rolls. " +
-            "Popups: new matches or 10%+ drops after the initial quiet scan. PREVIEW ALERT tests the design.";
+            $"  |  Background scan every {Math.Clamp(_watch.Options.PollMinutes, 2, 30)} minutes; all cursor pages for each enabled model. " +
+            "MATCHES apply filters; BROWSE shows weaker rolls. First complete scan is a quiet baseline. " +
+            "New matches or 10%+ price drops trigger popups. PREVIEW ALERT tests the design.";
         RefreshSelection();
     }
     private void RefreshSelection()

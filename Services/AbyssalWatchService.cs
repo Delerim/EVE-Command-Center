@@ -67,6 +67,9 @@ public sealed class AbyssalWatchService : IDisposable
     private readonly HashSet<string> _seen = new(StringComparer.Ordinal);
     private readonly List<string> _seenOrder = new();
     private bool _initialized;
+    // Migration guard: old versions observed only the first MutaMarket cursor page.
+    // The first full crawl must quietly baseline older contracts, not alert on them.
+    private bool _fullCoverageBaselineComplete;
     private bool _busy;
     private bool _disposed;
     private CancellationTokenSource _life = new();
@@ -88,6 +91,7 @@ public sealed class AbyssalWatchService : IDisposable
     {
         public AbyssalWatchSettings Options { get; set; } = new();
         public bool Initialized { get; set; }
+        public bool FullCoverageBaselineComplete { get; set; }
         public List<string> Seen { get; set; } = new();
         public Dictionary<string, double> LastPrices { get; set; } = new();
         public List<AbyssalWatchListing> Alerts { get; set; } = new();
@@ -112,6 +116,7 @@ public sealed class AbyssalWatchService : IDisposable
                 {
                     Options = record.Options ?? new();
                     _initialized = record.Initialized;
+                    _fullCoverageBaselineComplete = record.FullCoverageBaselineComplete;
                     foreach (var key in record.Seen ?? new()) Remember(key);
                     foreach (var pair in record.LastPrices ?? new()) _lastPrices[pair.Key] = pair.Value;
                     RecentAlerts = (record.Alerts ?? new()).TakeLast(100).ToArray();
@@ -141,7 +146,7 @@ public sealed class AbyssalWatchService : IDisposable
     {
         if (!_seen.Add(key)) return;
         _seenOrder.Add(key);
-        while (_seenOrder.Count > 4_000)
+        while (_seenOrder.Count > 50_000)
         {
             _seen.Remove(_seenOrder[0]);
             _seenOrder.RemoveAt(0);
@@ -155,7 +160,9 @@ public sealed class AbyssalWatchService : IDisposable
             Directory.CreateDirectory(Path.GetDirectoryName(StorePath)!);
             string temp = StorePath + ".tmp";
             File.WriteAllText(temp, JsonSerializer.Serialize(new Persisted {
-                Options = Options, Initialized = _initialized, Seen = _seenOrder.ToList(),
+                Options = Options, Initialized = _initialized,
+                FullCoverageBaselineComplete = _fullCoverageBaselineComplete,
+                Seen = _seenOrder.ToList(),
                 LastPrices = _lastPrices, Alerts = RecentAlerts.TakeLast(100).ToList()
             }));
             File.Move(temp, StorePath, true);
@@ -170,25 +177,29 @@ public sealed class AbyssalWatchService : IDisposable
         try
         {
             var listings = new List<AbyssalWatchListing>();
-            if (Options.WatchOreStripMiner) listings.AddRange(await ReadAsync(90493, _life.Token, includeMorePages ? 3 : 1));
-            if (Options.WatchModulatedStripMiner) listings.AddRange(await ReadAsync(90467, _life.Token, includeMorePages ? 3 : 1));
+            // Every poll (including the five-minute background timer) reads every
+            // cursor page, not just the first page. Incomplete scans never replace
+            // a previously complete snapshot or advance the alert baseline.
+            if (Options.WatchOreStripMiner) listings.AddRange(await ReadAsync(90493, _life.Token, MaxPagesPerModel));
+            if (Options.WatchModulatedStripMiner) listings.AddRange(await ReadAsync(90467, _life.Token, MaxPagesPerModel));
             if (_disposed) return;
             AllListings = listings.GroupBy(x => x.Key).Select(g => g.First()).ToArray();
             Latest = AllListings.Where(item => Matches(item, Options)).ToArray();
             // A changed asking price is a fresh opportunity even for an old listing.
             // Only notify on a meaningful (>=10%) drop, never a tiny market edit.
-            var newDeals = _initialized && !includeMorePages ? Latest.Where(item => !_seen.Contains(item.Key) ||
+            var newDeals = _initialized && _fullCoverageBaselineComplete ? Latest.Where(item => !_seen.Contains(item.Key) ||
                 _lastPrices.TryGetValue(item.Key, out double previous) && previous > 0 &&
                 item.AskingPrice > 0 && item.AskingPrice <= previous * 0.90).ToArray()
                 : Array.Empty<AbyssalWatchListing>();
             // Remember ALL observed entries: changing filters cannot re-alert old listings.
             foreach (var item in AllListings) { Remember(item.Key); _lastPrices[item.Key] = item.AskingPrice; }
-            while (_lastPrices.Count > 4_000) {
+            while (_lastPrices.Count > 50_000) {
                 var oldest = _lastPrices.Keys.First(); _lastPrices.Remove(oldest);
             }
             if (newDeals.Length > 0)
                 RecentAlerts = RecentAlerts.Concat(newDeals).TakeLast(100).ToArray();
-            _initialized = true; LastChecked = DateTimeOffset.UtcNow; LastError = "";
+            _initialized = true; _fullCoverageBaselineComplete = true;
+            LastChecked = DateTimeOffset.UtcNow; LastError = "";
             Persist();
             Updated?.Invoke();
             if (newDeals.Length > 0) NewDeals?.Invoke(newDeals);
@@ -198,25 +209,43 @@ public sealed class AbyssalWatchService : IDisposable
         finally { _busy = false; }
     }
 
-    private static async Task<IReadOnlyList<AbyssalWatchListing>> ReadAsync(int type, CancellationToken token, int maxPages)
+    // Prevent an accidental runaway crawl if upstream cursor pagination breaks.
+    // This is a safety ceiling, not an artificial three-page browsing limit.
+    internal const int MaxPagesPerModel = 100;
+
+    internal static async Task<IReadOnlyList<AbyssalWatchListing>> ReadAsync(
+        int type, CancellationToken token, int maxPages,
+        Func<string, CancellationToken, Task<string>>? fetchPage = null)
     {
-        // Background checks use one newest-first page; manual browsing can fetch
-        // three cursor pages. All URLs remain on the documented public endpoint.
         string baseUrl = Base + type.ToString(CultureInfo.InvariantCulture) + "/contracts-only/sort/date-added/desc";
         string? cursor = null;
         var used = new HashSet<string>(StringComparer.Ordinal);
         var collected = new List<AbyssalWatchListing>();
-        for (int page = 0; page < Math.Clamp(maxPages, 1, 3); page++)
+        int limit = Math.Clamp(maxPages, 1, MaxPagesPerModel);
+        for (int page = 0; page < limit; page++)
         {
+            token.ThrowIfCancellationRequested();
             string url = cursor == null ? baseUrl : baseUrl + "?cursor=" + Uri.EscapeDataString(cursor);
-            using var response = await Http.GetAsync(url, token);
-            response.EnsureSuccessStatusCode();
-            string json = await response.Content.ReadAsStringAsync(token);
+            string json;
+            if (fetchPage != null)
+                json = await fetchPage(url, token).ConfigureAwait(false);
+            else
+            {
+                // Pace public requests; a five-minute full scan must be polite.
+                if (page > 0) await Task.Delay(120, token).ConfigureAwait(false);
+                using var response = await Http.GetAsync(url, token).ConfigureAwait(false);
+                response.EnsureSuccessStatusCode();
+                json = await response.Content.ReadAsStringAsync(token).ConfigureAwait(false);
+            }
             collected.AddRange(ParsePage(json, type));
             cursor = ParseNextCursor(json);
-            if (string.IsNullOrWhiteSpace(cursor) || !used.Add(cursor)) break;
+            if (string.IsNullOrWhiteSpace(cursor)) return collected;
+            if (!used.Add(cursor))
+                throw new InvalidDataException("MutaMarket repeated a pagination cursor; retained the previous complete snapshot.");
         }
-        return collected;
+        // Never present a truncated list as the complete market, or mark unseen
+        // contracts as observed when a remote API exceeds the safety limit.
+        throw new InvalidDataException($"MutaMarket still has pages after {limit} requests for type {type}; previous complete scan retained.");
     }
 
     internal static string? ParseNextCursor(string json)

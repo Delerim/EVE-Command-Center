@@ -30,6 +30,24 @@ internal static partial class Program
         Check(rows.Single(r=>r.StructureId==4).Status=="SCHEDULED" && rows.Single(r=>r.StructureId==4).Elapsed=="0d 0h 0m","Future starts do not produce negative elapsed time");
         Check(rows.Single(r=>r.StructureId==6).Status=="NOT VISIBLE","Missing structures are distinguished from unset drills");
         Check(rows[0].NotSet,"Unset drills sort first");
+        // October must sort before December despite their alphabetical order.
+        var oct = new MoonDrillRow(20, "Test", "October", "Test", "RUNNING", "online",
+            new DateTimeOffset(2026,10,25,12,0,0,TimeSpan.Zero),
+            new DateTimeOffset(2026,10,27,12,0,0,TimeSpan.Zero), "2d 0h 0m", "1d 1h 0m", "0d 23h 0m");
+        var dec = oct with { Start = new DateTimeOffset(2026,12,1,12,0,0,TimeSpan.Zero),
+            Arrival = new DateTimeOffset(2026,12,5,12,0,0,TimeSpan.Zero),
+            Duration = "4d 0h 0m", Remaining = "3d 0h 0m" };
+        var byStart = new[] { dec, oct }.OrderBy(x => x.Start).ToArray();
+        Check(byStart[0] == oct && byStart[1] == dec &&
+              oct.DurationMinutes == 2880 && dec.DurationMinutes == 5760 &&
+              oct.ElapsedMinutes == 1500 && oct.RemainingMinutes == 1380,
+            "Drill calendar sorts real dates October before December and durations by minutes");
+        var dateSorter = new EveCommandCenter.Views.TableSorting.Values("Start",
+            System.ComponentModel.ListSortDirection.Ascending);
+        var durationSorter = new EveCommandCenter.Views.TableSorting.Values("RemainingMinutes",
+            System.ComponentModel.ListSortDirection.Ascending);
+        Check(dateSorter.Compare(oct, dec) < 0 && durationSorter.Compare(oct, dec) < 0,
+            "Shared table sorter respects typed UTC dates and numeric duration values");
         var refreshed = new MoonReportState { LastRefreshUtc = now.AddHours(-1) };
         var schedules = Enumerable.Range(1, 127).Select(id => new EsiMoonExtraction
         {

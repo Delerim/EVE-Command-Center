@@ -1,3 +1,10 @@
+# EVE Command Center v3.8.4
+
+- **Automatic complete Abyssal Hunter scans.** Every background and manual refresh walks MutaMarket cursor pages for ORE and Modulated Strip Miner II, with a safety ceiling and explicit failures instead of silently truncating the listings. No Load More button.
+- **Safe alert migration.** First full scan quietly establishes the additional historical listings; subsequent new contracts and qualifying price drops alert normally. Full-scan deduplication and prices persist across restarts.
+- **Typed Drill Schedule sorting.** Start and arrival columns sort as UTC dates; duration, elapsed and remaining sort by minute totals. Column preferences persist across schedule refreshes using the shared sorter.
+- **Regression gates.** Multi-page cursor replay, truncated scan rejection, and October/December date and duration comparisons. No new ESI scopes or market mutations.
+
 # EVE Command Center v3.8.3
 
 - Release-only recovery: align version and release notes with the exact GitHub Actions validator contract.
