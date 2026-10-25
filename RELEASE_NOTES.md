@@ -1,4 +1,10 @@
-### v3.8.2 — Abyssal Hunter browsing and UI polish
+# EVE Command Center v3.8.3
+
+- Release-only recovery: align version and release notes with the exact GitHub Actions validator contract.
+- Preserve the v3.8.2 Abyssal Hunter and control-strip changes without changing application logic.
+- Validate notes, project version and tag locally before committing or publishing.
+
+# EVE Command Center v3.8.2
 
 - Dedicated Browse ORE and Browse Modulated tabs, separate from qualifying match tabs.
 - Clearer market statistics with aligned headers, numeric sorting, responsive columns and saved sort selection.
