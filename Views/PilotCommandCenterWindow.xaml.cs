@@ -49,7 +49,28 @@ public partial class PilotCommandCenterWindow : Window
         }
         catch(Exception ex){EsiDiagnostics.Write("Skill planner open: "+ex);WpfMessageBox.Show(EmbeddedModuleHost.ResolveOwner(this),"Could not open Skill Planner: "+ex.Message,"Skill Planner");}
     }
-    private long _inventoryLoadedForCharacterId;
+private void SkillPlanImport_Click(object sender, RoutedEventArgs e)
+{
+    if (PilotList.SelectedItem is not PilotCardViewModel card)
+    {
+        WpfMessageBox.Show(EmbeddedModuleHost.ResolveOwner(this), "Select a pilot first.", "Skill Plan Import");
+        return;
+    }
+    try
+    {
+        var snapshot = _planningSnapshot?.Summary.CharacterId == card.CharacterId ? _planningSnapshot : null;
+        (System.Windows.Application.Current as App)?.OpenCommandCenterModule(
+            "skill-import:" + card.CharacterId,
+            () => new SkillPlanImportWindow(card.Profile, snapshot),
+            "SKILL PLAN | " + card.CharacterName);
+    }
+    catch (Exception ex)
+    {
+        EsiDiagnostics.Write("Skill plan import open: " + ex);
+        WpfMessageBox.Show(EmbeddedModuleHost.ResolveOwner(this), "Could not open importer: " + ex.Message, "Skill Plan Import");
+    }
+}
+private long _inventoryLoadedForCharacterId;
     private EveInventorySnapshot? _currentInventory;
 
     public ObservableCollection<PilotCardViewModel> Pilots { get; } = new();
@@ -215,6 +236,8 @@ public partial class PilotCommandCenterWindow : Window
         if ((PilotList.SelectedItem as PilotCardViewModel)?.CharacterId != card.CharacterId) return;
             TotalSpText.Text =
                 $"{data.Summary.TotalSp:N0} SP";
+            UnallocatedSpText.Text = data.Summary.UnallocatedSp.HasValue
+                ? $"Unallocated: {data.Summary.UnallocatedSp.Value:N0} SP" : "Unallocated: unavailable";
 
             CurrentSkillText.Text =
                 string.IsNullOrWhiteSpace(
@@ -273,6 +296,7 @@ public partial class PilotCommandCenterWindow : Window
             bool partial=data.CoreOnly;
             data=PilotDashboardProgress.Merge(data,_planningSnapshot);
             await ApplyDashboardAsync(data,card,token);
+            if (!partial) SkillPlanRemapMonitor.Instance.Observe(card.Profile, data);
             try { System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(file)!); System.IO.File.WriteAllText(file,System.Text.Json.JsonSerializer.Serialize(data)); }
             catch (Exception ex) { EsiDiagnostics.Write("Pilot snapshot save: "+ex.GetType().Name); }
             SetStatus(partial ? "Skills and queue loaded; syncing attributes and implants..." : "Pilot updated "+DateTime.Now.ToString("HH:mm:ss"));
@@ -337,6 +361,7 @@ public partial class PilotCommandCenterWindow : Window
     private void ClearDetails()
     {
         TotalSpText.Text = "-";
+        UnallocatedSpText.Text = "Unallocated: -";
         CurrentSkillText.Text = "-";
         QueueEndsText.Text = "-";
         SkillProgress.Value = 0;
@@ -1182,7 +1207,7 @@ public partial class PilotCommandCenterWindow : Window
             SecondaryAccent = secondary.Accent;
             AttributePriority = primary.Name == "Unknown" || secondary.Name == "Unknown"
                 ? "Attribute priority unavailable" : $"Priority: {primary.Name} > {secondary.Name}";
-            AttributeGuidance = $"{AttributePriority}\nPrimary attribute contributes 1 SP/min per point; secondary contributes 0.5 SP/min.\nOff-map means below 90% of your strongest current attribute pair. The percentage is not progress or a proposed remap.\nChoose a remap for a whole training block, not just one skill; a mixed queue can favour a different allocation.";
+            AttributeGuidance = $"{AttributePriority}\nPrimary attribute contributes 1 SP/min per point; secondary contributes 0.5 SP/min.\nLower-rate means below 90% of your strongest CURRENT attribute pair. This does NOT mean your staged skill plan or future remap is wrong.\nChoose a remap for a whole training block, not just one skill; a mixed queue can favour a different allocation.";
 
             AlignmentPresentation alignment =
                 GetAlignment(
@@ -1274,7 +1299,7 @@ public partial class PilotCommandCenterWindow : Window
             SecondaryAccent = secondary.Accent;
             AttributePriority = primary.Name == "Unknown" || secondary.Name == "Unknown"
                 ? "Attribute priority unavailable" : $"Priority: {primary.Name} > {secondary.Name}";
-            AttributeGuidance = $"{AttributePriority}\nPrimary attribute contributes 1 SP/min per point; secondary contributes 0.5 SP/min.\nOff-map means below 90% of your strongest current attribute pair. The percentage is not progress or a proposed remap.\nChoose a remap for a whole training block, not just one skill; a mixed queue can favour a different allocation.";
+            AttributeGuidance = $"{AttributePriority}\nPrimary attribute contributes 1 SP/min per point; secondary contributes 0.5 SP/min.\nLower-rate means below 90% of your strongest CURRENT attribute pair. This does NOT mean your staged skill plan or future remap is wrong.\nChoose a remap for a whole training block, not just one skill; a mixed queue can favour a different allocation.";
 
             AlignmentPresentation alignment =
                 GetAlignment(
@@ -1371,10 +1396,10 @@ public partial class PilotCommandCenterWindow : Window
         public string StatusText =>
             IsCurrent
                 ? IsOffMap
-                    ? "TRAINING | OFF-MAP"
+                    ? "TRAINING | LOWER RATE"
                     : "TRAINING"
                 : IsOffMap
-                    ? "OFF-MAP"
+                    ? "LOWER RATE"
                     : "QUEUED";
         public string StatusBackground =>
             IsOffMap

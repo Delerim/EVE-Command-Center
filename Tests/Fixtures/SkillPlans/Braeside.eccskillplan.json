@@ -1,0 +1,843 @@
+{
+  "schema": "ecc.skill-plan.v1",
+  "schemaVersion": 1,
+  "name": "Braeside | Skiff Expert corrected Oct 16",
+  "character": {
+    "name": "Braeside",
+    "id": null
+  },
+  "source": {
+    "planDate": "2026-10-16",
+    "skillSnapshotDate": "2026-10-15",
+    "type": "external-import",
+    "comment": "EVE live skill/queue/attribute data must be refreshed before applying this plan."
+  },
+  "queue": [
+    {
+      "position": 1,
+      "skill": "Electronics Upgrades",
+      "level": 5
+    },
+    {
+      "position": 2,
+      "skill": "Drone Interfacing",
+      "level": 5
+    },
+    {
+      "position": 3,
+      "skill": "Drone Durability",
+      "level": 5
+    },
+    {
+      "position": 4,
+      "skill": "Advanced Drone Avionics",
+      "level": 5
+    },
+    {
+      "position": 5,
+      "skill": "Mining Drone Specialization",
+      "level": 5
+    },
+    {
+      "position": 6,
+      "skill": "Kinetic Shield Compensation",
+      "level": 5
+    },
+    {
+      "position": 7,
+      "skill": "Explosive Shield Compensation",
+      "level": 5
+    },
+    {
+      "position": 8,
+      "skill": "Thermal Shield Compensation",
+      "level": 5
+    },
+    {
+      "position": 9,
+      "skill": "Tactical Shield Manipulation",
+      "level": 5
+    },
+    {
+      "position": 10,
+      "skill": "Missile Launcher Operation",
+      "level": 4
+    },
+    {
+      "position": 11,
+      "skill": "Missile Launcher Operation",
+      "level": 5
+    },
+    {
+      "position": 12,
+      "skill": "Caldari Defensive Systems",
+      "level": 1
+    },
+    {
+      "position": 13,
+      "skill": "Caldari Defensive Systems",
+      "level": 2
+    },
+    {
+      "position": 14,
+      "skill": "Caldari Defensive Systems",
+      "level": 3
+    },
+    {
+      "position": 15,
+      "skill": "Caldari Defensive Systems",
+      "level": 4
+    },
+    {
+      "position": 16,
+      "skill": "Caldari Defensive Systems",
+      "level": 5
+    },
+    {
+      "position": 17,
+      "skill": "Caldari Core Systems",
+      "level": 1
+    },
+    {
+      "position": 18,
+      "skill": "Caldari Core Systems",
+      "level": 2
+    },
+    {
+      "position": 19,
+      "skill": "Caldari Core Systems",
+      "level": 3
+    },
+    {
+      "position": 20,
+      "skill": "Caldari Core Systems",
+      "level": 4
+    },
+    {
+      "position": 21,
+      "skill": "Caldari Core Systems",
+      "level": 5
+    },
+    {
+      "position": 22,
+      "skill": "Caldari Offensive Systems",
+      "level": 1
+    },
+    {
+      "position": 23,
+      "skill": "Caldari Offensive Systems",
+      "level": 2
+    },
+    {
+      "position": 24,
+      "skill": "Caldari Offensive Systems",
+      "level": 3
+    },
+    {
+      "position": 25,
+      "skill": "Caldari Offensive Systems",
+      "level": 4
+    },
+    {
+      "position": 26,
+      "skill": "Caldari Offensive Systems",
+      "level": 5
+    },
+    {
+      "position": 27,
+      "skill": "Caldari Propulsion Systems",
+      "level": 1
+    },
+    {
+      "position": 28,
+      "skill": "Caldari Propulsion Systems",
+      "level": 2
+    },
+    {
+      "position": 29,
+      "skill": "Caldari Propulsion Systems",
+      "level": 3
+    },
+    {
+      "position": 30,
+      "skill": "Caldari Propulsion Systems",
+      "level": 4
+    },
+    {
+      "position": 31,
+      "skill": "Caldari Propulsion Systems",
+      "level": 5
+    },
+    {
+      "position": 32,
+      "skill": "Capacitor Management",
+      "level": 5
+    },
+    {
+      "position": 33,
+      "skill": "Energy Grid Upgrades",
+      "level": 5
+    },
+    {
+      "position": 34,
+      "skill": "Thermodynamics",
+      "level": 4
+    },
+    {
+      "position": 35,
+      "skill": "EM Armor Compensation",
+      "level": 5
+    },
+    {
+      "position": 36,
+      "skill": "Explosive Armor Compensation",
+      "level": 5
+    },
+    {
+      "position": 37,
+      "skill": "Kinetic Armor Compensation",
+      "level": 5
+    },
+    {
+      "position": 38,
+      "skill": "Magnetometric Sensor Compensation",
+      "level": 2
+    },
+    {
+      "position": 39,
+      "skill": "Magnetometric Sensor Compensation",
+      "level": 3
+    },
+    {
+      "position": 40,
+      "skill": "Magnetometric Sensor Compensation",
+      "level": 4
+    },
+    {
+      "position": 41,
+      "skill": "Magnetometric Sensor Compensation",
+      "level": 5
+    },
+    {
+      "position": 42,
+      "skill": "Salvaging",
+      "level": 4
+    },
+    {
+      "position": 43,
+      "skill": "Salvaging",
+      "level": 5
+    },
+    {
+      "position": 44,
+      "skill": "Thermal Armor Compensation",
+      "level": 5
+    },
+    {
+      "position": 45,
+      "skill": "Transport Ships",
+      "level": 5
+    },
+    {
+      "position": 46,
+      "skill": "Caldari Cruiser",
+      "level": 2
+    },
+    {
+      "position": 47,
+      "skill": "Caldari Cruiser",
+      "level": 3
+    },
+    {
+      "position": 48,
+      "skill": "Caldari Cruiser",
+      "level": 4
+    },
+    {
+      "position": 49,
+      "skill": "Caldari Cruiser",
+      "level": 5
+    },
+    {
+      "position": 50,
+      "skill": "Caldari Strategic Cruiser",
+      "level": 1
+    },
+    {
+      "position": 51,
+      "skill": "Caldari Strategic Cruiser",
+      "level": 2
+    },
+    {
+      "position": 52,
+      "skill": "Caldari Strategic Cruiser",
+      "level": 3
+    },
+    {
+      "position": 53,
+      "skill": "Caldari Strategic Cruiser",
+      "level": 4
+    },
+    {
+      "position": 54,
+      "skill": "Caldari Strategic Cruiser",
+      "level": 5
+    },
+    {
+      "position": 55,
+      "skill": "Heavy Missiles",
+      "level": 1
+    },
+    {
+      "position": 56,
+      "skill": "Heavy Missiles",
+      "level": 2
+    },
+    {
+      "position": 57,
+      "skill": "Heavy Missiles",
+      "level": 3
+    },
+    {
+      "position": 58,
+      "skill": "Heavy Missiles",
+      "level": 4
+    },
+    {
+      "position": 59,
+      "skill": "Heavy Missiles",
+      "level": 5
+    },
+    {
+      "position": 60,
+      "skill": "Heavy Missile Specialization",
+      "level": 1
+    },
+    {
+      "position": 61,
+      "skill": "Heavy Missile Specialization",
+      "level": 2
+    },
+    {
+      "position": 62,
+      "skill": "Heavy Missile Specialization",
+      "level": 3
+    },
+    {
+      "position": 63,
+      "skill": "Heavy Missile Specialization",
+      "level": 4
+    },
+    {
+      "position": 64,
+      "skill": "Rapid Launch",
+      "level": 1
+    },
+    {
+      "position": 65,
+      "skill": "Rapid Launch",
+      "level": 2
+    },
+    {
+      "position": 66,
+      "skill": "Rapid Launch",
+      "level": 3
+    },
+    {
+      "position": 67,
+      "skill": "Rapid Launch",
+      "level": 4
+    },
+    {
+      "position": 68,
+      "skill": "Rapid Launch",
+      "level": 5
+    },
+    {
+      "position": 69,
+      "skill": "Warhead Upgrades",
+      "level": 1
+    },
+    {
+      "position": 70,
+      "skill": "Warhead Upgrades",
+      "level": 2
+    },
+    {
+      "position": 71,
+      "skill": "Warhead Upgrades",
+      "level": 3
+    },
+    {
+      "position": 72,
+      "skill": "Warhead Upgrades",
+      "level": 4
+    },
+    {
+      "position": 73,
+      "skill": "Warhead Upgrades",
+      "level": 5
+    },
+    {
+      "position": 74,
+      "skill": "Missile Projection",
+      "level": 1
+    },
+    {
+      "position": 75,
+      "skill": "Missile Projection",
+      "level": 2
+    },
+    {
+      "position": 76,
+      "skill": "Missile Projection",
+      "level": 3
+    },
+    {
+      "position": 77,
+      "skill": "Missile Projection",
+      "level": 4
+    },
+    {
+      "position": 78,
+      "skill": "Missile Projection",
+      "level": 5
+    },
+    {
+      "position": 79,
+      "skill": "Missile Bombardment",
+      "level": 4
+    },
+    {
+      "position": 80,
+      "skill": "Missile Bombardment",
+      "level": 5
+    },
+    {
+      "position": 81,
+      "skill": "Guided Missile Precision",
+      "level": 1
+    },
+    {
+      "position": 82,
+      "skill": "Guided Missile Precision",
+      "level": 2
+    },
+    {
+      "position": 83,
+      "skill": "Guided Missile Precision",
+      "level": 3
+    },
+    {
+      "position": 84,
+      "skill": "Guided Missile Precision",
+      "level": 4
+    },
+    {
+      "position": 85,
+      "skill": "Guided Missile Precision",
+      "level": 5
+    },
+    {
+      "position": 86,
+      "skill": "Target Navigation Prediction",
+      "level": 1
+    },
+    {
+      "position": 87,
+      "skill": "Target Navigation Prediction",
+      "level": 2
+    },
+    {
+      "position": 88,
+      "skill": "Target Navigation Prediction",
+      "level": 3
+    },
+    {
+      "position": 89,
+      "skill": "Target Navigation Prediction",
+      "level": 4
+    },
+    {
+      "position": 90,
+      "skill": "Target Navigation Prediction",
+      "level": 5
+    },
+    {
+      "position": 91,
+      "skill": "Coherent Ore Processing",
+      "level": 5
+    },
+    {
+      "position": 92,
+      "skill": "Simple Ore Processing",
+      "level": 5
+    },
+    {
+      "position": 93,
+      "skill": "Weapon Upgrades",
+      "level": 5
+    },
+    {
+      "position": 94,
+      "skill": "Advanced Weapon Upgrades",
+      "level": 5
+    },
+    {
+      "position": 95,
+      "skill": "Caldari Battlecruiser",
+      "level": 1
+    },
+    {
+      "position": 96,
+      "skill": "Caldari Battlecruiser",
+      "level": 2
+    },
+    {
+      "position": 97,
+      "skill": "Caldari Battlecruiser",
+      "level": 3
+    },
+    {
+      "position": 98,
+      "skill": "Caldari Battleship",
+      "level": 1
+    },
+    {
+      "position": 99,
+      "skill": "Caldari Battleship",
+      "level": 2
+    },
+    {
+      "position": 100,
+      "skill": "Caldari Battleship",
+      "level": 3
+    },
+    {
+      "position": 101,
+      "skill": "Caldari Battleship",
+      "level": 4
+    },
+    {
+      "position": 102,
+      "skill": "Caldari Battleship",
+      "level": 5
+    },
+    {
+      "position": 103,
+      "skill": "Marauders",
+      "level": 1
+    },
+    {
+      "position": 104,
+      "skill": "Marauders",
+      "level": 2
+    },
+    {
+      "position": 105,
+      "skill": "Marauders",
+      "level": 3
+    },
+    {
+      "position": 106,
+      "skill": "Marauders",
+      "level": 4
+    },
+    {
+      "position": 107,
+      "skill": "Marauders",
+      "level": 5
+    },
+    {
+      "position": 108,
+      "skill": "Cruise Missiles",
+      "level": 1
+    },
+    {
+      "position": 109,
+      "skill": "Cruise Missiles",
+      "level": 2
+    },
+    {
+      "position": 110,
+      "skill": "Cruise Missiles",
+      "level": 3
+    },
+    {
+      "position": 111,
+      "skill": "Cruise Missiles",
+      "level": 4
+    },
+    {
+      "position": 112,
+      "skill": "Cruise Missiles",
+      "level": 5
+    },
+    {
+      "position": 113,
+      "skill": "Cruise Missile Specialization",
+      "level": 1
+    },
+    {
+      "position": 114,
+      "skill": "Cruise Missile Specialization",
+      "level": 2
+    },
+    {
+      "position": 115,
+      "skill": "Cruise Missile Specialization",
+      "level": 3
+    },
+    {
+      "position": 116,
+      "skill": "Cruise Missile Specialization",
+      "level": 4
+    },
+    {
+      "position": 117,
+      "skill": "Cruise Missile Specialization",
+      "level": 5
+    },
+    {
+      "position": 118,
+      "skill": "Target Painting",
+      "level": 2
+    },
+    {
+      "position": 119,
+      "skill": "Target Painting",
+      "level": 3
+    },
+    {
+      "position": 120,
+      "skill": "Target Painting",
+      "level": 4
+    },
+    {
+      "position": 121,
+      "skill": "Target Painting",
+      "level": 5
+    },
+    {
+      "position": 122,
+      "skill": "Torpedoes",
+      "level": 1
+    },
+    {
+      "position": 123,
+      "skill": "Torpedoes",
+      "level": 2
+    },
+    {
+      "position": 124,
+      "skill": "Torpedoes",
+      "level": 3
+    },
+    {
+      "position": 125,
+      "skill": "Torpedoes",
+      "level": 4
+    },
+    {
+      "position": 126,
+      "skill": "Torpedoes",
+      "level": 5
+    },
+    {
+      "position": 127,
+      "skill": "Torpedo Specialization",
+      "level": 1
+    },
+    {
+      "position": 128,
+      "skill": "Torpedo Specialization",
+      "level": 2
+    },
+    {
+      "position": 129,
+      "skill": "Torpedo Specialization",
+      "level": 3
+    },
+    {
+      "position": 130,
+      "skill": "Torpedo Specialization",
+      "level": 4
+    },
+    {
+      "position": 131,
+      "skill": "Torpedo Specialization",
+      "level": 5
+    },
+    {
+      "position": 132,
+      "skill": "Heavy Missile Specialization",
+      "level": 5
+    },
+    {
+      "position": 133,
+      "skill": "Signature Analysis",
+      "level": 5
+    },
+    {
+      "position": 134,
+      "skill": "Long Range Targeting",
+      "level": 5
+    },
+    {
+      "position": 135,
+      "skill": "Acceleration Control",
+      "level": 5
+    },
+    {
+      "position": 136,
+      "skill": "Afterburner",
+      "level": 4
+    },
+    {
+      "position": 137,
+      "skill": "Afterburner",
+      "level": 5
+    },
+    {
+      "position": 138,
+      "skill": "Thermodynamics",
+      "level": 5
+    },
+    {
+      "position": 139,
+      "skill": "Heavy Assault Missiles",
+      "level": 1
+    },
+    {
+      "position": 140,
+      "skill": "Heavy Assault Missiles",
+      "level": 2
+    },
+    {
+      "position": 141,
+      "skill": "Heavy Assault Missiles",
+      "level": 3
+    },
+    {
+      "position": 142,
+      "skill": "Heavy Assault Missiles",
+      "level": 4
+    },
+    {
+      "position": 143,
+      "skill": "Heavy Assault Missiles",
+      "level": 5
+    },
+    {
+      "position": 144,
+      "skill": "Heavy Assault Missile Specialization",
+      "level": 1
+    },
+    {
+      "position": 145,
+      "skill": "Heavy Assault Missile Specialization",
+      "level": 2
+    },
+    {
+      "position": 146,
+      "skill": "Heavy Assault Missile Specialization",
+      "level": 3
+    },
+    {
+      "position": 147,
+      "skill": "Heavy Assault Missile Specialization",
+      "level": 4
+    },
+    {
+      "position": 148,
+      "skill": "Heavy Assault Missile Specialization",
+      "level": 5
+    },
+    {
+      "position": 149,
+      "skill": "Light Missiles",
+      "level": 4
+    },
+    {
+      "position": 150,
+      "skill": "Light Missiles",
+      "level": 5
+    }
+  ],
+  "remaps": [
+    {
+      "id": "phase-1",
+      "phaseNumber": 1,
+      "mode": "IM",
+      "targetBaseAttributes": {
+        "intelligence": 27,
+        "memory": 21,
+        "perception": 17,
+        "willpower": 17,
+        "charisma": 17
+      },
+      "trigger": {
+        "afterCompleted": null,
+        "beforeStarts": "Electronics Upgrades V",
+        "plannedQueuePosition": 1
+      },
+      "estimatedDate": "2026-10-16",
+      "estimatedDateIsAlertTrigger": false,
+      "acknowledgement": {
+        "status": "pending",
+        "acknowledgedAt": null
+      },
+      "notes": "Check effective ESI attributes and implant bonuses before confirming remap. ESI does not perform remaps."
+    },
+    {
+      "id": "phase-2",
+      "phaseNumber": 2,
+      "mode": "PW",
+      "targetBaseAttributes": {
+        "intelligence": 17,
+        "memory": 17,
+        "perception": 27,
+        "willpower": 21,
+        "charisma": 17
+      },
+      "trigger": {
+        "afterCompleted": "Thermal Armor Compensation V",
+        "beforeStarts": "Transport Ships V",
+        "plannedQueuePosition": 45
+      },
+      "estimatedDate": "2027-05-03",
+      "estimatedDateIsAlertTrigger": false,
+      "acknowledgement": {
+        "status": "pending",
+        "acknowledgedAt": null
+      },
+      "notes": "Check effective ESI attributes and implant bonuses before confirming remap. ESI does not perform remaps."
+    }
+  ],
+  "followOnQueue": [],
+  "skillbooksNeeded": [
+    "Caldari Core Systems",
+    "Caldari Defensive Systems",
+    "Caldari Offensive Systems",
+    "Caldari Propulsion Systems",
+    "Caldari Strategic Cruiser",
+    "Guided Missile Precision",
+    "Heavy Assault Missile Specialization",
+    "Heavy Assault Missiles",
+    "Heavy Missile Specialization",
+    "Missile Projection",
+    "Rapid Launch",
+    "Target Navigation Prediction",
+    "Torpedo Specialization",
+    "Torpedoes",
+    "Warhead Upgrades"
+  ],
+  "options": {
+    "notifyWhileApplicationRunning": true,
+    "requireExplicitDismissal": true,
+    "autoDismissRemaps": false,
+    "compareAgainstLiveQueue": true,
+    "preserveQueueOrder": true
+  },
+  "extensions": {}
+}

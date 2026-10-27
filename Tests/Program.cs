@@ -365,6 +365,7 @@ internal static partial class Program
         var industryFixture = CheckIndustry();
         CheckIndustryWorkspace();
         CheckSkillPlanning();
+        CheckSkillPlanImport();
         CheckOmegaBudget();
         CheckRockTracking();
         CheckNotificationCenter();

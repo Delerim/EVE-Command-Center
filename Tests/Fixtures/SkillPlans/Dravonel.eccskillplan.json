@@ -1,0 +1,848 @@
+{
+  "schema": "ecc.skill-plan.v1",
+  "schemaVersion": 1,
+  "name": "Dravonel | Skiff Expert corrected Oct 16",
+  "character": {
+    "name": "Dravonel",
+    "id": null
+  },
+  "source": {
+    "planDate": "2026-10-16",
+    "skillSnapshotDate": "2026-10-15",
+    "type": "external-import",
+    "comment": "EVE live skill/queue/attribute data must be refreshed before applying this plan."
+  },
+  "queue": [
+    {
+      "position": 1,
+      "skill": "Industrial Reconfiguration",
+      "level": 5
+    },
+    {
+      "position": 2,
+      "skill": "Shipboard Compression Technology",
+      "level": 1
+    },
+    {
+      "position": 3,
+      "skill": "Shipboard Compression Technology",
+      "level": 2
+    },
+    {
+      "position": 4,
+      "skill": "Shipboard Compression Technology",
+      "level": 3
+    },
+    {
+      "position": 5,
+      "skill": "Shipboard Compression Technology",
+      "level": 4
+    },
+    {
+      "position": 6,
+      "skill": "Shipboard Compression Technology",
+      "level": 5
+    },
+    {
+      "position": 7,
+      "skill": "Fleet Compression Logistics",
+      "level": 1
+    },
+    {
+      "position": 8,
+      "skill": "Fleet Compression Logistics",
+      "level": 2
+    },
+    {
+      "position": 9,
+      "skill": "Fleet Compression Logistics",
+      "level": 3
+    },
+    {
+      "position": 10,
+      "skill": "Fleet Compression Logistics",
+      "level": 4
+    },
+    {
+      "position": 11,
+      "skill": "Fleet Compression Logistics",
+      "level": 5
+    },
+    {
+      "position": 12,
+      "skill": "Spaceship Command",
+      "level": 5
+    },
+    {
+      "position": 13,
+      "skill": "Industrial Command Ships",
+      "level": 1
+    },
+    {
+      "position": 14,
+      "skill": "Industrial Command Ships",
+      "level": 2
+    },
+    {
+      "position": 15,
+      "skill": "Industrial Command Ships",
+      "level": 3
+    },
+    {
+      "position": 16,
+      "skill": "Industrial Command Ships",
+      "level": 4
+    },
+    {
+      "position": 17,
+      "skill": "Industrial Command Ships",
+      "level": 5
+    },
+    {
+      "position": 18,
+      "skill": "Shield Command",
+      "level": 1
+    },
+    {
+      "position": 19,
+      "skill": "Shield Command",
+      "level": 2
+    },
+    {
+      "position": 20,
+      "skill": "Shield Command",
+      "level": 3
+    },
+    {
+      "position": 21,
+      "skill": "Shield Command",
+      "level": 4
+    },
+    {
+      "position": 22,
+      "skill": "Shield Command",
+      "level": 5
+    },
+    {
+      "position": 23,
+      "skill": "Shield Command Specialist",
+      "level": 1
+    },
+    {
+      "position": 24,
+      "skill": "Shield Command Specialist",
+      "level": 2
+    },
+    {
+      "position": 25,
+      "skill": "Shield Command Specialist",
+      "level": 3
+    },
+    {
+      "position": 26,
+      "skill": "Shield Command Specialist",
+      "level": 4
+    },
+    {
+      "position": 27,
+      "skill": "Shield Command Specialist",
+      "level": 5
+    },
+    {
+      "position": 28,
+      "skill": "Wing Command",
+      "level": 1
+    },
+    {
+      "position": 29,
+      "skill": "Wing Command",
+      "level": 2
+    },
+    {
+      "position": 30,
+      "skill": "Wing Command",
+      "level": 3
+    },
+    {
+      "position": 31,
+      "skill": "Wing Command",
+      "level": 4
+    },
+    {
+      "position": 32,
+      "skill": "Wing Command",
+      "level": 5
+    },
+    {
+      "position": 33,
+      "skill": "Fleet Command",
+      "level": 1
+    },
+    {
+      "position": 34,
+      "skill": "Fleet Command",
+      "level": 2
+    },
+    {
+      "position": 35,
+      "skill": "Fleet Command",
+      "level": 3
+    },
+    {
+      "position": 36,
+      "skill": "Fleet Command",
+      "level": 4
+    },
+    {
+      "position": 37,
+      "skill": "Fleet Command",
+      "level": 5
+    },
+    {
+      "position": 38,
+      "skill": "Cybernetics",
+      "level": 5
+    },
+    {
+      "position": 39,
+      "skill": "Command Burst Specialist",
+      "level": 1
+    },
+    {
+      "position": 40,
+      "skill": "Command Burst Specialist",
+      "level": 2
+    },
+    {
+      "position": 41,
+      "skill": "Command Burst Specialist",
+      "level": 3
+    },
+    {
+      "position": 42,
+      "skill": "Command Burst Specialist",
+      "level": 4
+    },
+    {
+      "position": 43,
+      "skill": "Command Burst Specialist",
+      "level": 5
+    },
+    {
+      "position": 44,
+      "skill": "Shield Management",
+      "level": 5
+    },
+    {
+      "position": 45,
+      "skill": "EM Shield Compensation",
+      "level": 4
+    },
+    {
+      "position": 46,
+      "skill": "EM Shield Compensation",
+      "level": 5
+    },
+    {
+      "position": 47,
+      "skill": "Thermal Shield Compensation",
+      "level": 4
+    },
+    {
+      "position": 48,
+      "skill": "Thermal Shield Compensation",
+      "level": 5
+    },
+    {
+      "position": 49,
+      "skill": "Explosive Shield Compensation",
+      "level": 4
+    },
+    {
+      "position": 50,
+      "skill": "Explosive Shield Compensation",
+      "level": 5
+    },
+    {
+      "position": 51,
+      "skill": "Kinetic Shield Compensation",
+      "level": 4
+    },
+    {
+      "position": 52,
+      "skill": "Kinetic Shield Compensation",
+      "level": 5
+    },
+    {
+      "position": 53,
+      "skill": "Tactical Shield Manipulation",
+      "level": 5
+    },
+    {
+      "position": 54,
+      "skill": "Capacitor Management",
+      "level": 4
+    },
+    {
+      "position": 55,
+      "skill": "Capacitor Management",
+      "level": 5
+    },
+    {
+      "position": 56,
+      "skill": "Energy Grid Upgrades",
+      "level": 4
+    },
+    {
+      "position": 57,
+      "skill": "Energy Grid Upgrades",
+      "level": 5
+    },
+    {
+      "position": 58,
+      "skill": "Electronics Upgrades",
+      "level": 4
+    },
+    {
+      "position": 59,
+      "skill": "Electronics Upgrades",
+      "level": 5
+    },
+    {
+      "position": 60,
+      "skill": "Mining Precision",
+      "level": 5
+    },
+    {
+      "position": 61,
+      "skill": "Mining Exploitation",
+      "level": 5
+    },
+    {
+      "position": 62,
+      "skill": "Mining Upgrades",
+      "level": 5
+    },
+    {
+      "position": 63,
+      "skill": "Drone Interfacing",
+      "level": 4
+    },
+    {
+      "position": 64,
+      "skill": "Drone Interfacing",
+      "level": 5
+    },
+    {
+      "position": 65,
+      "skill": "Drone Durability",
+      "level": 4
+    },
+    {
+      "position": 66,
+      "skill": "Drone Durability",
+      "level": 5
+    },
+    {
+      "position": 67,
+      "skill": "Planetology",
+      "level": 5
+    },
+    {
+      "position": 68,
+      "skill": "Advanced Planetology",
+      "level": 1
+    },
+    {
+      "position": 69,
+      "skill": "Advanced Planetology",
+      "level": 2
+    },
+    {
+      "position": 70,
+      "skill": "Advanced Planetology",
+      "level": 3
+    },
+    {
+      "position": 71,
+      "skill": "Advanced Planetology",
+      "level": 4
+    },
+    {
+      "position": 72,
+      "skill": "Advanced Planetology",
+      "level": 5
+    },
+    {
+      "position": 73,
+      "skill": "Remote Sensing",
+      "level": 4
+    },
+    {
+      "position": 74,
+      "skill": "Remote Sensing",
+      "level": 5
+    },
+    {
+      "position": 75,
+      "skill": "Command Center Upgrades",
+      "level": 5
+    },
+    {
+      "position": 76,
+      "skill": "Upwell Hauler",
+      "level": 4
+    },
+    {
+      "position": 77,
+      "skill": "Upwell Hauler",
+      "level": 5
+    },
+    {
+      "position": 78,
+      "skill": "Transport Ships",
+      "level": 2
+    },
+    {
+      "position": 79,
+      "skill": "Transport Ships",
+      "level": 3
+    },
+    {
+      "position": 80,
+      "skill": "Transport Ships",
+      "level": 4
+    },
+    {
+      "position": 81,
+      "skill": "Transport Ships",
+      "level": 5
+    },
+    {
+      "position": 82,
+      "skill": "Thermodynamics",
+      "level": 1
+    },
+    {
+      "position": 83,
+      "skill": "Thermodynamics",
+      "level": 2
+    },
+    {
+      "position": 84,
+      "skill": "Thermodynamics",
+      "level": 3
+    },
+    {
+      "position": 85,
+      "skill": "Thermodynamics",
+      "level": 4
+    },
+    {
+      "position": 86,
+      "skill": "Thermodynamics",
+      "level": 5
+    },
+    {
+      "position": 87,
+      "skill": "Navigation",
+      "level": 4
+    },
+    {
+      "position": 88,
+      "skill": "Navigation",
+      "level": 5
+    },
+    {
+      "position": 89,
+      "skill": "Afterburner",
+      "level": 4
+    },
+    {
+      "position": 90,
+      "skill": "Afterburner",
+      "level": 5
+    },
+    {
+      "position": 91,
+      "skill": "Evasive Maneuvering",
+      "level": 5
+    },
+    {
+      "position": 92,
+      "skill": "Acceleration Control",
+      "level": 3
+    },
+    {
+      "position": 93,
+      "skill": "Acceleration Control",
+      "level": 4
+    },
+    {
+      "position": 94,
+      "skill": "Acceleration Control",
+      "level": 5
+    },
+    {
+      "position": 95,
+      "skill": "Advanced Target Management",
+      "level": 1
+    },
+    {
+      "position": 96,
+      "skill": "Advanced Target Management",
+      "level": 2
+    },
+    {
+      "position": 97,
+      "skill": "Advanced Target Management",
+      "level": 3
+    },
+    {
+      "position": 98,
+      "skill": "Advanced Target Management",
+      "level": 4
+    },
+    {
+      "position": 99,
+      "skill": "Capacitor Systems Operation",
+      "level": 4
+    },
+    {
+      "position": 100,
+      "skill": "Capacitor Systems Operation",
+      "level": 5
+    },
+    {
+      "position": 101,
+      "skill": "Coherent Ore Processing",
+      "level": 1
+    },
+    {
+      "position": 102,
+      "skill": "Coherent Ore Processing",
+      "level": 2
+    },
+    {
+      "position": 103,
+      "skill": "Coherent Ore Processing",
+      "level": 3
+    },
+    {
+      "position": 104,
+      "skill": "Coherent Ore Processing",
+      "level": 4
+    },
+    {
+      "position": 105,
+      "skill": "Coherent Ore Processing",
+      "level": 5
+    },
+    {
+      "position": 106,
+      "skill": "Drone Avionics",
+      "level": 4
+    },
+    {
+      "position": 107,
+      "skill": "Drone Avionics",
+      "level": 5
+    },
+    {
+      "position": 108,
+      "skill": "Drone Navigation",
+      "level": 4
+    },
+    {
+      "position": 109,
+      "skill": "Drone Navigation",
+      "level": 5
+    },
+    {
+      "position": 110,
+      "skill": "Drone Sharpshooting",
+      "level": 4
+    },
+    {
+      "position": 111,
+      "skill": "Drone Sharpshooting",
+      "level": 5
+    },
+    {
+      "position": 112,
+      "skill": "Electronic Warfare",
+      "level": 4
+    },
+    {
+      "position": 113,
+      "skill": "Advanced Drone Avionics",
+      "level": 1
+    },
+    {
+      "position": 114,
+      "skill": "Advanced Drone Avionics",
+      "level": 2
+    },
+    {
+      "position": 115,
+      "skill": "Advanced Drone Avionics",
+      "level": 3
+    },
+    {
+      "position": 116,
+      "skill": "Advanced Drone Avionics",
+      "level": 4
+    },
+    {
+      "position": 117,
+      "skill": "Advanced Drone Avionics",
+      "level": 5
+    },
+    {
+      "position": 118,
+      "skill": "Fuel Conservation",
+      "level": 4
+    },
+    {
+      "position": 119,
+      "skill": "Fuel Conservation",
+      "level": 5
+    },
+    {
+      "position": 120,
+      "skill": "High Speed Maneuvering",
+      "level": 3
+    },
+    {
+      "position": 121,
+      "skill": "High Speed Maneuvering",
+      "level": 4
+    },
+    {
+      "position": 122,
+      "skill": "High Speed Maneuvering",
+      "level": 5
+    },
+    {
+      "position": 123,
+      "skill": "Hull Upgrades",
+      "level": 5
+    },
+    {
+      "position": 124,
+      "skill": "Long Range Targeting",
+      "level": 4
+    },
+    {
+      "position": 125,
+      "skill": "Long Range Targeting",
+      "level": 5
+    },
+    {
+      "position": 126,
+      "skill": "Magnetometric Sensor Compensation",
+      "level": 1
+    },
+    {
+      "position": 127,
+      "skill": "Mechanics",
+      "level": 5
+    },
+    {
+      "position": 128,
+      "skill": "Mining Drone Operation",
+      "level": 4
+    },
+    {
+      "position": 129,
+      "skill": "Mining Drone Operation",
+      "level": 5
+    },
+    {
+      "position": 130,
+      "skill": "Mining Drone Specialization",
+      "level": 1
+    },
+    {
+      "position": 131,
+      "skill": "Mining Drone Specialization",
+      "level": 2
+    },
+    {
+      "position": 132,
+      "skill": "Mining Drone Specialization",
+      "level": 3
+    },
+    {
+      "position": 133,
+      "skill": "Mining Drone Specialization",
+      "level": 4
+    },
+    {
+      "position": 134,
+      "skill": "Mining Drone Specialization",
+      "level": 5
+    },
+    {
+      "position": 135,
+      "skill": "Reprocessing",
+      "level": 5
+    },
+    {
+      "position": 136,
+      "skill": "Shield Compensation",
+      "level": 4
+    },
+    {
+      "position": 137,
+      "skill": "Shield Compensation",
+      "level": 5
+    },
+    {
+      "position": 138,
+      "skill": "Shield Operation",
+      "level": 5
+    },
+    {
+      "position": 139,
+      "skill": "Signature Analysis",
+      "level": 4
+    },
+    {
+      "position": 140,
+      "skill": "Signature Analysis",
+      "level": 5
+    },
+    {
+      "position": 141,
+      "skill": "Simple Ore Processing",
+      "level": 3
+    },
+    {
+      "position": 142,
+      "skill": "Simple Ore Processing",
+      "level": 4
+    },
+    {
+      "position": 143,
+      "skill": "Simple Ore Processing",
+      "level": 5
+    },
+    {
+      "position": 144,
+      "skill": "Survey",
+      "level": 4
+    },
+    {
+      "position": 145,
+      "skill": "Survey",
+      "level": 5
+    },
+    {
+      "position": 146,
+      "skill": "Target Management",
+      "level": 5
+    },
+    {
+      "position": 147,
+      "skill": "Ubiquitous Moon Ore Processing",
+      "level": 5
+    },
+    {
+      "position": 148,
+      "skill": "Warp Drive Operation",
+      "level": 3
+    },
+    {
+      "position": 149,
+      "skill": "Warp Drive Operation",
+      "level": 4
+    },
+    {
+      "position": 150,
+      "skill": "Warp Drive Operation",
+      "level": 5
+    }
+  ],
+  "remaps": [
+    {
+      "id": "phase-1",
+      "phaseNumber": 1,
+      "mode": "current",
+      "targetBaseAttributes": null,
+      "trigger": {
+        "afterCompleted": null,
+        "beforeStarts": "Industrial Reconfiguration V",
+        "plannedQueuePosition": 1
+      },
+      "estimatedDate": "2026-10-16",
+      "estimatedDateIsAlertTrigger": false,
+      "acknowledgement": {
+        "status": "pending",
+        "acknowledgedAt": null
+      },
+      "notes": "Check effective ESI attributes and implant bonuses before confirming remap. ESI does not perform remaps."
+    },
+    {
+      "id": "phase-2",
+      "phaseNumber": 2,
+      "mode": "CW",
+      "targetBaseAttributes": {
+        "intelligence": 17,
+        "memory": 17,
+        "perception": 17,
+        "willpower": 21,
+        "charisma": 27
+      },
+      "trigger": {
+        "afterCompleted": "Industrial Command Ships V",
+        "beforeStarts": "Shield Command I",
+        "plannedQueuePosition": 18
+      },
+      "estimatedDate": "2027-01-17",
+      "estimatedDateIsAlertTrigger": false,
+      "acknowledgement": {
+        "status": "pending",
+        "acknowledgedAt": null
+      },
+      "notes": "Check effective ESI attributes and implant bonuses before confirming remap. ESI does not perform remaps."
+    },
+    {
+      "id": "phase-3",
+      "phaseNumber": 3,
+      "mode": "IM",
+      "targetBaseAttributes": {
+        "intelligence": 27,
+        "memory": 21,
+        "perception": 17,
+        "willpower": 17,
+        "charisma": 17
+      },
+      "trigger": {
+        "afterCompleted": "Command Burst Specialist V",
+        "beforeStarts": "Shield Management V",
+        "plannedQueuePosition": 44
+      },
+      "estimatedDate": "2027-06-14",
+      "estimatedDateIsAlertTrigger": false,
+      "acknowledgement": {
+        "status": "pending",
+        "acknowledgedAt": null
+      },
+      "notes": "Check effective ESI attributes and implant bonuses before confirming remap. ESI does not perform remaps."
+    }
+  ],
+  "followOnQueue": [],
+  "skillbooksNeeded": [
+    "Advanced Target Management",
+    "Thermodynamics"
+  ],
+  "options": {
+    "notifyWhileApplicationRunning": true,
+    "requireExplicitDismissal": true,
+    "autoDismissRemaps": false,
+    "compareAgainstLiveQueue": true,
+    "preserveQueueOrder": true
+  },
+  "extensions": {}
+}

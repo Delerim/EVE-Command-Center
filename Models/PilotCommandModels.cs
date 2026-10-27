@@ -34,6 +34,9 @@ public sealed class EveSkillsResponse
     [JsonPropertyName("total_sp")]
     public long TotalSp { get; set; }
 
+    [JsonPropertyName("unallocated_sp")]
+    public long? UnallocatedSp { get; set; }
+
     [JsonPropertyName("skills")]
     public List<EveSkillEntry> Skills { get; set; } = new();
 }
@@ -231,6 +234,7 @@ public sealed class EvePilotSummary
     public string CharacterName { get; init; } = "";
     public decimal WalletBalance { get; init; }
     public long TotalSp { get; init; }
+    public long? UnallocatedSp { get; init; }
     public string CurrentSkill { get; init; } = "Queue empty";
     public string CurrentSkillRemaining { get; init; } = "";
     public string QueueEndsIn { get; init; } = "";

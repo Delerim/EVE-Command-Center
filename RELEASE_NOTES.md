@@ -1,3 +1,11 @@
+# EVE Command Center v3.8.5
+
+- **Skill Plan Command Center.** Import the supplied eight-pilot ZIP or a single `.eccskillplan.json` per authenticated pilot, preserving exact skill order and 17 remap checkpoint definitions. Preview and validate before replacing local plans.
+- **Full skill and queue export.** Read all ESI queue entries instead of the old 50-entry cap; export trained skills, active partial SP, future queue and unallocated SP as JSON, or copy EVE-ready remaining levels to the clipboard or a TXT file. No EVE mutations.
+- **Persistent remap checkpoints.** Background checks run while ECC is open even when Pilot Command Center is closed. Reminders survive application restarts until explicitly acknowledged and are keyed by pilot and milestone. Calendar estimates never trigger warnings.
+- **Attribute clarity.** Separate plan-phase/base-attribute assessment from the old per-skill below-peak heuristic. Missing implant data is explicitly unknown; the old OFF-MAP label no longer asserts a planned remap failure.
+- **Regression gates.** Validate the eight bundled plans (1,200 entries and 17 milestones), pilot identity, duplicate prevention, EVE export, queued-SP snapshot and acknowledgment logic.
+
 # EVE Command Center v3.8.4
 
 - **Automatic complete Abyssal Hunter scans.** Every background and manual refresh walks MutaMarket cursor pages for ORE and Modulated Strip Miner II, with a safety ceiling and explicit failures instead of silently truncating the listings. No Load More button.

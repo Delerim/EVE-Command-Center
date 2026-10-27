@@ -1,0 +1,856 @@
+{
+  "schema": "ecc.skill-plan.v1",
+  "schemaVersion": 1,
+  "name": "Saberlash | Skiff Expert corrected Oct 16",
+  "character": {
+    "name": "Saberlash",
+    "id": null
+  },
+  "source": {
+    "planDate": "2026-10-16",
+    "skillSnapshotDate": "2026-10-15",
+    "type": "external-import",
+    "comment": "EVE live skill/queue/attribute data must be refreshed before applying this plan."
+  },
+  "queue": [
+    {
+      "position": 1,
+      "skill": "Fleet Command",
+      "level": 5
+    },
+    {
+      "position": 2,
+      "skill": "Shield Command Specialist",
+      "level": 5
+    },
+    {
+      "position": 3,
+      "skill": "Command Burst Specialist",
+      "level": 4
+    },
+    {
+      "position": 4,
+      "skill": "Command Burst Specialist",
+      "level": 5
+    },
+    {
+      "position": 5,
+      "skill": "Advanced Industry",
+      "level": 1
+    },
+    {
+      "position": 6,
+      "skill": "Advanced Industry",
+      "level": 2
+    },
+    {
+      "position": 7,
+      "skill": "Advanced Industry",
+      "level": 3
+    },
+    {
+      "position": 8,
+      "skill": "Advanced Industry",
+      "level": 4
+    },
+    {
+      "position": 9,
+      "skill": "Advanced Industry",
+      "level": 5
+    },
+    {
+      "position": 10,
+      "skill": "Advanced Mass Production",
+      "level": 4
+    },
+    {
+      "position": 11,
+      "skill": "Advanced Mass Production",
+      "level": 5
+    },
+    {
+      "position": 12,
+      "skill": "Research",
+      "level": 1
+    },
+    {
+      "position": 13,
+      "skill": "Research",
+      "level": 2
+    },
+    {
+      "position": 14,
+      "skill": "Research",
+      "level": 3
+    },
+    {
+      "position": 15,
+      "skill": "Research",
+      "level": 4
+    },
+    {
+      "position": 16,
+      "skill": "Research",
+      "level": 5
+    },
+    {
+      "position": 17,
+      "skill": "Metallurgy",
+      "level": 5
+    },
+    {
+      "position": 18,
+      "skill": "Laboratory Operation",
+      "level": 5
+    },
+    {
+      "position": 19,
+      "skill": "Advanced Laboratory Operation",
+      "level": 1
+    },
+    {
+      "position": 20,
+      "skill": "Advanced Laboratory Operation",
+      "level": 2
+    },
+    {
+      "position": 21,
+      "skill": "Advanced Laboratory Operation",
+      "level": 3
+    },
+    {
+      "position": 22,
+      "skill": "Advanced Laboratory Operation",
+      "level": 4
+    },
+    {
+      "position": 23,
+      "skill": "Advanced Laboratory Operation",
+      "level": 5
+    },
+    {
+      "position": 24,
+      "skill": "Advanced Small Ship Construction",
+      "level": 1
+    },
+    {
+      "position": 25,
+      "skill": "Advanced Small Ship Construction",
+      "level": 2
+    },
+    {
+      "position": 26,
+      "skill": "Advanced Small Ship Construction",
+      "level": 3
+    },
+    {
+      "position": 27,
+      "skill": "Advanced Small Ship Construction",
+      "level": 4
+    },
+    {
+      "position": 28,
+      "skill": "Advanced Medium Ship Construction",
+      "level": 1
+    },
+    {
+      "position": 29,
+      "skill": "Advanced Medium Ship Construction",
+      "level": 2
+    },
+    {
+      "position": 30,
+      "skill": "Advanced Medium Ship Construction",
+      "level": 3
+    },
+    {
+      "position": 31,
+      "skill": "Advanced Medium Ship Construction",
+      "level": 4
+    },
+    {
+      "position": 32,
+      "skill": "Advanced Medium Ship Construction",
+      "level": 5
+    },
+    {
+      "position": 33,
+      "skill": "Advanced Large Ship Construction",
+      "level": 1
+    },
+    {
+      "position": 34,
+      "skill": "Advanced Large Ship Construction",
+      "level": 2
+    },
+    {
+      "position": 35,
+      "skill": "Advanced Large Ship Construction",
+      "level": 3
+    },
+    {
+      "position": 36,
+      "skill": "Advanced Large Ship Construction",
+      "level": 4
+    },
+    {
+      "position": 37,
+      "skill": "Advanced Industrial Ship Construction",
+      "level": 1
+    },
+    {
+      "position": 38,
+      "skill": "Capital Ship Construction",
+      "level": 1
+    },
+    {
+      "position": 39,
+      "skill": "Capital Ship Construction",
+      "level": 2
+    },
+    {
+      "position": 40,
+      "skill": "Capital Ship Construction",
+      "level": 3
+    },
+    {
+      "position": 41,
+      "skill": "Capital Ship Construction",
+      "level": 4
+    },
+    {
+      "position": 42,
+      "skill": "Anchoring",
+      "level": 1
+    },
+    {
+      "position": 43,
+      "skill": "Anchoring",
+      "level": 2
+    },
+    {
+      "position": 44,
+      "skill": "Anchoring",
+      "level": 3
+    },
+    {
+      "position": 45,
+      "skill": "Anchoring",
+      "level": 4
+    },
+    {
+      "position": 46,
+      "skill": "Anchoring",
+      "level": 5
+    },
+    {
+      "position": 47,
+      "skill": "Outpost Construction",
+      "level": 1
+    },
+    {
+      "position": 48,
+      "skill": "Advanced Capital Ship Construction",
+      "level": 1
+    },
+    {
+      "position": 49,
+      "skill": "Electronic Engineering",
+      "level": 1
+    },
+    {
+      "position": 50,
+      "skill": "Electronic Engineering",
+      "level": 2
+    },
+    {
+      "position": 51,
+      "skill": "Electronic Engineering",
+      "level": 3
+    },
+    {
+      "position": 52,
+      "skill": "Electronic Engineering",
+      "level": 4
+    },
+    {
+      "position": 53,
+      "skill": "Electronic Engineering",
+      "level": 5
+    },
+    {
+      "position": 54,
+      "skill": "Hydromagnetic Physics",
+      "level": 1
+    },
+    {
+      "position": 55,
+      "skill": "Hydromagnetic Physics",
+      "level": 2
+    },
+    {
+      "position": 56,
+      "skill": "Hydromagnetic Physics",
+      "level": 3
+    },
+    {
+      "position": 57,
+      "skill": "Hydromagnetic Physics",
+      "level": 4
+    },
+    {
+      "position": 58,
+      "skill": "Hydromagnetic Physics",
+      "level": 5
+    },
+    {
+      "position": 59,
+      "skill": "Mechanical Engineering",
+      "level": 1
+    },
+    {
+      "position": 60,
+      "skill": "Mechanical Engineering",
+      "level": 2
+    },
+    {
+      "position": 61,
+      "skill": "Mechanical Engineering",
+      "level": 3
+    },
+    {
+      "position": 62,
+      "skill": "Mechanical Engineering",
+      "level": 4
+    },
+    {
+      "position": 63,
+      "skill": "Mechanical Engineering",
+      "level": 5
+    },
+    {
+      "position": 64,
+      "skill": "Plasma Physics",
+      "level": 1
+    },
+    {
+      "position": 65,
+      "skill": "Plasma Physics",
+      "level": 2
+    },
+    {
+      "position": 66,
+      "skill": "Plasma Physics",
+      "level": 3
+    },
+    {
+      "position": 67,
+      "skill": "Plasma Physics",
+      "level": 4
+    },
+    {
+      "position": 68,
+      "skill": "Plasma Physics",
+      "level": 5
+    },
+    {
+      "position": 69,
+      "skill": "Quantum Physics",
+      "level": 1
+    },
+    {
+      "position": 70,
+      "skill": "Quantum Physics",
+      "level": 2
+    },
+    {
+      "position": 71,
+      "skill": "Quantum Physics",
+      "level": 3
+    },
+    {
+      "position": 72,
+      "skill": "Quantum Physics",
+      "level": 4
+    },
+    {
+      "position": 73,
+      "skill": "Quantum Physics",
+      "level": 5
+    },
+    {
+      "position": 74,
+      "skill": "Electromagnetic Physics",
+      "level": 1
+    },
+    {
+      "position": 75,
+      "skill": "Electromagnetic Physics",
+      "level": 2
+    },
+    {
+      "position": 76,
+      "skill": "Electromagnetic Physics",
+      "level": 3
+    },
+    {
+      "position": 77,
+      "skill": "Electromagnetic Physics",
+      "level": 4
+    },
+    {
+      "position": 78,
+      "skill": "Electromagnetic Physics",
+      "level": 5
+    },
+    {
+      "position": 79,
+      "skill": "High Energy Physics",
+      "level": 1
+    },
+    {
+      "position": 80,
+      "skill": "High Energy Physics",
+      "level": 2
+    },
+    {
+      "position": 81,
+      "skill": "High Energy Physics",
+      "level": 3
+    },
+    {
+      "position": 82,
+      "skill": "High Energy Physics",
+      "level": 4
+    },
+    {
+      "position": 83,
+      "skill": "Nuclear Physics",
+      "level": 1
+    },
+    {
+      "position": 84,
+      "skill": "Nuclear Physics",
+      "level": 2
+    },
+    {
+      "position": 85,
+      "skill": "Nuclear Physics",
+      "level": 3
+    },
+    {
+      "position": 86,
+      "skill": "Nuclear Physics",
+      "level": 4
+    },
+    {
+      "position": 87,
+      "skill": "Caldari Starship Engineering",
+      "level": 1
+    },
+    {
+      "position": 88,
+      "skill": "Caldari Starship Engineering",
+      "level": 2
+    },
+    {
+      "position": 89,
+      "skill": "Caldari Starship Engineering",
+      "level": 3
+    },
+    {
+      "position": 90,
+      "skill": "Caldari Starship Engineering",
+      "level": 4
+    },
+    {
+      "position": 91,
+      "skill": "Gallente Starship Engineering",
+      "level": 1
+    },
+    {
+      "position": 92,
+      "skill": "Gallente Starship Engineering",
+      "level": 2
+    },
+    {
+      "position": 93,
+      "skill": "Gallente Starship Engineering",
+      "level": 3
+    },
+    {
+      "position": 94,
+      "skill": "Gallente Starship Engineering",
+      "level": 4
+    },
+    {
+      "position": 95,
+      "skill": "Amarr Starship Engineering",
+      "level": 1
+    },
+    {
+      "position": 96,
+      "skill": "Amarr Starship Engineering",
+      "level": 2
+    },
+    {
+      "position": 97,
+      "skill": "Amarr Starship Engineering",
+      "level": 3
+    },
+    {
+      "position": 98,
+      "skill": "Amarr Starship Engineering",
+      "level": 4
+    },
+    {
+      "position": 99,
+      "skill": "Minmatar Starship Engineering",
+      "level": 1
+    },
+    {
+      "position": 100,
+      "skill": "Minmatar Starship Engineering",
+      "level": 2
+    },
+    {
+      "position": 101,
+      "skill": "Minmatar Starship Engineering",
+      "level": 3
+    },
+    {
+      "position": 102,
+      "skill": "Minmatar Starship Engineering",
+      "level": 4
+    },
+    {
+      "position": 103,
+      "skill": "Rocket Science",
+      "level": 1
+    },
+    {
+      "position": 104,
+      "skill": "Rocket Science",
+      "level": 2
+    },
+    {
+      "position": 105,
+      "skill": "Rocket Science",
+      "level": 3
+    },
+    {
+      "position": 106,
+      "skill": "Rocket Science",
+      "level": 4
+    },
+    {
+      "position": 107,
+      "skill": "Graviton Physics",
+      "level": 1
+    },
+    {
+      "position": 108,
+      "skill": "Graviton Physics",
+      "level": 2
+    },
+    {
+      "position": 109,
+      "skill": "Graviton Physics",
+      "level": 3
+    },
+    {
+      "position": 110,
+      "skill": "Graviton Physics",
+      "level": 4
+    },
+    {
+      "position": 111,
+      "skill": "Nanite Engineering",
+      "level": 1
+    },
+    {
+      "position": 112,
+      "skill": "Nanite Engineering",
+      "level": 2
+    },
+    {
+      "position": 113,
+      "skill": "Nanite Engineering",
+      "level": 3
+    },
+    {
+      "position": 114,
+      "skill": "Nanite Engineering",
+      "level": 4
+    },
+    {
+      "position": 115,
+      "skill": "Advanced Small Ship Construction",
+      "level": 5
+    },
+    {
+      "position": 116,
+      "skill": "Advanced Large Ship Construction",
+      "level": 5
+    },
+    {
+      "position": 117,
+      "skill": "Advanced Industrial Ship Construction",
+      "level": 2
+    },
+    {
+      "position": 118,
+      "skill": "Advanced Industrial Ship Construction",
+      "level": 3
+    },
+    {
+      "position": 119,
+      "skill": "Advanced Industrial Ship Construction",
+      "level": 4
+    },
+    {
+      "position": 120,
+      "skill": "Advanced Industrial Ship Construction",
+      "level": 5
+    },
+    {
+      "position": 121,
+      "skill": "Capital Ship Construction",
+      "level": 5
+    },
+    {
+      "position": 122,
+      "skill": "Outpost Construction",
+      "level": 2
+    },
+    {
+      "position": 123,
+      "skill": "Outpost Construction",
+      "level": 3
+    },
+    {
+      "position": 124,
+      "skill": "Outpost Construction",
+      "level": 4
+    },
+    {
+      "position": 125,
+      "skill": "Outpost Construction",
+      "level": 5
+    },
+    {
+      "position": 126,
+      "skill": "Advanced Capital Ship Construction",
+      "level": 2
+    },
+    {
+      "position": 127,
+      "skill": "Advanced Capital Ship Construction",
+      "level": 3
+    },
+    {
+      "position": 128,
+      "skill": "Advanced Capital Ship Construction",
+      "level": 4
+    },
+    {
+      "position": 129,
+      "skill": "Advanced Capital Ship Construction",
+      "level": 5
+    },
+    {
+      "position": 130,
+      "skill": "Supply Chain Management",
+      "level": 3
+    },
+    {
+      "position": 131,
+      "skill": "Supply Chain Management",
+      "level": 4
+    },
+    {
+      "position": 132,
+      "skill": "Supply Chain Management",
+      "level": 5
+    },
+    {
+      "position": 133,
+      "skill": "Scientific Networking",
+      "level": 3
+    },
+    {
+      "position": 134,
+      "skill": "Scientific Networking",
+      "level": 4
+    },
+    {
+      "position": 135,
+      "skill": "Scientific Networking",
+      "level": 5
+    },
+    {
+      "position": 136,
+      "skill": "Molecular Engineering",
+      "level": 1
+    },
+    {
+      "position": 137,
+      "skill": "Molecular Engineering",
+      "level": 2
+    },
+    {
+      "position": 138,
+      "skill": "Molecular Engineering",
+      "level": 3
+    },
+    {
+      "position": 139,
+      "skill": "Molecular Engineering",
+      "level": 4
+    },
+    {
+      "position": 140,
+      "skill": "Laser Physics",
+      "level": 1
+    },
+    {
+      "position": 141,
+      "skill": "Laser Physics",
+      "level": 2
+    },
+    {
+      "position": 142,
+      "skill": "Laser Physics",
+      "level": 3
+    },
+    {
+      "position": 143,
+      "skill": "Laser Physics",
+      "level": 4
+    },
+    {
+      "position": 144,
+      "skill": "Caldari Encryption Methods",
+      "level": 1
+    },
+    {
+      "position": 145,
+      "skill": "Caldari Encryption Methods",
+      "level": 2
+    },
+    {
+      "position": 146,
+      "skill": "Caldari Encryption Methods",
+      "level": 3
+    },
+    {
+      "position": 147,
+      "skill": "Caldari Encryption Methods",
+      "level": 4
+    },
+    {
+      "position": 148,
+      "skill": "Caldari Starship Engineering",
+      "level": 5
+    },
+    {
+      "position": 149,
+      "skill": "Rocket Science",
+      "level": 5
+    },
+    {
+      "position": 150,
+      "skill": "Nanite Engineering",
+      "level": 5
+    }
+  ],
+  "remaps": [
+    {
+      "id": "phase-1",
+      "phaseNumber": 1,
+      "mode": "CW",
+      "targetBaseAttributes": {
+        "intelligence": 17,
+        "memory": 17,
+        "perception": 17,
+        "willpower": 21,
+        "charisma": 27
+      },
+      "trigger": {
+        "afterCompleted": null,
+        "beforeStarts": "Fleet Command V",
+        "plannedQueuePosition": 1
+      },
+      "estimatedDate": "2026-10-16",
+      "estimatedDateIsAlertTrigger": false,
+      "acknowledgement": {
+        "status": "pending",
+        "acknowledgedAt": null
+      },
+      "notes": "Check effective ESI attributes and implant bonuses before confirming remap. ESI does not perform remaps."
+    },
+    {
+      "id": "phase-2",
+      "phaseNumber": 2,
+      "mode": "IM",
+      "targetBaseAttributes": {
+        "intelligence": 27,
+        "memory": 21,
+        "perception": 17,
+        "willpower": 17,
+        "charisma": 17
+      },
+      "trigger": {
+        "afterCompleted": "Command Burst Specialist V",
+        "beforeStarts": "Advanced Industry I",
+        "plannedQueuePosition": 5
+      },
+      "estimatedDate": "2026-12-10",
+      "estimatedDateIsAlertTrigger": false,
+      "acknowledgement": {
+        "status": "pending",
+        "acknowledgedAt": null
+      },
+      "notes": "Check effective ESI attributes and implant bonuses before confirming remap. ESI does not perform remaps."
+    }
+  ],
+  "followOnQueue": [],
+  "skillbooksNeeded": [
+    "Advanced Capital Ship Construction",
+    "Advanced Industrial Ship Construction",
+    "Advanced Laboratory Operation",
+    "Advanced Large Ship Construction",
+    "Advanced Medium Ship Construction",
+    "Advanced Small Ship Construction",
+    "Amarr Starship Engineering",
+    "Anchoring",
+    "Caldari Encryption Methods",
+    "Caldari Starship Engineering",
+    "Capital Ship Construction",
+    "Electromagnetic Physics",
+    "Electronic Engineering",
+    "Gallente Starship Engineering",
+    "Graviton Physics",
+    "High Energy Physics",
+    "Hydromagnetic Physics",
+    "Laser Physics",
+    "Mechanical Engineering",
+    "Minmatar Starship Engineering",
+    "Molecular Engineering",
+    "Nanite Engineering",
+    "Nuclear Physics",
+    "Outpost Construction",
+    "Plasma Physics",
+    "Quantum Physics",
+    "Research",
+    "Rocket Science"
+  ],
+  "options": {
+    "notifyWhileApplicationRunning": true,
+    "requireExplicitDismissal": true,
+    "autoDismissRemaps": false,
+    "compareAgainstLiveQueue": true,
+    "preserveQueueOrder": true
+  },
+  "extensions": {}
+}

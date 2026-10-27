@@ -30,6 +30,7 @@ public partial class App : Application
     private readonly List<(System.Windows.Forms.ToolStripItem item, string key, string en)> _trayLoc = new();
     private SettingsService? _settings;
     private ReleaseMonitor? _releaseMonitor;
+    private SkillPlanRemapMonitor? _remapMonitor;
     private WindowDiscoveryService? _discovery;
     private WinEventHookService? _winEvents;
     private ThumbnailManager? _thumbnailManager;
@@ -248,6 +249,8 @@ public partial class App : Application
                 if (!_isShuttingDown) AbyssalWatchToast.Show(deals);
             }));
             AbyssalWatchService.Instance.Start();
+            _remapMonitor = SkillPlanRemapMonitor.Instance;
+            _remapMonitor.Start();
             _alertHub.FocusCharacterRequested += (charName) =>
             {
                 Debug.WriteLine($"[AlertHub:Focus] 🎯 Focus requested for '{charName}'");
@@ -1348,6 +1351,7 @@ public partial class App : Application
 
         // Single disposal path — ExitApplication calls Shutdown() which triggers this
         AbyssalWatchService.Instance.Dispose();
+        _remapMonitor?.Dispose();
         _releaseMonitor?.Dispose();
         WindowLayoutService.Current.Dispose();
         BackgroundOperations.Stop();

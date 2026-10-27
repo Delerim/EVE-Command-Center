@@ -983,6 +983,7 @@ public sealed class EveSsoService
             CharacterId = pilot.CharacterId,
             CharacterName = pilot.CharacterName,
             TotalSp = skills.TotalSp,
+            UnallocatedSp = skills.UnallocatedSp,
             CurrentSkill = currentSkill,
             CurrentSkillRemaining = remaining,
             QueueEndsIn = queueEnd.HasValue
@@ -1018,7 +1019,7 @@ public sealed class EveSsoService
             (await queueTask).OrderBy(q => q.QueuePosition).ToList();
 
         var queueViews = new List<EveSkillQueueView>();
-        foreach (EveSkillQueueEntry entry in queue.Take(50))
+        foreach (EveSkillQueueEntry entry in queue)
         {
             string name =
                 SkillPlanning.Catalog.TryGetValue(entry.SkillId, out var known) ? known.Name : $"Skill {entry.SkillId}";
@@ -1076,6 +1077,7 @@ public sealed class EveSsoService
             CharacterId = pilot.CharacterId,
             CharacterName = pilot.CharacterName,
             TotalSp = skills.TotalSp,
+            UnallocatedSp = skills.UnallocatedSp,
             CurrentSkill = currentSkill,
             CurrentSkillRemaining = currentRemaining,
             QueueEndsIn = queueEnd.HasValue
@@ -1110,7 +1112,7 @@ public sealed class EveSsoService
             trainingProfileTask);
 
         context = await contextTask;
-        summary = new EvePilotSummary { CharacterId = summary.CharacterId, CharacterName = summary.CharacterName, TotalSp = summary.TotalSp, CurrentSkill = summary.CurrentSkill, CurrentSkillRemaining = summary.CurrentSkillRemaining, QueueEndsIn = summary.QueueEndsIn, CurrentProgressPercent = summary.CurrentProgressPercent, CurrentSystem = context.SystemName, CurrentShip = context.ShipName };
+        summary = new EvePilotSummary { CharacterId = summary.CharacterId, CharacterName = summary.CharacterName, TotalSp = summary.TotalSp, CurrentSkill = summary.CurrentSkill, CurrentSkillRemaining = summary.CurrentSkillRemaining, QueueEndsIn = summary.QueueEndsIn, CurrentProgressPercent = summary.CurrentProgressPercent, UnallocatedSp = summary.UnallocatedSp, CurrentSystem = context.SystemName, CurrentShip = context.ShipName };
 
         return new EvePilotDashboard
         {

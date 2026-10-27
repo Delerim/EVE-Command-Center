@@ -643,6 +643,8 @@
                         <TextBlock x:Name="TotalSpText" Text="-"
                                    Foreground="#EAF7F4" FontSize="20"
                                    FontWeight="SemiBold" Margin="0,3,0,0"/>
+                                <TextBlock x:Name="UnallocatedSpText" Text="Unallocated: -"
+                                           FontSize="11" Foreground="#58D3B4" Margin="0,3,0,0"/>
                     </StackPanel>
                 </Border>
 
@@ -683,12 +685,12 @@
 
                     <ToggleButton x:Name="AttributeAlignmentToggle"
                                   Style="{StaticResource AttributeToggleButton}"
-                                  Content="HIGHLIGHT OFF-MAP"
+                                  Content="HIGHLIGHT LOWER RATE"
                                   IsChecked="True"
                                   HorizontalAlignment="Stretch"
                                   Margin="0,7,0,0"
                                   Click="AttributeAlignmentToggle_Click"
-                                  ToolTip="Highlight skills whose primary/secondary attributes are poorly aligned with the character's current attribute map."/>
+                                  ToolTip="Highlight training rates below 90% of the current best pair. This is not a judgement of your imported multi-phase plan."/>
                 </StackPanel>
             </Grid>
 
@@ -727,7 +729,8 @@
                                 <StackPanel Grid.Column="2" Orientation="Horizontal"><Button Content="Expand All" Margin="0,0,8,0" Click="ExpandAllSkills_Click"/><Button
                                         Content="SKILL PLANNER"
                                         Margin="0,0,8,0"
-                                        Click="SkillPlanner_Click"/></StackPanel>
+                                        Click="SkillPlanner_Click"/>
+                                    <Button Content="IMPORT / EXPORT PLAN" Margin="0,0,8,0" Click="SkillPlanImport_Click"/></StackPanel>
 
                                 <Button Grid.Column="3"
                                         Content="Collapse All"

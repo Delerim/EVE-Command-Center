@@ -1,0 +1,840 @@
+{
+  "schema": "ecc.skill-plan.v1",
+  "schemaVersion": 1,
+  "name": "Linuleum | Skiff Expert corrected Oct 16",
+  "character": {
+    "name": "Linuleum",
+    "id": null
+  },
+  "source": {
+    "planDate": "2026-10-16",
+    "skillSnapshotDate": "2026-10-15",
+    "type": "external-import",
+    "comment": "EVE live skill/queue/attribute data must be refreshed before applying this plan."
+  },
+  "queue": [
+    {
+      "position": 1,
+      "skill": "Ubiquitous Moon Ore Processing",
+      "level": 5
+    },
+    {
+      "position": 2,
+      "skill": "Mining Exploitation",
+      "level": 5
+    },
+    {
+      "position": 3,
+      "skill": "Drone Interfacing",
+      "level": 5
+    },
+    {
+      "position": 4,
+      "skill": "Drone Durability",
+      "level": 5
+    },
+    {
+      "position": 5,
+      "skill": "Electronic Warfare",
+      "level": 5
+    },
+    {
+      "position": 6,
+      "skill": "Advanced Drone Avionics",
+      "level": 5
+    },
+    {
+      "position": 7,
+      "skill": "Mining Drone Specialization",
+      "level": 5
+    },
+    {
+      "position": 8,
+      "skill": "Kinetic Shield Compensation",
+      "level": 4
+    },
+    {
+      "position": 9,
+      "skill": "Kinetic Shield Compensation",
+      "level": 5
+    },
+    {
+      "position": 10,
+      "skill": "Explosive Shield Compensation",
+      "level": 4
+    },
+    {
+      "position": 11,
+      "skill": "Explosive Shield Compensation",
+      "level": 5
+    },
+    {
+      "position": 12,
+      "skill": "EM Shield Compensation",
+      "level": 4
+    },
+    {
+      "position": 13,
+      "skill": "EM Shield Compensation",
+      "level": 5
+    },
+    {
+      "position": 14,
+      "skill": "Thermal Shield Compensation",
+      "level": 4
+    },
+    {
+      "position": 15,
+      "skill": "Thermal Shield Compensation",
+      "level": 5
+    },
+    {
+      "position": 16,
+      "skill": "Tactical Shield Manipulation",
+      "level": 5
+    },
+    {
+      "position": 17,
+      "skill": "Shield Emission Systems",
+      "level": 3
+    },
+    {
+      "position": 18,
+      "skill": "Shield Emission Systems",
+      "level": 4
+    },
+    {
+      "position": 19,
+      "skill": "Shield Emission Systems",
+      "level": 5
+    },
+    {
+      "position": 20,
+      "skill": "Planetology",
+      "level": 5
+    },
+    {
+      "position": 21,
+      "skill": "Advanced Planetology",
+      "level": 3
+    },
+    {
+      "position": 22,
+      "skill": "Advanced Planetology",
+      "level": 4
+    },
+    {
+      "position": 23,
+      "skill": "Advanced Planetology",
+      "level": 5
+    },
+    {
+      "position": 24,
+      "skill": "Caldari Defensive Systems",
+      "level": 1
+    },
+    {
+      "position": 25,
+      "skill": "Caldari Defensive Systems",
+      "level": 2
+    },
+    {
+      "position": 26,
+      "skill": "Caldari Defensive Systems",
+      "level": 3
+    },
+    {
+      "position": 27,
+      "skill": "Caldari Defensive Systems",
+      "level": 4
+    },
+    {
+      "position": 28,
+      "skill": "Caldari Defensive Systems",
+      "level": 5
+    },
+    {
+      "position": 29,
+      "skill": "Caldari Core Systems",
+      "level": 1
+    },
+    {
+      "position": 30,
+      "skill": "Caldari Core Systems",
+      "level": 2
+    },
+    {
+      "position": 31,
+      "skill": "Caldari Core Systems",
+      "level": 3
+    },
+    {
+      "position": 32,
+      "skill": "Caldari Core Systems",
+      "level": 4
+    },
+    {
+      "position": 33,
+      "skill": "Caldari Core Systems",
+      "level": 5
+    },
+    {
+      "position": 34,
+      "skill": "Caldari Offensive Systems",
+      "level": 1
+    },
+    {
+      "position": 35,
+      "skill": "Caldari Offensive Systems",
+      "level": 2
+    },
+    {
+      "position": 36,
+      "skill": "Caldari Offensive Systems",
+      "level": 3
+    },
+    {
+      "position": 37,
+      "skill": "Caldari Offensive Systems",
+      "level": 4
+    },
+    {
+      "position": 38,
+      "skill": "Caldari Offensive Systems",
+      "level": 5
+    },
+    {
+      "position": 39,
+      "skill": "Caldari Propulsion Systems",
+      "level": 1
+    },
+    {
+      "position": 40,
+      "skill": "Caldari Propulsion Systems",
+      "level": 2
+    },
+    {
+      "position": 41,
+      "skill": "Caldari Propulsion Systems",
+      "level": 3
+    },
+    {
+      "position": 42,
+      "skill": "Caldari Propulsion Systems",
+      "level": 4
+    },
+    {
+      "position": 43,
+      "skill": "Caldari Propulsion Systems",
+      "level": 5
+    },
+    {
+      "position": 44,
+      "skill": "Thermodynamics",
+      "level": 3
+    },
+    {
+      "position": 45,
+      "skill": "Thermodynamics",
+      "level": 4
+    },
+    {
+      "position": 46,
+      "skill": "Armor Layering",
+      "level": 4
+    },
+    {
+      "position": 47,
+      "skill": "Astrometric Acquisition",
+      "level": 5
+    },
+    {
+      "position": 48,
+      "skill": "Astrometric Pinpointing",
+      "level": 5
+    },
+    {
+      "position": 49,
+      "skill": "Astrometric Rangefinding",
+      "level": 5
+    },
+    {
+      "position": 50,
+      "skill": "Capacitor Emission Systems",
+      "level": 5
+    },
+    {
+      "position": 51,
+      "skill": "Cloaking",
+      "level": 5
+    },
+    {
+      "position": 52,
+      "skill": "EM Armor Compensation",
+      "level": 4
+    },
+    {
+      "position": 53,
+      "skill": "EM Armor Compensation",
+      "level": 5
+    },
+    {
+      "position": 54,
+      "skill": "Energy Weapon Rigging",
+      "level": 3
+    },
+    {
+      "position": 55,
+      "skill": "Energy Weapon Rigging",
+      "level": 4
+    },
+    {
+      "position": 56,
+      "skill": "Energy Weapon Rigging",
+      "level": 5
+    },
+    {
+      "position": 57,
+      "skill": "Explosive Armor Compensation",
+      "level": 4
+    },
+    {
+      "position": 58,
+      "skill": "Explosive Armor Compensation",
+      "level": 5
+    },
+    {
+      "position": 59,
+      "skill": "Gravimetric Sensor Compensation",
+      "level": 5
+    },
+    {
+      "position": 60,
+      "skill": "Kinetic Armor Compensation",
+      "level": 4
+    },
+    {
+      "position": 61,
+      "skill": "Kinetic Armor Compensation",
+      "level": 5
+    },
+    {
+      "position": 62,
+      "skill": "Magnetometric Sensor Compensation",
+      "level": 4
+    },
+    {
+      "position": 63,
+      "skill": "Magnetometric Sensor Compensation",
+      "level": 5
+    },
+    {
+      "position": 64,
+      "skill": "Nanite Interfacing",
+      "level": 1
+    },
+    {
+      "position": 65,
+      "skill": "Nanite Interfacing",
+      "level": 2
+    },
+    {
+      "position": 66,
+      "skill": "Nanite Interfacing",
+      "level": 3
+    },
+    {
+      "position": 67,
+      "skill": "Nanite Interfacing",
+      "level": 4
+    },
+    {
+      "position": 68,
+      "skill": "Nanite Operation",
+      "level": 1
+    },
+    {
+      "position": 69,
+      "skill": "Nanite Operation",
+      "level": 2
+    },
+    {
+      "position": 70,
+      "skill": "Nanite Operation",
+      "level": 3
+    },
+    {
+      "position": 71,
+      "skill": "Nanite Operation",
+      "level": 4
+    },
+    {
+      "position": 72,
+      "skill": "Nanite Operation",
+      "level": 5
+    },
+    {
+      "position": 73,
+      "skill": "Propulsion Jamming",
+      "level": 4
+    },
+    {
+      "position": 74,
+      "skill": "Propulsion Jamming",
+      "level": 5
+    },
+    {
+      "position": 75,
+      "skill": "Repair Systems",
+      "level": 5
+    },
+    {
+      "position": 76,
+      "skill": "Salvage Drone Operation",
+      "level": 3
+    },
+    {
+      "position": 77,
+      "skill": "Salvage Drone Operation",
+      "level": 4
+    },
+    {
+      "position": 78,
+      "skill": "Salvage Drone Operation",
+      "level": 5
+    },
+    {
+      "position": 79,
+      "skill": "Salvaging",
+      "level": 4
+    },
+    {
+      "position": 80,
+      "skill": "Salvaging",
+      "level": 5
+    },
+    {
+      "position": 81,
+      "skill": "Thermal Armor Compensation",
+      "level": 4
+    },
+    {
+      "position": 82,
+      "skill": "Thermal Armor Compensation",
+      "level": 5
+    },
+    {
+      "position": 83,
+      "skill": "Upwell Hauler",
+      "level": 2
+    },
+    {
+      "position": 84,
+      "skill": "Upwell Hauler",
+      "level": 3
+    },
+    {
+      "position": 85,
+      "skill": "Upwell Hauler",
+      "level": 4
+    },
+    {
+      "position": 86,
+      "skill": "Upwell Hauler",
+      "level": 5
+    },
+    {
+      "position": 87,
+      "skill": "Transport Ships",
+      "level": 5
+    },
+    {
+      "position": 88,
+      "skill": "Caldari Strategic Cruiser",
+      "level": 1
+    },
+    {
+      "position": 89,
+      "skill": "Caldari Strategic Cruiser",
+      "level": 2
+    },
+    {
+      "position": 90,
+      "skill": "Caldari Strategic Cruiser",
+      "level": 3
+    },
+    {
+      "position": 91,
+      "skill": "Caldari Strategic Cruiser",
+      "level": 4
+    },
+    {
+      "position": 92,
+      "skill": "Caldari Strategic Cruiser",
+      "level": 5
+    },
+    {
+      "position": 93,
+      "skill": "Heavy Missile Specialization",
+      "level": 3
+    },
+    {
+      "position": 94,
+      "skill": "Heavy Missile Specialization",
+      "level": 4
+    },
+    {
+      "position": 95,
+      "skill": "Guided Missile Precision",
+      "level": 5
+    },
+    {
+      "position": 96,
+      "skill": "Coherent Ore Processing",
+      "level": 5
+    },
+    {
+      "position": 97,
+      "skill": "Drones Rigging",
+      "level": 1
+    },
+    {
+      "position": 98,
+      "skill": "Drones Rigging",
+      "level": 2
+    },
+    {
+      "position": 99,
+      "skill": "Drones Rigging",
+      "level": 3
+    },
+    {
+      "position": 100,
+      "skill": "Drones Rigging",
+      "level": 4
+    },
+    {
+      "position": 101,
+      "skill": "Shield Rigging",
+      "level": 1
+    },
+    {
+      "position": 102,
+      "skill": "Shield Rigging",
+      "level": 2
+    },
+    {
+      "position": 103,
+      "skill": "Shield Rigging",
+      "level": 3
+    },
+    {
+      "position": 104,
+      "skill": "Shield Rigging",
+      "level": 4
+    },
+    {
+      "position": 105,
+      "skill": "Simple Ore Processing",
+      "level": 5
+    },
+    {
+      "position": 106,
+      "skill": "Caldari Battlecruiser",
+      "level": 3
+    },
+    {
+      "position": 107,
+      "skill": "Caldari Battlecruiser",
+      "level": 4
+    },
+    {
+      "position": 108,
+      "skill": "Caldari Battlecruiser",
+      "level": 5
+    },
+    {
+      "position": 109,
+      "skill": "Caldari Battleship",
+      "level": 1
+    },
+    {
+      "position": 110,
+      "skill": "Caldari Battleship",
+      "level": 2
+    },
+    {
+      "position": 111,
+      "skill": "Caldari Battleship",
+      "level": 3
+    },
+    {
+      "position": 112,
+      "skill": "Caldari Battleship",
+      "level": 4
+    },
+    {
+      "position": 113,
+      "skill": "Caldari Battleship",
+      "level": 5
+    },
+    {
+      "position": 114,
+      "skill": "Marauders",
+      "level": 2
+    },
+    {
+      "position": 115,
+      "skill": "Marauders",
+      "level": 3
+    },
+    {
+      "position": 116,
+      "skill": "Marauders",
+      "level": 4
+    },
+    {
+      "position": 117,
+      "skill": "Marauders",
+      "level": 5
+    },
+    {
+      "position": 118,
+      "skill": "Cruise Missiles",
+      "level": 3
+    },
+    {
+      "position": 119,
+      "skill": "Cruise Missiles",
+      "level": 4
+    },
+    {
+      "position": 120,
+      "skill": "Cruise Missiles",
+      "level": 5
+    },
+    {
+      "position": 121,
+      "skill": "Cruise Missile Specialization",
+      "level": 1
+    },
+    {
+      "position": 122,
+      "skill": "Cruise Missile Specialization",
+      "level": 2
+    },
+    {
+      "position": 123,
+      "skill": "Cruise Missile Specialization",
+      "level": 3
+    },
+    {
+      "position": 124,
+      "skill": "Cruise Missile Specialization",
+      "level": 4
+    },
+    {
+      "position": 125,
+      "skill": "Cruise Missile Specialization",
+      "level": 5
+    },
+    {
+      "position": 126,
+      "skill": "Target Painting",
+      "level": 5
+    },
+    {
+      "position": 127,
+      "skill": "Torpedoes",
+      "level": 1
+    },
+    {
+      "position": 128,
+      "skill": "Torpedoes",
+      "level": 2
+    },
+    {
+      "position": 129,
+      "skill": "Torpedoes",
+      "level": 3
+    },
+    {
+      "position": 130,
+      "skill": "Torpedoes",
+      "level": 4
+    },
+    {
+      "position": 131,
+      "skill": "Torpedoes",
+      "level": 5
+    },
+    {
+      "position": 132,
+      "skill": "Torpedo Specialization",
+      "level": 1
+    },
+    {
+      "position": 133,
+      "skill": "Torpedo Specialization",
+      "level": 2
+    },
+    {
+      "position": 134,
+      "skill": "Torpedo Specialization",
+      "level": 3
+    },
+    {
+      "position": 135,
+      "skill": "Torpedo Specialization",
+      "level": 4
+    },
+    {
+      "position": 136,
+      "skill": "Torpedo Specialization",
+      "level": 5
+    },
+    {
+      "position": 137,
+      "skill": "Heavy Missile Specialization",
+      "level": 5
+    },
+    {
+      "position": 138,
+      "skill": "Heavy Assault Missile Specialization",
+      "level": 3
+    },
+    {
+      "position": 139,
+      "skill": "Heavy Assault Missile Specialization",
+      "level": 4
+    },
+    {
+      "position": 140,
+      "skill": "Heavy Assault Missile Specialization",
+      "level": 5
+    },
+    {
+      "position": 141,
+      "skill": "Advanced Target Management",
+      "level": 1
+    },
+    {
+      "position": 142,
+      "skill": "Advanced Target Management",
+      "level": 2
+    },
+    {
+      "position": 143,
+      "skill": "Advanced Target Management",
+      "level": 3
+    },
+    {
+      "position": 144,
+      "skill": "Advanced Target Management",
+      "level": 4
+    },
+    {
+      "position": 145,
+      "skill": "Advanced Target Management",
+      "level": 5
+    },
+    {
+      "position": 146,
+      "skill": "Acceleration Control",
+      "level": 4
+    },
+    {
+      "position": 147,
+      "skill": "Acceleration Control",
+      "level": 5
+    },
+    {
+      "position": 148,
+      "skill": "High Speed Maneuvering",
+      "level": 4
+    },
+    {
+      "position": 149,
+      "skill": "High Speed Maneuvering",
+      "level": 5
+    },
+    {
+      "position": 150,
+      "skill": "Thermodynamics",
+      "level": 5
+    }
+  ],
+  "remaps": [
+    {
+      "id": "phase-1",
+      "phaseNumber": 1,
+      "mode": "IM",
+      "targetBaseAttributes": {
+        "intelligence": 27,
+        "memory": 21,
+        "perception": 17,
+        "willpower": 17,
+        "charisma": 17
+      },
+      "trigger": {
+        "afterCompleted": null,
+        "beforeStarts": "Ubiquitous Moon Ore Processing V",
+        "plannedQueuePosition": 1
+      },
+      "estimatedDate": "2026-10-16",
+      "estimatedDateIsAlertTrigger": false,
+      "acknowledgement": {
+        "status": "pending",
+        "acknowledgedAt": null
+      },
+      "notes": "Check effective ESI attributes and implant bonuses before confirming remap. ESI does not perform remaps."
+    },
+    {
+      "id": "phase-2",
+      "phaseNumber": 2,
+      "mode": "PW",
+      "targetBaseAttributes": {
+        "intelligence": 17,
+        "memory": 17,
+        "perception": 27,
+        "willpower": 21,
+        "charisma": 17
+      },
+      "trigger": {
+        "afterCompleted": "Thermal Armor Compensation V",
+        "beforeStarts": "Upwell Hauler II",
+        "plannedQueuePosition": 83
+      },
+      "estimatedDate": "2027-12-02",
+      "estimatedDateIsAlertTrigger": false,
+      "acknowledgement": {
+        "status": "pending",
+        "acknowledgedAt": null
+      },
+      "notes": "Check effective ESI attributes and implant bonuses before confirming remap. ESI does not perform remaps."
+    }
+  ],
+  "followOnQueue": [],
+  "skillbooksNeeded": [
+    "Advanced Target Management",
+    "Caldari Core Systems",
+    "Caldari Defensive Systems",
+    "Caldari Offensive Systems",
+    "Caldari Propulsion Systems",
+    "Caldari Strategic Cruiser",
+    "Drones Rigging",
+    "Nanite Interfacing",
+    "Nanite Operation",
+    "Shield Rigging",
+    "Torpedo Specialization",
+    "Torpedoes"
+  ],
+  "options": {
+    "notifyWhileApplicationRunning": true,
+    "requireExplicitDismissal": true,
+    "autoDismissRemaps": false,
+    "compareAgainstLiveQueue": true,
+    "preserveQueueOrder": true
+  },
+  "extensions": {}
+}
