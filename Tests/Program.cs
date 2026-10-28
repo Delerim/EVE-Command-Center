@@ -366,6 +366,7 @@ internal static partial class Program
         CheckIndustryWorkspace();
         CheckSkillPlanning();
         CheckSkillPlanImport();
+        CheckSkillPlanReconciliation();
         CheckOmegaBudget();
         CheckRockTracking();
         CheckNotificationCenter();

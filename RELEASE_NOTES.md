@@ -1,3 +1,11 @@
+# EVE Command Center v3.8.6
+
+- **Integrated Skill Plans tab.** Import external single-pilot JSON or eight-pilot ZIP in the existing Pilot Command Center, next to Skills and Skill Queue, instead of opening a separate import workspace. Existing imported files and remap acknowledgements are reused without migration.
+- **Actual ESI reconciliation.** Show every planned level as trained, training, queued, missing, or genuinely out of order; preserve the exact training plan. Unplanned but harmless extra EVE skills are informational, not false order alarms. Skill rows reuse the dark fleet-panel style with readable columns, virtualization, search and status filters.
+- **Actionable progress and remap intelligence.** Display completed, queued, absent and extra counts, total unallocated SP, current base-attribute alignment, remap triggers and ESI-projected completion dates. The old per-skill LOWER RATE heuristic is not used as a plan warning. Existing persistent remap acknowledgement continues to work.
+- **Read-only exports.** Export full skills JSON/CSV or copy only levels not already queued to import manually in EVE. ECC does not write ESI skill queues or change character remaps.
+- **Regression gates.** Reconcile the eight-pilot Ansurek-style training pattern (6 trained, 142 queued, 2 missing, 3 extras), detect true queue-order inversions and prevent a wrong-pilot snapshot from being applied. Full Windows build and regression tests gate publication.
+
 # EVE Command Center v3.8.5
 
 - **Skill Plan Command Center.** Import the supplied eight-pilot ZIP or a single `.eccskillplan.json` per authenticated pilot, preserving exact skill order and 17 remap checkpoint definitions. Preview and validate before replacing local plans.

@@ -32,6 +32,7 @@ public partial class PilotCommandCenterWindow : Window
     private EveTrainingProfile _trainingProfile = new();
     private EvePilotDashboard? _planningSnapshot;
     private readonly Dictionary<long, SkillPlannerWindow> _planners = new();
+    private readonly PilotSkillPlanTab _skillPlanTab;
     private void SkillPlanner_Click(object sender, RoutedEventArgs e)
     {
         if (PilotList.SelectedItem is not PilotCardViewModel card) { WpfMessageBox.Show(EmbeddedModuleHost.ResolveOwner(this),"Select a pilot first.","Skill Planner"); return; }
@@ -58,11 +59,8 @@ private void SkillPlanImport_Click(object sender, RoutedEventArgs e)
     }
     try
     {
-        var snapshot = _planningSnapshot?.Summary.CharacterId == card.CharacterId ? _planningSnapshot : null;
-        (System.Windows.Application.Current as App)?.OpenCommandCenterModule(
-            "skill-import:" + card.CharacterId,
-            () => new SkillPlanImportWindow(card.Profile, snapshot),
-            "SKILL PLAN | " + card.CharacterName);
+        _skillPlanTab.SetPilot(card.Profile);
+        SkillPlansTab.IsSelected = true;
     }
     catch (Exception ex)
     {
@@ -79,6 +77,13 @@ private long _inventoryLoadedForCharacterId;
     public PilotCommandCenterWindow()
     {
         InitializeComponent();
+        _skillPlanTab = new PilotSkillPlanTab();
+        SkillPlansContent.Content = _skillPlanTab;
+        _skillPlanTab.RefreshRequested += async () =>
+        {
+            if (PilotList.SelectedItem is PilotCardViewModel selected)
+                await LoadSelectedPilotAsync(selected, forceCardRefresh: true);
+        };
         DataContext = this;
         _backgroundPilots.Changed += ApplyBackgroundSummaries;
         Closed += (_, _) => _backgroundPilots.Changed -= ApplyBackgroundSummaries;
@@ -211,6 +216,7 @@ private long _inventoryLoadedForCharacterId;
     {
         if (PilotList.SelectedItem is PilotCardViewModel card)
         {
+            _skillPlanTab.SetPilot(card.Profile);
             _inventoryLoadedForCharacterId = 0;
 
             await LoadSelectedPilotAsync(card);
@@ -253,6 +259,7 @@ private long _inventoryLoadedForCharacterId;
 
 
             _planningSnapshot = data;
+            _skillPlanTab.UpdateSnapshot(card.Profile, data, freshEsi: false);
             if (_planners.TryGetValue(card.CharacterId,out var planner)) planner.ApplySnapshot(data);
             _trainingProfile = data.TrainingProfile;
 
@@ -296,6 +303,7 @@ private long _inventoryLoadedForCharacterId;
             bool partial=data.CoreOnly;
             data=PilotDashboardProgress.Merge(data,_planningSnapshot);
             await ApplyDashboardAsync(data,card,token);
+            if (!partial) _skillPlanTab.UpdateSnapshot(card.Profile, data, freshEsi: true);
             if (!partial) SkillPlanRemapMonitor.Instance.Observe(card.Profile, data);
             try { System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(file)!); System.IO.File.WriteAllText(file,System.Text.Json.JsonSerializer.Serialize(data)); }
             catch (Exception ex) { EsiDiagnostics.Write("Pilot snapshot save: "+ex.GetType().Name); }
@@ -360,6 +368,7 @@ private long _inventoryLoadedForCharacterId;
 
     private void ClearDetails()
     {
+        _skillPlanTab.Clear();
         TotalSpText.Text = "-";
         UnallocatedSpText.Text = "Unallocated: -";
         CurrentSkillText.Text = "-";
@@ -1374,46 +1383,13 @@ private long _inventoryLoadedForCharacterId;
         public string AttributeGuidance { get; }
         public string AlignmentText =>
             double.IsNaN(TrainingRate) ? "Attributes pending refresh" : $"{TrainingRate:0.0} SP/min | {AlignmentPercent:0}%";
-        public string AlignmentForeground =>
-            IsOffMap
-                ? "#E7B85A"
-                : "#58D3B4";
-
-        public string RowBackground =>
-            HighlightOffMap && IsOffMap
-                ? "#2A2418"
-                : IsCurrent
-                    ? "#102522"
-                    : "#0D171A";
-
-        public string RowBorderBrush =>
-            HighlightOffMap && IsOffMap
-                ? "#8C6A2E"
-                : IsCurrent
-                    ? "#2D7E6C"
-                    : "#15282B";
-
-        public string StatusText =>
-            IsCurrent
-                ? IsOffMap
-                    ? "TRAINING | LOWER RATE"
-                    : "TRAINING"
-                : IsOffMap
-                    ? "LOWER RATE"
-                    : "QUEUED";
-        public string StatusBackground =>
-            IsOffMap
-                ? "#3A2F16"
-                : IsCurrent
-                    ? "#153D34"
-                    : "#162124";
-
-        public string StatusForeground =>
-            IsOffMap
-                ? "#F2C96D"
-                : IsCurrent
-                    ? "#58D3B4"
-                    : "#8FA9A3";
+        // Attribute-rate percentages are informational, not training-plan errors.
+        public string AlignmentForeground => "#93B9B2";
+        public string RowBackground => IsCurrent ? "#102522" : "#0D171A";
+        public string RowBorderBrush => IsCurrent ? "#2D7E6C" : "#15282B";
+        public string StatusText => IsCurrent ? "TRAINING" : "QUEUED";
+        public string StatusBackground => IsCurrent ? "#153D34" : "#162124";
+        public string StatusForeground => IsCurrent ? "#58D3B4" : "#8FA9A3";
     }
 
     public sealed class SkillGroupViewModel :

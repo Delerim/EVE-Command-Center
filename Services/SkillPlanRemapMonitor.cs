@@ -72,6 +72,7 @@ public sealed class SkillPlanRemapMonitor : IDisposable
     {
         if (_disposed) return;
         _due.Clear();
+        var reconciliationNotices = new List<CenterNotification>();
         foreach (var pair in _last.Values)
         {
             StoredSkillImport? plan;
@@ -83,7 +84,22 @@ public sealed class SkillPlanRemapMonitor : IDisposable
                 string key = pair.Pilot.CharacterId + ":" + SkillPlanImportService.RemapKey(plan.Document, reminder.Remap);
                 _due[key] = (pair.Pilot, reminder);
             }
+            try
+            {
+                var report = SkillPlanReconciliation.Compare(plan, pair.Data, DateTimeOffset.UtcNow);
+                foreach (var issue in report.Alerts.Where(x => x.Severity == "WARNING"))
+                    reconciliationNotices.Add(new CenterNotification {
+                        Id = "SKILLS:" + pair.Pilot.CharacterId + ":" + issue.Key,
+                        Source = "SKILLS", AlertKey = issue.Message, Active = true, Read = false,
+                        Title = pair.Pilot.CharacterName + " | Training plan", Detail = issue.Message,
+                        Color = "#E6B862", Updated = DateTimeOffset.UtcNow
+                    });
+            }
+            catch (Exception ex) { EsiDiagnostics.Write("Skill plan reconciliation: " + ex.Message); }
         }
+        // Active discrepancies are retained in the notification center across restarts;
+        // resolved issues close automatically. Remap alerts separately require acknowledgement.
+        NotificationCenterService.Current.SyncSkillPlanAlerts(reconciliationNotices, DateTimeOffset.UtcNow);
         if (_disposed || Application.Current == null) return;
         Application.Current.Dispatcher.BeginInvoke(new Action(ShowDue));
     }

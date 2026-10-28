@@ -685,8 +685,8 @@
 
                     <ToggleButton x:Name="AttributeAlignmentToggle"
                                   Style="{StaticResource AttributeToggleButton}"
-                                  Content="HIGHLIGHT LOWER RATE"
-                                  IsChecked="True"
+                                  Content="SHOW RATE DIFFERENCES"
+                                  IsChecked="False"
                                   HorizontalAlignment="Stretch"
                                   Margin="0,7,0,0"
                                   Click="AttributeAlignmentToggle_Click"
@@ -1022,6 +1022,9 @@
                                 </ItemsControl>
                             </ScrollViewer>
                         </Grid>
+                    </TabItem>
+                    <TabItem Header="Skill Plans" x:Name="SkillPlansTab">
+                        <ContentControl x:Name="SkillPlansContent"/>
                     </TabItem>
                     <TabItem Header="Skill Queue">
                         <Grid Margin="0,6,0,0">

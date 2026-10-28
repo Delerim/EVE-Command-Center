@@ -43,6 +43,30 @@ public sealed class NotificationCenterService
         }
         if(changed)Save();
     }
+    // Stable, persistent skill-plan warnings. Reconciliation must not create a new
+    // notification every background poll; only a newly detected or changed issue is unread.
+    public void SyncSkillPlanAlerts(IEnumerable<CenterNotification> alerts, DateTimeOffset now)
+    {
+        var incoming = alerts.ToDictionary(x => x.Id, StringComparer.Ordinal);
+        bool changed = false;
+        foreach (var old in Items.Where(x => x.Source == "SKILLS" && x.Active && !incoming.ContainsKey(x.Id)))
+        {
+            old.Active = false; old.Read = true; old.Updated = now; changed = true;
+        }
+        foreach (var notice in incoming.Values)
+        {
+            var existing = Items.FirstOrDefault(x => x.Id == notice.Id);
+            if (existing == null) { Items.Add(notice); changed = true; continue; }
+            if (!existing.Active || existing.AlertKey != notice.AlertKey || existing.Detail != notice.Detail)
+            {
+                existing.Active = true; existing.Read = false;
+                existing.Title = notice.Title; existing.Detail = notice.Detail;
+                existing.AlertKey = notice.AlertKey; existing.Updated = now;
+                existing.Color = notice.Color; changed = true;
+            }
+        }
+        if (changed) Save();
+    }
     public void Record(string title,string detail,string category)
     {
         Items.Add(new(){Id=Guid.NewGuid().ToString(),Source=category.Contains("MINING")?"MINING":category.Contains("PLANETARY")?"PI":category.Contains("OMEGA")?"OMEGA":category.Contains("INDUSTRY")?"INDUSTRY":category.Contains("CONTRACT")?"CONTRACTS":"MOONS",Title=title,Detail=detail,Updated=DateTimeOffset.UtcNow});Save();
