@@ -149,7 +149,7 @@ public sealed class WindowDiscoveryService : IDisposable
         {
             string className = User32.GetWindowClassName(hwnd);
             // Filter out non-game windows spawned by exefile (tooltips, context menus, CEF panels).
-            // The PID dedup in ThumbnailManager is the primary guard against duplicates —
+            // The PID dedup in OverviewClientService is the primary guard against duplicates —
             // this filter catches the obvious non-game windows.
             if (className.Contains("tooltip", StringComparison.OrdinalIgnoreCase) ||
                 className == "#32768")
@@ -158,7 +158,7 @@ public sealed class WindowDiscoveryService : IDisposable
             string charName = ExtractCharacterName(title);
 
             // Double guard against "Close", "Minimize", etc tooltips leaking through if class name was missed
-            if (string.Equals(title, "Close", StringComparison.OrdinalIgnoreCase) || 
+            if (string.Equals(title, "Close", StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(title, "Minimize", StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(title, "Maximize", StringComparison.OrdinalIgnoreCase))
                 continue;

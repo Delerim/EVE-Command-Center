@@ -26,6 +26,11 @@ public partial class MiningFleetOverviewWindow : Window
     private bool _tileClosing;
     // One owner renders the cards; the actual XAML toolbar moves into a second,
     // independently positioned window. No duplicated buttons, event handlers or ESI.
+    internal void SetOverviewHidden(bool hidden)
+    {
+        if(hidden) { Hide(); _controlTile?.Hide(); }
+        else ShowControlTile();
+    }
     internal void ShowControlTile()
     {
         if (!IsVisible) Show();
@@ -228,12 +233,12 @@ public partial class MiningFleetOverviewWindow : Window
         finally { _draggingOverview = false; QueuePositionRecovery(); }
     }
 
-    private readonly ThumbnailManager? _focusManager;
+    private readonly OverviewClientService? _focusManager;
     internal void UpdateActiveClient(IntPtr foreground)
     {
         if (!Dispatcher.CheckAccess()) { Dispatcher.BeginInvoke(() => UpdateActiveClient(foreground), DispatcherPriority.Render); return; }
         foreach (var card in MinerItems.Items.OfType<FleetCard>())
-            card.SetActive(_prefs.CombinedCharacterOverview && foreground != IntPtr.Zero && card.SourceHwnd == foreground);
+            card.SetActive(foreground != IntPtr.Zero && card.SourceHwnd == foreground);
     }
 
     private readonly BackgroundPilotRefresh _backgroundPilots = BackgroundOperations.Current.Pilots;
@@ -307,7 +312,7 @@ public partial class MiningFleetOverviewWindow : Window
         _prefs = prefs;
         _clientSource=clientSource??(()=>RunningApp?.OverviewClients??Array.Empty<EveWindow>());
         InitializeComponent();
-        _focusManager = RunningApp?.OverviewThumbnails;
+        _focusManager = RunningApp?.OverviewClientServices;
         if (_focusManager != null) _focusManager.OverviewForegroundChanged += UpdateActiveClient;
         _positionRecovery.Tick += (_, _) => { _positionRecovery.Stop(); RecoverOverviewPosition(); };
         LocationChanged += (_, _) => QueuePositionRecovery();
@@ -316,7 +321,6 @@ public partial class MiningFleetOverviewWindow : Window
         UpdateAccess();
 
         _tracker = tracker;
-        RockToggle.Content = tracker.RockTracking.Enabled ? "ROCKS ON" : "ROCKS OFF";
         _watchdog = watchdog;
         IsVisibleChanged += (_,_) => ApplyCombinedMode();
         StateChanged += (_,_) => ApplyCombinedMode();
@@ -406,7 +410,7 @@ public partial class MiningFleetOverviewWindow : Window
             _positionRecovery.Stop();
             _portraits.Dispose();
             _timer.Stop();
-            RunningApp?.OverviewThumbnails?.SetOverviewCombined(false);
+            RunningApp?.OverviewClientServices?.SetOverviewCapture(false);
             _previewImages.Clear();
             _pilotIntelTimer.Stop();
             _holdRefreshTimer.Stop();
@@ -598,8 +602,8 @@ public partial class MiningFleetOverviewWindow : Window
             clients.Length == 0)
             return;
 
-        ThumbnailManager? manager =
-            RunningApp?.OverviewThumbnails;
+        OverviewClientService? manager =
+            RunningApp?.OverviewClientServices;
 
         if (manager == null)
             return;
@@ -868,7 +872,6 @@ public partial class MiningFleetOverviewWindow : Window
     {
         bool enabled=!_tracker.RockTracking.Enabled;
         _tracker.RockTracking.Enable(enabled);
-        RockToggle.Content=enabled?"ROCKS ON":"ROCKS OFF";
         if (!_prefs.FleetOverviewVertical) Height=Math.Max(MinHeight,Height+(enabled?85:-85));
         RefreshCards();
     }
@@ -878,7 +881,7 @@ public partial class MiningFleetOverviewWindow : Window
             (System.Windows.Application.Current as App)?.OpenCommandCenterModule("rocks:"+card.Character, () => new RockTrackingWindow(_tracker.RockTracking,card.Character,card.Ore=="-"?"":card.Ore), "ROCKS | "+card.Character);
     }
 
-    private string OverviewMode => !_prefs.CombinedCharacterOverview ? "MINING" :
+    private string OverviewMode =>
         _prefs.CharacterOverviewCombatMode is "PVE" or "PVP" ? _prefs.CharacterOverviewCombatMode :
         _prefs.CharacterOverviewMiningMode ? "MINING" : "CHARACTERS";
 
@@ -911,8 +914,8 @@ public partial class MiningFleetOverviewWindow : Window
     private bool _refreshingCards;
     private void RefreshCards()
     {
-        CircleToggle0.IsChecked = CircleToggle1.IsChecked = CircleToggle2.IsChecked = _prefs.ShowMiningCircles;
-        HoldToggle0.IsChecked = HoldToggle1.IsChecked = HoldToggle2.IsChecked = _prefs.ShowMiningHolds;
+        CircleToggle1.IsChecked = CircleToggle2.IsChecked = _prefs.ShowMiningCircles;
+        HoldToggle1.IsChecked = HoldToggle2.IsChecked = _prefs.ShowMiningHolds;
 
         UpdateAudioButton();
         if(_refreshingCards)return;
@@ -961,13 +964,10 @@ public partial class MiningFleetOverviewWindow : Window
         }
         var clients=_clientSource();
         _ = RefreshMissingSystemsAsync(clients);
-        foreach (var character in (_prefs.CombinedCharacterOverview ? clients.Select(c=>c.CharacterName).Distinct(StringComparer.OrdinalIgnoreCase) : _tracker.GetMiningDashboardCharacters()))
+        foreach (var character in clients.Select(c=>c.CharacterName).Distinct(StringComparer.OrdinalIgnoreCase))
         {
             if (OverviewMode is "PVE" or "PVP") {cards.Add(CombatCard(character));continue;}
             var s = _tracker.GetSnapshot(character);
-            if (!_prefs.CombinedCharacterOverview && s.MiningCycleCount <= 0 &&
-                string.IsNullOrWhiteSpace(s.CurrentOre))
-                continue;
 
             _pilotIntel.TryGetValue(
                 character,
@@ -1546,15 +1546,12 @@ public partial class MiningFleetOverviewWindow : Window
                     item => item.Index,
                     StringComparer.OrdinalIgnoreCase);
 
-        bool hasCustomOrder =
-            savedIndex.Count > 0;
 
         // Combined character previews must keep a stable physical tile order.
         // Preserve the current on-screen sequence across refreshes unless the user
         // explicitly saved a custom order. Live ship/intel changes must never move a
         // card to a different click coordinate or force native preview recreation.
         var existingCombinedIndex =
-            _prefs.CombinedCharacterOverview &&
             MinerItems.ItemsSource is IEnumerable<FleetCard> existingCards
                 ? existingCards
                     .Select((card, index) => new { card.Character, Index = index })
@@ -1581,19 +1578,12 @@ public partial class MiningFleetOverviewWindow : Window
                             : int.MaxValue)
                 .ThenBy(
                     card =>
-                        _prefs.CombinedCharacterOverview &&
-                        existingCombinedIndex.TryGetValue(
+                                    existingCombinedIndex.TryGetValue(
                             card.Character,
                             out int existingIndex)
                             ? existingIndex
                             : int.MaxValue)
-                .ThenBy(
-                    card =>
-                        !_prefs.CombinedCharacterOverview &&
-                        !hasCustomOrder &&
-                        card.IsDroneMining
-                            ? 0
-                            : 1)
+
                 .ThenBy(
                     card => card.Character,
                     StringComparer.OrdinalIgnoreCase)
@@ -1616,7 +1606,7 @@ public partial class MiningFleetOverviewWindow : Window
             card.PreviewHeight = _prefs.FleetOverviewVertical ? 60 : 115;
             card.DetailedMiningVisibility = !_prefs.FleetOverviewVertical && OverviewMode == "MINING" ? Visibility.Visible : Visibility.Collapsed;
             card.CompactMiningVisibility = _prefs.FleetOverviewVertical && OverviewMode == "MINING" ? Visibility.Visible : Visibility.Collapsed;
-            card.CanSwitch = _prefs.CombinedCharacterOverview;
+            card.CanSwitch = true;
             bool compact=OverviewMode=="CHARACTERS";
             card.MiningVisibility=OverviewMode=="MINING"?Visibility.Visible:Visibility.Collapsed;
             card.HoldVisibility = _prefs.ShowMiningHolds && OverviewMode == "MINING" && card.HoldRows.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
@@ -1626,9 +1616,9 @@ public partial class MiningFleetOverviewWindow : Window
             var client=clients.FirstOrDefault(c=>string.Equals(c.CharacterName,card.Character,StringComparison.OrdinalIgnoreCase));
             card.SourceHwnd=client?.Hwnd??IntPtr.Zero;
             card.LivePreview=compact&&_prefs.CharacterOverviewLivePreview;
-            card.IsActive=_prefs.CombinedCharacterOverview&&client!=null&&client.Hwnd==EveCommandCenter.Interop.User32.GetForegroundWindow();
+            card.IsActive=true&&client!=null&&client.Hwnd==EveCommandCenter.Interop.User32.GetForegroundWindow();
 
-            var telemetry=RunningApp?.OverviewThumbnails?.GetOverviewTelemetry(card.Character) ?? default;
+            var telemetry=RunningApp?.OverviewClientServices?.GetOverviewTelemetry(card.Character) ?? default;
             card.SystemTransitionActive=telemetry.SystemTransitionActive;
             card.SystemText=
                 telemetry.SystemTransitionActive &&
@@ -1668,9 +1658,7 @@ public partial class MiningFleetOverviewWindow : Window
         UpdatePendingContractsBadge(BackgroundOperations.Existing?.Contracts.State, DateTimeOffset.UtcNow);
         UpdatedText.Text =
             _tileReorderMode
-                ? (_prefs.CombinedCharacterOverview
-                    ? "Drag tiles - Tools - Reorder characters to finish"
-                    : "Drag tiles to reorder | click DONE when finished")
+                ? "Drag tiles to reorder | click DONE when finished"
                 : OverviewVersionText +
                   " | EVE " +
                   DateTime.UtcNow.ToString(
@@ -1683,9 +1671,7 @@ public partial class MiningFleetOverviewWindow : Window
                   " | " +
                   cards.Count +
                   " " +
-                  (_prefs.CombinedCharacterOverview
-                      ? "clients"
-                      : "miners");
+                  "clients";
 
         MinWidth = _prefs.FleetOverviewVertical ? 260 : OverviewMode == "CHARACTERS" ? 300 : 620;
         if (_prefs.FleetOverviewAutoFit && !_prefs.FleetOverviewVertical)
@@ -1696,7 +1682,7 @@ public partial class MiningFleetOverviewWindow : Window
                 : 620;
 
             desiredWidth = Math.Max(MinWidth, desiredWidth);
-            if(_prefs.CombinedCharacterOverview)desiredWidth=Math.Min(desiredWidth,Math.Max(MinWidth,SystemParameters.WorkArea.Width));
+            desiredWidth=Math.Min(desiredWidth,Math.Max(MinWidth,SystemParameters.WorkArea.Width));
 
             if (Math.Abs(Width - desiredWidth) > 1)
                 Width = desiredWidth;
@@ -1732,7 +1718,7 @@ public partial class MiningFleetOverviewWindow : Window
     private void ApplyResizeMode()
     {
         VerticalFitButton.Content = _prefs.FleetOverviewAutoFit ? "AUTO FIT: LOCKED" : "SIZE: MANUAL";
-        HorizontalFitButton.Content = CompactFitButton.Content = VerticalFitButton.Content;
+        CompactFitButton.Content = VerticalFitButton.Content;
 
         MinerScroll.VerticalScrollBarVisibility = _prefs.FleetOverviewVertical
             ? System.Windows.Controls.ScrollBarVisibility.Auto : System.Windows.Controls.ScrollBarVisibility.Disabled;
@@ -1775,14 +1761,14 @@ public partial class MiningFleetOverviewWindow : Window
             if (MinerScroll != null)
             {
                 MinerScroll.HorizontalScrollBarVisibility =
-                    _prefs.CombinedCharacterOverview?System.Windows.Controls.ScrollBarVisibility.Auto:System.Windows.Controls.ScrollBarVisibility.Disabled;
+                    System.Windows.Controls.ScrollBarVisibility.Auto;
             }
         }
     }
 
     private System.Windows.Media.ImageSource? PreviewImage(IntPtr hwnd)
     {
-        var frame=RunningApp?.OverviewThumbnails?.OverviewFrame(hwnd);
+        var frame=RunningApp?.OverviewClientServices?.OverviewFrame(hwnd);
         if(frame==null)return null;
         if(_previewImages.TryGetValue(hwnd,out var cached)&&ReferenceEquals(cached.frame,frame))return cached.image;
         using var bitmap=frame.Copy();if(bitmap==null)return cached.image;
@@ -1793,30 +1779,19 @@ public partial class MiningFleetOverviewWindow : Window
     internal void ReassertPreviewModeForWorkspace()
     {
         if (_controlTile == null && !IsLoaded && !IsVisible) return;
-        bool combined = _prefs.CombinedCharacterOverview &&
-                        (_controlTile != null || (IsVisible && WindowState != WindowState.Minimized));
-        RunningApp?.OverviewThumbnails?.SetOverviewCombined(
-            combined, IsVisible && OverviewMode == "CHARACTERS" && !_prefs.CharacterOverviewLivePreview);
+        RunningApp?.OverviewClientServices?.SetOverviewCapture(IsVisible && WindowState != WindowState.Minimized && OverviewMode == "CHARACTERS" && !_prefs.CharacterOverviewLivePreview);
     }
 
     private void ApplyCombinedMode()
     {
-        bool combined=_prefs.CombinedCharacterOverview;
-        if (_controlTile != null || IsLoaded || IsVisible) RunningApp?.OverviewThumbnails?.SetOverviewCombined(combined && (_controlTile != null || (IsVisible && WindowState!=WindowState.Minimized)),IsVisible && OverviewMode=="CHARACTERS"&&!_prefs.CharacterOverviewLivePreview);
-        FullActions.Visibility=combined?Visibility.Collapsed:Visibility.Visible;
-        CompactActions.Visibility=combined?Visibility.Visible:Visibility.Collapsed;
-        UpdateDeckModeSwitch();
+        if (_controlTile != null || IsLoaded || IsVisible) RunningApp?.OverviewClientServices?.SetOverviewCapture(IsVisible && WindowState != WindowState.Minimized && OverviewMode=="CHARACTERS"&&!_prefs.CharacterOverviewLivePreview);
+        CompactActions.Visibility=Visibility.Visible;
         LiveBadge.Visibility=DayText.Visibility=PlexMarketBorder.Visibility=FleetTodayProfit.Visibility=Visibility.Visible;
         LivePreviewButton.Content = _prefs.CharacterOverviewLivePreview ? "PREVIEW: LIVE" : "PREVIEW: SNAPSHOT";
         LivePreviewButton.ToolTip = _prefs.CharacterOverviewLivePreview
-            ? "Real-time Windows DWM thumbnails, as used by separate previews. Choose Snapshot from the menu for periodic captures. Minimized or unresponsive clients cannot supply live frames."
-            : "Choose Live from the menu to enable real-time Windows DWM thumbnails, as used by separate previews. Snapshot mode updates only periodically.";
-        ModeButton.Content="MODE: "+OverviewMode;
-    }
-    private void Combine_Click(object sender,RoutedEventArgs e)
-    {
-        _prefs.CombinedCharacterOverview=!_prefs.CombinedCharacterOverview;
-        ApplyCombinedMode();MiningDashboardPreferencesStore.Save(_prefs);RefreshCards();
+            ? "Real-time Windows DWM thumbnails, Choose Snapshot from the menu for periodic captures. Minimized or unresponsive clients cannot supply live frames."
+            : "Choose Live from the menu to enable real-time Windows DWM thumbnails, Snapshot mode updates only periodically.";
+        ModeButton.Content="MODE: "+(OverviewMode=="CHARACTERS"?"PREVIEW":OverviewMode);
     }
     private void Mode_Click(object sender,RoutedEventArgs e)=>Tools_Click(sender,e);
     private void OverviewMode_Click(object sender,RoutedEventArgs e)
@@ -1829,13 +1804,13 @@ public partial class MiningFleetOverviewWindow : Window
     }
     private void MuteAllClients_Click(object sender, RoutedEventArgs e)
     {
-        RunningApp?.OverviewThumbnails?.ToggleAllClientAudio();
+        RunningApp?.OverviewClientServices?.ToggleAllClientAudio();
         UpdateAudioButton();
     }
     private void UpdateAudioButton()
     {
-        bool muted = RunningApp?.OverviewThumbnails?.AllClientsMuted == true;
-        foreach (var button in new[] { FullMuteButton, CompactMuteButton, VerticalMuteButton }) {
+        bool muted = RunningApp?.OverviewClientServices?.AllClientsMuted == true;
+        foreach (var button in new[] { CompactMuteButton, VerticalMuteButton }) {
             button.Content = muted ? "UNMUTE EVE" : "MUTE EVE";
             button.Foreground = muted ? System.Windows.Media.Brushes.Gold : System.Windows.Media.Brushes.WhiteSmoke;
         }
@@ -1857,8 +1832,8 @@ public partial class MiningFleetOverviewWindow : Window
     private void Tile_MouseLeftButtonUp(object sender,MouseButtonEventArgs e)
     {
         if(_draggingOverview || (Keyboard.Modifiers & ModifierKeys.Alt) != 0)return;
-        if(!_prefs.CombinedCharacterOverview||_tileReorderMode||sender is not FrameworkElement element||element.DataContext is not FleetCard card||FindVisualParent<System.Windows.Controls.Button>(e.OriginalSource as DependencyObject)!=null)return;
-        RunningApp?.OverviewThumbnails?.ActivateEveWindow(IntPtr.Zero,card.Character);
+        if(_tileReorderMode||sender is not FrameworkElement element||element.DataContext is not FleetCard card||FindVisualParent<System.Windows.Controls.Button>(e.OriginalSource as DependencyObject)!=null)return;
+        RunningApp?.OverviewClientServices?.ActivateEveWindow(IntPtr.Zero,card.Character);
         UpdateActiveClient(EveCommandCenter.Interop.User32.GetForegroundWindow());
         e.Handled=true;
     }

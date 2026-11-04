@@ -63,28 +63,6 @@ internal static partial class Program
             Check(released&&Forms.Application.OpenForms.Count==openForms,"Two hundred live/snapshot switches release old windows without growing the native form count");
             var restored=Surface();owner.Hide();Pump();Check(restored!.IsDisposed&&Surface()==null,"Hiding the overview releases its native surface");
             owner.Show();Pump();restored=Surface();Check(restored?.Visible==true,"Showing the overview recreates its live surface");owner.Close();Pump();Check(restored!.IsDisposed&&Surface()==null,"Closing the overview releases the native surface");
-            var statOverlay=new StatOverlayWindow();
-            var statHandle=new System.Windows.Interop.WindowInteropHelper(statOverlay).EnsureHandle();
-            Check(!statOverlay.ShowActivated&&(User32.GetWindowLong(statHandle,User32.GWL_EXSTYLE)&User32.WS_EX_NOACTIVATE)!=0,"Stat overlay is non-activating before first display");statOverlay.Close();
-            using var standalone=new ThumbnailWindow();
-            standalone.Initialize(source.Handle,"Preview fixture",220,140,80,80);
-            _=standalone.Handle;
-            var label=(TextOverlayWindow)typeof(ThumbnailWindow).GetField("_textOverlay",System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic)!.GetValue(standalone)!;
-            Check(!standalone.Visible&&!label.IsVisible,"Creating a hidden preview never briefly shows its native or text windows");
-            Check(!label.ShowActivated&&(User32.GetWindowLong(label.GetHwnd(),User32.GWL_EXSTYLE)&User32.WS_EX_NOACTIVATE)!=0,"Text overlay is non-activating before its first display");
-            source.Activate();Pump();var foreground=User32.GetForegroundWindow();standalone.ShowWithOverlay();Pump();
-            Check(standalone.Visible&&label.IsVisible&&User32.GetForegroundWindow()==foreground,"Showing standalone previews preserves foreground focus");
-            var thumbField=typeof(ThumbnailWindow).GetField("_thumbId",System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic)!;
-            standalone.RefreshSourceHealth(false,null);
-            Check((IntPtr)thumbField.GetValue(standalone)! == IntPtr.Zero,"Unresponsive source releases the standalone DWM registration");
-            standalone.RefreshSourceHealth(true,null);
-            Check((IntPtr)thumbField.GetValue(standalone)! != IntPtr.Zero,"Recovered source re-registers its standalone preview");
-            standalone.HideWithOverlay();standalone.BringToFront();Pump();
-            Check(!standalone.Visible&&!label.IsVisible,"Z-order maintenance cannot resurrect hidden previews");
-            label.Close();
-            standalone.ShowWithOverlay();
-            Check(!standalone.Visible && !label.IsVisible, "Closing the WPF overlay before restoring standalone previews cannot reopen a closed window");
-            standalone.Dispose();Check(label.GetHwnd()!=IntPtr.Zero&&!label.IsVisible,"Disposing a preview also closes its text overlay");
         } finally {owner.Close();source.Close();}
         Console.WriteLine($"{_checks} native preview checks passed.");
     }

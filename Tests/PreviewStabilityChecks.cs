@@ -48,13 +48,13 @@ internal static partial class Program
         Check(!PreviewCallsMethod(activate,inject)&&!PreviewCallsMethod(activate,keybd),
             "Native client activation contains no synthetic keyboard path");
 
-        var managerActivate=typeof(ThumbnailManager).GetMethod(nameof(ThumbnailManager.ActivateEveWindow),BindingFlags.Public|BindingFlags.Instance)!;
+        var managerActivate=typeof(OverviewClientService).GetMethod(nameof(OverviewClientService.ActivateEveWindow),BindingFlags.Public|BindingFlags.Instance)!;
         var replay=typeof(User32).GetMethod(nameof(User32.FixTargetHeldKeys),BindingFlags.Public|BindingFlags.Static)!;
         Check(!PreviewCallsMethod(managerActivate,replay),
             "Preview switching never replays held keyboard or mouse state into a client");
 
-        var canCreate=typeof(ThumbnailManager).GetMethod(
-            "CanCreatePreviewForWindow",
+        var canCreate=typeof(OverviewClientService).GetMethod(
+            "CanTrackClient",
             BindingFlags.NonPublic|BindingFlags.Static);
         Check(
             canCreate!=null &&
@@ -67,9 +67,9 @@ internal static partial class Program
                         "EVE",
                         "Dead")
                 })!,
-            "Preview batch rejects dead HWNDs before native surface creation");
+            "Client tracking rejects dead HWNDs");
 
-        var activeBorderGate=typeof(ThumbnailManager).GetField(
+        var activeBorderGate=typeof(OverviewClientService).GetField(
             "_activeBorderUiPending",
             BindingFlags.NonPublic|BindingFlags.Instance);
         Check(

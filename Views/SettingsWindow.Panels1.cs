@@ -214,9 +214,9 @@ public partial class SettingsWindow
     {
         var known = GetKnownCharacters();
         // Also include active EVE window character names
-        if (_thumbnailManager != null)
+        if (_overviewClients != null)
         {
-            foreach (var name in _thumbnailManager.GetActiveCharacterNames())
+            foreach (var name in _overviewClients.GetActiveCharacterNames())
                 if (!known.Contains(name, StringComparer.OrdinalIgnoreCase))
                     known.Add(name);
             known.Sort(StringComparer.OrdinalIgnoreCase);
@@ -234,21 +234,13 @@ public partial class SettingsWindow
     {
         S.GlobalHotkeys = CmbHotkeyScope.SelectedIndex == 0;
         S.SuspendHotkey = TxtSuspendHotkey.Text;
-        S.ClickThroughHotkey = TxtClickThroughHotkey.Text;
         S.HideShowThumbnailsHotkey = TxtHideShowHotkey.Text;
-        S.HidePrimaryHotkey = TxtHidePrimaryHotkey.Text;
-        S.HideSecondaryHotkey = TxtHideSecondaryHotkey.Text;
         S.HideShowCropsHotkey = TxtHideCropsHotkey.Text;
         S.ProfileCycleForwardHotkey = TxtProfileCycleForward.Text;
         S.ProfileCycleBackwardHotkey = TxtProfileCycleBackward.Text;
         S.QuickSwitchHotkey = TxtQuickSwitchHotkey.Text;
-        S.UndoLayoutHotkey = TxtUndoLayoutHotkey.Text;
-        S.RedoLayoutHotkey = TxtRedoLayoutHotkey.Text;
-        S.LockPositions = ChkLockPositions.IsChecked == true;
         S.ShowBroadcastKeyHud = ChkBroadcastHud.IsChecked == true;
         S.AutoSoloClientAudio = ChkAutoSoloAudio.IsChecked == true;
-        S.IndividualThumbnailResize = ChkIndividualResize.IsChecked == true;
-        S.ShowSessionTimer = ChkShowTimer.IsChecked == true;
         if (int.TryParse(TxtMinimizeDelay.Text, out int md)) S.MinimizeDelay = md;
         // Clamp cycle delay to a sensible range — too low becomes unresponsive
         // (events outpace processing), too high feels broken.
@@ -268,441 +260,6 @@ public partial class SettingsWindow
     }
 
     // ═══ THUMBNAILS ═══
-    private void OnThumbnailChanged(object s, RoutedEventArgs e) { if (_loading) return; SaveThumbnails(); }
-    private void OnThumbnailChanged(object s, TextChangedEventArgs e)
-    {
-        if (_loading) return;
-        if (s is System.Windows.Controls.TextBox tb)
-        {
-            if (tb == TxtTextColor) UpdateColorPreview(TxtTextColor, PreviewTextColor);
-            else if (tb == TxtActiveColor) UpdateColorPreview(TxtActiveColor, PreviewActiveColor);
-            else if (tb == TxtInactiveColor) UpdateColorPreview(TxtInactiveColor, PreviewInactiveColor);
-            else if (tb == TxtBackgroundColor) UpdateColorPreview(TxtBackgroundColor, PreviewBgColor);
-        }
-        SaveThumbnails();
-    }
-    private void OnOpacityChanged(object s, RoutedPropertyChangedEventArgs<double> e)
-    {
-        if (_loading || TxtOpacityValue == null) return;
-        TxtOpacityValue.Text = $"{(int)SliderOpacity.Value}%";
-        S.ThumbnailOpacity = (int)(SliderOpacity.Value * 255 / 100);
-        _thumbnailManager?.ApplyOpacityToAll();
-        SaveDelayed();
-        _opacityOnlyChange = true; // Set AFTER SaveDelayed so it isn't cleared
-    }
-
-    private void SaveThumbnails()
-    {
-        S.ShowThumbnailsAlwaysOnTop = ChkAlwaysOnTop.IsChecked == true;
-        S.KeepThumbnailsAboveClients = ChkAboveClients.IsChecked == true;
-        S.HideThumbnailsOnLostFocus = ChkHideOnLostFocus.IsChecked == true;
-        S.OpacityOnHover = ChkOpacityOnHover.IsChecked == true;
-        if (CmbExclusionBadgePos?.SelectedItem is System.Windows.Controls.ComboBoxItem cbiPos
-            && cbiPos.Tag is string posTag)
-        {
-            S.CycleExclusionBadgePosition = posTag;
-        }
-        S.HideActiveThumbnail = ChkHideActive.IsChecked == true;
-        S.ShowSystemName = ChkShowSystem.IsChecked == true;
-        S.ShowProcessStats = ChkShowStats.IsChecked == true;
-        S.ProcessStatsTextSize = TxtStatsTextSize.Text;
-        S.ShowThumbnailTextOverlay = ChkShowName.IsChecked == true;
-        S.ThumbnailTextColor = TxtTextColor.Text;
-        S.ThumbnailTextSize = TxtTextSize.Text;
-        S.ThumbnailTextFont = TxtTextFont.Text;
-        if (int.TryParse(TxtTextMarginX.Text, out int mx)) S.ThumbnailTextMargins.X = mx;
-        if (int.TryParse(TxtTextMarginY.Text, out int my)) S.ThumbnailTextMargins.Y = my;
-        S.ClientHighlightColor = TxtActiveColor.Text;
-        if (int.TryParse(TxtActiveBorderThickness.Text, out int abt)) S.ClientHighlightBorderThickness = abt;
-        S.ShowClientHighlightBorder = ChkShowHighlightBorder.IsChecked == true;
-        S.ShowAllColoredBorders = ChkShowAllBorders.IsChecked == true;
-        // Sync the Groups tab checkbox
-        _loadingDepth++;
-        ChkShowGroupBorders.IsChecked = S.ShowAllColoredBorders;
-        _loadingDepth--;
-        if (int.TryParse(TxtFrameThickness.Text, out int ft)) S.InactiveClientBorderThickness = ft;
-        S.InactiveClientBorderColor = TxtInactiveColor.Text;
-        S.ThumbnailBackgroundColor = TxtBackgroundColor.Text;
-        SaveDelayed();
-    }
-
-    // ═══ ANNOTATIONS ═══
-    private void LoadAnnotations()
-    {
-        LstAnnotations.Items.Clear();
-        foreach (var kvp in S.ThumbnailAnnotations)
-            LstAnnotations.Items.Add(new { Character = kvp.Key, Label = kvp.Value });
-    }
-
-    private void OnEditAnnotation(object s, RoutedEventArgs e)
-    {
-        if (LstAnnotations.SelectedItem == null)
-        {
-            // No selection — show dropdown of online characters
-            var nameDialog = new System.Windows.Window
-            {
-                Title = "Annotation — Select Character",
-                Width = 350, Height = 180, WindowStartupLocation = WindowStartupLocation.CenterOwner,
-                Owner = this, Background = TryFindResource("BgBaseBrush") as System.Windows.Media.Brush ?? System.Windows.Media.Brushes.Black,
-                ResizeMode = ResizeMode.NoResize
-            };
-            var namePanel = new StackPanel { Margin = new Thickness(12) };
-            namePanel.Children.Add(new TextBlock
-            {
-                Text = "Select character (or type a name):",
-                Foreground = System.Windows.Media.Brushes.White,
-                Margin = new Thickness(0, 0, 0, 4)
-            });
-
-            // ComboBox with active characters, editable for manual entry
-            var charCombo = new System.Windows.Controls.ComboBox
-            {
-                IsEditable = true,
-                Margin = new Thickness(0, 0, 0, 8),
-                FontSize = 13
-            };
-
-            // Populate with online characters not already annotated
-            if (_thumbnailManager != null)
-            {
-                foreach (var name in _thumbnailManager.GetActiveCharacterNames()
-                    .Where(n => !S.ThumbnailAnnotations.ContainsKey(n))
-                    .OrderBy(n => n))
-                {
-                    charCombo.Items.Add(name);
-                }
-            }
-            if (charCombo.Items.Count > 0)
-                charCombo.SelectedIndex = 0;
-
-            namePanel.Children.Add(charCombo);
-            var okBtn = new Button { Content = "OK", Width = 80, HorizontalAlignment = System.Windows.HorizontalAlignment.Right };
-            okBtn.Click += (_, _) => { nameDialog.DialogResult = true; nameDialog.Close(); };
-            namePanel.Children.Add(okBtn);
-            nameDialog.Content = namePanel;
-            if (nameDialog.ShowDialog() != true) return;
-
-            var charName = (charCombo.Text ?? "").Trim();
-            if (string.IsNullOrWhiteSpace(charName)) return;
-
-            var existing = S.ThumbnailAnnotations.GetValueOrDefault(charName, "");
-            var labelDialog = new System.Windows.Window
-            {
-                Title = $"Annotation — {charName}",
-                Width = 350, Height = 160, WindowStartupLocation = WindowStartupLocation.CenterOwner,
-                Owner = this, Background = TryFindResource("BgBaseBrush") as System.Windows.Media.Brush ?? System.Windows.Media.Brushes.Black,
-                ResizeMode = ResizeMode.NoResize
-            };
-            var labelPanel = new StackPanel { Margin = new Thickness(12) };
-            labelPanel.Children.Add(new TextBlock { Text = "Label (e.g. Scout, DPS, Logi):", Foreground = System.Windows.Media.Brushes.White, Margin = new Thickness(0, 0, 0, 4) });
-            var labelBox = new System.Windows.Controls.TextBox { Text = existing, Margin = new Thickness(0, 0, 0, 8) };
-            labelPanel.Children.Add(labelBox);
-            var okBtn2 = new Button { Content = "OK", Width = 80, HorizontalAlignment = System.Windows.HorizontalAlignment.Right, IsDefault = true };
-            okBtn2.Click += (_, _) => { labelDialog.DialogResult = true; labelDialog.Close(); };
-            labelPanel.Children.Add(okBtn2);
-            labelDialog.Content = labelPanel;
-            labelDialog.Loaded += (_, _) => { labelBox.Focus(); labelBox.SelectAll(); };
-            if (labelDialog.ShowDialog() != true) return;
-
-            if (string.IsNullOrWhiteSpace(labelBox.Text))
-                S.ThumbnailAnnotations.Remove(charName);
-            else
-                S.ThumbnailAnnotations[charName] = labelBox.Text.Trim();
-        }
-        else
-        {
-            dynamic selected = LstAnnotations.SelectedItem;
-            string charName = selected.Character;
-            var existing = S.ThumbnailAnnotations.GetValueOrDefault(charName, "");
-
-            var labelDialog = new System.Windows.Window
-            {
-                Title = $"Annotation — {charName}",
-                Width = 350, Height = 160, WindowStartupLocation = WindowStartupLocation.CenterOwner,
-                Owner = this, Background = TryFindResource("BgBaseBrush") as System.Windows.Media.Brush ?? System.Windows.Media.Brushes.Black,
-                ResizeMode = ResizeMode.NoResize
-            };
-            var labelPanel = new StackPanel { Margin = new Thickness(12) };
-            labelPanel.Children.Add(new TextBlock { Text = "Label (e.g. Scout, DPS, Logi):", Foreground = System.Windows.Media.Brushes.White, Margin = new Thickness(0, 0, 0, 4) });
-            var labelBox = new System.Windows.Controls.TextBox { Text = existing, Margin = new Thickness(0, 0, 0, 8) };
-            labelPanel.Children.Add(labelBox);
-            var okBtn = new Button { Content = "OK", Width = 80, HorizontalAlignment = System.Windows.HorizontalAlignment.Right, IsDefault = true };
-            okBtn.Click += (_, _) => { labelDialog.DialogResult = true; labelDialog.Close(); };
-            labelPanel.Children.Add(okBtn);
-            labelDialog.Content = labelPanel;
-            labelDialog.Loaded += (_, _) => { labelBox.Focus(); labelBox.SelectAll(); };
-            if (labelDialog.ShowDialog() != true) return;
-
-            if (string.IsNullOrWhiteSpace(labelBox.Text))
-                S.ThumbnailAnnotations.Remove(charName);
-            else
-                S.ThumbnailAnnotations[charName] = labelBox.Text.Trim();
-        }
-
-        LoadAnnotations();
-        SaveDelayed();
-        _thumbnailManager?.ReapplySettings();
-    }
-
-    private void OnClearAnnotation(object s, RoutedEventArgs e)
-    {
-        if (LstAnnotations.SelectedItem == null) return;
-        dynamic selected = LstAnnotations.SelectedItem;
-        string charName = selected.Character;
-        S.ThumbnailAnnotations.Remove(charName);
-        LoadAnnotations();
-        SaveDelayed();
-        _thumbnailManager?.ReapplySettings();
-    }
-
-    // ═══ LAYOUT ═══
-    private void OnLayoutChanged(object s, RoutedEventArgs e) { if (_loading) return; SaveLayout(); }
-    private void OnLayoutChanged(object s, TextChangedEventArgs e) { if (_loading) return; SaveLayout(); }
-    private void OnLayoutChanged(object s, SelectionChangedEventArgs e) { if (_loading) return; SaveLayout(); }
-
-    private void SaveLayout()
-    {
-        if (int.TryParse(TxtStartX.Text, out int x)) S.ThumbnailStartLocation.X = x;
-        if (int.TryParse(TxtStartY.Text, out int y)) S.ThumbnailStartLocation.Y = y;
-        if (int.TryParse(TxtThumbWidth.Text, out int w)) S.ThumbnailStartLocation.Width = w;
-        if (int.TryParse(TxtThumbHeight.Text, out int h)) S.ThumbnailStartLocation.Height = h;
-        if (int.TryParse(TxtMinWidth.Text, out int mw)) S.ThumbnailMinimumSize.Width = mw;
-        if (int.TryParse(TxtMinHeight.Text, out int mh)) S.ThumbnailMinimumSize.Height = mh;
-        S.ThumbnailSnap = ChkSnap.IsChecked == true;
-        if (int.TryParse(TxtSnapDistance.Text, out int sd)) S.ThumbnailSnapDistance = sd;
-        if (int.TryParse(TxtGutter.Text, out int gut)) S.ThumbnailGutter = Math.Max(0, gut);
-        S.ConfineDragsToMonitor = ChkConfineMonitor.IsChecked == true;
-        S.ResizeThumbnailsOnHover = ChkHoverZoom.IsChecked == true;
-        if (double.TryParse(TxtHoverScale.Text, out double hs)) S.HoverScale = hs;
-        if (CmbPreferredMonitor.SelectedIndex >= 0)
-            S.PreferredMonitor = CmbPreferredMonitor.SelectedIndex + 1;
-        SaveDelayed();
-    }
-
-    private void PopulateMonitors()
-    {
-        _loadingDepth++;
-        CmbPreferredMonitor.Items.Clear();
-        var screens = WinForms.Screen.AllScreens;
-        for (int i = 0; i < screens.Length; i++)
-        {
-            var screen = screens[i];
-            string label = $"Monitor {i + 1}: {screen.Bounds.Width}×{screen.Bounds.Height}";
-            if (screen.Primary) label += " [Primary]";
-            CmbPreferredMonitor.Items.Add(label);
-        }
-        if (S.PreferredMonitor > 0 && S.PreferredMonitor <= CmbPreferredMonitor.Items.Count)
-            CmbPreferredMonitor.SelectedIndex = S.PreferredMonitor - 1;
-        _loadingDepth--;
-    }
-
-    /// <summary>Flash a large "Monitor N" badge on each physical screen for a few
-    /// seconds, using Command Center's OWN 1-based numbering (the same order shown in
-    /// the dropdown). EVE-Command-Center's monitor order need not match Windows'
-    /// display numbers, so this lets the user see which screen each number maps to
-    /// (issue #70).</summary>
-    private void OnIdentifyMonitors(object sender, RoutedEventArgs e)
-    {
-        var screens = WinForms.Screen.AllScreens;
-        var overlays = new List<Window>();
-
-        for (int i = 0; i < screens.Length; i++)
-        {
-            var bounds = screens[i].Bounds; // physical pixels
-            bool primary = screens[i].Primary;
-            int num = i + 1;
-
-            var badge = new Border
-            {
-                Background = new SolidColorBrush(Color.FromArgb(0xE0, 0x16, 0xA0, 0x85)),
-                CornerRadius = new CornerRadius(18),
-                Padding = new Thickness(48, 28, 48, 28),
-                HorizontalAlignment = System.Windows.HorizontalAlignment.Center,
-                VerticalAlignment = System.Windows.VerticalAlignment.Center,
-                Child = new TextBlock
-                {
-                    Text = primary ? $"Monitor {num}\n(Primary)" : $"Monitor {num}",
-                    Foreground = Brushes.White,
-                    FontSize = 72,
-                    FontWeight = FontWeights.Bold,
-                    TextAlignment = System.Windows.TextAlignment.Center
-                }
-            };
-
-            var win = new Window
-            {
-                WindowStyle = WindowStyle.None,
-                AllowsTransparency = true,
-                Background = Brushes.Transparent,
-                ShowInTaskbar = false,
-                Topmost = true,
-                ResizeMode = ResizeMode.NoResize,
-                ShowActivated = false,
-                Content = badge
-            };
-
-            int sx = bounds.X, sy = bounds.Y, sw = bounds.Width, sh = bounds.Height;
-            win.SourceInitialized += (_, _) =>
-            {
-                var h = new System.Windows.Interop.WindowInteropHelper(win).Handle;
-                // Click-through + no-activate so the brief overlay can't steal focus
-                // or block clicks while it's up.
-                int ex = Interop.User32.GetWindowLong(h, Interop.User32.GWL_EXSTYLE);
-                Interop.User32.SetWindowLong(h, Interop.User32.GWL_EXSTYLE,
-                    ex | Interop.User32.WS_EX_TRANSPARENT | Interop.User32.WS_EX_NOACTIVATE | Interop.User32.WS_EX_TOOLWINDOW);
-                Interop.User32.SetWindowPos(h, Interop.User32.HWND_TOPMOST, sx, sy, sw, sh,
-                    Interop.User32.SWP_NOACTIVATE | Interop.User32.SWP_SHOWWINDOW);
-            };
-            win.Show();
-            overlays.Add(win);
-        }
-
-        if (overlays.Count == 0) return;
-
-        var timer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(2.5) };
-        timer.Tick += (_, _) =>
-        {
-            timer.Stop();
-            foreach (var w in overlays) { try { w.Close(); } catch { } }
-        };
-        timer.Start();
-    }
-
-    // ── ACTIVE CHARACTER SIZING ──
-    private void PopulateActiveChars()
-    {
-        if (_loading) return;
-        _loadingDepth++;
-        CmbActiveChars.Items.Clear();
-        if (_thumbnailManager != null)
-        {
-            var chars = _thumbnailManager.GetActiveCharacterNames();
-            foreach (var c in chars)
-                CmbActiveChars.Items.Add(c);
-        }
-        _loadingDepth--;
-    }
-
-    private void OnRefreshActiveChars(object s, RoutedEventArgs e)
-    {
-        PopulateActiveChars();
-        if (CmbActiveChars.Items.Count > 0)
-            CmbActiveChars.SelectedIndex = 0;
-    }
-
-    private void OnActiveCharSelected(object s, SelectionChangedEventArgs e)
-    {
-        if (_loading) return;
-        var charName = CmbActiveChars.SelectedItem as string;
-        if (!string.IsNullOrEmpty(charName) && _thumbnailManager != null)
-        {
-            var pos = _svc.GetThumbnailPosition(charName);
-            if (pos != null)
-            {
-                TxtActiveCharW.Text = pos.Width.ToString();
-                TxtActiveCharH.Text = pos.Height.ToString();
-            }
-            else
-            {
-                TxtActiveCharW.Text = S.ThumbnailStartLocation.Width.ToString();
-                TxtActiveCharH.Text = S.ThumbnailStartLocation.Height.ToString();
-            }
-        }
-    }
-
-    private void OnApplyActiveCharSize(object s, RoutedEventArgs e)
-    {
-        var charName = CmbActiveChars.SelectedItem as string;
-        if (string.IsNullOrEmpty(charName)) return;
-
-        if (int.TryParse(TxtActiveCharW.Text, out int w) && int.TryParse(TxtActiveCharH.Text, out int h))
-        {
-            _thumbnailManager?.ApplySizeToCharacter(charName, w, h);
-        }
-    }
-
-    // ── Thumbnails panel: resize by exact pixel size (all / individual) ──
-    // Floor is 1x1 — typed sizes are deliberately unrestricted so tiny//hidden
-    // thumbnails are possible. Note the drag-resize GESTURE still stops at 80x50
-    // (ThumbnailWindow), so a thumbnail shrunk below that can't be dragged back
-    // bigger; this Settings panel is the way to restore it (pick the character,
-    // type a size). 0 or negative would create a degenerate window, hence 1.
-    private const int MinThumbW = 1;
-    private const int MinThumbH = 1;
-
-    private void PopulateResizeChars()
-    {
-        _loadingDepth++;
-        var previous = CmbResizeChar.SelectedItem as string;
-        CmbResizeChar.Items.Clear();
-        if (_thumbnailManager != null)
-        {
-            foreach (var c in _thumbnailManager.GetActiveCharacterNames())
-                CmbResizeChar.Items.Add(c);
-        }
-        _loadingDepth--;
-        if (previous != null && CmbResizeChar.Items.Contains(previous))
-            CmbResizeChar.SelectedItem = previous;
-        else if (CmbResizeChar.Items.Count > 0)
-            CmbResizeChar.SelectedIndex = 0;
-    }
-
-    private void OnRefreshResizeChars(object s, RoutedEventArgs e) => PopulateResizeChars();
-
-    private void OnResizeCharSelected(object s, SelectionChangedEventArgs e)
-    {
-        if (_loading) return;
-        var charName = CmbResizeChar.SelectedItem as string;
-        if (string.IsNullOrEmpty(charName)) return;
-
-        // Show the character's current size, falling back to the default start size.
-        var pos = _svc.GetThumbnailPosition(charName);
-        TxtResizeCharW.Text = (pos != null && pos.Width > 0 ? pos.Width : S.ThumbnailStartLocation.Width).ToString();
-        TxtResizeCharH.Text = (pos != null && pos.Height > 0 ? pos.Height : S.ThumbnailStartLocation.Height).ToString();
-    }
-
-    private void OnApplySizeToAll(object s, RoutedEventArgs e)
-    {
-        if (!int.TryParse(TxtResizeAllW.Text, out int w) || !int.TryParse(TxtResizeAllH.Text, out int h))
-        {
-            MessageBox.Show(EveCommandCenter.Services.LocalizationService.Str("L.Thumb.EnterSize", "Enter a width and height in pixels."), EveCommandCenter.Services.LocalizationService.Str("L.Thumb.Resize", "Resize Thumbnails"));
-            return;
-        }
-        w = Math.Max(w, MinThumbW);
-        h = Math.Max(h, MinThumbH);
-        TxtResizeAllW.Text = w.ToString();
-        TxtResizeAllH.Text = h.ToString();
-
-        _thumbnailManager?.ApplySizeToAll(w, h);
-
-        // Keep the Layout panel's default-size boxes in step — ApplySizeToAll
-        // updates ThumbnailStartLocation, so the UI would otherwise show stale values.
-        TxtThumbWidth.Text = w.ToString();
-        TxtThumbHeight.Text = h.ToString();
-    }
-
-    private void OnApplySizeToChar(object s, RoutedEventArgs e)
-    {
-        var charName = CmbResizeChar.SelectedItem as string;
-        if (string.IsNullOrEmpty(charName))
-        {
-            MessageBox.Show(EveCommandCenter.Services.LocalizationService.Str("L.Thumb.SelectCharFirst", "Select a character first."), EveCommandCenter.Services.LocalizationService.Str("L.Thumb.Resize", "Resize Thumbnails"));
-            return;
-        }
-        if (!int.TryParse(TxtResizeCharW.Text, out int w) || !int.TryParse(TxtResizeCharH.Text, out int h))
-        {
-            MessageBox.Show(EveCommandCenter.Services.LocalizationService.Str("L.Thumb.EnterSize", "Enter a width and height in pixels."), EveCommandCenter.Services.LocalizationService.Str("L.Thumb.Resize", "Resize Thumbnails"));
-            return;
-        }
-        w = Math.Max(w, MinThumbW);
-        h = Math.Max(h, MinThumbH);
-        TxtResizeCharW.Text = w.ToString();
-        TxtResizeCharH.Text = h.ToString();
-
-        _thumbnailManager?.ApplySizeToCharacter(charName, w, h);
-    }
-
-    // ═══ HOTKEYS ═══
     private void LoadHotkeysList()
     {
         LvHotkeys.Items.Clear();
@@ -720,7 +277,7 @@ public partial class SettingsWindow
     // everywhere. Blank names (login screens with no character yet) are skipped.
 
     private List<string> ActiveCharacterNames() =>
-        _thumbnailManager?.GetActiveCharacterNames()
+        _overviewClients?.GetActiveCharacterNames()
             .Where(n => !string.IsNullOrWhiteSpace(n)).ToList() ?? new List<string>();
 
     /// <summary>Add every active client the target doesn't already contain.
@@ -753,16 +310,6 @@ public partial class SettingsWindow
                     : EveCommandCenter.Services.LocalizationService.Str("L.Common.AllAlreadyInList", "All active clients are already in this list."),
                 title);
         return added;
-    }
-
-    private void OnAnnotationAddAllActive(object s, RoutedEventArgs e)
-    {
-        // Adds a blank label per character so the rows exist; Edit fills them in.
-        int added = AddAllActiveClients(
-            EveCommandCenter.Services.LocalizationService.Str("L.Thumb.Annotations", "Annotations"),
-            n => S.ThumbnailAnnotations.ContainsKey(n),
-            n => S.ThumbnailAnnotations[n] = "");
-        if (added > 0) { LoadAnnotations(); SaveDelayed(); }
     }
 
     private void OnHotkeyAddAllActive(object s, RoutedEventArgs e)
@@ -1244,7 +791,7 @@ public partial class SettingsWindow
             return;
         }
 
-        var active = _thumbnailManager?.GetActiveCharacterNames().ToList() ?? new List<string>();
+        var active = _overviewClients?.GetActiveCharacterNames().ToList() ?? new List<string>();
         if (active.Count == 0)
         {
             MessageBox.Show(EveCommandCenter.Services.LocalizationService.Str("L.Groups.NoActiveClients", "No active clients found."), EveCommandCenter.Services.LocalizationService.Str("L.Groups.CyclingHeader", "Cycling Hotkey Groups"));

@@ -237,18 +237,6 @@
                             Background="#12383D" Foreground="#DDF6F4"
                             BorderBrush="#39796C" ToolTip="{DynamicResource L.Tt.Backup}"
                             Margin="0,0,4,0"/>
-                    <Button Content="{DynamicResource L.Top.ResetPositions}" Padding="10,3" Click="OnResetThumbnailPositions"
-                            Background="#12383D" Foreground="#DDF6F4"
-                            BorderBrush="#39796C" ToolTip="{DynamicResource L.Tt.ResetPositions}"
-                            Margin="0,0,4,0"/>
-                    <Button Content="{DynamicResource L.Top.Undo}" Padding="10,3" Click="OnUndoLayout"
-                            Background="#12383D" Foreground="#DDF6F4"
-                            BorderBrush="#39796C" ToolTip="{DynamicResource L.Tt.Undo}"
-                            Margin="0,0,4,0"/>
-                    <Button Content="{DynamicResource L.Top.Redo}" Padding="10,3" Click="OnRedoLayout"
-                            Background="#12383D" Foreground="#DDF6F4"
-                            BorderBrush="#39796C" ToolTip="{DynamicResource L.Tt.Redo}"
-                            Margin="0,0,4,0"/>
                     <Button x:Name="BtnColorBlind" Content="{DynamicResource L.Top.CbMode}" Padding="10,3" Click="OnToggleColorBlind"
                             Background="#12383D" Foreground="#DDF6F4"
                             BorderBrush="#39796C" ToolTip="{DynamicResource L.Tt.CbMode}"/>
@@ -276,20 +264,15 @@
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <StackPanel x:Name="SidebarPanel">
                     <Button x:Name="NavGeneral" Content="{DynamicResource L.Nav.General}" Click="NavButton_Click" Tag="General" Style="{StaticResource NavBtn}"/>
-                    <Button x:Name="NavThumbnails" Content="{DynamicResource L.Nav.Thumbnails}" Click="NavButton_Click" Tag="Thumbnails" Style="{StaticResource NavBtn}"/>
-                    <Button x:Name="NavLayout" Content="{DynamicResource L.Nav.Layout}" Click="NavButton_Click" Tag="Layout" Style="{StaticResource NavBtn}"/>
+                    <Button Content="Cycling groups" Click="NavButton_Click" Tag="Groups" Style="{StaticResource NavBtn}"/>
                     <Button x:Name="NavHotkeys" Content="{DynamicResource L.Nav.Hotkeys}" Click="NavButton_Click" Tag="Hotkeys" Style="{StaticResource NavBtn}"/>
-                    <Button x:Name="NavColors" Content="{DynamicResource L.Nav.Colors}" Click="NavButton_Click" Tag="Colors" Style="{StaticResource NavBtn}"/>
-                    <Button x:Name="NavGroups" Content="{DynamicResource L.Nav.Groups}" Click="NavButton_Click" Tag="Groups" Style="{StaticResource NavBtn}"/>
                     <Button x:Name="NavAlerts" Content="{DynamicResource L.Nav.Alerts}" Click="NavButton_Click" Tag="Alerts" Style="{StaticResource NavBtn}"/>
                     <Button x:Name="NavBackup" Content=" ☁ Backup" Click="NavButton_Click" Tag="Backup" Style="{StaticResource NavBtn}"
                             ToolTip="Google Drive backup, restore and automatic backups"/>
                     <Button x:Name="NavSounds" Content="{DynamicResource L.Nav.Sounds}" Click="NavButton_Click" Tag="Sounds" Style="{StaticResource NavBtn}"/>
-                    <Button x:Name="NavVisibility" Content="{DynamicResource L.Nav.Visibility}" Click="NavButton_Click" Tag="Visibility" Style="{StaticResource NavBtn}"/>
                     <Button x:Name="NavClient" Content="{DynamicResource L.Nav.Client}" Click="NavButton_Click" Tag="Client" Style="{StaticResource NavBtn}"/>
                     <Button x:Name="NavFPS" Content="{DynamicResource L.Nav.FPS}" Click="NavButton_Click" Tag="FPSLimiter" Style="{StaticResource NavBtn}"/>
                     <Button x:Name="NavPerformance" Content="{DynamicResource L.Nav.Performance}" Click="NavButton_Click" Tag="Performance" Style="{StaticResource NavBtn}"/>
-                    <Button x:Name="NavStats" Content="{DynamicResource L.Nav.Stats}" Click="NavButton_Click" Tag="StatsOverlay" Style="{StaticResource NavBtn}"/>
                     <Button x:Name="NavManager" Content="{DynamicResource L.Nav.Manager}" Click="NavButton_Click" Tag="EVEManager" Style="{StaticResource NavBtn}"/>
                     <Button x:Name="NavCrop" Content="{DynamicResource L.Nav.Crop}" Click="NavButton_Click" Tag="Crop" Style="{StaticResource NavBtn}"/>
                     <Button x:Name="NavAbout" Content="{DynamicResource L.Nav.About}" Click="NavButton_Click" Tag="About" Style="{StaticResource NavBtn}"/>
@@ -321,7 +304,7 @@
                             <TextBlock Text="{DynamicResource L.Language.Note}" Foreground="{StaticResource TextSecondaryBrush}" FontSize="10" Margin="0,4,0,0" TextWrapping="Wrap"/>
                         </StackPanel>
                     </GroupBox>
-                    <CheckBox x:Name="ChkShowTimer" Content="{DynamicResource L.General.ShowTimer}" Margin="0,0,0,12" Checked="OnGeneralChanged" Unchecked="OnGeneralChanged"/>
+
                     <GroupBox Header="{DynamicResource L.General.HotkeyScope}">
                         <StackPanel Orientation="Horizontal">
                             <Label Content="{DynamicResource L.General.ActivationScope}"/>
@@ -339,26 +322,14 @@
                                 <TextBox x:Name="TxtSuspendHotkey" Width="120" TextChanged="OnGeneralChanged" GotFocus="OnHotkeyFieldGotFocus" LostFocus="OnHotkeyFieldLostFocus"/>
                                 <Button Content="⌨" Style="{StaticResource IconBtn}" Click="OnCaptureHotkey" Tag="TxtSuspendHotkey" Margin="4,0,0,0"/>
                             </StackPanel>
-                            <StackPanel Orientation="Horizontal" Margin="0,3">
-                                <Label Content="{DynamicResource L.General.HkClickThrough}" Width="200"/>
-                                <TextBox x:Name="TxtClickThroughHotkey" Width="120" TextChanged="OnGeneralChanged" GotFocus="OnHotkeyFieldGotFocus" LostFocus="OnHotkeyFieldLostFocus"/>
-                                <Button Content="⌨" Style="{StaticResource IconBtn}" Click="OnCaptureHotkey" Tag="TxtClickThroughHotkey" Margin="4,0,0,0"/>
-                            </StackPanel>
+
                             <StackPanel Orientation="Horizontal" Margin="0,3">
                                 <Label Content="{DynamicResource L.General.HkHideAll}" Width="200"/>
                                 <TextBox x:Name="TxtHideShowHotkey" Width="120" TextChanged="OnGeneralChanged" GotFocus="OnHotkeyFieldGotFocus" LostFocus="OnHotkeyFieldLostFocus"/>
                                 <Button Content="⌨" Style="{StaticResource IconBtn}" Click="OnCaptureHotkey" Tag="TxtHideShowHotkey" Margin="4,0,0,0"/>
                             </StackPanel>
-                            <StackPanel Orientation="Horizontal" Margin="0,3">
-                                <Label Content="{DynamicResource L.General.HkHidePrimary}" Width="200"/>
-                                <TextBox x:Name="TxtHidePrimaryHotkey" Width="120" TextChanged="OnGeneralChanged" GotFocus="OnHotkeyFieldGotFocus" LostFocus="OnHotkeyFieldLostFocus"/>
-                                <Button Content="⌨" Style="{StaticResource IconBtn}" Click="OnCaptureHotkey" Tag="TxtHidePrimaryHotkey" Margin="4,0,0,0"/>
-                            </StackPanel>
-                            <StackPanel Orientation="Horizontal" Margin="0,3">
-                                <Label Content="{DynamicResource L.General.HkHidePip}" Width="200"/>
-                                <TextBox x:Name="TxtHideSecondaryHotkey" Width="120" TextChanged="OnGeneralChanged" GotFocus="OnHotkeyFieldGotFocus" LostFocus="OnHotkeyFieldLostFocus"/>
-                                <Button Content="⌨" Style="{StaticResource IconBtn}" Click="OnCaptureHotkey" Tag="TxtHideSecondaryHotkey" Margin="4,0,0,0"/>
-                            </StackPanel>
+
+
                             <StackPanel Orientation="Horizontal" Margin="0,3">
                                 <Label Content="{DynamicResource L.General.HkHideCrops}" Width="200"/>
                                 <TextBox x:Name="TxtHideCropsHotkey" Width="120" TextChanged="OnGeneralChanged" GotFocus="OnHotkeyFieldGotFocus" LostFocus="OnHotkeyFieldLostFocus"/>
@@ -379,24 +350,16 @@
                                 <TextBox x:Name="TxtQuickSwitchHotkey" Width="120" TextChanged="OnGeneralChanged" GotFocus="OnHotkeyFieldGotFocus" LostFocus="OnHotkeyFieldLostFocus"/>
                                 <Button Content="⌨" Style="{StaticResource IconBtn}" Click="OnCaptureHotkey" Tag="TxtQuickSwitchHotkey" Margin="4,0,0,0"/>
                             </StackPanel>
-                            <StackPanel Orientation="Horizontal" Margin="0,3">
-                                <Label Content="{DynamicResource L.General.HkUndo}" Width="200" ToolTip="{DynamicResource L.Tt.UndoHotkey}"/>
-                                <TextBox x:Name="TxtUndoLayoutHotkey" Width="120" TextChanged="OnGeneralChanged" GotFocus="OnHotkeyFieldGotFocus" LostFocus="OnHotkeyFieldLostFocus"/>
-                                <Button Content="⌨" Style="{StaticResource IconBtn}" Click="OnCaptureHotkey" Tag="TxtUndoLayoutHotkey" Margin="4,0,0,0"/>
-                            </StackPanel>
-                            <StackPanel Orientation="Horizontal" Margin="0,3">
-                                <Label Content="{DynamicResource L.General.HkRedo}" Width="200" ToolTip="{DynamicResource L.Tt.RedoHotkey}"/>
-                                <TextBox x:Name="TxtRedoLayoutHotkey" Width="120" TextChanged="OnGeneralChanged" GotFocus="OnHotkeyFieldGotFocus" LostFocus="OnHotkeyFieldLostFocus"/>
-                                <Button Content="⌨" Style="{StaticResource IconBtn}" Click="OnCaptureHotkey" Tag="TxtRedoLayoutHotkey" Margin="4,0,0,0"/>
-                            </StackPanel>
+
+
                         </StackPanel>
                     </GroupBox>
                     <GroupBox Header="{DynamicResource L.General.Toggles}">
                         <StackPanel>
-                            <CheckBox x:Name="ChkLockPositions" Content="{DynamicResource L.General.LockPositions}" Checked="OnGeneralChanged" Unchecked="OnGeneralChanged"/>
+
                             <CheckBox x:Name="ChkBroadcastHud" Content="{DynamicResource L.General.BroadcastHud}" ToolTip="{DynamicResource L.Tt.BroadcastHud}" Checked="OnGeneralChanged" Unchecked="OnGeneralChanged"/>
                             <CheckBox x:Name="ChkAutoSoloAudio" Content="{DynamicResource L.General.AutoSolo}" ToolTip="{DynamicResource L.Tt.AutoSolo}" Checked="OnGeneralChanged" Unchecked="OnGeneralChanged"/>
-                            <CheckBox x:Name="ChkIndividualResize" Content="{DynamicResource L.General.IndividualResize}" Checked="OnGeneralChanged" Unchecked="OnGeneralChanged"/>
+
                             <TextBlock Text="{DynamicResource L.General.IndividualResizeNote}"
                                        Foreground="{StaticResource TextSecondaryBrush}" FontSize="10" Margin="24,0,0,0"/>
                         </StackPanel>
@@ -466,264 +429,44 @@
                 </StackPanel>
 
                 <!-- ══ 2. THUMBNAILS ══ -->
-                <StackPanel x:Name="PanelThumbnails" Visibility="Collapsed">
-                    <TextBlock Text="{DynamicResource L.Thumb.Title}" FontSize="18" FontWeight="Bold" Foreground="{StaticResource AccentBrush}" Margin="0,0,0,4"/>
-                    <TextBlock Text="{DynamicResource L.Thumb.Subtitle}" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,12"/>
-                    <GroupBox Header="{DynamicResource L.Thumb.Basic}">
-                        <StackPanel>
-                            <StackPanel Orientation="Horizontal" Margin="0,3">
-                                <Label Content="{DynamicResource L.Thumb.Opacity}" Width="180"/>
-                                <Slider x:Name="SliderOpacity" Minimum="0" Maximum="100" Width="200" ValueChanged="OnOpacityChanged"/>
-                                <TextBlock x:Name="TxtOpacityValue" VerticalAlignment="Center" Margin="8,0,0,0"/>
-                            </StackPanel>
-                            <CheckBox x:Name="ChkOpacityOnHover" Content="{DynamicResource L.Thumb.OpacityHover}" Checked="OnThumbnailChanged" Unchecked="OnThumbnailChanged"/>
-                            <StackPanel Orientation="Horizontal" Margin="0,3">
-                                <Label Content="{DynamicResource L.Thumb.ExclusionBadge}" Width="180"/>
-                                <ComboBox x:Name="CmbExclusionBadgePos" Width="140" SelectionChanged="OnThumbnailChanged"
-                                          Background="{StaticResource BgPanelBrush}" Foreground="White">
-                                    <ComboBoxItem Content="{DynamicResource L.Pos.TopLeft}" Tag="TopLeft"/>
-                                    <ComboBoxItem Content="{DynamicResource L.Pos.Top}" Tag="Top"/>
-                                    <ComboBoxItem Content="{DynamicResource L.Pos.TopRight}" Tag="TopRight"/>
-                                    <ComboBoxItem Content="{DynamicResource L.Pos.Left}" Tag="Left"/>
-                                    <ComboBoxItem Content="{DynamicResource L.Pos.Center}" Tag="Center"/>
-                                    <ComboBoxItem Content="{DynamicResource L.Pos.Right}" Tag="Right"/>
-                                    <ComboBoxItem Content="{DynamicResource L.Pos.BottomLeft}" Tag="BottomLeft"/>
-                                    <ComboBoxItem Content="{DynamicResource L.Pos.Bottom}" Tag="Bottom"/>
-                                    <ComboBoxItem Content="{DynamicResource L.Pos.BottomRight}" Tag="BottomRight"/>
-                                </ComboBox>
-                                <TextBlock Text="{DynamicResource L.Thumb.ExclusionNote}" VerticalAlignment="Center" Margin="8,0,0,0"
-                                           Foreground="{StaticResource TextSecondaryBrush}" FontSize="10"/>
-                            </StackPanel>
-                            <CheckBox x:Name="ChkAlwaysOnTop" Content="{DynamicResource L.Thumb.AlwaysOnTop}" Checked="OnThumbnailChanged" Unchecked="OnThumbnailChanged"/>
-                            <CheckBox x:Name="ChkAboveClients" Content="{DynamicResource L.Thumb.AboveClients}" ToolTip="{DynamicResource L.Tt.AboveClients}" Checked="OnThumbnailChanged" Unchecked="OnThumbnailChanged"/>
-                            <CheckBox x:Name="ChkHideOnLostFocus" Content="{DynamicResource L.Thumb.HideAltTab}" Checked="OnThumbnailChanged" Unchecked="OnThumbnailChanged"/>
-                            <CheckBox x:Name="ChkHideActive" Content="{DynamicResource L.Thumb.HideActive}" Checked="OnThumbnailChanged" Unchecked="OnThumbnailChanged"/>
-                            <CheckBox x:Name="ChkShowSystem" Content="{DynamicResource L.Thumb.ShowSystem}" Checked="OnThumbnailChanged" Unchecked="OnThumbnailChanged"/>
-                            <StackPanel Orientation="Horizontal" Margin="0,3">
-                                <CheckBox x:Name="ChkShowStats" Content="{DynamicResource L.Thumb.ShowStats}" Checked="OnThumbnailChanged" Unchecked="OnThumbnailChanged"/>
-                                <Label Content="{DynamicResource L.Common.Size}" Margin="12,0,0,0"/>
-                                <TextBox x:Name="TxtStatsTextSize" Width="35" Text="9" TextChanged="OnThumbnailChanged"/>
-                            </StackPanel>
-                        </StackPanel>
-                    </GroupBox>
-                    <GroupBox Header="{DynamicResource L.Thumb.TextOverlay}">
-                        <StackPanel>
-                            <CheckBox x:Name="ChkShowName" Content="{DynamicResource L.Thumb.ShowTextOverlay}" Checked="OnThumbnailChanged" Unchecked="OnThumbnailChanged"/>
-                            <StackPanel Orientation="Horizontal" Margin="0,3">
-                                <Label Content="{DynamicResource L.Thumb.TextColor}" Width="140"/>
-                                <TextBox x:Name="TxtTextColor" Width="100" TextChanged="OnThumbnailChanged"/>
-                                <Border x:Name="PreviewTextColor" Width="22" Height="22" Margin="4,0,0,0" BorderBrush="Gray" BorderThickness="1"/>
-                                <Button Content="🎨" Style="{StaticResource IconBtn}" Click="OnPickColor" Tag="TxtTextColor" Margin="4,0,0,0"/>
-                            </StackPanel>
-                            <StackPanel Orientation="Horizontal" Margin="0,3">
-                                <Label Content="{DynamicResource L.Thumb.TextSize}" Width="140"/>
-                                <TextBox x:Name="TxtTextSize" Width="50" TextChanged="OnThumbnailChanged"/>
-                            </StackPanel>
-                            <StackPanel Orientation="Horizontal" Margin="0,3">
-                                <Label Content="{DynamicResource L.Thumb.TextFont}" Width="140"/>
-                                <TextBox x:Name="TxtTextFont" Width="150" TextChanged="OnThumbnailChanged"/>
-                            </StackPanel>
-                            <StackPanel Orientation="Horizontal" Margin="0,3">
-                                <Label Content="{DynamicResource L.Thumb.TextMargins}" Width="140"/>
-                                <TextBox x:Name="TxtTextMarginX" Width="50" TextChanged="OnThumbnailChanged"/>
-                                <TextBlock Text=" × " VerticalAlignment="Center"/>
-                                <TextBox x:Name="TxtTextMarginY" Width="50" TextChanged="OnThumbnailChanged"/>
-                            </StackPanel>
-                        </StackPanel>
-                    </GroupBox>
-                    <GroupBox Header="{DynamicResource L.Thumb.Borders}">
-                        <StackPanel>
-                            <StackPanel Orientation="Horizontal" Margin="0,3">
-                                <Label Content="{DynamicResource L.Thumb.HighlightColor}" Width="160"/>
-                                <TextBox x:Name="TxtActiveColor" Width="100" TextChanged="OnThumbnailChanged"/>
-                                <Border x:Name="PreviewActiveColor" Width="22" Height="22" Margin="4,0,0,0" BorderBrush="Gray" BorderThickness="1"/>
-                                <Button Content="🎨" Style="{StaticResource IconBtn}" Click="OnPickColor" Tag="TxtActiveColor" Margin="4,0,0,0"/>
-                            </StackPanel>
-                            <StackPanel Orientation="Horizontal" Margin="0,3">
-                                <Label Content="{DynamicResource L.Thumb.HighlightBorder}" Width="160"/>
-                                <TextBox x:Name="TxtActiveBorderThickness" Width="50" TextChanged="OnThumbnailChanged"/>
-                            </StackPanel>
-                            <CheckBox x:Name="ChkShowHighlightBorder" Content="{DynamicResource L.Thumb.ShowHighlightBorder}" Checked="OnThumbnailChanged" Unchecked="OnThumbnailChanged"/>
-                            <CheckBox x:Name="ChkShowAllBorders" Content="{DynamicResource L.Thumb.ShowAllBorders}" Checked="OnThumbnailChanged" Unchecked="OnThumbnailChanged"/>
-                            <StackPanel Orientation="Horizontal" Margin="0,3">
-                                <Label Content="{DynamicResource L.Thumb.InactiveBorder}" Width="160"/>
-                                <TextBox x:Name="TxtFrameThickness" Width="50" TextChanged="OnThumbnailChanged"/>
-                            </StackPanel>
-                            <StackPanel Orientation="Horizontal" Margin="0,3">
-                                <Label Content="{DynamicResource L.Thumb.InactiveBorderColor}" Width="160"/>
-                                <TextBox x:Name="TxtInactiveColor" Width="100" TextChanged="OnThumbnailChanged"/>
-                                <Border x:Name="PreviewInactiveColor" Width="22" Height="22" Margin="4,0,0,0" BorderBrush="Gray" BorderThickness="1"/>
-                                <Button Content="🎨" Style="{StaticResource IconBtn}" Click="OnPickColor" Tag="TxtInactiveColor" Margin="4,0,0,0"/>
-                            </StackPanel>
-                            <StackPanel Orientation="Horizontal" Margin="0,3">
-                                <Label Content="{DynamicResource L.Thumb.BgColor}" Width="160"/>
-                                <TextBox x:Name="TxtBackgroundColor" Width="100" TextChanged="OnThumbnailChanged"/>
-                                <Border x:Name="PreviewBgColor" Width="22" Height="22" Margin="4,0,0,0" BorderBrush="Gray" BorderThickness="1"/>
-                                <Button Content="🎨" Style="{StaticResource IconBtn}" Click="OnPickColor" Tag="TxtBackgroundColor" Margin="4,0,0,0"/>
-                            </StackPanel>
-                        </StackPanel>
-                    </GroupBox>
-                    <GroupBox Header="{DynamicResource L.Thumb.Annotations}">
-                        <StackPanel>
-                            <TextBlock Text="{DynamicResource L.Thumb.AnnotationsNote}" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,6" TextWrapping="Wrap"/>
-                            <ListView x:Name="LstAnnotations" Height="120" Margin="0,0,0,4"
-                                      Background="{StaticResource BgPanelBrush}" Foreground="White"
-                                      SelectionMode="Single">
-                                <ListView.View>
-                                    <GridView>
-                                        <GridViewColumn Header="{DynamicResource L.Common.Character}" Width="180" DisplayMemberBinding="{Binding Character}"/>
-                                        <GridViewColumn Header="{DynamicResource L.Common.Label}" Width="120" DisplayMemberBinding="{Binding Label}"/>
-                                    </GridView>
-                                </ListView.View>
-                            </ListView>
-                            <StackPanel Orientation="Horizontal">
-                                <Button Content="{DynamicResource L.Common.Edit}" Padding="10,4" Click="OnEditAnnotation" Margin="0,0,4,0"/>
-                                <Button Content="{DynamicResource L.Common.Clear}" Padding="10,4" Click="OnClearAnnotation" Margin="0,0,8,0"/>
-                                <Button Content="{DynamicResource L.Groups.AddAllActive}" Padding="8,3" Click="OnAnnotationAddAllActive" Margin="0" Background="{StaticResource AccentBrush}" Foreground="White" BorderThickness="0"/>
-                            </StackPanel>
-                        </StackPanel>
-                    </GroupBox>
-                    <GroupBox Header="{DynamicResource L.Thumb.Resize}">
-                        <StackPanel>
-                            <TextBlock Text="{DynamicResource L.Thumb.ResizeNote}" Foreground="{StaticResource TextSecondaryBrush}" FontSize="10" Margin="0,0,0,6" TextWrapping="Wrap"/>
 
-                            <!-- Resize ALL thumbnails to an exact pixel size -->
-                            <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
-                                <Label Content="{DynamicResource L.Thumb.ResizeAll}" Width="130"/>
-                                <Label Content="{DynamicResource L.Common.W}"/><TextBox x:Name="TxtResizeAllW" Width="60"/>
-                                <Label Content="{DynamicResource L.Common.H}" Margin="8,0,0,0"/><TextBox x:Name="TxtResizeAllH" Width="60"/>
-                                <Button Content="{DynamicResource L.Thumb.ApplyAll}" Click="OnApplySizeToAll" Margin="12,0,0,0"
-                                        Background="{StaticResource AccentBrush}" Foreground="White" BorderThickness="0" Padding="10,3"/>
-                            </StackPanel>
-
-                            <!-- Resize ONE character's thumbnail -->
-                            <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
-                                <Label Content="{DynamicResource L.Thumb.ResizeOne}" Width="130"/>
-                                <ComboBox x:Name="CmbResizeChar" Width="160" SelectionChanged="OnResizeCharSelected"
-                                          Background="{StaticResource BgPanelBrush}" Foreground="White"/>
-                                <Button Content="{DynamicResource L.Common.Refresh}" Click="OnRefreshResizeChars" Padding="5,2" Margin="4,0,0,0"/>
-                            </StackPanel>
-                            <StackPanel Orientation="Horizontal" Margin="130,4,0,0">
-                                <Label Content="{DynamicResource L.Common.W}"/><TextBox x:Name="TxtResizeCharW" Width="60"/>
-                                <Label Content="{DynamicResource L.Common.H}" Margin="8,0,0,0"/><TextBox x:Name="TxtResizeCharH" Width="60"/>
-                                <Button Content="{DynamicResource L.Thumb.ApplyOne}" Click="OnApplySizeToChar" Margin="12,0,0,0"
-                                        Background="{StaticResource AccentBrush}" Foreground="White" BorderThickness="0" Padding="10,3"/>
-                            </StackPanel>
-                        </StackPanel>
-                    </GroupBox>
-                </StackPanel>
 
                 <!-- ══ 3. LAYOUT ══ -->
-                <StackPanel x:Name="PanelLayout" Visibility="Collapsed">
-                    <TextBlock Text="{DynamicResource L.Layout.Title}" FontSize="18" FontWeight="Bold" Foreground="{StaticResource AccentBrush}" Margin="0,0,0,4"/>
-                    <TextBlock Text="{DynamicResource L.Layout.Subtitle}" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,12"/>
-                    <GroupBox Header="{DynamicResource L.Layout.DefaultLocation}">
-                        <StackPanel Orientation="Horizontal">
-                            <Label Content="{DynamicResource L.Common.X}"/><TextBox x:Name="TxtStartX" Width="60" TextChanged="OnLayoutChanged"/>
-                            <Label Content="{DynamicResource L.Common.Y}" Margin="8,0,0,0"/><TextBox x:Name="TxtStartY" Width="60" TextChanged="OnLayoutChanged"/>
-                            <Label Content="{DynamicResource L.Common.W}" Margin="8,0,0,0"/><TextBox x:Name="TxtThumbWidth" Width="60" TextChanged="OnLayoutChanged"/>
-                            <Label Content="{DynamicResource L.Common.H}" Margin="8,0,0,0"/><TextBox x:Name="TxtThumbHeight" Width="60" TextChanged="OnLayoutChanged"/>
-                        </StackPanel>
-                    </GroupBox>
-                    <GroupBox Header="{DynamicResource L.Layout.ActiveCharSizing}">
-                        <StackPanel>
-                            <TextBlock Text="{DynamicResource L.Layout.ActiveCharNote}" Foreground="{StaticResource TextSecondaryBrush}" FontSize="10" Margin="0,0,0,6"/>
-                            <StackPanel Orientation="Horizontal" Margin="0,4,0,4">
-                                <Label Content="{DynamicResource L.Layout.Character}"/>
-                                <ComboBox x:Name="CmbActiveChars" Width="180" SelectionChanged="OnActiveCharSelected"
-                                          Background="{StaticResource BgPanelBrush}" Foreground="White"/>
-                                <Button Content="{DynamicResource L.Common.Refresh}" Click="OnRefreshActiveChars" Padding="5,2" Margin="4,0,0,0"/>
-                            </StackPanel>
-                            <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
-                                <Label Content="{DynamicResource L.Common.W}"/><TextBox x:Name="TxtActiveCharW" Width="60"/>
-                                <Label Content="{DynamicResource L.Common.H}" Margin="8,0,0,0"/><TextBox x:Name="TxtActiveCharH" Width="60"/>
-                                <Button Content="{DynamicResource L.Layout.ApplySize}" Click="OnApplyActiveCharSize" Margin="12,0,0,0"
-                                        Background="{StaticResource AccentBrush}" Foreground="White" BorderThickness="0" Padding="10,3"/>
-                            </StackPanel>
-                        </StackPanel>
-                    </GroupBox>
-                    <GroupBox Header="{DynamicResource L.Layout.MinSize}">
-                        <StackPanel Orientation="Horizontal">
-                            <Label Content="{DynamicResource L.Common.W}"/><TextBox x:Name="TxtMinWidth" Width="60" TextChanged="OnLayoutChanged"/>
-                            <Label Content="{DynamicResource L.Common.H}" Margin="8,0,0,0"/><TextBox x:Name="TxtMinHeight" Width="60" TextChanged="OnLayoutChanged"/>
-                        </StackPanel>
-                    </GroupBox>
-                    <GroupBox Header="{DynamicResource L.Layout.Snapping}">
-                        <StackPanel>
-                            <CheckBox x:Name="ChkSnap" Content="{DynamicResource L.Layout.EnableSnap}" Checked="OnLayoutChanged" Unchecked="OnLayoutChanged"/>
-                            <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
-                                <Label Content="{DynamicResource L.Layout.SnapDistance}"/>
-                                <TextBox x:Name="TxtSnapDistance" Width="60" TextChanged="OnLayoutChanged"/>
-                                <Label Content="{DynamicResource L.Common.Px}"/>
-                            </StackPanel>
-                            <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
-                                <Label Content="{DynamicResource L.Layout.EdgeGutter}" ToolTip="{DynamicResource L.Tt.EdgeGutter}"/>
-                                <TextBox x:Name="TxtGutter" Width="60" TextChanged="OnLayoutChanged"
-                                         ToolTip="{DynamicResource L.Tt.EdgeGutter}"/>
-                                <Label Content="{DynamicResource L.Common.Px}"/>
-                            </StackPanel>
-                            <CheckBox x:Name="ChkConfineMonitor" Content="{DynamicResource L.Layout.ConfineMonitor}" Margin="0,6,0,0"
-                                      ToolTip="{DynamicResource L.Tt.ConfineMonitor}"
-                                      Checked="OnLayoutChanged" Unchecked="OnLayoutChanged"/>
-                        </StackPanel>
-                    </GroupBox>
-                    <GroupBox Header="{DynamicResource L.Layout.Presets}">
-                        <StackPanel>
-                            <TextBlock Text="{DynamicResource L.Layout.PresetsNote}"
-                                       Foreground="{StaticResource TextSecondaryBrush}" FontSize="10" Margin="0,0,0,6" TextWrapping="Wrap"/>
-                            <StackPanel Orientation="Horizontal">
-                                <ComboBox x:Name="CmbLayoutPresets" Width="180" IsEditable="True" StaysOpenOnEdit="True"
-                                          Background="{StaticResource BgPanelBrush}" Foreground="White"
-                                          ToolTip="{DynamicResource L.Tt.PresetCombo}"/>
-                                <Button Content="{DynamicResource L.Common.Save}" Click="OnSaveLayoutPreset" Margin="6,0,0,0" Padding="8,3"
-                                        Background="#12383D" Foreground="#DDF6F4" BorderBrush="#39796C"
-                                        ToolTip="{DynamicResource L.Tt.PresetSave}"/>
-                                <Button Content="{DynamicResource L.Common.Apply}" Click="OnApplyLayoutPreset" Margin="4,0,0,0" Padding="8,3"
-                                        Background="#12383D" Foreground="#DDF6F4" BorderBrush="#39796C"/>
-                                <Button Content="{DynamicResource L.Common.Delete}" Click="OnDeleteLayoutPreset" Margin="4,0,0,0" Padding="8,3"
-                                        Background="#12383D" Foreground="#993333" BorderBrush="#39796C"/>
-                            </StackPanel>
-                            <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
-                                <Button Content="{DynamicResource L.Layout.Remap}" Click="OnRemapLayoutPreset" Padding="8,3"
-                                        Background="#12383D" Foreground="#DDF6F4" BorderBrush="#39796C"
-                                        ToolTip="{DynamicResource L.Tt.PresetRemap}"/>
-                                <Button Content="{DynamicResource L.Common.Export}" Click="OnExportLayoutPreset" Margin="4,0,0,0" Padding="8,3"
-                                        Background="#12383D" Foreground="#DDF6F4" BorderBrush="#39796C"
-                                        ToolTip="{DynamicResource L.Tt.PresetExport}"/>
-                                <Button Content="{DynamicResource L.Common.Import}" Click="OnImportLayoutPreset" Margin="4,0,0,0" Padding="8,3"
-                                        Background="#12383D" Foreground="#DDF6F4" BorderBrush="#39796C"
-                                        ToolTip="{DynamicResource L.Tt.PresetImport}"/>
-                            </StackPanel>
-                        </StackPanel>
-                    </GroupBox>
-                    <GroupBox Header="{DynamicResource L.Layout.HoverZoom}">
-                        <StackPanel>
-                            <CheckBox x:Name="ChkHoverZoom" Content="{DynamicResource L.Layout.ZoomOnHover}" Checked="OnLayoutChanged" Unchecked="OnLayoutChanged"/>
-                            <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
-                                <Label Content="{DynamicResource L.Layout.ZoomScale}"/>
-                                <TextBox x:Name="TxtHoverScale" Width="60" TextChanged="OnLayoutChanged"/>
-                                <Label Content="{DynamicResource L.Common.Multiplier}"/>
-                            </StackPanel>
-                        </StackPanel>
-                    </GroupBox>
-                    <GroupBox Header="{DynamicResource L.Layout.Monitor}">
-                        <StackPanel>
-                            <StackPanel Orientation="Horizontal">
-                                <Label Content="{DynamicResource L.Layout.PreferredMonitor}" VerticalAlignment="Center"/>
-                                <ComboBox x:Name="CmbPreferredMonitor" Width="200" SelectionChanged="OnLayoutChanged"
-                                          Background="{StaticResource BgPanelBrush}" Foreground="White"/>
-                                <Button Content="{DynamicResource L.Layout.Identify}" Click="OnIdentifyMonitors" Padding="10,3" Margin="8,0,0,0"
-                                        Background="#12383D" Foreground="#DDF6F4" BorderBrush="{StaticResource BorderBrush}"
-                                        VerticalAlignment="Center"
-                                        ToolTip="{DynamicResource L.Tt.Identify}"/>
-                            </StackPanel>
-                            <TextBlock Text="{DynamicResource L.Layout.MonitorNote}"
-                                       Foreground="{StaticResource TextSecondaryBrush}" FontSize="10" Margin="0,6,0,0" TextWrapping="Wrap"/>
-                        </StackPanel>
-                    </GroupBox>
-                </StackPanel>
+
 
                 <!-- ══ 4. CHAR HOTKEYS ══ -->
+                <StackPanel x:Name="PanelGroups" Visibility="Collapsed"><GroupBox Header="{DynamicResource L.Groups.CyclingHeader}">
+                        <StackPanel>
+                            <TextBlock Text="{DynamicResource L.Groups.CyclingNote}" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,6"/>
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                                <ComboBox x:Name="CmbHotkeyGroup" Width="200" SelectionChanged="OnHotkeyGroupChanged"
+                                          Background="{StaticResource BgPanelBrush}" Foreground="White"/>
+                                <Button Content="{DynamicResource L.Common.New}" Padding="8,3" Click="OnHotkeyGroupNew" Margin="4,0,0,0"/>
+                                <Button Content="{DynamicResource L.Common.DeleteWord}" Padding="8,3" Click="OnHotkeyGroupDelete" Margin="4,0,0,0"/>
+                            </StackPanel>
+                            <!-- Drag-to-reorder pills: the order here IS the cycle order -->
+                            <TextBlock Text="{DynamicResource L.Groups.CycleOrderNote}" Foreground="{StaticResource TextSecondaryBrush}" FontSize="10" Margin="0,0,0,4" TextWrapping="Wrap"/>
+                            <Border BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" Background="{StaticResource BgPanelBrush}"
+                                    MinHeight="44" Padding="4" Margin="0,0,0,6" AllowDrop="True" Drop="OnPillPanelDrop" DragOver="OnPillPanelDragOver">
+                                <WrapPanel x:Name="HotkeyGroupPills" Orientation="Horizontal"/>
+                            </Border>
+                            <TextBox x:Name="TxtHotkeyGroupChars" Height="100" AcceptsReturn="True" VerticalScrollBarVisibility="Auto"
+                                     TextChanged="OnHotkeyGroupCharsChanged" IsEnabled="False"/>
+                            <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                                <Label Content="{DynamicResource L.Groups.Forward}"/>
+                                <TextBox x:Name="TxtGroupFwd" Width="120" TextChanged="OnHotkeyGroupKeysChanged" IsEnabled="False"/>
+                                <Button Content="⌨" Style="{StaticResource IconBtn}" Click="OnCaptureHotkey" Tag="TxtGroupFwd" Margin="4,0,0,0"/>
+                                <Label Content="{DynamicResource L.Groups.Backward}" Margin="8,0,0,0"/>
+                                <TextBox x:Name="TxtGroupBwd" Width="120" TextChanged="OnHotkeyGroupKeysChanged" IsEnabled="False"/>
+                                <Button Content="⌨" Style="{StaticResource IconBtn}" Click="OnCaptureHotkey" Tag="TxtGroupBwd" Margin="4,0,0,0"/>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                                <Button Content="{DynamicResource L.Common.AddCharacter}" Padding="8,3" Click="OnHotkeyGroupAddChar" Margin="0,0,8,0"/>
+                                <Button Content="{DynamicResource L.Groups.AddAllActive}" Padding="8,3" Click="OnHotkeyGroupAddAllActive"
+                                        Background="{StaticResource AccentBrush}" Foreground="White" BorderThickness="0"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </GroupBox></StackPanel>
                 <StackPanel x:Name="PanelHotkeys" Visibility="Collapsed">
                     <TextBlock Text="{DynamicResource L.Hk.Title}" FontSize="18" FontWeight="Bold" Foreground="{StaticResource AccentBrush}" Margin="0,0,0,4"/>
                     <TextBlock Text="{DynamicResource L.Hk.Subtitle}" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,12"/>
@@ -759,111 +502,10 @@
                 </StackPanel>
 
                 <!-- ══ 5. COLORS ══ -->
-                <StackPanel x:Name="PanelColors" Visibility="Collapsed">
-                    <TextBlock Text="{DynamicResource L.Colors.Title}" FontSize="18" FontWeight="Bold" Foreground="{StaticResource AccentBrush}" Margin="0,0,0,4"/>
-                    <TextBlock Text="{DynamicResource L.Colors.Subtitle}" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,12"/>
-                    <GroupBox Header="{DynamicResource L.Colors.Header}">
-                        <StackPanel>
-                            <CheckBox x:Name="ChkCustomColorsActive" Content="{DynamicResource L.Colors.Enable}"
-                                      Checked="OnColorChanged" Unchecked="OnColorChanged"/>
-                            <ListView x:Name="LvColors" Height="250" Margin="0,8,0,0"
-                                      Background="{StaticResource BgPanelBrush}" Foreground="{StaticResource TextPrimaryBrush}"
-                                      BorderBrush="{StaticResource BorderBrush}" SelectionChanged="OnColorRowSelected">
-                                <ListView.View>
-                                    <GridView>
-                                        <GridViewColumn Header="{DynamicResource L.Common.Character}" Width="140" DisplayMemberBinding="{Binding Character}"/>
-                                        <GridViewColumn Header="{DynamicResource L.Colors.ColActiveBorder}" Width="95" DisplayMemberBinding="{Binding ActiveBorder}"/>
-                                        <GridViewColumn Header="{DynamicResource L.Colors.ColTextColor}" Width="95" DisplayMemberBinding="{Binding TextColor}"/>
-                                        <GridViewColumn Header="{DynamicResource L.Colors.ColInactiveBorder}" Width="95" DisplayMemberBinding="{Binding InactiveBorder}"/>
-                                    </GridView>
-                                </ListView.View>
-                            </ListView>
-                            <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
-                                <Button Content="{DynamicResource L.Common.Add}" Padding="8,3" Click="OnColorAdd" Margin="0,0,4,0"/>
-                                <Button Content="{DynamicResource L.Common.EditItem}" Padding="8,3" Click="OnColorEdit" Margin="0,0,4,0"/>
-                                <Button Content="{DynamicResource L.Common.DeleteItem}" Padding="8,3" Click="OnColorDelete" Margin="0,0,8,0"/>
-                                <Button Content="{DynamicResource L.Groups.AddAllActive}" Padding="8,3" Click="OnColorAddAllActive" Margin="0" Background="{StaticResource AccentBrush}" Foreground="White" BorderThickness="0"/>
-                            </StackPanel>
-                            <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
-                                <TextBlock Text="{DynamicResource L.Colors.Preview}" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                                <TextBlock Text="{DynamicResource L.Colors.Active}" FontSize="9" Foreground="{StaticResource AccentBrush}" VerticalAlignment="Center" Margin="0,0,4,0"/>
-                                <Border x:Name="ColorPreviewActive" Width="24" Height="20" BorderBrush="Gray" BorderThickness="1" Margin="0,0,8,0"/>
-                                <TextBlock Text="{DynamicResource L.Colors.Text}" FontSize="9" Foreground="{StaticResource AccentBrush}" VerticalAlignment="Center" Margin="0,0,4,0"/>
-                                <Border x:Name="ColorPreviewText" Width="24" Height="20" BorderBrush="Gray" BorderThickness="1" Margin="0,0,8,0"/>
-                                <TextBlock Text="{DynamicResource L.Colors.Inactive}" FontSize="9" Foreground="{StaticResource AccentBrush}" VerticalAlignment="Center" Margin="0,0,4,0"/>
-                                <Border x:Name="ColorPreviewInactive" Width="24" Height="20" BorderBrush="Gray" BorderThickness="1"/>
-                            </StackPanel>
-                        </StackPanel>
-                    </GroupBox>
-                </StackPanel>
+
 
                 <!-- ══ 6. GROUPS ══ -->
-                <StackPanel x:Name="PanelGroups" Visibility="Collapsed">
-                    <TextBlock Text="{DynamicResource L.Groups.Title}" FontSize="18" FontWeight="Bold" Foreground="{StaticResource AccentBrush}" Margin="0,0,0,4"/>
-                    <TextBlock Text="{DynamicResource L.Groups.Subtitle}" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,12"/>
-                    <GroupBox Header="{DynamicResource L.Groups.Header}">
-                        <StackPanel>
-                            <CheckBox x:Name="ChkShowGroupBorders" Content="{DynamicResource L.Groups.ShowBorders}" Checked="OnGroupBordersChanged" Unchecked="OnGroupBordersChanged"/>
-                            <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
-                                <Label Content="{DynamicResource L.Groups.SelectGroup}"/>
-                                <ComboBox x:Name="CmbGroupSelect" Width="200" SelectionChanged="OnGroupSelectChanged"
-                                          Background="{StaticResource BgPanelBrush}" Foreground="White"/>
-                            </StackPanel>
-                            <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
-                                <Label Content="{DynamicResource L.Groups.GroupName}" Width="100"/>
-                                <TextBox x:Name="TxtGroupName" Width="200"/>
-                            </StackPanel>
-                            <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
-                                <Label Content="{DynamicResource L.Groups.BorderColor}" Width="100"/>
-                                <TextBox x:Name="TxtGroupColor" Width="100" TextChanged="OnGroupDataChanged"/>
-                                <Border x:Name="PreviewGroupColor" Width="22" Height="22" Margin="4,0,0,0" BorderBrush="Gray" BorderThickness="1"/>
-                                <Button Content="🎨" Style="{StaticResource IconBtn}" Click="OnPickColor" Tag="TxtGroupColor" Margin="4,0,0,0"/>
-                            </StackPanel>
-                            <TextBlock Text="{DynamicResource L.Groups.CharsPerLine}" Margin="0,8,0,2"/>
-                            <TextBox x:Name="TxtGroupChars" Height="120" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" TextChanged="OnGroupDataChanged"/>
-                            <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
-                                <Button Content="{DynamicResource L.Common.AddCharacter}" Padding="8,3" Click="OnGroupAddChar" Margin="0,0,8,0"/>
-                                <Button Content="{DynamicResource L.Groups.AddAllActive}" Padding="8,3" Click="OnGroupAddAllActive" Margin="0,0,8,0" Background="{StaticResource AccentBrush}" Foreground="White" BorderThickness="0"/>
-                                <Button Content="{DynamicResource L.Groups.SaveGroup}" Padding="8,3" Click="OnGroupSave" Margin="0,0,8,0"
-                                        Background="{StaticResource AccentBrush}" Foreground="White" BorderThickness="0"/>
-                                <Button Content="{DynamicResource L.Groups.DeleteGroup}" Padding="8,3" Click="OnGroupDelete"
-                                        Foreground="#FF993333" BorderBrush="#FF993333"/>
-                            </StackPanel>
-                        </StackPanel>
-                    </GroupBox>
-                    <GroupBox Header="{DynamicResource L.Groups.CyclingHeader}">
-                        <StackPanel>
-                            <TextBlock Text="{DynamicResource L.Groups.CyclingNote}" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,6"/>
-                            <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
-                                <ComboBox x:Name="CmbHotkeyGroup" Width="200" SelectionChanged="OnHotkeyGroupChanged"
-                                          Background="{StaticResource BgPanelBrush}" Foreground="White"/>
-                                <Button Content="{DynamicResource L.Common.New}" Padding="8,3" Click="OnHotkeyGroupNew" Margin="4,0,0,0"/>
-                                <Button Content="{DynamicResource L.Common.DeleteWord}" Padding="8,3" Click="OnHotkeyGroupDelete" Margin="4,0,0,0"/>
-                            </StackPanel>
-                            <!-- Drag-to-reorder pills: the order here IS the cycle order -->
-                            <TextBlock Text="{DynamicResource L.Groups.CycleOrderNote}" Foreground="{StaticResource TextSecondaryBrush}" FontSize="10" Margin="0,0,0,4" TextWrapping="Wrap"/>
-                            <Border BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" Background="{StaticResource BgPanelBrush}"
-                                    MinHeight="44" Padding="4" Margin="0,0,0,6" AllowDrop="True" Drop="OnPillPanelDrop" DragOver="OnPillPanelDragOver">
-                                <WrapPanel x:Name="HotkeyGroupPills" Orientation="Horizontal"/>
-                            </Border>
-                            <TextBox x:Name="TxtHotkeyGroupChars" Height="100" AcceptsReturn="True" VerticalScrollBarVisibility="Auto"
-                                     TextChanged="OnHotkeyGroupCharsChanged" IsEnabled="False"/>
-                            <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
-                                <Label Content="{DynamicResource L.Groups.Forward}"/>
-                                <TextBox x:Name="TxtGroupFwd" Width="120" TextChanged="OnHotkeyGroupKeysChanged" IsEnabled="False"/>
-                                <Button Content="⌨" Style="{StaticResource IconBtn}" Click="OnCaptureHotkey" Tag="TxtGroupFwd" Margin="4,0,0,0"/>
-                                <Label Content="{DynamicResource L.Groups.Backward}" Margin="8,0,0,0"/>
-                                <TextBox x:Name="TxtGroupBwd" Width="120" TextChanged="OnHotkeyGroupKeysChanged" IsEnabled="False"/>
-                                <Button Content="⌨" Style="{StaticResource IconBtn}" Click="OnCaptureHotkey" Tag="TxtGroupBwd" Margin="4,0,0,0"/>
-                            </StackPanel>
-                            <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
-                                <Button Content="{DynamicResource L.Common.AddCharacter}" Padding="8,3" Click="OnHotkeyGroupAddChar" Margin="0,0,8,0"/>
-                                <Button Content="{DynamicResource L.Groups.AddAllActive}" Padding="8,3" Click="OnHotkeyGroupAddAllActive"
-                                        Background="{StaticResource AccentBrush}" Foreground="White" BorderThickness="0"/>
-                            </StackPanel>
-                        </StackPanel>
-                    </GroupBox>
-                </StackPanel>
+
 
                 <!-- BACKUP | Access the existing Google Drive cloud recovery tool -->
                 <StackPanel x:Name="PanelBackup" Visibility="Collapsed">
@@ -948,7 +590,7 @@
                             </StackPanel>
                             <TextBlock Text="{DynamicResource L.Alerts.BorderWidthNote}"
                                        Foreground="{StaticResource TextSecondaryBrush}" FontSize="10" Margin="0,0,0,8" TextWrapping="Wrap"/>
-                            <CheckBox x:Name="ChkAlertBadgeOnThumbnails" Content="{DynamicResource L.Alerts.BadgeShow}" Checked="OnAlertChanged" Unchecked="OnAlertChanged"/>
+                            <CheckBox x:Name="ChkAlertBadgeOnThumbnails" Content="Show alert badges on overview cards" Checked="OnAlertChanged" Unchecked="OnAlertChanged"/>
                             <TextBlock Text="{DynamicResource L.Alerts.BadgeNote}"
                                        Foreground="{StaticResource TextSecondaryBrush}" FontSize="10" Margin="24,0,0,8" TextWrapping="Wrap"/>
                             <!-- Per-event rows built in code-behind -->
@@ -1032,71 +674,7 @@
                 </StackPanel>
 
                 <!-- ══ 9. VISIBILITY ══ -->
-                <StackPanel x:Name="PanelVisibility" Visibility="Collapsed">
-                    <TextBlock Text="{DynamicResource L.Vis.Title}" FontSize="18" FontWeight="Bold" Foreground="{StaticResource AccentBrush}" Margin="0,0,0,4"/>
-                    <TextBlock Text="{DynamicResource L.Vis.Subtitle}" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,12"/>
-                    <GroupBox Header="{DynamicResource L.Vis.Primary}">
-                        <StackPanel>
-                            <Button Content="{DynamicResource L.Common.RefreshBtn}" Click="OnRefreshVisibility" Padding="10,3" HorizontalAlignment="Left"
-                                    Background="#12383D" Foreground="#DDF6F4"
-                                    BorderBrush="#39796C" Margin="0,0,0,8"/>
-                            <TextBlock Text="{DynamicResource L.Vis.CheckToHide}" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,4"/>
-                            <TextBlock Text="{DynamicResource L.Vis.Tip}"
-                                       Foreground="{StaticResource TextSecondaryBrush}" FontSize="10" Margin="0,0,0,6"/>
-                            <ListView x:Name="LvVisibility" Height="250"
-                                      Background="{StaticResource BgPanelBrush}" Foreground="{StaticResource TextPrimaryBrush}"
-                                      BorderBrush="{StaticResource BorderBrush}">
-                                <ListView.View>
-                                    <GridView>
-                                        <GridViewColumn Header="{DynamicResource L.Common.Character}" Width="180" DisplayMemberBinding="{Binding Character}"/>
-                                        <GridViewColumn Header="{DynamicResource L.Vis.ColHidden}" Width="60">
-                                            <GridViewColumn.CellTemplate>
-                                                <DataTemplate>
-                                                    <CheckBox IsChecked="{Binding Hidden, Mode=TwoWay}"
-                                                              Checked="OnVisibilityRowToggled"
-                                                              Unchecked="OnVisibilityRowToggled"
-                                                              HorizontalAlignment="Center"/>
-                                                </DataTemplate>
-                                            </GridViewColumn.CellTemplate>
-                                        </GridViewColumn>
-                                        <GridViewColumn Header="{DynamicResource L.Common.Label}" Width="150" DisplayMemberBinding="{Binding Label}"/>
-                                        <GridViewColumn Header="" Width="70">
-                                            <GridViewColumn.CellTemplate>
-                                                <DataTemplate>
-                                                    <Button Content="{DynamicResource L.Vis.EditBtn}" Padding="8,2" Click="OnEditVisibilityLabel"
-                                                            ToolTip="{DynamicResource L.Tt.EditLabel}"/>
-                                                </DataTemplate>
-                                            </GridViewColumn.CellTemplate>
-                                        </GridViewColumn>
-                                    </GridView>
-                                </ListView.View>
-                            </ListView>
-                        </StackPanel>
-                    </GroupBox>
-                    <GroupBox Header="{DynamicResource L.Vis.Secondary}">
-                        <StackPanel>
-                            <TextBlock Text="{DynamicResource L.Vis.SecondaryNote}"
-                                       Foreground="{StaticResource TextSecondaryBrush}" FontSize="10" Margin="0,0,0,6"/>
-                            <ListView x:Name="LvSecondaryThumbnails" Height="150"
-                                      Background="{StaticResource BgPanelBrush}" Foreground="{StaticResource TextPrimaryBrush}"
-                                      BorderBrush="{StaticResource BorderBrush}" SelectionChanged="OnSecThumbSelected">
-                                <ListView.View>
-                                    <GridView>
-                                        <GridViewColumn Header="{DynamicResource L.Common.Character}" Width="180" DisplayMemberBinding="{Binding Character}"/>
-                                        <GridViewColumn Header="{DynamicResource L.Common.Enabled}" Width="70" DisplayMemberBinding="{Binding Enabled}"/>
-                                        <GridViewColumn Header="{DynamicResource L.Common.Opacity}" Width="70" DisplayMemberBinding="{Binding Opacity}"/>
-                                    </GridView>
-                                </ListView.View>
-                            </ListView>
-                            <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
-                                <Button Content="{DynamicResource L.Common.Add}" Padding="8,3" Click="OnSecThumbAdd" Margin="0,0,4,0"/>
-                                <Button Content="{DynamicResource L.Common.Remove}" Padding="8,3" Click="OnSecThumbRemove" Margin="0,0,16,0"/>
-                                <Label Content="{DynamicResource L.Common.OpacityColon}"/>
-                                <Slider x:Name="SliderSecOpacity" Minimum="20" Maximum="255" Width="120" ValueChanged="OnSecThumbOpacityChanged"/>
-                            </StackPanel>
-                        </StackPanel>
-                    </GroupBox>
-                </StackPanel>
+
 
                 <!-- ══ 10. CLIENT ══ -->
                 <StackPanel x:Name="PanelClient" Visibility="Collapsed">
@@ -1182,11 +760,7 @@
                         <StackPanel>
                             <Button x:Name="BtnLowGpuPreset" Content="{DynamicResource L.Perf.LowGpuBtn}"
                                     Click="OnLowGpuPreset" Padding="10,6" Margin="0,0,0,4" HorizontalAlignment="Left"/>
-                            <TextBlock Text="{DynamicResource L.Perf.LowGpuNote}" Foreground="{StaticResource TextSecondaryBrush}" FontSize="10" Margin="0,0,0,10" TextWrapping="Wrap"/>
-                            <CheckBox x:Name="ChkStaticThumbnails" Content="{DynamicResource L.Perf.StaticThumbs}" Checked="OnPerformanceChanged" Unchecked="OnPerformanceChanged"/>
-                            <TextBlock Text="{DynamicResource L.Perf.StaticThumbsNote}" Foreground="{StaticResource TextSecondaryBrush}" FontSize="10" Margin="24,0,0,8" TextWrapping="Wrap"/>
-                            <CheckBox x:Name="ChkSuspendThumbsBackground" Content="{DynamicResource L.Perf.SuspendBg}" Checked="OnPerformanceChanged" Unchecked="OnPerformanceChanged"/>
-                            <TextBlock Text="{DynamicResource L.Perf.SuspendBgNote}" Foreground="{StaticResource TextSecondaryBrush}" FontSize="10" Margin="24,0,0,4" TextWrapping="Wrap"/>
+                            <TextBlock Text="Minimise inactive EVE clients to reduce rendering load. Choose Live or Snapshot separately in the overview." Foreground="{StaticResource TextSecondaryBrush}" FontSize="10" Margin="0,0,0,10" TextWrapping="Wrap"/>
                         </StackPanel>
                     </GroupBox>
                     <GroupBox Header="{DynamicResource L.Perf.CoreOverrides}">
@@ -1222,16 +796,8 @@
                         <StackPanel>
                             <CheckBox x:Name="ChkShowFps" Content="{DynamicResource L.Fps.ShowOverlay}"
                                       Checked="OnShowFpsChanged" Unchecked="OnShowFpsChanged" Margin="4,4,0,8" FontWeight="SemiBold"/>
-                            <StackPanel Orientation="Horizontal" Margin="0,3">
-                                <Label Content="{DynamicResource L.Fps.OverlayMargin}" Width="190"/>
-                                <TextBox x:Name="TxtFpsMarginX" Width="50" TextChanged="OnFpsOverlayLayoutChanged"/>
-                                <TextBlock Text=" × " VerticalAlignment="Center"/>
-                                <TextBox x:Name="TxtFpsMarginY" Width="50" TextChanged="OnFpsOverlayLayoutChanged"/>
-                            </StackPanel>
-                            <StackPanel Orientation="Horizontal" Margin="0,3">
-                                <Label Content="{DynamicResource L.Fps.OverlayTextSize}" Width="190"/>
-                                <TextBox x:Name="TxtFpsTextSize" Width="50" TextChanged="OnFpsOverlayLayoutChanged"/>
-                            </StackPanel>
+
+
                             <TextBlock Text="{DynamicResource L.Fps.OverlayNote}"
                                        Foreground="{StaticResource TextSecondaryBrush}" FontStyle="Italic" Margin="0,2,0,8" TextWrapping="Wrap" FontSize="10.5"/>
                             <StackPanel Orientation="Horizontal" Margin="0,3">
@@ -1271,157 +837,7 @@
                 </StackPanel>
 
                 <!-- ══ 12. STATS OVERLAY ══ -->
-                <StackPanel x:Name="PanelStatsOverlay" Visibility="Collapsed">
-                    <TextBlock Text="{DynamicResource L.Stats.Title}" FontSize="18" FontWeight="Bold" Foreground="{StaticResource AccentBrush}" Margin="0,0,0,4"/>
-                    <TextBlock Text="{DynamicResource L.Stats.Subtitle}" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,12"/>
 
-                    <!-- Master ON/OFF — when off, no stat overlay windows are created and any
-                         currently-open ones are closed. All per-character / per-metric settings below
-                         are preserved. -->
-                    <CheckBox x:Name="ChkStatsOverlayEnabled" Content="{DynamicResource L.Stats.Enable}"
-                              Checked="OnStatsChanged" Unchecked="OnStatsChanged"
-                              FontWeight="SemiBold" Margin="0,0,0,10"
-                              ToolTip="{DynamicResource L.Tt.StatsMaster}"/>
-
-                    <!-- Global Master Switches — default for characters with no explicit override -->
-                    <GroupBox Header="{DynamicResource L.Stats.GlobalDefaults}">
-                        <StackPanel>
-                            <TextBlock Text="{DynamicResource L.Stats.GlobalDefaultsNote}"
-                                       Foreground="{StaticResource TextSecondaryBrush}" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,8"/>
-
-                            <!-- Per-metric checkboxes: 4 columns by category -->
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="*"/>
-                                </Grid.ColumnDefinitions>
-                                <!-- DPS -->
-                                <StackPanel Grid.Column="0" Margin="0,0,6,0">
-                                    <TextBlock Text="{DynamicResource L.Stats.CatDps}" FontWeight="SemiBold" Foreground="{StaticResource AccentBrush}" Margin="0,0,0,4"/>
-                                    <CheckBox x:Name="ChkGmDpsOut" Content="Out · Dmg/s Out"    Checked="OnStatGlobalChanged" Unchecked="OnStatGlobalChanged"/>
-                                    <CheckBox x:Name="ChkGmDpsIn"  Content="In · Dmg/s In"      Checked="OnStatGlobalChanged" Unchecked="OnStatGlobalChanged"/>
-                                    <CheckBox x:Name="ChkGmTdi"    Content="TDI · Total Dmg In" Checked="OnStatGlobalChanged" Unchecked="OnStatGlobalChanged"/>
-                                    <CheckBox x:Name="ChkGmTdo"    Content="TDO · Total Dmg Out" Checked="OnStatGlobalChanged" Unchecked="OnStatGlobalChanged"/>
-                                    <CheckBox x:Name="ChkGmIncludeNpc" Content="Include NPC" Checked="OnStatGlobalChanged" Unchecked="OnStatGlobalChanged" Margin="0,6,0,0"/>
-                                </StackPanel>
-                                <!-- Logi -->
-                                <StackPanel Grid.Column="1" Margin="0,0,6,0">
-                                    <TextBlock Text="{DynamicResource L.Stats.CatLogi}" FontWeight="SemiBold" Foreground="{StaticResource AccentBrush}" Margin="0,0,0,4"/>
-                                    <CheckBox x:Name="ChkGmArps" Content="ARPS · Armor Rep/s"          Checked="OnStatGlobalChanged" Unchecked="OnStatGlobalChanged"/>
-                                    <CheckBox x:Name="ChkGmSrps" Content="SRPS · Shield Rep/s"         Checked="OnStatGlobalChanged" Unchecked="OnStatGlobalChanged"/>
-                                    <CheckBox x:Name="ChkGmCtps" Content="CTPS · Cap Transf/s"         Checked="OnStatGlobalChanged" Unchecked="OnStatGlobalChanged"/>
-                                    <CheckBox x:Name="ChkGmTaro" Content="TARO · T. Armor Rep Out"     Checked="OnStatGlobalChanged" Unchecked="OnStatGlobalChanged"/>
-                                    <CheckBox x:Name="ChkGmTari" Content="TARI · T. Armor Rep In"      Checked="OnStatGlobalChanged" Unchecked="OnStatGlobalChanged"/>
-                                    <CheckBox x:Name="ChkGmTsro" Content="TSRO · T. Shield Rep Out"    Checked="OnStatGlobalChanged" Unchecked="OnStatGlobalChanged"/>
-                                    <CheckBox x:Name="ChkGmTsri" Content="TSRI · T. Shield Rep In"     Checked="OnStatGlobalChanged" Unchecked="OnStatGlobalChanged"/>
-                                </StackPanel>
-                                <!-- Mining -->
-                                <StackPanel Grid.Column="2" Margin="0,0,6,0">
-                                    <TextBlock Text="{DynamicResource L.Stats.CatMining}" FontWeight="SemiBold" Foreground="{StaticResource AccentBrush}" Margin="0,0,0,4"/>
-                                    <CheckBox x:Name="ChkGmOmpc" Content="OMPC · Ore Mined/Cycle" Checked="OnStatGlobalChanged" Unchecked="OnStatGlobalChanged"/>
-                                    <CheckBox x:Name="ChkGmOmph" Content="OMPH · Ore Mined/Hour"  Checked="OnStatGlobalChanged" Unchecked="OnStatGlobalChanged"/>
-                                    <CheckBox x:Name="ChkGmGmpc" Content="GMPC · Gas Mined/Cycle" Checked="OnStatGlobalChanged" Unchecked="OnStatGlobalChanged"/>
-                                    <CheckBox x:Name="ChkGmGmph" Content="GMPH · Gas Mined/Hour"  Checked="OnStatGlobalChanged" Unchecked="OnStatGlobalChanged"/>
-                                    <CheckBox x:Name="ChkGmImph" Content="IMPH · Ice Mined/Hour"  Checked="OnStatGlobalChanged" Unchecked="OnStatGlobalChanged"/>
-                                </StackPanel>
-                                <!-- Ratting -->
-                                <StackPanel Grid.Column="3">
-                                    <TextBlock Text="{DynamicResource L.Stats.CatRatting}" FontWeight="SemiBold" Foreground="{StaticResource AccentBrush}" Margin="0,0,0,4"/>
-                                    <CheckBox x:Name="ChkGmTipt" Content="TIPT · Total ISK/Tick"    Checked="OnStatGlobalChanged" Unchecked="OnStatGlobalChanged"/>
-                                    <CheckBox x:Name="ChkGmTiph" Content="TIPH · Total ISK/Hour"    Checked="OnStatGlobalChanged" Unchecked="OnStatGlobalChanged"/>
-                                    <CheckBox x:Name="ChkGmTips" Content="TIPS · Total ISK/Session" Checked="OnStatGlobalChanged" Unchecked="OnStatGlobalChanged"/>
-                                </StackPanel>
-                            </Grid>
-                        </StackPanel>
-                    </GroupBox>
-
-                    <!-- Per-Character Stat Toggles -->
-                    <GroupBox Header="{DynamicResource L.Stats.ActiveChars}">
-                        <StackPanel>
-                            <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
-                                <Button x:Name="BtnRefreshStatChars" Content="{DynamicResource L.Common.RefreshBtn}" Padding="8,3" Click="OnRefreshStatCharacters"
-                                        Background="#12383D" Foreground="#DDF6F4"
-                                        BorderBrush="{StaticResource BorderBrush}" HorizontalAlignment="Left"/>
-                                <TextBlock Text="{DynamicResource L.Stats.DoubleClickNote}" VerticalAlignment="Center"
-                                           Foreground="{StaticResource TextSecondaryBrush}" FontSize="11" Margin="12,0,0,0"/>
-                            </StackPanel>
-                            <ListView x:Name="LvStatCharacters" MinHeight="60" MaxHeight="360"
-                                      Background="{StaticResource BgPanelBrush}" Foreground="{StaticResource TextPrimaryBrush}"
-                                      BorderBrush="{StaticResource BorderBrush}"
-                                      MouseDoubleClick="OnStatCharRowDoubleClick">
-                                <ListView.View>
-                                    <GridView>
-                                        <GridViewColumn Header="{DynamicResource L.Common.Character}" Width="180" DisplayMemberBinding="{Binding Name}"/>
-                                        <GridViewColumn Header="{DynamicResource L.Stats.ColOverrides}" Width="280" DisplayMemberBinding="{Binding Summary}"/>
-                                        <GridViewColumn Header="" Width="70">
-                                            <GridViewColumn.CellTemplate>
-                                                <DataTemplate>
-                                                    <Button Content="{DynamicResource L.Common.EditWord}" Padding="10,2" Click="OnStatCharEditClick"
-                                                            Background="#102D31" Foreground="{StaticResource TextPrimaryBrush}"
-                                                            BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" Cursor="Hand"/>
-                                                </DataTemplate>
-                                            </GridViewColumn.CellTemplate>
-                                        </GridViewColumn>
-                                    </GridView>
-                                </ListView.View>
-                            </ListView>
-                            <TextBlock Text="{DynamicResource L.Stats.NpcNote}"
-                                       Foreground="{StaticResource TextSecondaryBrush}" FontSize="11" Margin="0,6,0,0" TextWrapping="Wrap"/>
-                        </StackPanel>
-                    </GroupBox>
-
-                    <GroupBox Header="{DynamicResource L.Stats.Display}">
-                        <StackPanel>
-                            <StackPanel Orientation="Horizontal" Margin="0,3">
-                                <Label Content="{DynamicResource L.Stats.FontSize}" Width="120"/>
-                                <Slider x:Name="SliderStatFont" Minimum="6" Maximum="16" Width="150" ValueChanged="OnStatsChanged"/>
-                                <TextBlock x:Name="TxtStatFontValue" VerticalAlignment="Center" Margin="8,0,0,0"/>
-                            </StackPanel>
-                            <StackPanel Orientation="Horizontal" Margin="0,3">
-                                <Label Content="{DynamicResource L.Stats.OverlayOpacity}" Width="120"/>
-                                <Slider x:Name="SliderStatOpacity" Minimum="10" Maximum="255" Width="150" ValueChanged="OnStatsChanged"/>
-                                <TextBlock x:Name="TxtStatOpacityValue" VerticalAlignment="Center" Margin="8,0,0,0"/>
-                            </StackPanel>
-                            <StackPanel Orientation="Horizontal" Margin="0,3">
-                                <Label Content="{DynamicResource L.Stats.BgColor}" Width="120"/>
-                                <TextBox x:Name="TxtStatBgColor" Width="90" TextChanged="OnStatsChanged"/>
-                                <Border x:Name="PreviewStatBg" Width="20" Height="20" CornerRadius="3"
-                                        BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" Margin="6,0,0,0"/>
-                                <Button Content="🎨" Style="{StaticResource IconBtn}" Click="OnPickColor" Tag="TxtStatBgColor" Margin="4,0,0,0"/>
-                            </StackPanel>
-                            <StackPanel Orientation="Horizontal" Margin="0,3">
-                                <Label Content="{DynamicResource L.Stats.TextColor}" Width="120"/>
-                                <TextBox x:Name="TxtStatTextColor" Width="90" TextChanged="OnStatsChanged"/>
-                                <Border x:Name="PreviewStatText" Width="20" Height="20" CornerRadius="3"
-                                        BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" Margin="6,0,0,0"/>
-                                <Button Content="🎨" Style="{StaticResource IconBtn}" Click="OnPickColor" Tag="TxtStatTextColor" Margin="4,0,0,0"/>
-                            </StackPanel>
-                        </StackPanel>
-                    </GroupBox>
-                    <GroupBox Header="{DynamicResource L.Stats.Logging}">
-                        <StackPanel>
-                            <CheckBox x:Name="ChkStatLogging" Content="{DynamicResource L.Stats.EnableLogging}" Checked="OnStatsChanged" Unchecked="OnStatsChanged"/>
-                            <StackPanel Orientation="Horizontal" Margin="0,3">
-                                <Label Content="{DynamicResource L.Stats.LogFolder}" Width="100"/>
-                                <TextBox x:Name="TxtStatLogDir" Width="250" TextChanged="OnStatsChanged"/>
-                                <Button Content="📁" Style="{StaticResource IconBtn}" Click="OnBrowseStatLog" Margin="4,0,0,0"/>
-                            </StackPanel>
-                            <StackPanel Orientation="Horizontal" Margin="0,3">
-                                <Label Content="{DynamicResource L.Stats.AutoDelete}" Width="120"/>
-                                <TextBox x:Name="TxtStatLogRetention" Width="50" TextChanged="OnStatsChanged"/>
-                                <Label Content="{DynamicResource L.Common.Days}"/>
-                            </StackPanel>
-                        </StackPanel>
-                    </GroupBox>
-
-                    <!-- Acronym Legend -->
-                    <GroupBox Header="{DynamicResource L.Stats.Legend}">
-                        <TextBlock FontFamily="Consolas" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap"
-                                   Text="DPS:                         Mine:&#x0A;Out=Dmg/s Out                OMPC=Ore Mined/Cycle&#x0A;In=Dmg/s In                  OMPH=Ore Mined/Hour&#x0A;TDI=Total Dmg In             GMPC=Gas Mined/Cycle&#x0A;TDO=Total Dmg Out            GMPH=Gas Mined/Hour&#x0A;                             IMPH=Ice Mined/Hour&#x0A;&#x0A;Logi:                        Rat:&#x0A;ARPS=Armor Rep/s             TIPT=Total ISK/Tick&#x0A;SRPS=Shield Rep/s            TIPH=Total ISK/Hour&#x0A;CTPS=Cap Transf/s            TIPS=Total ISK/Session&#x0A;TARO=Total Armor Rep Out&#x0A;TARI=Total Armor Rep In&#x0A;TSRO=Total Shield Rep Out&#x0A;TSRI=Total Shield Rep In"/>
-                    </GroupBox>
-                </StackPanel>
 
                 <!-- ══ 13. EVE MANAGER ══ -->
                 <StackPanel x:Name="PanelEVEManager" Visibility="Collapsed">

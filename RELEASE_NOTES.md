@@ -1,3 +1,10 @@
+# EVE Command Center v3.8.9
+
+- **Readable moon reports.** Expanded field details use explicit readable column widths instead of collapsing star-sized columns. Mining totals are green, estimated losses coral, and efficiency uses green/amber/coral bands. Unknown or active-field losses remain neutral. Numeric period columns sort numerically; comparison colours treat lower loss as an improvement.
+- **Combined overview only.** Removes standalone primary/PiP preview windows, floating stat windows, split/combined switches and their obsolete sizing, layout, visibility and preset configuration. Existing saved profiles still load; obsolete serialized options do not recreate old windows.
+- **Shared services retained.** Client discovery, switching, cycling groups, audio, alerts, process telemetry, crops and snapshot capture now live in OverviewClientService without creating legacy preview windows. Mining and Preview modes, live DWM surfaces, optional mining circles and hold Reset remain available.
+- **Regression coverage.** Combined client tracking, settings lifecycle, alerts, cropping, mining and native live/snapshot ownership checks protect the retained overview paths. Expanded moon columns are rendered and measured at a 1250-pixel window width.
+
 # EVE Command Center v3.8.8
 
 - **Lower-yield mining recovery.** Repeated stable lower-yield pulls can relearn a stream after losing a boost. A single short full-hold pull still cannot reset timing. Includes v3.8.7 mining recovery, refuelling target planner, date sorting and weekly/monthly moon detail reports.

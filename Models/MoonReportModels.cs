@@ -275,6 +275,7 @@ public sealed class MoonLedgerRowView
 
 public sealed class MoonAuditView
 {
+    public string ReportLossBrush => !ExpiredUtc.HasValue ? "#8FB2B5" : TotalLeft == "Unknown" ? "#E8BB68" : Outcome == "CLEARED" ? "#67D6AC" : "#F39386";
     public string ReportLoss => ExpiredUtc.HasValue ? TotalLeft : "Not despawned";
     public string ReportOutcome => ExpiredUtc.HasValue ? Outcome : "Active / pending outcome";
     public DateTimeOffset? ExpiredUtc { get; init; }
@@ -318,6 +319,7 @@ public sealed class MoonDailyTotalView
 
 public sealed class MoonPeriodReportView
 {
+    public string EfficiencyBrush => EfficiencyPercent >= 80 ? "#67D6AC" : EfficiencyPercent >= 50 ? "#E8BB68" : "#F39386";
     public IReadOnlyList<MoonAuditView> Fields { get; init; } = Array.Empty<MoonAuditView>();
     public string PeriodKey { get; init; } = "";
     public string Label { get; init; } = "";

@@ -25,190 +25,6 @@ namespace EveCommandCenter.Views;
 public partial class SettingsWindow
 {
     // ═══ COLORS ═══
-    private void LoadColorsList()
-    {
-        LvColors.Items.Clear();
-        foreach (var kv in S.CustomColors)
-            LvColors.Items.Add(new { Character = kv.Key, ActiveBorder = kv.Value.Border, TextColor = kv.Value.Text, InactiveBorder = kv.Value.InactiveBorder });
-    }
-
-    private void OnColorChanged(object s, RoutedEventArgs e) { if (_loading) return; S.CustomColorsActive = ChkCustomColorsActive.IsChecked == true; SaveDelayed(); }
-
-    private void OnColorRowSelected(object s, SelectionChangedEventArgs e)
-    {
-        if (LvColors.SelectedItem == null) return;
-        var t = LvColors.SelectedItem.GetType();
-        TrySetPreview(ColorPreviewActive, t.GetProperty("ActiveBorder")?.GetValue(LvColors.SelectedItem) as string);
-        TrySetPreview(ColorPreviewText, t.GetProperty("TextColor")?.GetValue(LvColors.SelectedItem) as string);
-        TrySetPreview(ColorPreviewInactive, t.GetProperty("InactiveBorder")?.GetValue(LvColors.SelectedItem) as string);
-    }
-
-    private static void TrySetPreview(Border b, string? hex)
-    {
-        try { if (hex != null) { var h = hex.Replace("0x", "#"); if (!h.StartsWith("#")) h = "#" + h; b.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString(h)); } }
-        catch { b.Background = Brushes.Gray; }
-    }
-
-    private void OnColorAddAllActive(object s, RoutedEventArgs e)
-    {
-        // Seeded with the same defaults OnColorAdd falls back to, so rows appear
-        // immediately and each character can then be tuned via Edit — far better
-        // than opening three colour pickers per client.
-        int added = AddAllActiveClients(
-            EveCommandCenter.Services.LocalizationService.Str("L.Colors.Header", "Per-Character Colors"),
-            n => S.CustomColors.ContainsKey(n),
-            n => S.CustomColors[n] = new CustomColorEntry
-            {
-                Char = n, Border = "0xe36a0d", Text = "0xfac57a", InactiveBorder = "0x505050"
-            });
-        if (added > 0) { LoadColorsList(); SaveDelayed(); }
-    }
-
-    private void OnColorAdd(object s, RoutedEventArgs e)
-    {
-        var name = ShowCharacterSearch("Add Custom Color");
-        if (name == null) return;
-        var border = PickColor() ?? "0xe36a0d";
-        var text = PickColor() ?? "0xfac57a";
-        var inactive = PickColor() ?? "0x505050";
-        S.CustomColors[name] = new CustomColorEntry { Char = name, Border = border, Text = text, InactiveBorder = inactive };
-        LoadColorsList(); SaveDelayed();
-    }
-
-    private void OnColorEdit(object s, RoutedEventArgs e)
-    {
-        if (LvColors.SelectedItem == null) return;
-        var charName = (string)LvColors.SelectedItem.GetType().GetProperty("Character")!.GetValue(LvColors.SelectedItem)!;
-        if (!S.CustomColors.TryGetValue(charName, out var entry)) return;
-        var border = PickColor(entry.Border) ?? entry.Border;
-        var text = PickColor(entry.Text) ?? entry.Text;
-        var inactive = PickColor(entry.InactiveBorder) ?? entry.InactiveBorder;
-        entry.Border = border; entry.Text = text; entry.InactiveBorder = inactive;
-        LoadColorsList(); SaveDelayed();
-    }
-
-    private void OnColorDelete(object s, RoutedEventArgs e)
-    {
-        if (LvColors.SelectedItem == null) return;
-        var charName = (string)LvColors.SelectedItem.GetType().GetProperty("Character")!.GetValue(LvColors.SelectedItem)!;
-        S.CustomColors.Remove(charName);
-        LoadColorsList(); SaveDelayed();
-    }
-
-    // ═══ GROUPS ═══
-    private void LoadGroupDropdown()
-    {
-        _loadingDepth++;
-        CmbGroupSelect.Items.Clear();
-        foreach (var g in S.ThumbnailGroups) CmbGroupSelect.Items.Add(g.Name);
-        CmbGroupSelect.Items.Add("+ New Group");
-        if (S.ThumbnailGroups.Count > 0) CmbGroupSelect.SelectedIndex = 0;
-        else CmbGroupSelect.SelectedIndex = CmbGroupSelect.Items.Count - 1;
-        _loadingDepth--;
-        LoadSelectedGroup();
-    }
-
-    private void OnGroupBordersChanged(object s, RoutedEventArgs e)
-    {
-        if (_loading) return;
-        // Write group borders checkbox to the setting
-        S.ShowAllColoredBorders = ChkShowGroupBorders.IsChecked == true;
-        // Sync the Thumbnails tab checkbox
-        _loadingDepth++;
-        ChkShowAllBorders.IsChecked = S.ShowAllColoredBorders;
-        _loadingDepth--;
-        SaveDelayed();
-    }
-
-    private void OnGroupSelectChanged(object s, SelectionChangedEventArgs e) { if (!_loading) LoadSelectedGroup(); }
-
-    private void LoadSelectedGroup()
-    {
-        var idx = CmbGroupSelect.SelectedIndex;
-        if (idx >= 0 && idx < S.ThumbnailGroups.Count)
-        {
-            var g = S.ThumbnailGroups[idx];
-            TxtGroupName.Text = g.Name;
-            TxtGroupColor.Text = g.Color;
-            TxtGroupChars.Text = string.Join("\n", g.Members);
-            UpdateGroupColorPreview();
-        }
-        else { TxtGroupName.Text = ""; TxtGroupColor.Text = "#4fc3f7"; TxtGroupChars.Text = ""; UpdateGroupColorPreview(); }
-    }
-
-    private void OnGroupDataChanged(object s, TextChangedEventArgs e)
-    {
-        if (_loading) return;
-        UpdateGroupColorPreview();
-        // Auto-save group data to S.ThumbnailGroups
-        var idx = CmbGroupSelect.SelectedIndex;
-        if (idx >= 0 && idx < S.ThumbnailGroups.Count)
-        {
-            var chars = TxtGroupChars.Text.Split('\n', StringSplitOptions.RemoveEmptyEntries)
-                .Select(c => c.Trim()).Where(c => c.Length > 0).ToList();
-            S.ThumbnailGroups[idx].Color = TxtGroupColor.Text;
-            S.ThumbnailGroups[idx].Members = chars;
-            SaveDelayed();
-        }
-    }
-    private void UpdateGroupColorPreview()
-    {
-        try { var h = TxtGroupColor.Text.Replace("0x", "#"); if (!h.StartsWith("#")) h = "#" + h; PreviewGroupColor.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString(h)); }
-        catch { PreviewGroupColor.Background = Brushes.Gray; }
-    }
-
-    private void OnGroupSave(object s, RoutedEventArgs e)
-    {
-        var name = TxtGroupName.Text.Trim();
-        if (string.IsNullOrEmpty(name)) { MessageBox.Show("Enter a group name."); return; }
-        var chars = TxtGroupChars.Text.Split('\n', StringSplitOptions.RemoveEmptyEntries).Select(c => c.Trim()).Where(c => c.Length > 0).ToList();
-        var idx = CmbGroupSelect.SelectedIndex;
-        if (idx >= 0 && idx < S.ThumbnailGroups.Count)
-        { S.ThumbnailGroups[idx].Name = name; S.ThumbnailGroups[idx].Color = TxtGroupColor.Text; S.ThumbnailGroups[idx].Members = chars; }
-        else S.ThumbnailGroups.Add(new ThumbnailGroup { Name = name, Color = TxtGroupColor.Text, Members = chars });
-        LoadGroupDropdown(); SaveDelayed();
-    }
-
-    private void OnGroupDelete(object s, RoutedEventArgs e)
-    {
-        var idx = CmbGroupSelect.SelectedIndex;
-        if (idx >= 0 && idx < S.ThumbnailGroups.Count) { S.ThumbnailGroups.RemoveAt(idx); LoadGroupDropdown(); SaveDelayed(); }
-    }
-
-    private void OnGroupAddChar(object s, RoutedEventArgs e)
-    {
-        var name = ShowCharacterSearch("Add Character to Group");
-        if (name == null) return;
-        if (!string.IsNullOrEmpty(TxtGroupChars.Text) && !TxtGroupChars.Text.EndsWith("\n")) TxtGroupChars.Text += "\n";
-        TxtGroupChars.Text += name + "\n";
-    }
-
-    private void OnGroupAddAllActive(object s, RoutedEventArgs e)
-    {
-        // This group's members live in the text box (one per line) until Save Group,
-        // so compare against — and append to — the text box, not saved state.
-        var existing = TxtGroupChars.Text
-            .Split('\n', StringSplitOptions.RemoveEmptyEntries)
-            .Select(c => c.Trim())
-            .Where(c => c.Length > 0)
-            .ToList();
-
-        AddAllActiveClients(
-            EveCommandCenter.Services.LocalizationService.Str("L.Groups.Header", "Character Groups"),
-            n => existing.Any(x => string.Equals(x, n, StringComparison.OrdinalIgnoreCase)),
-            n =>
-            {
-                if (!string.IsNullOrEmpty(TxtGroupChars.Text) && !TxtGroupChars.Text.EndsWith("\n"))
-                    TxtGroupChars.Text += "\n";
-                TxtGroupChars.Text += n + "\n";
-                existing.Add(n);
-            },
-            isGroup: true);
-        // No SaveDelayed here — TxtGroupChars fires OnGroupDataChanged, and the
-        // group is committed by the existing Save Group button.
-    }
-
-    // ═══ ALERTS ═══
     private static readonly (string id, string label, string sevKey, string sevEmoji)[] AlertEvents = {
         ("attack","Under Attack","critical","\ud83d\udd34"), ("warp_scramble","Warp Scrambled","critical","\ud83d\udd34"),
         ("decloak","Decloaked","critical","\ud83d\udd34"), ("fleet_invite","Fleet Invite","warning","\ud83d\udfe0"),
@@ -481,7 +297,7 @@ public partial class SettingsWindow
     {
         ClientVolumeRows.Children.Clear();
 
-        var names = _thumbnailManager?.GetActiveCharacterNames();
+        var names = _overviewClients?.GetActiveCharacterNames();
         var chars = new System.Collections.Generic.List<string>();
         if (names != null)
             foreach (var n in names)
@@ -504,7 +320,7 @@ public partial class SettingsWindow
             var row = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 2) };
             row.Children.Add(new TextBlock { Text = name, Width = 160, VerticalAlignment = VerticalAlignment.Center });
 
-            int vol = _thumbnailManager!.GetClientVolume(name);
+            int vol = _overviewClients!.GetClientVolume(name);
             var slider = new System.Windows.Controls.Slider
             {
                 Minimum = 0, Maximum = 100, Width = 180, Value = vol,
@@ -517,7 +333,7 @@ public partial class SettingsWindow
                 int v = (int)slider.Value;
                 lbl.Text = $"{v}%";
                 if (_loading) return;
-                _thumbnailManager?.SetClientVolume(cap, v);
+                _overviewClients?.SetClientVolume(cap, v);
             };
             row.Children.Add(slider);
             row.Children.Add(lbl);
@@ -595,15 +411,11 @@ public partial class SettingsWindow
 
         // Global hotkeys
         Add("Suspend", S.SuspendHotkey);
-        Add("Click-through toggle", S.ClickThroughHotkey);
-        Add("Hide/Show thumbnails", S.HideShowThumbnailsHotkey);
-        Add("Hide/Show primary", S.HidePrimaryHotkey);
-        Add("Hide/Show secondary", S.HideSecondaryHotkey);
+        Add("Hide/Show overview", S.HideShowThumbnailsHotkey);
         Add("Hide/Show crops", S.HideShowCropsHotkey);
         Add("Profile cycle forward", S.ProfileCycleForwardHotkey);
         Add("Profile cycle backward", S.ProfileCycleBackwardHotkey);
         Add("Quick-switch wheel", S.QuickSwitchHotkey);
-        Add("Lock positions", S.LockPositionsHotkey);
         Add("Global cycle forward", S.GlobalCycleForwardHotkey);
         Add("Global cycle backward", S.GlobalCycleBackwardHotkey);
         Add("Layout undo", S.UndoLayoutHotkey);
@@ -627,146 +439,6 @@ public partial class SettingsWindow
     // Issue #21: union currently-tracked characters with the saved visibility
     // dict so users who have never hidden anyone still see a populated list. The
     // list now holds a typed row bound to an interactive checkbox.
-    private void LoadVisibilityList()
-    {
-        LvVisibility.Items.Clear();
-
-        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        var rows = new List<VisibilityRow>();
-
-        if (_thumbnailManager != null)
-        {
-            foreach (var name in _thumbnailManager.GetActiveCharacterNames())
-            {
-                if (string.IsNullOrEmpty(name) || !seen.Add(name)) continue;
-                bool hidden = S.ThumbnailVisibility.TryGetValue(name, out var v) && v != 0;
-                string label = S.ThumbnailAnnotations.GetValueOrDefault(name, "");
-                rows.Add(new VisibilityRow(name, hidden, label));
-            }
-        }
-        foreach (var kv in S.ThumbnailVisibility)
-        {
-            if (!seen.Add(kv.Key)) continue;
-            string label = S.ThumbnailAnnotations.GetValueOrDefault(kv.Key, "");
-            rows.Add(new VisibilityRow(kv.Key, kv.Value != 0, label));
-        }
-
-        foreach (var row in rows.OrderBy(r => r.Character, StringComparer.OrdinalIgnoreCase))
-            LvVisibility.Items.Add(row);
-    }
-
-    public class VisibilityRow
-    {
-        public string Character { get; set; }
-        public bool Hidden { get; set; }
-        public string Label { get; set; }
-        public VisibilityRow(string character, bool hidden, string label)
-        {
-            Character = character;
-            Hidden = hidden;
-            Label = label;
-        }
-    }
-
-    private void OnRefreshVisibility(object s, RoutedEventArgs e) => LoadVisibilityList();
-
-    private void OnVisibilityRowToggled(object sender, RoutedEventArgs e)
-    {
-        if (_loading) return;
-        if (sender is not System.Windows.Controls.CheckBox cb) return;
-        if (cb.DataContext is not VisibilityRow row) return;
-
-        bool hidden = cb.IsChecked == true;
-        row.Hidden = hidden;
-        S.ThumbnailVisibility[row.Character] = hidden ? 1 : 0;
-        // Apply the visibility change directly and persist the setting — but
-        // do NOT route through the SettingsWindow SaveDelayed(), which arms
-        // the 1s auto-apply → ReapplySettings(). That global re-apply resized
-        // every thumbnail and re-showed the just-hidden thumbnail's text
-        // overlay (issues #50 / #51). A visibility toggle only needs to hide
-        // one thumbnail and persist one flag.
-        _thumbnailManager?.SetCharacterVisibility(row.Character, !hidden);
-        _svc.SaveDelayed();
-    }
-
-    // Visibility row "Edit Label" button handler — opens LabelEditorWindow,
-    // refreshes the row's Label cell after save, and persists via SaveDelayed.
-    private void OnEditVisibilityLabel(object sender, RoutedEventArgs e)
-    {
-        if (sender is not System.Windows.Controls.Button btn) return;
-        if (btn.DataContext is not VisibilityRow row) return;
-
-        var editor = new LabelEditorWindow(row.Character, S, _thumbnailManager,
-            onSaved: () =>
-            {
-                row.Label = S.ThumbnailAnnotations.GetValueOrDefault(row.Character, "");
-                // Rebind the row so the Label cell's DisplayMemberBinding refreshes
-                int idx = LvVisibility.Items.IndexOf(row);
-                if (idx >= 0)
-                {
-                    LvVisibility.Items.RemoveAt(idx);
-                    LvVisibility.Items.Insert(idx, row);
-                }
-                SaveDelayed();
-            }) { Owner = this };
-        editor.ShowDialog();
-    }
-
-    private void LoadSecondaryThumbnails()
-    {
-        LvSecondaryThumbnails.Items.Clear();
-        foreach (var kv in S.SecondaryThumbnails)
-            LvSecondaryThumbnails.Items.Add(new { Character = kv.Key, Enabled = kv.Value.Enabled != 0 ? "\u2714" : "", Opacity = kv.Value.Opacity });
-    }
-
-    private void OnSecThumbSelected(object s, SelectionChangedEventArgs e)
-    {
-        if (_loading || LvSecondaryThumbnails.SelectedItem == null) return;
-        var opacity = (int)LvSecondaryThumbnails.SelectedItem.GetType().GetProperty("Opacity")!.GetValue(LvSecondaryThumbnails.SelectedItem)!;
-        SliderSecOpacity.Value = opacity;
-    }
-
-    private void OnSecThumbAdd(object s, RoutedEventArgs e)
-    {
-        var name = ShowCharacterSearch("Add Secondary Thumbnail");
-        if (name == null || S.SecondaryThumbnails.ContainsKey(name)) return;
-        S.SecondaryThumbnails[name] = new SecondaryThumbnailSettings();
-        LoadSecondaryThumbnails(); SaveDelayed();
-        _thumbnailManager?.CreateSecondaryForCharacter(name);
-    }
-
-    private void OnSecThumbRemove(object s, RoutedEventArgs e)
-    {
-        if (LvSecondaryThumbnails.SelectedItem == null) return;
-        var charName = (string)LvSecondaryThumbnails.SelectedItem.GetType().GetProperty("Character")!.GetValue(LvSecondaryThumbnails.SelectedItem)!;
-        S.SecondaryThumbnails.Remove(charName);
-        LoadSecondaryThumbnails(); SaveDelayed();
-        _thumbnailManager?.DestroySecondaryForCharacter(charName);
-    }
-
-    private void OnSecThumbOpacityChanged(object s, RoutedPropertyChangedEventArgs<double> e)
-    {
-        if (_loading || LvSecondaryThumbnails.SelectedItem == null) return;
-        var charName = (string)LvSecondaryThumbnails.SelectedItem.GetType().GetProperty("Character")!.GetValue(LvSecondaryThumbnails.SelectedItem)!;
-        if (S.SecondaryThumbnails.TryGetValue(charName, out var settings))
-        {
-            settings.Opacity = (int)SliderSecOpacity.Value;
-            _loadingDepth++;
-            LoadSecondaryThumbnails();
-            foreach (var item in LvSecondaryThumbnails.Items)
-            {
-                if ((string)item.GetType().GetProperty("Character")!.GetValue(item)! == charName)
-                {
-                    LvSecondaryThumbnails.SelectedItem = item;
-                    break;
-                }
-            }
-            _loadingDepth--;
-            SaveDelayed();
-        }
-    }
-
-    // ═══ CLIENT ═══
     private void OnClientChanged(object s, RoutedEventArgs e) { if (_loading) return; SaveClient(); }
     private void OnClientChanged(object s, TextChangedEventArgs e) { if (_loading) return; SaveClient(); }
 
@@ -808,11 +480,9 @@ public partial class SettingsWindow
     private void OnLowGpuPreset(object sender, RoutedEventArgs e)
     {
         ChkMinimizeInactive.IsChecked = true;         // per-profile, Clients panel
-        ChkSuspendThumbsBackground.IsChecked = true;  // global, Performance panel
         System.Windows.MessageBox.Show(
             "Low-GPU mode enabled:\n\n" +
             "• Inactive clients are minimized on switch (they stop rendering)\n" +
-            "• Thumbnails freeze when EVE / Command Center isn't focused\n\n" +
             "Tip: also set an in-game max FPS limit and enable vsync on each client.",
             "Optimize for Low GPU",
             System.Windows.MessageBoxButton.OK,
@@ -865,9 +535,6 @@ public partial class SettingsWindow
     private void OnFpsOverlayLayoutChanged(object s, TextChangedEventArgs e)
     {
         if (_loading) return;
-        if (int.TryParse(TxtFpsMarginX.Text, out int fmx)) S.FpsOverlayMarginX = fmx;
-        if (int.TryParse(TxtFpsMarginY.Text, out int fmy)) S.FpsOverlayMarginY = fmy;
-        if (int.TryParse(TxtFpsTextSize.Text, out int fts)) S.FpsOverlayTextSize = fts;
         SaveDelayed();
     }
 
@@ -970,151 +637,6 @@ public partial class SettingsWindow
     }
 
     // ═══ STATS OVERLAY ═══
-    private void OnStatsChanged(object s, RoutedEventArgs e) { if (_loading) return; SaveStats(); }
-    private void OnStatsChanged(object s, RoutedPropertyChangedEventArgs<double> e)
-    {
-        if (_loading || TxtStatFontValue == null || TxtStatOpacityValue == null) return;
-        TxtStatFontValue.Text = ((int)SliderStatFont.Value).ToString();
-        TxtStatOpacityValue.Text = ((int)SliderStatOpacity.Value).ToString();
-        UpdateStatColorPreviews();
-        SaveStats();
-    }
-    private void OnStatsChanged(object s, TextChangedEventArgs e) { if (_loading) return; SaveStats(); }
-
-    private void SaveStats()
-    {
-        S.StatOverlayEnabled = ChkStatsOverlayEnabled.IsChecked == true;
-        S.StatOverlayFontSize = (int)SliderStatFont.Value;
-        S.StatOverlayOpacity = (int)SliderStatOpacity.Value;
-        S.StatOverlayBgColor = TxtStatBgColor.Text;
-        S.StatOverlayTextColor = TxtStatTextColor.Text;
-        S.StatLoggingEnabled = ChkStatLogging.IsChecked == true;
-        S.StatLogDirectory = TxtStatLogDir.Text;
-        if (int.TryParse(TxtStatLogRetention.Text, out int ret)) S.StatLogRetentionDays = ret;
-        SaveDelayed();
-    }
-
-    private void UpdateStatColorPreviews()
-    {
-        try { PreviewStatBg.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString(TxtStatBgColor.Text)); } catch { }
-        try { PreviewStatText.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString(TxtStatTextColor.Text)); } catch { }
-    }
-
-    private void OnBrowseStatLog(object s, RoutedEventArgs e) { var d = BrowseFolder(TxtStatLogDir.Text); if (d != null) TxtStatLogDir.Text = d; }
-
-    // ── Per-character stat toggle grid ──
-    private readonly System.Collections.ObjectModel.ObservableCollection<StatCharacterRow> _statCharRows = new();
-
-    private void LoadStatCharacters()
-    {
-        _statCharRows.Clear();
-        var onlineChars = _thumbnailManager?.GetActiveCharacterNames()?.ToHashSet(StringComparer.OrdinalIgnoreCase)
-            ?? new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-        foreach (var (name, stats) in S.PerCharacterStats)
-        {
-            if (!onlineChars.Contains(name)) continue;
-            _statCharRows.Add(new StatCharacterRow
-            {
-                Name = name,
-                ForcedOn = stats.ForcedOn,
-                ForcedOff = stats.ForcedOff,
-            });
-        }
-        LvStatCharacters.ItemsSource = _statCharRows;
-    }
-
-    private void OnRefreshStatCharacters(object s, RoutedEventArgs e)
-    {
-        if (_thumbnailManager != null)
-        {
-            foreach (var name in _thumbnailManager.GetActiveCharacterNames())
-            {
-                if (!S.PerCharacterStats.ContainsKey(name))
-                {
-                    S.PerCharacterStats[name] = new CharacterStatSettings();
-                }
-            }
-        }
-        LoadStatCharacters();
-    }
-
-    /// <summary>Double-click a row → open the per-character stat editor.</summary>
-    private void OnStatCharRowDoubleClick(object s, System.Windows.Input.MouseButtonEventArgs e)
-    {
-        if (LvStatCharacters.SelectedItem is StatCharacterRow row)
-            OpenStatEditor(row);
-    }
-
-    /// <summary>Inline Edit button → open editor for this row (bypasses selection).</summary>
-    private void OnStatCharEditClick(object s, RoutedEventArgs e)
-    {
-        if (s is FrameworkElement fe && fe.DataContext is StatCharacterRow row)
-            OpenStatEditor(row);
-    }
-
-    private void OpenStatEditor(StatCharacterRow row)
-    {
-        // Pull the latest persisted settings for this character (or a blank = all inherit).
-        if (!S.PerCharacterStats.TryGetValue(row.Name, out var current))
-            current = new CharacterStatSettings();
-
-        var dlg = new CharacterStatEditorWindow(row.Name, current, S) { Owner = this };
-        if (dlg.ShowDialog() == true)
-        {
-            S.PerCharacterStats[row.Name] = dlg.Result;
-            row.ForcedOn  = dlg.Result.ForcedOn;
-            row.ForcedOff = dlg.Result.ForcedOff;
-            SaveDelayed();
-        }
-    }
-
-    /// <summary>Maps each Global-Defaults CheckBox to the <see cref="StatMetrics"/> bit it owns.
-    /// Single source of truth for both load (bits → IsChecked) and save (IsChecked → bits).</summary>
-    private (System.Windows.Controls.CheckBox Cb, StatMetrics Bit)[] StatGlobalBindings() => new[]
-    {
-        (ChkGmDpsOut,      StatMetrics.DpsOut),
-        (ChkGmDpsIn,       StatMetrics.DpsIn),
-        (ChkGmTdi,         StatMetrics.Tdi),
-        (ChkGmTdo,         StatMetrics.Tdo),
-        (ChkGmIncludeNpc,  StatMetrics.IncludeNpc),
-        (ChkGmArps,        StatMetrics.Arps),
-        (ChkGmSrps,        StatMetrics.Srps),
-        (ChkGmCtps,        StatMetrics.Ctps),
-        (ChkGmTaro,        StatMetrics.Taro),
-        (ChkGmTari,        StatMetrics.Tari),
-        (ChkGmTsro,        StatMetrics.Tsro),
-        (ChkGmTsri,        StatMetrics.Tsri),
-        (ChkGmOmpc,        StatMetrics.Ompc),
-        (ChkGmOmph,        StatMetrics.Omph),
-        (ChkGmGmpc,        StatMetrics.Gmpc),
-        (ChkGmGmph,        StatMetrics.Gmph),
-        (ChkGmImph,        StatMetrics.Imph),
-        (ChkGmTipt,        StatMetrics.Tipt),
-        (ChkGmTiph,        StatMetrics.Tiph),
-        (ChkGmTips,        StatMetrics.Tips),
-    };
-
-    /// <summary>Populate the Global-Defaults checkboxes from the currently loaded <see cref="AppSettings.GlobalStatMetrics"/>.</summary>
-    private void LoadStatGlobalCheckboxes()
-    {
-        var bits = S.GlobalStatMetrics;
-        foreach (var (cb, bit) in StatGlobalBindings())
-            cb.IsChecked = (bits & bit) != 0;
-    }
-
-    /// <summary>Persist the global master switches. These act as defaults — a character with
-    /// no explicit per-character override inherits them.</summary>
-    private void OnStatGlobalChanged(object s, RoutedEventArgs e)
-    {
-        if (_loading) return;
-        var bits = StatMetrics.None;
-        foreach (var (cb, bit) in StatGlobalBindings())
-            if (cb.IsChecked == true) bits |= bit;
-        S.GlobalStatMetrics = bits;
-        SaveDelayed();
-    }
-
     private void OnManagerChanged(object s, RoutedEventArgs e)
     {
         if (_loading) return;
@@ -1850,7 +1372,7 @@ public partial class SettingsWindow
             CopyProfileFull(onlyProfile, S.Profiles[newName]);
             _svc.Save();
             LoadSettings();                              // refresh dropdown + bound controls
-            _thumbnailManager?.ReapplySettings();
+            _overviewClients?.ReapplySettings();
             _cropManager?.Refresh();
             SettingsApplied?.Invoke();
             MessageBox.Show($"Created profile '{newName}' and copied '{onlyName}' into it.", "Copy Profile");

@@ -824,6 +824,10 @@ public partial class MoonReportWindow : Window
         }
         CompareMinedText.Text = SignedM3(a.MinedM3 - b.MinedM3) + " (A vs B)";
         CompareLostText.Text = SignedM3(a.LostM3 - b.LostM3) + " (A vs B)";
+        CompareMinedText.Foreground = a.MinedM3 >= b.MinedM3 ? WpfBrushes.MediumAquamarine : WpfBrushes.LightSalmon;
+        CompareLostText.Foreground = a.LostM3 <= b.LostM3 ? WpfBrushes.MediumAquamarine : WpfBrushes.LightSalmon;
+        CompareMinedText.ToolTip = $"{a.Label} minus {b.Label}. Higher mining is green. A current period is incomplete.";
+        CompareLostText.ToolTip = $"{a.Label} minus {b.Label}. Lower estimated loss is green. Unknown outcomes are not confirmed zero loss.";
         CompareEfficiencyText.Text = a.EfficiencyPercent.ToString("0.0") + "% vs " + b.EfficiencyPercent.ToString("0.0") + "%";
         CompareWinnerText.Text = a.MinedM3 == b.MinedM3 ? "Tie" : (a.MinedM3 > b.MinedM3 ? a.Label : b.Label);
     }

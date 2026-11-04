@@ -57,7 +57,7 @@ internal static partial class Program
         mutedWatchdog.SetCharacterAlarmsMuted(new[]{"Bulk A","Bulk B"},true,save:false);
         mutedWatchdog.SetCharacterAlarmMuted("Bulk A",false,save:false);
         Check(!mutedWatchdog.IsCharacterAlarmMuted("Bulk A") && mutedWatchdog.IsCharacterAlarmMuted("Bulk B"), "Individual alarm switches still work after all off");
-        var prefs=new MiningDashboardPreferences{CombinedCharacterOverview=true, FleetOverviewAutoFit=false};
+        var prefs=new MiningDashboardPreferences{FleetOverviewAutoFit=false};
         var clients=new[]{new EveWindow(IntPtr.Zero,"EVE - Pilot A","Pilot A"),new EveWindow(IntPtr.Zero,"EVE - Pilot B","Pilot B"),new EveWindow(IntPtr.Zero,"EVE - Pilot C","Pilot C")};
         var window=new MiningFleetOverviewWindow(tracker,new MiningIdleWatchdogService(tracker),prefs,()=>clients);
         BackgroundOperations.Stop();
@@ -149,9 +149,7 @@ internal static partial class Program
         prefs.CharacterOverviewCombatMode="";
         clients=clients.Take(2).ToArray();Refresh();
         Check(items.Items.Count==2,"Closed clients leave the combined overview");
-        prefs.CombinedCharacterOverview=false;Refresh();
-        Check(items.Items.Count==0,"Separate mode preserves the existing mining-only filter");
-        prefs.CombinedCharacterOverview=true;prefs.CharacterOverviewMiningMode=false;prefs.CharacterOverviewLivePreview=false;Refresh();
+        prefs.CharacterOverviewMiningMode=false;prefs.CharacterOverviewLivePreview=false;Refresh();
         void SetVisualState(int index,string status,bool active) {
             var current=items.Items[index];
             var next=typeof(object).GetMethod("MemberwiseClone",System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic)!.Invoke(current,null)!;

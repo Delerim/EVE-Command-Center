@@ -15,7 +15,7 @@ using Color = System.Windows.Media.Color;
 namespace EveCommandCenter.Services;
 
 /// <summary>
-/// Lifecycle manager for CropWindow popups. Mirrors ThumbnailManager:
+/// Lifecycle manager for CropWindow popups. Mirrors OverviewClientService:
 ///   - Listens to WindowDiscoveryService for EVE clients appearing/disappearing
 ///   - Spawns a CropWindow for each <see cref="CropDefinition"/> defined for that character
 ///     when <see cref="AppSettings.CropEnabled"/> is true
@@ -26,7 +26,7 @@ public sealed class CropManager : IDisposable
 {
     private readonly WindowDiscoveryService _discovery;
     private readonly SettingsService _settings;
-    private ThumbnailManager? _thumbnailManager;
+    private OverviewClientService? _overviewClients;
 
     // character name -> (crop id -> popup)
     private readonly ConcurrentDictionary<string, Dictionary<string, CropWindow>> _windows
@@ -147,11 +147,11 @@ public sealed class CropManager : IDisposable
     /// <summary>Optional: let crop popups snap against live primary thumbnails, and
     /// follow the Hide/Show All keybind + the dedicated Hide/Show Crops keybind
     /// (issue #66). Must be called before any CropWindow is created.</summary>
-    public void AttachThumbnailManager(ThumbnailManager thumbnailManager)
+    public void AttachOverviewClientService(OverviewClientService overviewClients)
     {
-        _thumbnailManager = thumbnailManager;
-        _thumbnailManager.AllVisibilityChanged += SetCropsHidden;
-        _thumbnailManager.CropsVisibilityToggleRequested += ToggleCropsVisibility;
+        _overviewClients = overviewClients;
+        _overviewClients.AllVisibilityChanged += SetCropsHidden;
+        _overviewClients.CropsVisibilityToggleRequested += ToggleCropsVisibility;
     }
 
     /// <summary>Show or hide every live crop. Driven by the Hide/Show All keybind
@@ -174,7 +174,7 @@ public sealed class CropManager : IDisposable
         {
             _cropsHidden = !_cropsHidden;
             ApplyHiddenToAll();
-            _thumbnailManager?.ShowTooltipFeedback(_cropsHidden ? "Crops: Hidden" : "Crops: Visible");
+            _overviewClients?.ShowTooltipFeedback(_cropsHidden ? "Crops: Hidden" : "Crops: Visible");
         });
     }
 
@@ -222,7 +222,7 @@ public sealed class CropManager : IDisposable
     /// client raises over the crop and stays there until the user toggles crops off/on
     /// (issue #80: "crops hide under the main client the moment you tab in").
     ///
-    /// This mirrors ThumbnailManager's focus-aware topmost model exactly, because a
+    /// This mirrors OverviewClientService's focus-aware topmost model exactly, because a
     /// bare non-topmost <see cref="CropWindow.BringToFront"/> (HWND_TOP) LOSES the
     /// activation race — the re-activating EVE client gets stuck back on top (the same
     /// failure the thumbnails hit, "confirmed by LittlePhish"). The winning move is to
@@ -268,7 +268,6 @@ public sealed class CropManager : IDisposable
         // non-topmost otherwise so crops don't sit over Discord/your browser.
         bool desiredTopmost = s.ShowThumbnailsAlwaysOnTop || (s.KeepThumbnailsAboveClients && eveFocused);
 
-        bool anyChanged = false;
         foreach (var perChar in _windows.Values)
             foreach (var win in perChar.Values)
             {
@@ -277,15 +276,13 @@ public sealed class CropManager : IDisposable
                     if (win.IsTopmostState != desiredTopmost)
                     {
                         win.SetTopmost(desiredTopmost);
-                        anyChanged = true;
-                    }
+                                }
                 }
                 catch (Exception ex) { Debug.WriteLine($"[CropManager] Crop topmost failed: {ex.Message}"); }
             }
 
         // Going topmost lifts the crop to the TOP of the topmost band — over the
         // thumbnails, whose clicks it would then swallow. Put the thumbnails back on top.
-        if (anyChanged) _thumbnailManager?.RaiseThumbnailsAboveOverlays();
 
         // Diagnostic ONLY when DWM debug logging is enabled (issue #80/#87). It reads
         // WS_EX_TOPMOST off the foreground window and every crop and appends to
@@ -409,10 +406,10 @@ public sealed class CropManager : IDisposable
         _discovery.WindowFound -= OnWindowFound;
         _discovery.WindowLost -= OnWindowLost;
         _discovery.WindowTitleChanged -= OnWindowTitleChanged;
-        if (_thumbnailManager != null)
+        if (_overviewClients != null)
         {
-            _thumbnailManager.AllVisibilityChanged -= SetCropsHidden;
-            _thumbnailManager.CropsVisibilityToggleRequested -= ToggleCropsVisibility;
+            _overviewClients.AllVisibilityChanged -= SetCropsHidden;
+            _overviewClients.CropsVisibilityToggleRequested -= ToggleCropsVisibility;
         }
         if (_winEvents != null)
         {
@@ -571,7 +568,7 @@ public sealed class CropManager : IDisposable
     }
 
     /// <summary>
-    /// Corner-to-corner snap resolver. Mirrors ThumbnailManager's stat-window
+    /// Corner-to-corner snap resolver. Mirrors OverviewClientService's stat-window
     /// snap: tries every pair of corners between the dragged window and each
     /// target, picks the closest pair within ThumbnailSnapDistance pixels.
     /// Targets = every other crop popup + every live primary thumbnail.
@@ -599,8 +596,7 @@ public sealed class CropManager : IDisposable
                 targets.Add((other.Left, other.Top, other.Width, other.Height));
             }
         }
-        if (_thumbnailManager != null)
-            targets.AddRange(_thumbnailManager.GetThumbnailBounds());
+
 
         foreach (var (oL, oT, oW, oH) in targets)
         {
@@ -650,7 +646,6 @@ public sealed class CropManager : IDisposable
 
         // ...but going topmost still lands the crop at the top of the topmost band, so
         // put the thumbnails back above it — they're what you click to switch client.
-        _thumbnailManager?.RaiseThumbnailsAboveOverlays();
 
         // Parse font size from string setting (matches ThumbnailTextSize being string)
         double fontSize = 11;

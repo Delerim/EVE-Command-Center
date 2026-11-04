@@ -57,7 +57,6 @@ public sealed class MiningDashboardPreferences
     public double ControlTileWidth { get; set; } = 620;
     public bool FleetOverviewVertical { get; set; }
     public double FleetOverviewVerticalHeight { get; set; } = 850;
-    public bool CombinedCharacterOverview { get; set; }
     public bool CharacterOverviewLivePreview { get; set; } = true;
     public string CharacterOverviewCombatMode { get; set; } = "";
     public bool CharacterOverviewMiningMode { get; set; }

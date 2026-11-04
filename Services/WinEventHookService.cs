@@ -9,7 +9,7 @@ namespace EveCommandCenter.Services;
 
 /// <summary>
 /// Single owner of SetWinEventHook subscriptions. Replaces per-tick polling in
-/// WindowDiscoveryService / ThumbnailManager / FrozenFrameService with
+/// WindowDiscoveryService / OverviewClientService / FrozenFrameService with
 /// event-driven wake-ups, so those services can run their heavy sweeps on a
 /// much slower cadence and still respond instantly to focus changes, minimize
 /// transitions, and EVE windows opening/closing.

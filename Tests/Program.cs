@@ -144,11 +144,10 @@ internal static partial class Program
             Check(ReferenceEquals(controlBorder.Child, overview.FindName("OverviewHeader")),
                 "Original complete control toolbar is restored without a compact capsule");
             var barHeader = (Grid)overview.FindName("OverviewHeader");
-            var fullActions = (Panel)overview.FindName("FullActions");
             var compactActions = (Panel)overview.FindName("CompactActions");
             Check(barHeader.ColumnDefinitions[0].Width.IsAuto &&
                   barHeader.ColumnDefinitions[1].Width.IsStar &&
-                  fullActions is StackPanel && compactActions is StackPanel,
+                  overview.FindName("FullActions")==null && compactActions is StackPanel,
                 "Full control bar gives its buttons remaining width and never wraps them into another row");
             Check(((ScrollViewer)controlRight.Children.OfType<ScrollViewer>().Single()).HorizontalContentAlignment ==
                   System.Windows.HorizontalAlignment.Right &&
@@ -157,7 +156,6 @@ internal static partial class Program
             Check(controlRight.Children.OfType<ScrollViewer>().Any(scroll =>
                   scroll.HorizontalScrollBarVisibility == ScrollBarVisibility.Auto &&
                   scroll.Content is Grid buttonsHost &&
-                  buttonsHost.Children.Contains(fullActions) &&
                   buttonsHost.Children.Contains(compactActions)),
                 "All buttons remain accessible by horizontal scrolling on narrower monitors");
             Check(stripWidth >= Math.Min(2080, SystemParameters.WorkArea.Width - 14),
@@ -215,11 +213,9 @@ internal static partial class Program
             Check(((Panel)overview.FindName("CompactActions")).Children.OfType<Button>()
                 .Any(b => Equals(b.Content, "SETTINGS")),
                 "Original overview settings button remains attached to header");
-            var fullAlarms=(Button)overview.FindName("FullAllAlarmsButton");
             var compactAlarms=(Button)overview.FindName("CompactAllAlarmsButton");
-            Check(fullAlarms.Parent == overview.FindName("FullActions") &&
-                  compactAlarms.Parent == overview.FindName("CompactActions"),
-                  "Bulk mining alarm control is present in both split control-strip modes");
+            Check(compactAlarms.Parent == overview.FindName("CompactActions"),
+                  "Combined toolbar retains its bulk mining alarm control");
             var flags=System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.Instance;
             var alertWatchdog=(MiningIdleWatchdogService)typeof(MiningFleetOverviewWindow)
                 .GetField("_watchdog",flags)!.GetValue(overview)!;
@@ -231,14 +227,12 @@ internal static partial class Program
             // event; the real buttons bind to the existing ToggleAllAlarms handler.
             alertWatchdog.SetCharacterAlarmsMuted(alarmPilots,true,save:false);
             typeof(MiningFleetOverviewWindow).GetMethod("RefreshCards",flags)!.Invoke(overview,null);
-            Check(Equals(fullAlarms.Content,"ALL ALARMS ON") &&
-                  Equals(compactAlarms.Content,"ALL ALARMS ON"),
-                  "Both bulk alarm buttons offer re-enabling after the fleet is muted");
+            Check(Equals(compactAlarms.Content,"ALL ALARMS ON"),
+                  "Bulk alarm button offers re-enabling after the fleet is muted");
             alertWatchdog.SetCharacterAlarmsMuted(alarmPilots,false,save:false);
             typeof(MiningFleetOverviewWindow).GetMethod("RefreshCards",flags)!.Invoke(overview,null);
-            Check(Equals(fullAlarms.Content,"ALL ALARMS OFF") &&
-                  Equals(compactAlarms.Content,"ALL ALARMS OFF"),
-                  "Both bulk alarm buttons offer suppression when miners are unmuted");
+            Check(Equals(compactAlarms.Content,"ALL ALARMS OFF"),
+                  "Bulk alarm button offers suppression when miners are unmuted");
             // Render the control strip itself; the wall is separately renderable via --audit-ui.
             if(args.Length > 1) Render((Window)tile!, args[1]);
             overview.Close();
@@ -268,6 +262,23 @@ internal static partial class Program
                 overview.Width = 740; overview.Height = 240;
             }
             Render(overview,args[1]); overview.Close(); return;
+        }
+        if(args.FirstOrDefault() == "--audit-moon-periods")
+        {
+            var appFixture = new System.Windows.Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
+            var shell = new MoonReportWindow {Width=1250,Height=900,WindowState=WindowState.Normal};
+            BackgroundOperations.Stop();
+            var tabs=(TabControl)shell.FindName("MoonTabs");
+            tabs.SelectedItem=tabs.Items.OfType<TabItem>().Single(t=>t.Header?.ToString()=="REPORTING");
+            var periods=new[] {new MoonPeriodReportView {Label="October 2026",MinedM3=1909000000,LostM3=950000000,MinedText="1,909.0M m3",LostText="950.0M m3",EfficiencyText="66.8%",PullCount=84,JackpotCount=11,
+                Fields=new[] {new MoonAuditView {MoonName="Raren VIII - Moon 9",StructureName="Cheese and Quackers",Fractured="18 Oct 2026 12:00",Expired="20 Oct 2026 12:00",ExpiredUtc=DateTimeOffset.UtcNow,TotalMined="34.34M m3",TotalLeft="3.81M m3",Outcome="ORE LEFT"},
+                    new MoonAuditView {MoonName="Mazith VI - Moon 10",Fractured="20 Oct 2026 18:00",Expired="-",TotalMined="12.6M m3",TotalLeft="Unknown"}}}};
+            var grid=(DataGrid)shell.FindName("PeriodGrid");grid.ItemsSource=periods;grid.SelectedIndex=0;
+            Render(shell,args[1]);
+            IEnumerable<DependencyObject> Walk(DependencyObject node) { yield return node; for(int i=0;i<System.Windows.Media.VisualTreeHelper.GetChildrenCount(node);i++) foreach(var child in Walk(System.Windows.Media.VisualTreeHelper.GetChild(node,i))) yield return child; }
+            var detail=Walk(grid).OfType<DataGrid>().First(g=>g!=grid);
+            Check(detail.Columns.All(c=>c.ActualWidth>=140),"Expanded moon report columns retain readable widths at 1250 pixels");
+            shell.Close();BackgroundOperations.Stop();return;
         }
         if(args.FirstOrDefault() == "--audit-refuelling")
         {
@@ -312,13 +323,12 @@ internal static partial class Program
             var overview=CheckCharacterOverview();
             var flags=System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic;
             var preferences=(MiningDashboardPreferences)typeof(MiningFleetOverviewWindow).GetField("_prefs",flags)!.GetValue(overview)!;
-            preferences.CombinedCharacterOverview=false;
+            preferences.CharacterOverviewMiningMode=true;
             typeof(MiningFleetOverviewWindow).GetMethod("ApplyCombinedMode",flags)!.Invoke(overview,null);
             typeof(MiningFleetOverviewWindow).GetMethod("RefreshCards",flags)!.Invoke(overview,null);
             Check(((TextBlock)overview.FindName("FleetTodayProfit")).Visibility==Visibility.Visible,"Fleet mining value is visible beside PLEX in the mining header");
             if(args[0] == "--audit-vertical")
             {
-                preferences.CombinedCharacterOverview = true;
                 preferences.FleetOverviewAutoFit = true;
                 preferences.FleetOverviewVertical = true;
                 preferences.CharacterOverviewMiningMode = true;
@@ -394,13 +404,7 @@ internal static partial class Program
         CheckBuybackPeriods();
         CheckOperationsLedger();
         CheckMoonAlerts();
-        Check(!ThumbnailManager.PrimaryPreviewsAllowed(true, false, false),
-            "Combined mode suppresses legacy previews even when every other visibility setting allows them");
-        Check(ThumbnailManager.PrimaryPreviewsAllowed(false, false, false),
-            "Separate mode restores legacy previews without altering the saved preference");
-        Check(!ThumbnailManager.PrimaryPreviewsAllowed(false, true, false) &&
-              !ThumbnailManager.PrimaryPreviewsAllowed(false, false, true),
-            "Separate mode still respects independently disabled primary previews");
+
         CheckDiscordPlanetaryAlertRules();
         CheckDiscordWebhooks();
         CheckContractHistory();
@@ -725,7 +729,7 @@ internal static partial class Program
         foreach (var source in resources.Descendants().SelectMany(e => e.Attributes("Source"))) source.Value = "/EVE Command Center;component/" + source.Value;
         System.Windows.Application.Current.Resources = (ResourceDictionary)System.Windows.Markup.XamlReader.Parse(resources.ToString());
         var previewSettings = new SettingsWindow(new SettingsService());
-        Check(previewSettings.FindName("NavHotkeys") != null && previewSettings.FindName("NavThumbnails") != null && previewSettings.FindName("NavCrop") != null, "Restyled preview settings retain hotkey, thumbnail and crop navigation");
+        Check(previewSettings.FindName("NavHotkeys") != null && previewSettings.FindName("NavThumbnails") == null && previewSettings.FindName("NavCrop") != null, "Settings retain shared hotkey/crop controls and remove obsolete thumbnail configuration");
         if (args.Length > 0) Render(previewSettings, System.IO.Path.ChangeExtension(args[0], ".preview.png"));
         Console.WriteLine($"{_checks} checks passed.");
     }

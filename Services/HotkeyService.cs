@@ -448,7 +448,7 @@ public sealed class HotkeyService : IDisposable
     /// Register all hotkeys from settings. Call from UI thread after services are wired.
     /// </summary>
     public void RegisterFromSettings(AppSettings settings, Profile profile,
-        ThumbnailManager thumbnailManager, Action openSettings)
+        OverviewClientService overviewClients, Action openSettings)
     {
         UnregisterAll();
 
@@ -474,7 +474,7 @@ public sealed class HotkeyService : IDisposable
 
         RegisterCycleKeyIgnore(settings.ProfileCycleForwardHotkey);
         RegisterCycleKeyIgnore(settings.ProfileCycleBackwardHotkey);
-        
+
         if (settings.CharSelectCyclingEnabled)
         {
             RegisterCycleKeyIgnore(settings.CharSelectForwardHotkey);
@@ -494,70 +494,46 @@ public sealed class HotkeyService : IDisposable
         // They'll be activated when EVE windows are detected
 
         // Click-through toggle
-        StoreAhkHotkey(settings.ClickThroughHotkey, () =>
-        {
-            if (_suspended) return;
-            thumbnailManager.ToggleClickThrough();
-        });
+
 
         // Hide/Show all thumbnails
         StoreAhkHotkey(settings.HideShowThumbnailsHotkey, () =>
         {
             if (_suspended) return;
-            thumbnailManager.ToggleAllVisibility();
+            overviewClients.ToggleAllVisibility();
         });
 
         // Hide/Show primary only
-        StoreAhkHotkey(settings.HidePrimaryHotkey, () =>
-        {
-            if (_suspended) return;
-            thumbnailManager.TogglePrimaryVisibility();
-        });
+
 
         // Hide/Show secondary (PiP) only
-        StoreAhkHotkey(settings.HideSecondaryHotkey, () =>
-        {
-            if (_suspended) return;
-            thumbnailManager.ToggleSecondaryVisibility();
-        });
 
-        // Hide/Show crops only (issue #66). Routed through ThumbnailManager so
+
+        // Hide/Show crops only (issue #66). Routed through OverviewClientService so
         // HotkeyService needs no direct CropManager reference.
         StoreAhkHotkey(settings.HideShowCropsHotkey, () =>
         {
             if (_suspended) return;
-            thumbnailManager.ToggleCropsVisibility();
+            overviewClients.ToggleCropsVisibility();
         });
 
         // Optional global layout undo/redo (unbound by default; pick non-EVE keys).
-        StoreAhkHotkey(settings.UndoLayoutHotkey, () =>
-        {
-            if (_suspended) return;
-            thumbnailManager.UndoLayout();
-        });
-        StoreAhkHotkey(settings.RedoLayoutHotkey, () =>
-        {
-            if (_suspended) return;
-            thumbnailManager.RedoLayout();
-        });
+
+
 
         // Lock thumbnail positions toggle (issue #10)
-        StoreAhkHotkey(settings.LockPositionsHotkey, () =>
-        {
-            if (_suspended) return;
-            thumbnailManager.ToggleLockPositions();
-        });
+
 
         // Global cycle across ALL tracked clients, profile/group-agnostic (issue #9)
         StoreRepeatableAhkHotkey(settings.GlobalCycleForwardHotkey, () =>
         {
             if (_suspended) return;
-            thumbnailManager.CycleAll(forward: true);
+            overviewClients.CycleAll(forward: true);
         });
         StoreRepeatableAhkHotkey(settings.GlobalCycleBackwardHotkey, () =>
         {
             if (_suspended) return;
-            thumbnailManager.CycleAll(forward: false);
+            overviewClients.CycleAll(forward: false);
         });
 
         // ── Char-select cycling hotkeys (AHK CharSelectCycling) ──
@@ -566,12 +542,12 @@ public sealed class HotkeyService : IDisposable
             StoreRepeatableAhkHotkey(settings.CharSelectForwardHotkey, () =>
             {
                 if (_suspended) return;
-                thumbnailManager.CycleCharSelect(forward: true);
+                overviewClients.CycleCharSelect(forward: true);
             });
             StoreRepeatableAhkHotkey(settings.CharSelectBackwardHotkey, () =>
             {
                 if (_suspended) return;
-                thumbnailManager.CycleCharSelect(forward: false);
+                overviewClients.CycleCharSelect(forward: false);
             });
             Debug.WriteLine("[Hotkey:Register] 🔄 Char-select cycling hotkeys stored (repeatable)");
         }
@@ -582,7 +558,7 @@ public sealed class HotkeyService : IDisposable
             StoreAhkHotkey(settings.QuickSwitchHotkey, () =>
             {
                 if (_suspended) return;
-                thumbnailManager.ShowQuickSwitch();
+                overviewClients.ShowQuickSwitch();
             });
             Debug.WriteLine("[Hotkey:Register] 🎡 Quick-Switch wheel hotkey stored");
         }
@@ -624,7 +600,7 @@ public sealed class HotkeyService : IDisposable
                 StoreAhkHotkey(hotkeyStr, () =>
                 {
                     if (_suspended) return;
-                    thumbnailManager.ActivateEveWindow(IntPtr.Zero, capturedName);
+                    overviewClients.ActivateEveWindow(IntPtr.Zero, capturedName);
                 }, priority: SPECIFIC_PRIORITY);
             }
             else
@@ -632,7 +608,7 @@ public sealed class HotkeyService : IDisposable
                 StoreRepeatableAhkHotkey(hotkeyStr, () =>
                 {
                     if (_suspended) return;
-                    thumbnailManager.CycleGroup(hotkeyStr + "_shared", capturedMembers, forward: true);
+                    overviewClients.CycleGroup(hotkeyStr + "_shared", capturedMembers, forward: true);
                 }, priority: SPECIFIC_PRIORITY);
             }
         }
@@ -666,7 +642,7 @@ public sealed class HotkeyService : IDisposable
             StoreRepeatableAhkHotkey(hotkeyStr, () =>
             {
                 if (_suspended) return;
-                thumbnailManager.CycleGroup(hotkeyStr + "_fwd", members, forward: true);
+                overviewClients.CycleGroup(hotkeyStr + "_fwd", members, forward: true);
             }, priority: SPECIFIC_PRIORITY);
         }
 
@@ -677,7 +653,7 @@ public sealed class HotkeyService : IDisposable
             StoreRepeatableAhkHotkey(hotkeyStr, () =>
             {
                 if (_suspended) return;
-                thumbnailManager.CycleGroup(hotkeyStr + "_bwd", members, forward: false);
+                overviewClients.CycleGroup(hotkeyStr + "_bwd", members, forward: false);
             }, priority: SPECIFIC_PRIORITY);
         }
 
@@ -766,7 +742,7 @@ public sealed class HotkeyService : IDisposable
 
         var (parsedMods, vk) = ParseAhkHotkeyString(ahkKeyString);
         if (vk == 0) return;
-        
+
         // Natively simulate wildcard modifiers by exhaustively registering all 16 modifier combinations
         for (uint m = 0; m < 16; m++)
         {

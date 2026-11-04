@@ -103,7 +103,7 @@ public partial class QuickSwitchWheel : Window
             .Let(a => BeginAnimation(OpacityProperty, a));
     }
 
-    /// <summary>Force-close without the Deactivated guard blocking.Called by ThumbnailManager toggle.</summary>
+    /// <summary>Force-close without the Deactivated guard blocking.Called by OverviewClientService toggle.</summary>
     public void ForceClose() => CloseWheel();
 
     // ─────────────────────────────────────────────────────────────────

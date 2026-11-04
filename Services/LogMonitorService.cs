@@ -82,7 +82,7 @@ public sealed class LogMonitorService : IDisposable
     // Settings reference for configurable alert colors and sounds
     private AppSettings? _appSettings;
 
-    // Events — matches what App.xaml.cs and ThumbnailManager expect
+    // Events — matches what App.xaml.cs and OverviewClientService expect
     public event Action<string, string>? SystemChanged;     // (characterName, systemName)
     public event Action<string,string>? CombatLineObserved;
     public event Action<DamageEvent>? DamageReceived;       // Player took damage
@@ -211,8 +211,8 @@ public sealed class LogMonitorService : IDisposable
         "Thunderchild", "Stormbringer", "Skybreaker",
         "Disparu", "Enforcer", "Pacifier", "Marshal ",
         "Upwell ",
-        "Vanguard", "Gunner", "Warden", "Provost", "Paragon", 
-        "Patrol", "Escort", "Defender", "Protector", "Sentinel", 
+        "Vanguard", "Gunner", "Warden", "Provost", "Paragon",
+        "Patrol", "Escort", "Defender", "Protector", "Sentinel",
         "Logistics", "Support", "Stalwart", "Preserver", "Custodian", "Responder",
         // ═══ Deathless Circle (Havoc expansion) ═══
         "Deathless ",
@@ -226,9 +226,9 @@ public sealed class LogMonitorService : IDisposable
         "Forward Operating",
         "Diamond ", "FOB ", "♦",
         // ═══ Additional Missing from SDE ═══
-        "Angel ", "Independent", "COSMOS ", "Metadrone", "Elite ", 
-        "Dread ", "Elder ", "Dire ", "Scout ", "EoM ", "AEGIS ", "ORE ", "[AIR]", 
-        "Blood ", "Mercenary ", "Thukker ", "Divine ", "Hunt ", "Guri ", "SoCT ", 
+        "Angel ", "Independent", "COSMOS ", "Metadrone", "Elite ",
+        "Dread ", "Elder ", "Dire ", "Scout ", "EoM ", "AEGIS ", "ORE ", "[AIR]",
+        "Blood ", "Mercenary ", "Thukker ", "Divine ", "Hunt ", "Guri ", "SoCT ",
         "Tetrimon ", "Sleeper ", "Federal ", "Infesting ", "Talocan ", "Cyber ",
         // ═══ Homefront Operations (25-pass audit) ═══
         "Homefront ",
@@ -321,7 +321,7 @@ public sealed class LogMonitorService : IDisposable
         "Unit D-34343", "Unit F-435454", "Unit P-343554", "Unit W-634",
         // Named mission bosses
         "Zor", "Kruul",
-    
+
         // --- Missing from August 2025 SDE ---
         "Ace Arrogator",         "Ace Demolisher",         "Ace Despoiler",
         "Ace Destructor",         "Ace Imputor",         "Ace Infiltrator",
@@ -1589,7 +1589,7 @@ public sealed class LogMonitorService : IDisposable
                     }
                     else
                     {
-                        // Legacy fallback 
+                        // Legacy fallback
                         missAttacker = Regex.Match(line, @"<b>(.+?)</b>");
                         if (missAttacker.Success)
                         {

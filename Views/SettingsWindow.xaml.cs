@@ -25,7 +25,7 @@ namespace EveCommandCenter.Views;
 public partial class SettingsWindow : Window
 {
     private readonly SettingsService _svc;
-    private readonly ThumbnailManager? _thumbnailManager;
+    private readonly OverviewClientService? _overviewClients;
     private readonly CropManager? _cropManager;
     private AppSettings S => _svc.Settings;
     private int _loadingDepth;
@@ -63,10 +63,10 @@ public partial class SettingsWindow : Window
     [DllImport("dwmapi.dll", PreserveSig = true)]
     private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attr, ref int val, int sz);
 
-    public SettingsWindow(SettingsService svc, ThumbnailManager? thumbnailManager = null, CropManager? cropManager = null)
+    public SettingsWindow(SettingsService svc, OverviewClientService? overviewClients = null, CropManager? cropManager = null)
     {
         _svc = svc;
-        _thumbnailManager = thumbnailManager;
+        _overviewClients = overviewClients;
         _cropManager = cropManager;
 
         // Recovery net (issue #81): opening Settings always restores crops, so an
@@ -88,12 +88,12 @@ public partial class SettingsWindow : Window
             _svc.Save();
             if (_opacityOnlyChange)
             {
-                _thumbnailManager?.ApplyOpacityToAll();
+                _overviewClients?.ReapplySettings();
                 _opacityOnlyChange = false;
             }
             else
             {
-                _thumbnailManager?.ReapplySettings();
+                _overviewClients?.ReapplySettings();
             }
             SettingsApplied?.Invoke();
             _hasUnappliedChanges = false;
@@ -184,7 +184,7 @@ public partial class SettingsWindow : Window
             if (result == MessageBoxResult.Yes)
             {
                 _svc.Save();
-                _thumbnailManager?.ReapplySettings();
+                _overviewClients?.ReapplySettings();
             }
             else if (result == MessageBoxResult.Cancel)
             {
@@ -229,7 +229,7 @@ public partial class SettingsWindow : Window
     // ══════════════════════════════════════════════════════════════
     //  NAVIGATION
     // ══════════════════════════════════════════════════════════════
-    private readonly string[] _panels = { "General","Thumbnails","Layout","Hotkeys","Colors","Groups","Alerts","Backup","Sounds","Visibility","Client","Performance","FPSLimiter","StatsOverlay","EVEManager","About","Debug","Crop" };
+    private readonly string[] _panels = { "General","Hotkeys","Groups","Alerts","Backup","Sounds","Client","Performance","FPSLimiter","EVEManager","About","Debug","Crop" };
 
     private void NavButton_Click(object sender, RoutedEventArgs e)
     {
@@ -275,9 +275,6 @@ public partial class SettingsWindow : Window
         if (name == "Sounds") { BuildSoundRows(); BuildClientVolumeRows(); }
         if (name == "Hotkeys") BuildHotkeyAudit();
         if (name == "FPSLimiter") DetectRtss();
-        if (name == "Layout") { PopulateMonitors(); PopulateActiveChars(); PopulateLayoutPresets(); }
-        if (name == "Thumbnails") PopulateResizeChars();
-        if (name == "StatsOverlay") LoadStatCharacters();
         if (name == "EVEManager") LoadEveManagerPanel();
         if (name == "Performance") LoadPerformanceSettings();
         if (name == "Crop") LoadCropPanel();
@@ -322,21 +319,13 @@ public partial class SettingsWindow : Window
 
             CmbHotkeyScope.SelectedIndex = S.GlobalHotkeys ? 0 : 1;
             TxtSuspendHotkey.Text = S.SuspendHotkey;
-            TxtClickThroughHotkey.Text = S.ClickThroughHotkey;
             TxtHideShowHotkey.Text = S.HideShowThumbnailsHotkey;
-            TxtHidePrimaryHotkey.Text = S.HidePrimaryHotkey;
-            TxtHideSecondaryHotkey.Text = S.HideSecondaryHotkey;
             TxtHideCropsHotkey.Text = S.HideShowCropsHotkey;
             TxtProfileCycleForward.Text = S.ProfileCycleForwardHotkey;
             TxtProfileCycleBackward.Text = S.ProfileCycleBackwardHotkey;
             TxtQuickSwitchHotkey.Text = S.QuickSwitchHotkey;
-            TxtUndoLayoutHotkey.Text = S.UndoLayoutHotkey;
-            TxtRedoLayoutHotkey.Text = S.RedoLayoutHotkey;
-            ChkLockPositions.IsChecked = S.LockPositions;
             ChkBroadcastHud.IsChecked = S.ShowBroadcastKeyHud;
             ChkAutoSoloAudio.IsChecked = S.AutoSoloClientAudio;
-            ChkIndividualResize.IsChecked = S.IndividualThumbnailResize;
-            ChkShowTimer.IsChecked = S.ShowSessionTimer;
             TxtMinimizeDelay.Text = S.MinimizeDelay.ToString();
             TxtCycleDelay.Text = S.CycleDelayMs.ToString();
             ChkCycleWhileHeld.IsChecked = S.CycleWhileHeld;
@@ -348,74 +337,6 @@ public partial class SettingsWindow : Window
             SliderUiScale.Value = S.SettingsUiFontSize;
             TxtUiScaleValue.Text = $"{S.SettingsUiFontSize}pt";
             ApplyUiScale(S.SettingsUiFontSize);
-
-            // Thumbnails
-            SliderOpacity.Value = S.ThumbnailOpacity * 100 / 255;
-            TxtOpacityValue.Text = $"{(int)SliderOpacity.Value}%";
-            ChkAlwaysOnTop.IsChecked = S.ShowThumbnailsAlwaysOnTop;
-            ChkAboveClients.IsChecked = S.KeepThumbnailsAboveClients;
-            ChkHideOnLostFocus.IsChecked = S.HideThumbnailsOnLostFocus;
-            ChkOpacityOnHover.IsChecked = S.OpacityOnHover;
-            // Cycle exclusion badge position — match by Tag string, default to TopLeft.
-            string pos = string.IsNullOrEmpty(S.CycleExclusionBadgePosition) ? "TopLeft" : S.CycleExclusionBadgePosition;
-            int posIdx = 0;
-            for (int i = 0; i < CmbExclusionBadgePos.Items.Count; i++)
-            {
-                if (CmbExclusionBadgePos.Items[i] is System.Windows.Controls.ComboBoxItem cbi
-                    && string.Equals(cbi.Tag as string, pos, StringComparison.Ordinal))
-                {
-                    posIdx = i;
-                    break;
-                }
-            }
-            CmbExclusionBadgePos.SelectedIndex = posIdx;
-            ChkHideActive.IsChecked = S.HideActiveThumbnail;
-            ChkShowSystem.IsChecked = S.ShowSystemName;
-            ChkShowStats.IsChecked = S.ShowProcessStats;
-            TxtStatsTextSize.Text = S.ProcessStatsTextSize;
-            ChkShowName.IsChecked = S.ShowThumbnailTextOverlay;
-            TxtTextColor.Text = S.ThumbnailTextColor;
-            TxtTextSize.Text = S.ThumbnailTextSize;
-            TxtTextFont.Text = S.ThumbnailTextFont;
-            TxtTextMarginX.Text = S.ThumbnailTextMargins.X.ToString();
-            TxtTextMarginY.Text = S.ThumbnailTextMargins.Y.ToString();
-            TxtActiveColor.Text = S.ClientHighlightColor;
-            TxtActiveBorderThickness.Text = S.ClientHighlightBorderThickness.ToString();
-            ChkShowHighlightBorder.IsChecked = S.ShowClientHighlightBorder;
-            ChkShowAllBorders.IsChecked = S.ShowAllColoredBorders;
-            TxtFrameThickness.Text = S.InactiveClientBorderThickness.ToString();
-            TxtInactiveColor.Text = S.InactiveClientBorderColor;
-            TxtBackgroundColor.Text = S.ThumbnailBackgroundColor;
-            UpdateColorPreview(TxtTextColor, PreviewTextColor);
-            UpdateColorPreview(TxtActiveColor, PreviewActiveColor);
-            UpdateColorPreview(TxtInactiveColor, PreviewInactiveColor);
-            UpdateColorPreview(TxtBackgroundColor, PreviewBgColor);
-            LoadAnnotations();
-
-            // Layout
-            TxtStartX.Text = S.ThumbnailStartLocation.X.ToString();
-            TxtStartY.Text = S.ThumbnailStartLocation.Y.ToString();
-            TxtThumbWidth.Text = S.ThumbnailStartLocation.Width.ToString();
-            TxtThumbHeight.Text = S.ThumbnailStartLocation.Height.ToString();
-            // Thumbnails panel resize boxes — seed from the current default size.
-            TxtResizeAllW.Text = S.ThumbnailStartLocation.Width.ToString();
-            TxtResizeAllH.Text = S.ThumbnailStartLocation.Height.ToString();
-            TxtMinWidth.Text = S.ThumbnailMinimumSize.Width.ToString();
-            TxtMinHeight.Text = S.ThumbnailMinimumSize.Height.ToString();
-            ChkSnap.IsChecked = S.ThumbnailSnap;
-            TxtSnapDistance.Text = S.ThumbnailSnapDistance.ToString();
-            TxtGutter.Text = S.ThumbnailGutter.ToString();
-            ChkConfineMonitor.IsChecked = S.ConfineDragsToMonitor;
-            ChkHoverZoom.IsChecked = S.ResizeThumbnailsOnHover;
-            TxtHoverScale.Text = S.HoverScale.ToString("F1");
-
-            // Colors
-            ChkCustomColorsActive.IsChecked = S.CustomColorsActive;
-            LoadColorsList();
-
-            // Groups
-            ChkShowGroupBorders.IsChecked = S.ShowAllColoredBorders;
-            LoadGroupDropdown();
 
             // Alerts
             ChkChatLogMon.IsChecked = S.EnableChatLogMonitoring;
@@ -444,10 +365,6 @@ public partial class SettingsWindow : Window
             ChkEnableSounds.IsChecked = S.EnableAlertSounds;
             TxtMasterVolume.Text = S.AlertSoundVolume.ToString();
 
-            // Visibility
-            LoadVisibilityList();
-            LoadSecondaryThumbnails();
-
             // Client
             ChkCharSelectCycle.IsChecked = S.CharSelectCyclingEnabled;
             TxtCharSelectFwd.Text = S.CharSelectForwardHotkey;
@@ -464,25 +381,7 @@ public partial class SettingsWindow : Window
 
             // FPS
             ChkShowFps.IsChecked = S.ShowRtssFps;
-            TxtFpsMarginX.Text = S.FpsOverlayMarginX.ToString();
-            TxtFpsMarginY.Text = S.FpsOverlayMarginY.ToString();
-            TxtFpsTextSize.Text = S.FpsOverlayTextSize.ToString();
             SelectFpsLimit(S.RtssFpsLimit);
-
-            // Stats
-            ChkStatsOverlayEnabled.IsChecked = S.StatOverlayEnabled;
-            SliderStatFont.Value = S.StatOverlayFontSize;
-            TxtStatFontValue.Text = S.StatOverlayFontSize.ToString();
-            SliderStatOpacity.Value = S.StatOverlayOpacity;
-            TxtStatOpacityValue.Text = S.StatOverlayOpacity.ToString();
-            TxtStatBgColor.Text = S.StatOverlayBgColor;
-            TxtStatTextColor.Text = S.StatOverlayTextColor;
-            UpdateStatColorPreviews();
-            ChkStatLogging.IsChecked = S.StatLoggingEnabled;
-            TxtStatLogDir.Text = S.StatLogDirectory;
-            TxtStatLogRetention.Text = S.StatLogRetentionDays.ToString();
-            LoadStatGlobalCheckboxes();
-            LoadStatCharacters();
 
             // Hotkeys
             LoadHotkeysList();
@@ -544,7 +443,6 @@ public partial class SettingsWindow : Window
                 finally { _loadingDepth--; }
             }
             LoadSettings();
-            RefreshAppliedLayoutPresetDisplay();   // show the new profile's layout preset (#94)
             // Applying the profile (thumbnails + crops + hotkeys) is App's ProfileSwitched
             // handler now (#101) — it runs whether or not this window is open. This one
             // only re-binds the UI, so the two don't apply the same switch twice.
@@ -571,7 +469,7 @@ public partial class SettingsWindow : Window
     private void OnApplySettings(object s, RoutedEventArgs e)
     {
         _svc.Save();
-        _thumbnailManager?.ReapplySettings();
+        _overviewClients?.ReapplySettings();
         _cropManager?.Refresh();
         SettingsApplied?.Invoke();
         _hasUnappliedChanges = false;
@@ -606,20 +504,7 @@ public partial class SettingsWindow : Window
     private const string NormalNotLoggedIn = "#555555";
     private const string CbNotLoggedIn = "#888888";            // brighter gray — better contrast for low vision
 
-    private void OnResetThumbnailPositions(object sender, RoutedEventArgs e)
-    {
-        var result = MessageBox.Show(
-            "Reset all thumbnails to their default positions and size?\n\nThis clears your custom layout for the current profile.",
-            "Reset Thumbnail Positions",
-            MessageBoxButton.YesNo,
-            MessageBoxImage.Question);
-        if (result != MessageBoxResult.Yes) return;
 
-        _thumbnailManager?.ResetThumbnailPositions();
-    }
-
-    private void OnUndoLayout(object sender, RoutedEventArgs e) => _thumbnailManager?.UndoLayout();
-    private void OnRedoLayout(object sender, RoutedEventArgs e) => _thumbnailManager?.RedoLayout();
 
     private void OnToggleColorBlind(object sender, RoutedEventArgs e)
     {
@@ -806,769 +691,23 @@ public partial class SettingsWindow : Window
     /// when present, otherwise falls back to the English text below (issue #86).</summary>
     private static string GetWikiContent(string panelName)
     {
-        if (System.Windows.Application.Current?.TryFindResource($"L.Wiki.{panelName}") is string loc
-            && !string.IsNullOrWhiteSpace(loc))
-            return loc;
+        // Retired preview instructions in older translation packs must not be shown.
         return GetWikiContentEnglish(panelName);
     }
 
     private static string GetWikiContentEnglish(string panelName) => panelName switch
     {
-        "General" =>
-            "GENERAL SETTINGS\n" +
-            "═══════════════════════════\n\n" +
-            "Hotkey Activation Scope\n" +
-            "────────────────────────────\n" +
-            "• Global — hotkeys work even when\n" +
-            "  EVE is not the active window.\n" +
-            "• If an EVE window is Active — hotkeys\n" +
-            "  only fire when an EVE client has focus.\n\n" +
-            "Suspend Hotkeys\n" +
-            "────────────────────────────\n" +
-            "Press this key combo to temporarily\n" +
-            "disable all Command Center hotkeys.\n" +
-            "Press again to re-enable.\n\n" +
-            "Click-Through Toggle\n" +
-            "────────────────────────────\n" +
-            "Makes thumbnails ignore mouse clicks\n" +
-            "so they don't steal focus.\n\n" +
-            "Hide/Show Hotkeys\n" +
-            "────────────────────────────\n" +
-            "• Hide/Show All — toggles primary\n" +
-            "  AND PiP thumbnails at once.\n" +
-            "• Hide/Show Primary — only primary.\n" +
-            "• Hide/Show PiP — only PiP thumbnails.\n\n" +
-            "Profile Cycling\n" +
-            "────────────────────────────\n" +
-            "Cycle forward/backward through profiles.\n" +
-            "Wraps around (last → first).\n\n" +
-            "Lock Positions\n" +
-            "────────────────────────────\n" +
-            "Prevents thumbnails from being\n" +
-            "accidentally dragged.\n\n" +
-            "Individual Thumbnail Resize\n" +
-            "────────────────────────────\n" +
-            "When ON, each thumbnail can be resized\n" +
-            "independently. When OFF, resizing one\n" +
-            "resizes all thumbnails together.\n\n" +
-            "Quick Switch Hotkey\n" +
-            "────────────────────────────\n" +
-            "Instantly switches to the last active\n" +
-            "EVE client — handy for toggling between\n" +
-            "two characters quickly.\n\n" +
-            "Session Timer\n" +
-            "Displays how long each EVE client has\n" +
-            "been running on the thumbnail overlay.\n\n" +
-            "Minimize Delay\n" +
-            "────────────────────────────\n" +
-            "Delay (in ms) before an inactive client\n" +
-            "is minimized. Prevents accidental\n" +
-            "minimization during fast switching.\n\n" +
-            "Cycle Delay\n" +
-            "────────────────────────────\n" +
-            "Time between activations when a cycle\n" +
-            "hotkey is held down (mouse button or\n" +
-            "key). Lower = faster repeat. Default\n" +
-            "100 ms feels natural for most setups;\n" +
-            "drop it for snappier cycling.\n\n" +
-            "UI Scale\n" +
-            "────────────────────────────\n" +
-            "Adjusts the font size of the Settings\n" +
-            "UI window. Drag the slider or click\n" +
-            "on the track to change the size.",
-
-        "Thumbnails" =>
-            "THUMBNAIL APPEARANCE\n" +
-            "═══════════════════════════\n\n" +
-            "Opacity\n" +
-            "────────────────────────────\n" +
-            "Controls how transparent thumbnails are.\n" +
-            "0% = invisible, 100% = fully opaque.\n\n" +
-            "Bump To 100% Opacity On Hover\n" +
-            "────────────────────────────\n" +
-            "When ON, hovering a thumbnail snaps it\n" +
-            "to fully opaque and restores the saved\n" +
-            "opacity when you move off. Useful if you\n" +
-            "keep thumbnails dim to stay out of the\n" +
-            "way but still want full clarity when\n" +
-            "you actually look at one.\n\n" +
-            "Cycle Exclusion Badge\n" +
-            "────────────────────────────\n" +
-            "Position of the red ✕ badge that marks\n" +
-            "characters excluded from cycle groups\n" +
-            "(shift-click a thumbnail to toggle). Pick\n" +
-            "any of nine anchor points so it stays\n" +
-            "clear of the character name and other\n" +
-            "text overlays.\n\n" +
-            "Always On Top\n" +
-            "────────────────────────────\n" +
-            "Keeps thumbnails above all other windows.\n" +
-            "Recommended ON for most multiboxing.\n\n" +
-            "Hide When Alt-Tabbed\n" +
-            "────────────────────────────\n" +
-            "Hides thumbnails when no EVE window\n" +
-            "is active. Reappear when you switch back.\n\n" +
-            "Hide Active Thumbnail\n" +
-            "────────────────────────────\n" +
-            "Hides the thumbnail for the EVE client\n" +
-            "that currently has focus.\n\n" +
-            "System Name\n" +
-            "────────────────────────────\n" +
-            "Shows the current solar system on each\n" +
-            "thumbnail. Reads from EVE chat logs.\n\n" +
-            "Process Stats\n" +
-            "────────────────────────────\n" +
-            "Shows CPU/memory info on each thumbnail.\n" +
-            "Useful for monitoring client performance.\n" +
-            "Adjust text size in the field below.\n\n" +
-            "Annotations\n" +
-            "────────────────────────────\n" +
-            "Add custom role labels (Scout, DPS, Logi)\n" +
-            "to each character's thumbnail. Click\n" +
-            "Add/Edit to set a label, Clear to remove.\n\n" +
-            "ADVANCED — Text & Overlay\n" +
-            "════════════════════════\n\n" +
-            "• Text Overlay — character name on thumb\n" +
-            "• Text Color / Size / Font — style it\n" +
-            "• Text Margins — offset from top-left\n" +
-            "• Highlight Border — colored border on\n" +
-            "  the active client's thumbnail\n" +
-            "• Inactive Border — border on all others\n" +
-            "• Background Color — fill color behind\n" +
-            "  the live preview",
-
-        "Layout" =>
-            "THUMBNAIL LAYOUT\n" +
-            "═══════════════════════════\n\n" +
-            "Default Location\n" +
-            "────────────────────────────\n" +
-            "Where new thumbnails appear on screen\n" +
-            "(x, y) and their default size (w, h).\n" +
-            "Existing saved positions are NOT changed.\n\n" +
-            "Minimum Size\n" +
-            "────────────────────────────\n" +
-            "Smallest allowed thumbnail dimensions.\n\n" +
-            "Thumbnail Snap\n" +
-            "────────────────────────────\n" +
-            "When ON, thumbnails will snap together\n" +
-            "when dragged near each other or near\n" +
-            "screen edges.\n\n" +
-            "Hover Zoom\n" +
-            "────────────────────────────\n" +
-            "When ON, thumbnails enlarge when you\n" +
-            "hover over them. Set the Scale factor\n" +
-            "(e.g. 1.5 = 150% of normal size).\n\n" +
-            "Preferred Monitor\n" +
-            "────────────────────────────\n" +
-            "Which monitor to place new thumbnails on.\n" +
-            "Existing saved positions are not changed.\n\n" +
-            "TIP: Drag thumbnails while settings are\n" +
-            "open, then use ⟳ Apply to save positions.",
-
-        "Hotkeys" =>
-            "CHAR HOTKEYS\n" +
-            "═══════════════════════════\n\n" +
-            "Per-Character Hotkeys\n" +
-            "────────────────────────────\n" +
-            "Assign a hotkey to each EVE character.\n" +
-            "Pressing it brings that character's\n" +
-            "client to the foreground.\n\n" +
-            "Characters on the same EVE account\n" +
-            "can share the same hotkey.\n\n" +
-            "Editing Hotkeys\n" +
-            "────────────────────────────\n" +
-            "Select a character and click Edit.\n" +
-            "Type a key combo directly, or click\n" +
-            "⌨ Capture and press your key combo\n" +
-            "or mouse button (XButton1/2, MButton).\n\n" +
-            "Hotkey Format\n" +
-            "────────────────────────────\n" +
-            "Use AHK v2 key names:\n" +
-            "• F1, F2, ... F12\n" +
-            "• ^a = Ctrl+A\n" +
-            "• !a = Alt+A\n" +
-            "• +a = Shift+A\n" +
-            "• #a = Win+A\n" +
-            "• ^+F1 = Ctrl+Shift+F1\n" +
-            "• XButton1, XButton2, MButton\n\n" +
-            "Conflict Detection\n" +
-            "────────────────────────────\n" +
-            "If a hotkey conflicts with a system\n" +
-            "hotkey (General tab), it will be blocked.\n" +
-            "Character hotkeys can overlap.\n\n" +
-            "HOTKEY GROUPS\n" +
-            "════════════════════════\n\n" +
-            "Group Cycling\n" +
-            "────────────────────────────\n" +
-            "Create named groups of characters and\n" +
-            "assign Forward / Backward hotkeys to\n" +
-            "cycle through only that subset.\n\n" +
-            "Example: a 'PVP Fleet' group with your\n" +
-            "combat characters — one key to step\n" +
-            "through them without touching alts.\n\n" +
-            "Managing Groups\n" +
-            "────────────────────────────\n" +
-            "• Select or create a group from the\n" +
-            "  dropdown below the character list\n" +
-            "• Add characters with ➕ Add Character\n" +
-            "• Assign Forward / Backward hotkeys\n" +
-            "• Delete removes the entire group",
-
-        "Colors" =>
-            "CUSTOM COLORS\n" +
-            "═══════════════════════════\n\n" +
-            "Per-Character Colors\n" +
-            "────────────────────────────\n" +
-            "Assign unique colors to each character\n" +
-            "for quick visual identification.\n\n" +
-            "Each character gets three colors:\n" +
-            "• Active Border — when focused\n" +
-            "• Text Color — name overlay\n" +
-            "• Inactive Border — when not focused\n\n" +
-            "How to Set Colors\n" +
-            "────────────────────────────\n" +
-            "1. Enable custom colors (toggle ON)\n" +
-            "2. Click Add, search for a character\n" +
-            "3. Pick Active Border, Text, and\n" +
-            "   Inactive Border colors in sequence\n" +
-            "4. Edit/Delete to modify later\n\n" +
-            "Hex Color Format\n" +
-            "────────────────────────────\n" +
-            "Use 6-digit hex: FF0000 = red,\n" +
-            "00FF00 = green, 0000FF = blue.\n" +
-            "Click 🎨 to open the color picker.",
-
-        "Groups" =>
-            "GROUPS\n" +
-            "═══════════════════════════\n\n" +
-            "Thumbnail Groups\n" +
-            "────────────────────────────\n" +
-            "Group characters together with a\n" +
-            "shared border color for quick visual ID.\n" +
-            "Enable 'Show Group Borders' to display.\n\n" +
-            "Creating a Group\n" +
-            "────────────────────────────\n" +
-            "1. Enter a group name\n" +
-            "2. Pick a border color\n" +
-            "3. Add characters\n" +
-            "4. Click Save Group\n\n" +
-            "Cycling Hotkey Groups\n" +
-            "────────────────────────────\n" +
-            "Create a named group with cycling hotkeys\n" +
-            "to quickly switch between a subset of\n" +
-            "characters with a single key.\n\n" +
-            "Example: 'PVP Fleet' group with\n" +
-            "your combat characters — cycle through\n" +
-            "only those with Forward / Backward.\n\n" +
-            "Adding Characters\n" +
-            "────────────────────────────\n" +
-            "Click '➕ Add Character' to search all\n" +
-            "known characters with type-to-filter.",
-
-        "Alerts" =>
-            "ALERT SYSTEM\n" +
-            "═══════════════════════════\n\n" +
-            "How Alerts Work\n" +
-            "────────────────────────────\n" +
-            "Command Center monitors EVE chat logs\n" +
-            "and game logs in real time. When it\n" +
-            "detects a combat event, it triggers\n" +
-            "visual and audio alerts.\n\n" +
-            "Combat Alerts\n" +
-            "────────────────────────────\n" +
-            "• Under Attack — taking damage\n" +
-            "• Warp Scrambled — tackle detected\n" +
-            "• Decloaked — cloak dropped\n" +
-            "• Fleet Invite — fleet invitation\n" +
-            "• Convo Request — convo incoming\n" +
-            "• System Change — jumped systems\n\n" +
-            "Mining Alerts\n" +
-            "────────────────────────────\n" +
-            "• Cargo Full — cargo/ore hold full\n" +
-            "• Depleted — asteroid exhausted\n" +
-            "• Crystal Broken — crystal fractured\n" +
-            "• Miner Stopped — module deactivated\n\n" +
-            "Severity Tiers\n" +
-            "────────────────────────────\n" +
-            "🔴 Critical — Under Attack, Scrambled,\n" +
-            "   Decloaked\n" +
-            "🟠 Warning — Fleet Invite, Cargo Full,\n" +
-            "   Crystal Broken\n" +
-            "🔵 Info — Convo, System Change,\n" +
-            "   Depleted, Miner Stopped\n\n" +
-            "Each tier has its own border color,\n" +
-            "cooldown timer, tray notification toggle,\n" +
-            "and Pulse Speed slider (100 ms = very\n" +
-            "fast, 2000 ms = barely pulsing) so alerts\n" +
-            "can be tuned for visibility vs. distraction.\n\n" +
-            "Alert Pulse Opacity\n" +
-            "────────────────────────────\n" +
-            "Master slider that fades the alert pulse\n" +
-            "border across every event. 100% = full\n" +
-            "strength, lower = subtler. Useful for\n" +
-            "large multibox grids where multiple\n" +
-            "simultaneous flashes get overwhelming.\n\n" +
-            "Thumbnail Alert Badge\n" +
-            "────────────────────────────\n" +
-            "When ON globally, a red numbered badge\n" +
-            "appears on a thumbnail when its character\n" +
-            "fires an alert (clears the moment that\n" +
-            "client is focused). Each alert event row\n" +
-            "also has its own 'Badge' checkbox so you\n" +
-            "can keep an event firing toast/sound/pulse\n" +
-            "while silencing only its badge — useful\n" +
-            "for chatty events like System Change.\n\n" +
-            "Per-Alert Custom Colors\n" +
-            "────────────────────────────\n" +
-            "Each alert row has a colored ■ square\n" +
-            "swatch. Click it to pick a custom\n" +
-            "flash color for that alert.\n\n" +
-            "Color priority order:\n" +
-            "1. Per-alert color (■ swatch)\n" +
-            "2. Severity tier color\n" +
-            "3. Default red fallback\n\n" +
-            "Clearing a per-alert color (re-pick\n" +
-            "the severity color) restores the\n" +
-            "tier default.\n\n" +
-            "PVE Mode\n" +
-            "────────────────────────────\n" +
-            "Ignores NPC/rat damage so you only\n" +
-            "get alerts from player attacks.\n\n" +
-            "Log Directories\n" +
-            "────────────────────────────\n" +
-            "Set paths to your EVE Chat Logs and\n" +
-            "Game Logs folders. Default paths work\n" +
-            "for standard EVE installations.\n\n" +
-            "Alert Hub\n" +
-            "────────────────────────────\n" +
-            "A floating hexagon widget that sits\n" +
-            "on your screen. Drag it anywhere.\n" +
-            "Right-click the hub to dismiss all\n" +
-            "active toasts.\n\n" +
-            "Toast Direction\n" +
-            "────────────────────────────\n" +
-            "Left-click the hub to open the\n" +
-            "direction picker. Choose which way\n" +
-            "toast notifications stack:\n" +
-            "• ↑ Up  • ↓ Down  • ← Left  • → Right\n" +
-            "The selected arrow highlights.\n\n" +
-            "Notification Badge\n" +
-            "────────────────────────────\n" +
-            "A red circular badge pops out at\n" +
-            "the top-right of the hexagon showing\n" +
-            "the count of active toasts (1-9+).\n\n" +
-            "• Click the badge to dismiss all toasts\n" +
-            "• Badge pulses white/red when a new\n" +
-            "  toast arrives (4 flashes)\n" +
-            "• Automatically hides when all toasts\n" +
-            "  expire or are dismissed\n\n" +
-            "Focus-Aware Visibility\n" +
-            "────────────────────────────\n" +
-            "The hub, badge, toasts, and picker\n" +
-            "stay always-on-top only when EVE is\n" +
-            "the foreground app. When you switch\n" +
-            "to another app (browser, Discord),\n" +
-            "they drop behind — no clutter.\n\n" +
-            "Toast Duration\n" +
-            "────────────────────────────\n" +
-            "Set how long each toast stays on\n" +
-            "screen (1-120 seconds). Default: 6s.\n\n" +
-            "Reset Position\n" +
-            "────────────────────────────\n" +
-            "Moves the hub back to the default\n" +
-            "bottom-right corner of your screen.\n\n" +
-            "Under Fire Indicator\n" +
-            "────────────────────────────\n" +
-            "When enabled, thumbnails flash when\n" +
-            "that character takes damage. The\n" +
-            "timeout controls how long the flash\n" +
-            "persists after the last hit.\n\n" +
-            "Not Logged In Indicator\n" +
-            "────────────────────────────\n" +
-            "Visual indicator for characters at\n" +
-            "the login screen. Modes:\n" +
-            "• None — no indicator\n" +
-            "• Text — shows 'Not Logged In'\n" +
-            "• Border — colored border\n" +
-            "• Dim — reduces thumbnail opacity\n" +
-            "Set the indicator color with the\n" +
-            "hex field + 🎨 picker.\n\n" +
-            "Color Blind Mode\n" +
-            "────────────────────────────\n" +
-            "Toggle via the 👁 CB Mode button.\n" +
-            "Swaps all severity, flash, highlight,\n" +
-            "and overlay colors to Wong's universally\n" +
-            "safe palette (vermillion/yellow/blue).\n" +
-            "Affects ALL tabs that use color.",
-
-        "Sounds" =>
-            "ALERT SOUNDS\n" +
-            "═══════════════════════════\n\n" +
-            "Per-Event Sounds\n" +
-            "────────────────────────────\n" +
-            "Assign a custom WAV or MP3 file to\n" +
-            "each alert event.\n\n" +
-            "Master Volume\n" +
-            "────────────────────────────\n" +
-            "Controls playback volume for ALL\n" +
-            "alert sounds (0-100).\n\n" +
-            "Preview Button\n" +
-            "────────────────────────────\n" +
-            "Click ▶ next to any sound to test it.\n" +
-            "Click ✕ to clear the assigned file.\n\n" +
-            "Per-Sound Cooldowns\n" +
-            "────────────────────────────\n" +
-            "Each sound has its own cooldown (seconds)\n" +
-            "shown as a number field to the right.\n" +
-            "Prevents the same alert from replaying\n" +
-            "too rapidly during combat.",
-
-        "Visibility" =>
-            "VISIBILITY\n" +
-            "═══════════════════════════\n\n" +
-            "Thumbnail Visibility\n" +
-            "────────────────────────────\n" +
-            "Check/uncheck characters to show or\n" +
-            "hide their primary thumbnails.\n\n" +
-            "Secondary Thumbnails (PiP)\n" +
-            "────────────────────────────\n" +
-            "Add a second, independent live preview\n" +
-            "for any character. PiP thumbnails have:\n" +
-            "• Separate size and position\n" +
-            "• Adjustable opacity\n" +
-            "• No border or alert effects\n" +
-            "• Enable/Disable per character\n\n" +
-            "Refresh Button\n" +
-            "────────────────────────────\n" +
-            "Click 🔄 Refresh to update the lists\n" +
-            "when characters log in or out while\n" +
-            "the settings window is open.",
-
-        "Client" =>
-            "CLIENT SETTINGS\n" +
-            "═══════════════════════════\n\n" +
-            "Character Select Cycling\n" +
-            "────────────────────────────\n" +
-            "Cycle through characters at the login\n" +
-            "screen with a hotkey.\n\n" +
-            "Minimize Inactive Clients\n" +
-            "────────────────────────────\n" +
-            "Automatically minimizes EVE clients\n" +
-            "that lose focus.\n\n" +
-            "Track Client Positions\n" +
-            "────────────────────────────\n" +
-            "Saves and restores the position of\n" +
-            "each EVE client window.\n\n" +
-            "Always Maximize\n" +
-            "────────────────────────────\n" +
-            "Automatically maximizes each EVE client\n" +
-            "when it receives focus. Useful if you\n" +
-            "run windowed-fullscreen across monitors.\n\n" +
-            "Client Position\n" +
-            "────────────────────────────\n" +
-            "Off / Center / Custom. Puts each client\n" +
-            "in a fixed spot when it is detected AND\n" +
-            "each time you switch to it, so fixed-\n" +
-            "window clients stay put instead of\n" +
-            "opening top-left on large or ultrawide\n" +
-            "monitors. Ignored while 'Track Client\n" +
-            "Positions' is ON — that setting gives\n" +
-            "each character its own remembered spot.\n\n" +
-            "Let Active Client Cover Taskbar\n" +
-            "────────────────────────────\n" +
-            "For fixed-window clients sized to your\n" +
-            "full screen height. The client you are\n" +
-            "in is placed ABOVE the Windows taskbar\n" +
-            "so it uses the whole vertical space,\n" +
-            "and drops back below it the moment you\n" +
-            "switch away — so the taskbar and Start\n" +
-            "menu stay usable. Also centres clients\n" +
-            "on the whole screen instead of the\n" +
-            "desktop work area. Pair with Client\n" +
-            "Position = Center for one large central\n" +
-            "window with thumbnails around it.\n\n" +
-            "Don't Minimize List\n" +
-            "────────────────────────────\n" +
-            "Characters on this list will NOT be\n" +
-            "auto-minimized even when 'Minimize\n" +
-            "Inactive' is ON. Use for characters\n" +
-            "that need to stay visible (e.g. scouts,\n" +
-            "market alts with open orders).",
-
-        "FPSLimiter" =>
-            "FPS LIMITER (RTSS)\n" +
-            "═══════════════════════════\n\n" +
-            "How It Works\n" +
-            "────────────────────────────\n" +
-            "1. Install and run RTSS (comes with\n" +
-            "   MSI Afterburner)\n" +
-            "2. Set your desired background FPS above\n" +
-            "3. Click 'Apply RTSS Profile'\n" +
-            "4. RTSS will automatically limit\n" +
-            "   background EVE clients\n\n" +
-            "RTSS must be running BEFORE you launch\n" +
-            "EVE. If EVE is already open, restart\n" +
-            "your clients.\n\n" +
-            "Apply Profile\n" +
-            "────────────────────────────\n" +
-            "Tries to write the profile directly.\n" +
-            "If the folder is protected, a one-time\n" +
-            "admin prompt copies just the file.\n" +
-            "The app itself never needs admin.\n\n" +
-            "Manual Install\n" +
-            "────────────────────────────\n" +
-            "If you prefer no admin prompt at all:\n" +
-            "1. Click 'Copy Profile to Clipboard'\n" +
-            "2. Open the target folder with '📁'\n" +
-            "3. Paste and save as 'exefile.exe.cfg'\n" +
-            "4. Restart RTSS to pick up the profile.\n\n" +
-            "Idle FPS Limit\n" +
-            "────────────────────────────\n" +
-            "When an EVE client loses focus, RTSS\n" +
-            "drops its frame rate to this value.\n" +
-            "Recommended: 5-15 FPS for idle clients.",
-
-        "StatsOverlay" =>
-            "STATS OVERLAY\n" +
-            "═══════════════════════════\n\n" +
-            "What It Does\n" +
-            "────────────────────────────\n" +
-            "Displays real-time combat and activity\n" +
-            "stats as floating overlays near each\n" +
-            "character's thumbnail.\n\n" +
-            "Stat Modes\n" +
-            "────────────────────────────\n" +
-            "⚔ DPS — Damage dealt and received\n" +
-            "  per second, total damage in/out.\n" +
-            "⊕ Logi — Armor/shield/cap repairs\n" +
-            "  per second, in/out totals.\n" +
-            "⛏ Mine — Ore, gas, and ice mined\n" +
-            "  per cycle and per hour.\n" +
-            "◎ Rat — ISK per tick, per hour, and\n" +
-            "  per session (bounty tracking).\n" +
-            "• NPC — Include NPC damage in DPS.\n\n" +
-            "Enable per character by checking the\n" +
-            "boxes in the character list above.\n\n" +
-            "Stat Logging\n" +
-            "────────────────────────────\n" +
-            "Saves stats to CSV files for later\n" +
-            "analysis. Set a log folder and enable\n" +
-            "logging. Auto-delete cleans up old\n" +
-            "files after the set number of days.\n\n" +
-            "Overlay Opacity & Font Size\n" +
-            "────────────────────────────\n" +
-            "Adjust the transparency and readability\n" +
-            "of stat overlays to your preference.\n\n" +
-            "Colors\n" +
-            "────────────────────────────\n" +
-            "• Background Color — overlay panel fill\n" +
-            "• Text Color — stat numbers and labels\n" +
-            "Set with hex value or 🎨 color picker.",
-
-        "EVEManager" =>
-            "EVE MANAGER\n" +
-            "═══════════════════════════\n\n" +
-            "Copy EVE settings files from one\n" +
-            "profile folder to another.\n\n" +
-            "Profiles\n" +
-            "────────────────────────────\n" +
-            "EVE stores settings in folders\n" +
-            "named settings_* inside your EVE\n" +
-            "AppData directory. Each folder\n" +
-            "holds .dat files for your characters.\n\n" +
-            "How to use\n" +
-            "────────────────────────────\n" +
-            "1. Select a Source profile (left)\n" +
-            "2. Check Target profiles (right)\n" +
-            "3. Click Copy → Checked Targets\n\n" +
-            "Backups\n" +
-            "────────────────────────────\n" +
-            "Targets are backed up automatically\n" +
-            "before each copy to:\n" +
-            "AppData\\Local\\CCP\\EVE\\EVEMPBackups\n\n" +
-            "⚠ Close EVE clients before copying\n" +
-            "to avoid settings corruption.\n\n" +
-            "Character Names\n" +
-            "────────────────────────────\n" +
-            "Names are read from your EVE chat\n" +
-            "logs — the same logs EVE writes to\n" +
-            "Documents\\EVE\\logs\\Chatlogs\\.\n\n" +
-            "If you set a custom log path in\n" +
-            "General → Log Monitor, that path\n" +
-            "is checked first.\n\n" +
-            "Enable the ESI button (below) to\n" +
-            "look up names for characters\n" +
-            "not yet found in your chat logs.\n" +
-            "ESI lookups are public — no login.\n" +
-            "A 60-second cooldown prevents\n" +
-            "accidental ESI overuse.\n" +
-            "Results are cached for the session.\n\n" +
-            "Copy Modes\n" +
-            "────────────────────────────\n" +
-            "• Profile Copy — copies ALL files from\n" +
-            "  one settings_* folder to another.\n" +
-            "  Good for cloning an entire setup.\n" +
-            "• Character Copy — copies a single\n" +
-            "  character's .dat files between\n" +
-            "  profiles. Good for syncing one char.\n" +
-            "Switch modes with the tabs at the top.\n\n" +
-            "Auto-Detect\n" +
-            "────────────────────────────\n" +
-            "Click 🔍 Auto-Detect to find your EVE\n" +
-            "settings folder automatically in\n" +
-            "%LOCALAPPDATA%\\CCP\\EVE.",
-
-        "Performance" =>
-            "PERFORMANCE & AFFINITY\n" +
-            "═══════════════════════════\n\n" +
-            "CPU Priority Management\n" +
-            "────────────────────────────\n" +
-            "Automatically drops background\n" +
-            "EVE clients to 'Idle' priority so\n" +
-            "your active window never stutters.\n" +
-            "Unchecking the master toggle restores\n" +
-            "every tracked client to Normal priority\n" +
-            "and full-core affinity in one pass.\n\n" +
-            "E-Core Auto-Balancing\n" +
-            "────────────────────────────\n" +
-            "Routes inactive EVE clients to the\n" +
-            "bottom half of your system's processors\n" +
-            "(your E-Cores or 2nd CCD), leaving\n" +
-            "P-Cores entirely dedicated to your\n" +
-            "active client.\n\n" +
-            "Per-Character Overrides\n" +
-            "────────────────────────────\n" +
-            "Strictly bind a character to a single\n" +
-            "CPU core when it loses focus. This\n" +
-            "overrides the Auto-Balancer entirely.\n\n" +
-            "THUMBNAIL GPU OPTIMIZATION\n" +
-            "════════════════════════\n\n" +
-            "Static Thumbnails (Lower GPU)\n" +
-            "────────────────────────────\n" +
-            "Replaces the live DWM-composited preview\n" +
-            "with a snapshot refreshed roughly once\n" +
-            "per second. Big GPU saving when running\n" +
-            "many clients, at the cost of choppy\n" +
-            "motion — ship movement updates on the\n" +
-            "snapshot cadence instead of smoothly.\n" +
-            "Best for fleets where you glance at\n" +
-            "thumbnails occasionally rather than\n" +
-            "watch them constantly.\n\n" +
-            "Suspend Thumbnails When Background\n" +
-            "────────────────────────────\n" +
-            "Freezes every thumbnail to its last\n" +
-            "frame whenever neither EVE nor\n" +
-            "Command Center is the foreground process.\n" +
-            "Resumes live composition the moment EVE\n" +
-            "or the app comes back. Invisible during\n" +
-            "active play; stops the GPU paying for\n" +
-            "thumbnails of windows you can't see\n" +
-            "while you're in another app. Adds a\n" +
-            "sub-second wakeup lag on alt-tab back.",
-
-
-
-        "About" =>
-            "ABOUT\n" +
-            "═══════════════════════════\n\n" +
-            "EVE Command Center\n" +
-            "C# / .NET 8 WPF Edition\n\n" +
-            "Version shown on the About panel\n" +
-            "matches the build you're running.\n\n" +
-            "Originally written in AutoHotkey v2.\n" +
-            "Ported to C# for better performance,\n" +
-            "native DWM thumbnail support, and\n" +
-            "modern UI capabilities.\n\n" +
-            "File a bug, suggest a feature, or read\n" +
-            "release notes at:\n" +
-            "github.com/Delerim/EVE-Command-Center",
-
-        "Debug" =>
-            "DEBUG LOGGING\n" +
-            "═══════════════════════════\n\n" +
-            "Diagnostic output for troubleshooting\n" +
-            "input issues, window detection, and\n" +
-            "logic flow. Enable only when needed —\n" +
-            "logs grow quickly under heavy use.\n\n" +
-            "Logs are written to Logs/ next to the\n" +
-            "exe, one file per channel. Use 📁 Open\n" +
-            "Logs Folder to jump to them.\n\n" +
-            "Input Injection Logistics\n" +
-            "────────────────────────────\n" +
-            "Logs exact keystrokes, scan codes, and\n" +
-            "delay pulses used to bypass EVE's\n" +
-            "input drops.\n\n" +
-            "Cycle Group & Math Analytics\n" +
-            "────────────────────────────\n" +
-            "Logs index math, throttle thresholds,\n" +
-            "and skip logic when holding hotkeys\n" +
-            "to cycle accounts.\n\n" +
-            "Window Hooks\n" +
-            "────────────────────────────\n" +
-            "Logs HWND focus checks, SetForegroundWindow\n" +
-            "attempts, and OS-level window states.\n\n" +
-            "Desktop Window Manager\n" +
-            "────────────────────────────\n" +
-            "Logs DWM thumbnail-registration HResults\n" +
-            "and PrintWindow capture results. Use\n" +
-            "when thumbnails go blank, fail to\n" +
-            "register, or show frozen frames\n" +
-            "incorrectly.\n\n" +
-            "Alert Pipeline\n" +
-            "────────────────────────────\n" +
-            "Full trace of every log line through\n" +
-            "the alert pipeline: file read → parse\n" +
-            "match → trigger (cooldown / disabled /\n" +
-            "fired) → badge / toast / sound dispatch.\n" +
-            "Use when an alert you expected to fire\n" +
-            "didn't — every step logs which gate it\n" +
-            "did or didn't pass.",
-
-        "Crop" =>
-            "CROP POPUPS\n" +
-            "═══════════════════════════\n\n" +
-            "What Crops Do\n" +
-            "────────────────────────────\n" +
-            "Spawn one or more cropped preview\n" +
-            "popups per EVE client — show just a\n" +
-            "specific region of the client (Local\n" +
-            "chat, overview, target bar) in its own\n" +
-            "always-on-top window without bringing\n" +
-            "the full client forward.\n\n" +
-            "Master Toggle\n" +
-            "────────────────────────────\n" +
-            "'Enable cropped preview popups' is the\n" +
-            "global on/off. When off, all crop popups\n" +
-            "hide but their definitions are kept for\n" +
-            "next time.\n\n" +
-            "Creating a Crop\n" +
-            "────────────────────────────\n" +
-            "1. Pick a character from the dropdown\n" +
-            "2. Click ➕ Add Crop — a placeholder\n" +
-            "   crop row appears with a generated\n" +
-            "   name\n" +
-            "3. Click 📐 Pick Area, then drag over\n" +
-            "   the live thumbnail to select the\n" +
-            "   region you want to capture\n" +
-            "4. Adjust Name, Show Label, popup\n" +
-            "   position/size as needed\n\n" +
-            "Manipulating Popups\n" +
-            "────────────────────────────\n" +
-            "• Right-click + drag — move the popup\n" +
-            "• Right-click + left-click + drag —\n" +
-            "  resize the popup\n" +
-            "• 'Show label' overlays the crop name\n" +
-            "  in the top-left of the popup\n\n" +
-            "Persistence\n" +
-            "────────────────────────────\n" +
-            "Crops are saved per character per\n" +
-            "profile and re-spawn automatically when\n" +
-            "the character logs in. Closing an EVE\n" +
-            "client and logging back in restores the\n" +
-            "saved crops once the character resolves.",
-
-        _ => "Select a panel from the sidebar\n" +
-             "to see contextual help here."
+        "General" => "Overview and client controls: hotkey scope, startup behaviour, audio solo and cycling. Choose Mining or Preview in the overview toolbar. Separate preview windows are no longer used.",
+        "Hotkeys" => "Assign a key to an EVE client. Shared keys cycle between their assigned clients. Suspending hotkeys does not stop data collection.",
+        "Groups" => "Create named cycling groups and drag their character pills to set the switching order.",
+        "Alerts" => "Choose which events produce alerts, sounds and overview badges. Mining alarms can also be muted per pilot on the overview.",
+        "Sounds" => "Set alert sound volume and per-client EVE audio volume. Auto-solo follows the active EVE client.",
+        "Client" => "Configure client positioning, minimise behaviour and character-selection cycling. These settings affect EVE windows, not overview card size.",
+        "Crop" => "Create cropped views of a client's visible area. Crops remain independent of the combined overview and keep their own visibility control.",
+        "Performance" => "Configure CPU affinity and process monitoring. Live versus snapshot rendering is selected in the overview toolbar.",
+        "FPSLimiter" => "Configure RTSS integration and FPS display for your EVE clients.",
+        "Backup" => "Back up or restore Command Center data using the existing backup service and your chosen schedule.",
+        _ => "Changes apply to the selected settings profile. The combined overview retains its own layout, display modes and mining controls."
     };
 
     // ══════════════════════════════════════════════════════════════
@@ -1887,10 +1026,7 @@ public partial class SettingsWindow : Window
         var systemFields = new Dictionary<string, string>
         {
             ["TxtSuspendHotkey"] = TxtSuspendHotkey.Text,
-            ["TxtClickThroughHotkey"] = TxtClickThroughHotkey.Text,
             ["TxtHideShowHotkey"] = TxtHideShowHotkey.Text,
-            ["TxtHidePrimaryHotkey"] = TxtHidePrimaryHotkey.Text,
-            ["TxtHideSecondaryHotkey"] = TxtHideSecondaryHotkey.Text,
             ["TxtHideCropsHotkey"] = TxtHideCropsHotkey.Text,
             ["TxtProfileCycleForward"] = TxtProfileCycleForward.Text,
             ["TxtProfileCycleBackward"] = TxtProfileCycleBackward.Text,
@@ -1965,8 +1101,6 @@ public partial class SettingsWindow : Window
         {
             ChkManageAffinity.IsChecked = S.ManageAffinity;
             ChkAutoBalanceCores.IsChecked = S.AutoBalanceCores;
-            ChkStaticThumbnails.IsChecked = S.StaticThumbnails;
-            ChkSuspendThumbsBackground.IsChecked = S.SuspendThumbnailsWhenBackground;
 
             // Build core options list: "Auto (App Decides)", "Core 0", "Core 1", ...
             var cores = new List<string> { "Auto (App Decides)" };
@@ -1975,9 +1109,9 @@ public partial class SettingsWindow : Window
 
             var rows = new List<PerClientCoreRow>();
             var chars = new List<string>();
-            if (_thumbnailManager != null)
+            if (_overviewClients != null)
             {
-                chars = _thumbnailManager.GetActiveCharacterNames()
+                chars = _overviewClients.GetActiveCharacterNames()
                     .Where(n => !string.IsNullOrEmpty(n))
                     .OrderBy(n => n)
                     .ToList();
@@ -2008,8 +1142,6 @@ public partial class SettingsWindow : Window
         if (_loading) return;
         S.ManageAffinity = ChkManageAffinity.IsChecked == true;
         S.AutoBalanceCores = ChkAutoBalanceCores.IsChecked == true;
-        S.StaticThumbnails = ChkStaticThumbnails?.IsChecked == true;
-        S.SuspendThumbnailsWhenBackground = ChkSuspendThumbsBackground?.IsChecked == true;
         SaveDelayed();
     }
 
@@ -2323,7 +1455,7 @@ public partial class SettingsWindow : Window
     /// "Copy to…" menu (issue #82).</summary>
     private List<string> GetAllCropCharacterNames()
     {
-        var live = _thumbnailManager?.GetActiveCharacterNames() ?? Enumerable.Empty<string>();
+        var live = _overviewClients?.GetActiveCharacterNames() ?? Enumerable.Empty<string>();
         return live.Concat(S.Crops.Keys)
                    .Where(n => !string.IsNullOrWhiteSpace(n))
                    .Distinct(StringComparer.OrdinalIgnoreCase)
@@ -2378,7 +1510,7 @@ public partial class SettingsWindow : Window
         _cropManager?.Refresh();   // live target characters get the new crop immediately
         RebuildCropList();         // reflect it if the user is viewing a target character
 
-        _thumbnailManager?.ShowTooltipFeedback(targets.Count == 1
+        _overviewClients?.ShowTooltipFeedback(targets.Count == 1
             ? $"Copied crop '{source.Name}' → {targets.First()}"
             : $"Copied crop '{source.Name}' → {targets.Count} characters");
     }
@@ -2397,23 +1529,23 @@ public partial class SettingsWindow : Window
 
     private void PickCropArea(string characterName, CropDefinition def)
     {
-        if (_thumbnailManager == null)
+        if (_overviewClients == null)
         {
             MessageBox.Show("Thumbnail manager not available.", "Pick Area",
                 MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
         }
 
-        var thumb = _thumbnailManager.GetThumbnailForCharacter(characterName);
-        if (thumb == null)
+        var hwnd = _overviewClients.GetHwndForCharacter(characterName);
+        if (hwnd == IntPtr.Zero)
         {
             MessageBox.Show(
-                $"No live thumbnail for '{characterName}'. Launch the EVE client first.",
+                $"No live EVE client for '{characterName}'. Launch the EVE client first.",
                 "Pick Area", MessageBoxButton.OK, MessageBoxImage.Information);
             return;
         }
 
-        var (cx, cy, cW, cH) = CropPickerOverlay.QueryClientScreenRect(thumb.EveHwnd);
+        var (cx, cy, cW, cH) = CropPickerOverlay.QueryClientScreenRect(hwnd);
         if (cW <= 0 || cH <= 0)
         {
             MessageBox.Show("Could not read EVE client area.", "Pick Area",
@@ -2428,7 +1560,7 @@ public partial class SettingsWindow : Window
 
         // Bring the EVE client to the foreground so the user sees exactly what they're cropping.
         // The topmost overlay will sit on top and intercept all mouse input within the client area.
-        User32.SetForegroundWindow(thumb.EveHwnd);
+        User32.SetForegroundWindow(hwnd);
 
         var overlay = new CropPickerOverlay(cx, cy, cW, cH, cW, cH);
         overlay.Completed += result =>

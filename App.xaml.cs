@@ -17,7 +17,7 @@ namespace EveCommandCenter;
 
 /// <summary>
 /// Application entry point. Wires up all services:
-///   SettingsService → WindowDiscoveryService → ThumbnailManager → HotkeyService → LogMonitor → StatTracker → AlertHub
+///   SettingsService → WindowDiscoveryService → OverviewClientService → HotkeyService → LogMonitor → StatTracker → AlertHub
 /// Full tray menu matching AHK TrayMenu.ahk.
 /// Per-feature debug logging with [App:*] tags.
 /// </summary>
@@ -33,8 +33,8 @@ public partial class App : Application
     private SkillPlanRemapMonitor? _remapMonitor;
     private WindowDiscoveryService? _discovery;
     private WinEventHookService? _winEvents;
-    private ThumbnailManager? _thumbnailManager;
-    internal ThumbnailManager? OverviewThumbnails => _thumbnailManager;
+    private OverviewClientService? _overviewClients;
+    internal OverviewClientService? OverviewClientServices => _overviewClients;
     internal SettingsService? OperationsSettings => _settings;
     internal StatTrackerService? OperationsStats => _statTracker;
     internal EveWindow[] OverviewClients => _discovery?.Windows.Values.ToArray() ?? Array.Empty<EveWindow>();
@@ -162,10 +162,11 @@ public partial class App : Application
         _discovery = new WindowDiscoveryService();
 
         // 3. Create thumbnail manager
-        _thumbnailManager = new ThumbnailManager(_discovery, _settings);
+        _overviewClients = new OverviewClientService(_discovery, _settings);
+        _overviewClients.AllVisibilityChanged += hidden => _miningFleetOverviewWindow?.SetOverviewHidden(hidden);
         // Suppress standalone windows before discovery can create them.
         if (_settings.Settings.SetupCompleted)
-            _thumbnailManager.SetOverviewCombined(true, false);
+            _overviewClients.SetOverviewCapture(false);
 
 
         // 4. Start stat tracker (needed before thumbnails fire)
@@ -179,23 +180,23 @@ public partial class App : Application
             _settings.Settings.StatLoggingEnabled,
             _settings.Settings.StatLogDirectory,
             _settings.Settings.StatLogRetentionDays);
-        _thumbnailManager.SetStatTracker(_statTracker);
+
 
         // 4b. Process monitor (CPU/RAM per EVE client)
         _processMonitor = new ProcessMonitorService();
-        _thumbnailManager.SetProcessMonitor(_processMonitor);
+        _overviewClients.SetProcessMonitor(_processMonitor);
         _processMonitor.Start();
 
         // 4c. Crop manager (spawns per-character cropped DWM popups)
         _cropManager = new CropManager(_discovery, _settings);
-        _cropManager.AttachThumbnailManager(_thumbnailManager);
+        _cropManager.AttachOverviewClientService(_overviewClients);
         if (_winEvents != null) _cropManager.AttachWinEvents(_winEvents);
 
         // Upstream v2.3.26 (#101): apply a profile switch from one place,
         // regardless of whether it came from the tray, cycle hotkey or Settings.
         _settings.ProfileSwitched += name =>
         {
-            _thumbnailManager?.ReapplySettings();
+            _overviewClients?.ReapplySettings();
 
             // Recovery net (issue #81): never carry a stuck crops-hidden state
             // across a profile switch.
@@ -205,7 +206,7 @@ public partial class App : Application
             _hotkeyService?.RegisterFromSettings(
                 _settings.Settings,
                 _settings.CurrentProfile,
-                _thumbnailManager!,
+                _overviewClients!,
                 OpenSettings);
 
             Debug.WriteLine($"[App:Profile] Applied profile: {name}");
@@ -215,7 +216,7 @@ public partial class App : Application
 
         // ── START DISCOVERY IMMEDIATELY — thumbnails appear ASAP ──
         _discovery.Start(_winEvents);
-        _thumbnailManager.StartFocusTracking(_winEvents);
+        _overviewClients.StartFocusTracking(_winEvents);
         PerfLog($"Discovery + FocusTracking started: {startupSw.ElapsedMilliseconds}ms");
 
         // ── DEFER slower startup tasks so thumbnail BeginInvoke runs first ──
@@ -232,14 +233,14 @@ public partial class App : Application
             // apps when EVE isn't in front (issue #68).
             if (_winEvents != null)
                 _hotkeyService.AttachWinEvents(_winEvents,
-                    () => _thumbnailManager?.HasTrackedClients() == true);
+                    () => _overviewClients?.HasTrackedClients() == true);
             var profile = _settings.CurrentProfile;
             PerfLog($"[Hotkey] Profile='{_settings.Settings.LastUsedProfile}', CharHotkeys={profile.Hotkeys.Count}, Groups={profile.HotkeyGroups.Count}, Suspend='{_settings.Settings.SuspendHotkey}', Global={_settings.Settings.GlobalHotkeys}");
             foreach (var (name, binding) in profile.Hotkeys)
                 PerfLog($"[Hotkey]   char='{name}' key='{binding.Key}'");
             _hotkeyService.RegisterFromSettings(
                 _settings.Settings, profile,
-                _thumbnailManager, OpenSettings);
+                _overviewClients, OpenSettings);
             PerfLog($"[Deferred] Hotkeys registered: {deferSw.ElapsedMilliseconds}ms");
 
             // 6. Create alert hub
@@ -254,7 +255,7 @@ public partial class App : Application
             _alertHub.FocusCharacterRequested += (charName) =>
             {
                 Debug.WriteLine($"[AlertHub:Focus] 🎯 Focus requested for '{charName}'");
-                _thumbnailManager.ActivateEveWindow(IntPtr.Zero, charName);
+                _overviewClients.ActivateEveWindow(IntPtr.Zero, charName);
             };
             _alertHub.SaveRequested += () => _settings.SaveDelayed();
             PerfLog($"[Deferred] AlertHub created: {deferSw.ElapsedMilliseconds}ms");
@@ -279,7 +280,6 @@ public partial class App : Application
             _logMonitor.DamageReceived += (dmg) =>
             {
                 _statTracker.RecordDamage(dmg.CharacterName, dmg.Amount, true, dmg.IsNpc, damageType: dmg.Type);
-                _thumbnailManager?.SignalUnderFire(dmg.CharacterName);
                 Debug.WriteLine($"[App:Alert] 🔴 Damage received: {dmg.Amount} from '{dmg.SourceName}' to '{dmg.CharacterName}' (NPC={dmg.IsNpc})");
             };
             _logMonitor.DamageDealt += (dmg) =>
@@ -303,12 +303,12 @@ public partial class App : Application
             _logMonitor.SystemChanged += (charName, systemName) =>
             {
                 Debug.WriteLine($"[App:Alert] 🌍 System change: '{charName}' → '{systemName}'");
-                _thumbnailManager.UpdateCharacterSystem(charName, systemName);
+                _overviewClients.UpdateCharacterSystem(charName, systemName);
             };
 
             // Cycle-wrap sound (issue #24) — plays whenever a cycle hotkey rolls
             // from the last client back to the first (or vice-versa reversing).
-            _thumbnailManager.CycleWrapped += () =>
+            _overviewClients.CycleWrapped += () =>
             {
                 var s = _settings?.Settings;
                 if (s == null || !s.CycleWrapSoundEnabled) return;
@@ -332,7 +332,7 @@ public partial class App : Application
             _logMonitor.AlertTriggered += (charName, alertType, severity) =>
             {
                 Debug.WriteLine($"[App:Alert] ⚡ Alert: {alertType} [{severity}] for '{charName}'");
-                var activeChars = _thumbnailManager.GetActiveCharacterNames();
+                var activeChars = _overviewClients.GetActiveCharacterNames();
                 EveCommandCenter.Services.DiagnosticsService.LogAlerts(
                     $"[App] AlertTriggered received: type={alertType} severity={severity} char='{charName}' " +
                     $"activeChars=[{string.Join(", ", activeChars.Select(c => $"'{c}'"))}]");
@@ -343,7 +343,7 @@ public partial class App : Application
                         $"[App] DROPPED — '{charName}' not in active-windows list. Alert will not flash/badge/toast.");
                     return;
                 }
-                if (_thumbnailManager.IsCharacterAlertMuted(charName))
+                if (_overviewClients.IsCharacterAlertMuted(charName))
                 {
                     Debug.WriteLine($"[App:Alert] 🔇 Skipped — alerts muted/snoozed for '{charName}'");
                     EveCommandCenter.Services.DiagnosticsService.LogAlerts(
@@ -354,8 +354,8 @@ public partial class App : Application
                     $"[App] '{charName}' found in active windows, dispatching to flash/badge/toast/sound");
                 if(alertType.StartsWith("mine_", StringComparison.OrdinalIgnoreCase))
                     Dispatcher.BeginInvoke(new Action(() => NotificationCenterService.Current.Record(charName + " | Mining", alertType.Replace('_', ' '), "MINING")));
-                _thumbnailManager.SetAlertFlash(charName, severity, alertType);
-                _thumbnailManager.IncrementAlertBadge(charName, severity, alertType);
+                _overviewClients.SetAlertFlash(charName, severity, alertType);
+                _overviewClients.IncrementAlertBadge(charName, severity, alertType);
                 bool trayEnabled = _settings.Settings.SeverityTrayNotify.TryGetValue(severity, out var tn) && tn;
 
                 // Hub toast gate. Shown when the hub is enabled AND the
@@ -368,7 +368,7 @@ public partial class App : Application
                 bool suppressForActive = false;
                 if (_settings.Settings.SuppressAlertHubToastForActiveClient)
                 {
-                    var alertHwnd = _thumbnailManager.GetHwndForCharacter(charName);
+                    var alertHwnd = _overviewClients.GetHwndForCharacter(charName);
                     suppressForActive = alertHwnd != IntPtr.Zero
                         && alertHwnd == EveCommandCenter.Interop.User32.GetForegroundWindow();
                 }
@@ -408,7 +408,7 @@ public partial class App : Application
             _miningIdleWatchdog = new MiningIdleWatchdogService(_statTracker);
             _miningIdleWatchdog.IdleDetected += OnMiningIdleDetected;
             _miningIdleWatchdog.YieldDropDetected += OnMiningYieldDropDetected;
-            _thumbnailManager.IsMiningAlarmMuted = _miningIdleWatchdog.IsCharacterAlarmMuted;
+            _overviewClients.IsMiningAlarmMuted = _miningIdleWatchdog.IsCharacterAlarmMuted;
             _miningIdleWatchdog.Start();
             PerfLog($"[Deferred] Mining idle watchdog started: {deferSw.ElapsedMilliseconds}ms");
 
@@ -439,7 +439,7 @@ public partial class App : Application
                     if (icoStream != null)
                         _trayIcon.Icon = new System.Drawing.Icon(icoStream);
                 }
-                _thumbnailManager?.ShowSuspendTooltip(_hotkeyService.IsSuspended);
+                _overviewClients?.ShowSuspendTooltip(_hotkeyService.IsSuspended);
             };
             _hotkeyService.ProfileCycleForward += () => CycleProfile(forward: true);
             _hotkeyService.ProfileCycleBackward += () => CycleProfile(forward: false);
@@ -457,7 +457,7 @@ public partial class App : Application
             bool _lastHotkeyToggleState = false;
             hotkeyToggleTimer.Tick += (_, _) =>
             {
-                bool hasWindows = _thumbnailManager?.HasTrackedClients() == true;
+                bool hasWindows = _overviewClients?.HasTrackedClients() == true;
                 if (hasWindows != _lastHotkeyToggleState)
                 {
                     PerfLog($"[Hotkey:Toggle] EVE windows present: {hasWindows} → re-evaluate registration");
@@ -598,7 +598,7 @@ public partial class App : Application
 
     private void PlayAlertSound(string character, string alertType, string severity)
     {
-        if (_thumbnailManager?.IsCharacterAlertMuted(character) == true) return;
+        if (_overviewClients?.IsCharacterAlertMuted(character) == true) return;
         var s = _settings?.Settings;
         // EnableAlertSounds is the field the "Enable Sounds" master checkbox writes
         // (#settings-audit). The old gate read AlertSoundEnabled, which no UI ever set,
@@ -735,7 +735,7 @@ public partial class App : Application
         {
             if (!string.IsNullOrEmpty(_trayAlertChar))
             {
-                _thumbnailManager?.ActivateEveWindow(IntPtr.Zero, _trayAlertChar);
+                _overviewClients?.ActivateEveWindow(IntPtr.Zero, _trayAlertChar);
                 Debug.WriteLine($"[Tray:BalloonClick] 🔧 Focused '{_trayAlertChar}' via balloon click");
             }
         };
@@ -833,36 +833,18 @@ public partial class App : Application
         };
         menu.Items.Add(suspendItem);
 
-        // Lock Positions toggle
-        var lockItem = new ToolStripMenuItem
-        {
-            CheckOnClick = true,
-            Checked = _settings?.Settings.LockPositions ?? false
-        };
-        L(lockItem, "L.Tray.Lock", "Lock Positions");
-        lockItem.Click += (_, _) => _thumbnailManager?.ToggleLockPositions();
-        menu.Items.Add(lockItem);
-
-        // Hide/Show Thumbnails
+        // Show or hide the overview
         var hideItem = new ToolStripMenuItem { CheckOnClick = true };
-        L(hideItem, "L.Tray.Toggle", "Toggle Thumbnails");
-        hideItem.Click += (_, _) => _thumbnailManager?.ToggleThumbnailVisibility();
+        hideItem.Text = "Show / hide overview";
+        hideItem.Click += (_, _) => _overviewClients?.ToggleOverviewVisibility();
         menu.Items.Add(hideItem);
-
-        // Click-Through
-        var ctItem = new ToolStripMenuItem { CheckOnClick = true };
-        L(ctItem, "L.Tray.ClickThrough", "Click-Through Mode");
-        ctItem.Click += (_, _) => _thumbnailManager?.ToggleClickThrough();
-        menu.Items.Add(ctItem);
-
-        menu.Items.Add(new ToolStripSeparator());
 
         // Client position management
         var posMenu = new ToolStripMenuItem();
         L(posMenu, "L.Tray.ClientPositions", "Client Positions");
         var savePosItem = posMenu.DropDownItems.Add("", null, (_, _) =>
         {
-            _thumbnailManager?.SaveClientPositions();
+            _overviewClients?.SaveClientPositions();
             _trayIcon?.ShowBalloonTip(2000, "EVE Command Center", LocalizationService.Str("L.Tray.PosSaved", "Client positions saved"), ToolTipIcon.Info);
         });
         L(savePosItem, "L.Tray.SavePositions", "Save Positions");
@@ -881,65 +863,13 @@ public partial class App : Application
                 LocalizationService.Str("L.Tray.ConfirmTitle", "Confirm"),
                 MessageBoxButton.YesNo, MessageBoxImage.Warning);
             if (result == MessageBoxResult.Yes)
-                _thumbnailManager?.CloseAllEveWindows();
+                _overviewClients?.CloseAllEveWindows();
         });
         L(closeAllItem, "L.Tray.CloseAll", "Close All EVE Clients");
 
         menu.Items.Add(new ToolStripSeparator());
 
         // ── PiP Individual Toggle Submenu (AHK: TrayMenu._TrayPiPToggle) ──
-        var pipMenu = new ToolStripMenuItem();
-        L(pipMenu, "L.Tray.PiP", "PiP Individual");
-        void RefreshPipMenu()
-        {
-        foreach (ToolStripItem item in pipMenu.DropDownItems.Cast<ToolStripItem>().ToArray())
-            item.Dispose();
-        pipMenu.DropDownItems.Clear();
-        try
-        {
-            var secondarySettings = _settings?.CurrentProfile.SecondaryThumbnails;
-            if (secondarySettings != null)
-            {
-                foreach (var (charName, pipSettings) in secondarySettings)
-                {
-                    bool isEnabled = pipSettings.IsEnabled;
-
-                    var capturedName = charName;
-                    var pipItem = new ToolStripMenuItem(charName)
-                    {
-                        CheckOnClick = true,
-                        Checked = isEnabled
-                    };
-                    pipItem.Click += (_, _) =>
-                    {
-                        // Toggle enabled state
-                        if (secondarySettings.TryGetValue(capturedName, out var sts))
-                        {
-                            sts.IsEnabled = pipItem.Checked;
-                            if (pipItem.Checked)
-                                _thumbnailManager?.CreateSecondaryForCharacter(capturedName);
-                            else
-                                _thumbnailManager?.DestroySecondaryForCharacter(capturedName);
-                            _settings?.Save();
-                        }
-                    };
-                    pipMenu.DropDownItems.Add(pipItem);
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            Debug.WriteLine($"[Tray:PiP] ❌ Failed to build PiP submenu: {ex.Message}");
-        }
-        if (pipMenu.DropDownItems.Count == 0)
-            pipMenu.DropDownItems.Add(new ToolStripMenuItem("Add previews in Settings > Visibility > Secondary Thumbnails") { Enabled = false });
-        }
-        RefreshPipMenu();
-        menu.Opening += (_, _) => RefreshPipMenu();
-        menu.Items.Add(pipMenu);
-
-        menu.Items.Add(new ToolStripSeparator());
-
         // Exit
         var exitItem = menu.Items.Add("", null, (_, _) => ExitApplication());
         L(exitItem, "L.Tray.Exit", "Exit");
@@ -1022,7 +952,7 @@ public partial class App : Application
 
 
         // Tooltip feedback (AHK L705: ToolTip("Profile: " newProfile))
-        _thumbnailManager?.ShowTooltipFeedback($"Profile: {newProfile}");
+        _overviewClients?.ShowTooltipFeedback($"Profile: {newProfile}");
 
         Debug.WriteLine($"[App:Profile] 🔄 Cycled {(forward ? "forward" : "backward")} to profile: {newProfile}");
     }
@@ -1041,8 +971,8 @@ public partial class App : Application
 
     private void RaiseMiningWatchdogAlert(string charName, string message)
     {
-        if (_settings == null || _thumbnailManager == null) return;
-        if (_thumbnailManager.IsCharacterAlertMuted(charName)) return;
+        if (_settings == null || _overviewClients == null) return;
+        if (_overviewClients.IsCharacterAlertMuted(charName)) return;
 
         try { NotificationCenterService.Current.Record(charName + " | Mining", message, "MINING"); }
         catch (Exception ex) { Debug.WriteLine("[Mining watchdog] Notification history: " + ex.Message); }
@@ -1052,8 +982,8 @@ public partial class App : Application
 
         Debug.WriteLine($"[App:MiningWatchdog] ⚠ {message}");
 
-        _thumbnailManager.SetAlertFlash(charName, severity, alertType);
-        _thumbnailManager.IncrementAlertBadge(charName, severity, alertType);
+        _overviewClients.SetAlertFlash(charName, severity, alertType);
+        _overviewClients.IncrementAlertBadge(charName, severity, alertType);
 
         bool trayEnabled =
             _settings.Settings.SeverityTrayNotify.TryGetValue(severity, out var tn) && tn;
@@ -1211,7 +1141,7 @@ public partial class App : Application
         var window =
             new SettingsWindow(
                 _settings!,
-                _thumbnailManager!,
+                _overviewClients!,
                 _cropManager)
             {
                 Title =
@@ -1228,7 +1158,7 @@ public partial class App : Application
                 _hotkeyService?.RegisterFromSettings(
                     _settings.Settings,
                     _settings.CurrentProfile,
-                    _thumbnailManager!,
+                    _overviewClients!,
                     OpenSettings);
 
                 if (_logMonitor != null)
@@ -1285,9 +1215,6 @@ public partial class App : Application
         // The overview preference, not a stale manager flag, is authoritative
         // when embedded Settings / Backup moves focus between WPF windows.
         _miningFleetOverviewWindow?.ReassertPreviewModeForWorkspace();
-        _thumbnailManager?.SetSettingsOpen(active);
-        _thumbnailManager?.SetSuppressTopmost(active);
-        _thumbnailManager?.SetSettingsClickSuppression(active);
     }
 
     internal Window? OpenCommandCenterModule(string key, Func<Window>? factory = null, string? title = null)
@@ -1322,14 +1249,14 @@ public partial class App : Application
     internal void PrepareForShutdown()
     {
         _isShuttingDown = true;
-        _thumbnailManager?.Dispose();
+        _overviewClients?.Dispose();
     }
 
     private void ExitApplication()
     {
         _isShuttingDown = true;
         // Save stat window positions before exit (AHK _OnAppExit pattern)
-        _thumbnailManager?.SaveStatWindowPositions();
+
         _settings?.Save();
 
         Debug.WriteLine("[App:Startup] 🛑 Application exiting");
@@ -1361,7 +1288,7 @@ public partial class App : Application
         _hotkeyService?.Dispose();
         _processMonitor?.Dispose();
         _cropManager?.Dispose();
-        _thumbnailManager?.Dispose();
+        _overviewClients?.Dispose();
         _discovery?.Dispose();
         _winEvents?.Dispose();
         _settings?.Dispose();

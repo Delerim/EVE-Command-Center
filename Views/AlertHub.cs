@@ -544,7 +544,7 @@ public class AlertHub : IDisposable
     private Color GetSeverityColor(string severity)
     {
         if (_settings.SeverityColors.TryGetValue(severity, out var hex))
-            return ThumbnailManager.ParseColor(hex);
+            return OverviewClientService.ParseColor(hex);
 
         return severity switch
         {
