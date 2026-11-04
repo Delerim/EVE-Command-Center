@@ -275,6 +275,10 @@ public sealed class MoonLedgerRowView
 
 public sealed class MoonAuditView
 {
+    public string ReportLoss => ExpiredUtc.HasValue ? TotalLeft : "Not despawned";
+    public string ReportOutcome => ExpiredUtc.HasValue ? Outcome : "Active / pending outcome";
+    public DateTimeOffset? ExpiredUtc { get; init; }
+    public DateTimeOffset? FracturedUtc { get; init; }
     public IReadOnlyList<MoonOreRowView> OreRows { get; init; } = Array.Empty<MoonOreRowView>();
     public string TotalMined { get; init; } = "";
     public string TotalLeft { get; init; } = "";
@@ -314,6 +318,7 @@ public sealed class MoonDailyTotalView
 
 public sealed class MoonPeriodReportView
 {
+    public IReadOnlyList<MoonAuditView> Fields { get; init; } = Array.Empty<MoonAuditView>();
     public string PeriodKey { get; init; } = "";
     public string Label { get; init; } = "";
     public DateTime StartDate { get; init; }

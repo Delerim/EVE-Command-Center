@@ -269,6 +269,19 @@ internal static partial class Program
             }
             Render(overview,args[1]); overview.Close(); return;
         }
+        if(args.FirstOrDefault() == "--audit-refuelling")
+        {
+            var appFixture = new System.Windows.Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
+            var shell = new MoonReportWindow { Width=1600, Height=850, WindowState=WindowState.Normal };
+            BackgroundOperations.Stop();
+            var tabs = (TabControl)shell.FindName("MoonTabs");
+            tabs.SelectedItem = tabs.Items.OfType<TabItem>().Single(t=>t.Header?.ToString()=="REFUELLING");
+            ((DataGrid)shell.FindName("RefuelPlanGrid")).ItemsSource = new[] {
+                new FuelAlignmentRow(1,"North refinery","20 Jan 2027 12:00 UTC","~5.00/h","+12,000 blocks | 21,600 total","Time-based estimate"),
+                new FuelAlignmentRow(2,"South refinery","20 Jan 2027 12:00 UTC","Unavailable","Unknown","Fresh ESI fuel-bay snapshot required") };
+            Render(shell,args[1]);
+            shell.Close(); BackgroundOperations.Stop(); return;
+        }
         if(args.FirstOrDefault() == "--audit-drills")
         {
             var appFixture = new System.Windows.Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
@@ -875,6 +888,10 @@ internal static partial class Program
             var expired = (MoonReportSnapshot)typeof(MoonReportService).GetMethod("BuildSnapshot", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!.Invoke(service, new object[] { now.AddDays(3) })!;
             Check(expired.ActiveFieldCount == 0, "Recovered and observed fields expire without mining activity");
             Check(expired.Audit.Count >= 1, "Observed/estimated expired fields remain available for auditing");
+            Check(expired.Audit.All(a=>a.ExpiredUtc.HasValue), "Despawn audit exposes typed timestamps for date sorting");
+            var exported = service.ReportFields(now.UtcDateTime.Date.AddDays(-10), now.UtcDateTime.Date.AddDays(10));
+            Check(exported.Count > 0 && exported.All(r=>r.FracturedUtc.HasValue || r.ExpiredUtc.HasValue),
+                "Period detail includes observed pop/despawn events with typed dates");
             return snapshot;
         }
         finally { System.IO.File.Delete(file); System.IO.Directory.Delete(directory); }

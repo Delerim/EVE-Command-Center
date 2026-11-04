@@ -50,6 +50,7 @@ public partial class MoonReportWindow : Window
         LoadIntelligenceSchedule();
         // Shared sort handler preserves selected date/numeric order across ESI refreshes.
         TableSorting.Attach(DrillGrid);
+        TableSorting.Attach(AuditGrid);
         _service = BackgroundOperations.Current.Moons;
         _service.Refreshed += OnBackgroundRefresh;
         _drillTimer.Tick += (_, _) => { if (DrillScheduleTab.IsSelected && !EmbeddedModuleHost.IsInactive(this)) RefreshDrillSchedule(); };
@@ -749,6 +750,45 @@ public partial class MoonReportWindow : Window
     {
         if (!_loadingLedger)
             ShowLedgerPull(LedgerPullCombo.SelectedItem as MoonLedgerPullView);
+    }
+
+    private void RefuelCalculate_Click(object sender, RoutedEventArgs e)
+    {
+        if (!double.TryParse(RefuelDays.Text, NumberStyles.Number, CultureInfo.CurrentCulture, out double days) ||
+            !double.IsFinite(days) || days <= 0 || days > 3650)
+        {
+            RefuelPlanGrid.ItemsSource = null;
+            RefuelPlanStatus.Text = "Enter a target between 0 and 3,650 days.";
+            return;
+        }
+        var now = DateTimeOffset.UtcNow;
+        RefuelPlanGrid.ItemsSource = _service.PlanRefuelling(days, now);
+        RefuelPlanStatus.Text = $"Target: {now.AddDays(days):dd MMM yyyy HH:mm} UTC ({days:N1} days). Estimated blocks rounded up to five. Unknown rows need fresh fuel inventory and a valid expiry; refresh ESI and calculate again.";
+    }
+
+    private void ExportPeriodFields_Click(object sender, RoutedEventArgs e)
+    {
+        if (CompareACombo.SelectedItem is not MoonPeriodReportView period) return;
+        var dialog = new Microsoft.Win32.SaveFileDialog { Title = "Export moon events for period A",
+            FileName = $"moon-fields-{period.StartDate:yyyy-MM-dd}.csv", Filter = "CSV files (*.csv)|*.csv" };
+        if (dialog.ShowDialog(this) != true) return;
+        try
+        {
+            var rows = _service.ReportFields(period.StartDate, period.EndDate.Date.AddDays(1));
+            var lines = new List<string> { "Moon,Structure,System,Pop UTC,Despawn UTC,Popped in selected period,Despawned in selected period,Lifetime ledgered R4 mined,Estimated R4 lost at despawn,Outcome,Zeolites mined,Sylvite mined,Bitumens mined,Coesite mined,Zeolites lost estimate,Sylvite lost estimate,Bitumens lost estimate,Coesite lost estimate" };
+            bool InPeriod(DateTimeOffset? value) => value is { } date && date.UtcDateTime >= period.StartDate && date.UtcDateTime < period.EndDate.Date.AddDays(1);
+            foreach (var row in rows)
+                lines.Add(string.Join(",", new[] { row.MoonName, row.StructureName, row.SystemName,
+                    row.FracturedUtc?.ToString("O") ?? "Unknown", row.ExpiredUtc?.ToString("O") ?? "Not observed",
+                    InPeriod(row.FracturedUtc).ToString(), InPeriod(row.ExpiredUtc).ToString(), row.TotalMined,
+                    row.ExpiredUtc.HasValue ? row.TotalLeft : "Not despawned", row.ExpiredUtc.HasValue ? row.Outcome : "Active / pending outcome",
+                    row.ZeolitesMined, row.SylviteMined, row.BitumensMined, row.CoesiteMined,
+                    row.ExpiredUtc.HasValue ? row.ZeolitesLeft : "", row.ExpiredUtc.HasValue ? row.SylviteLeft : "",
+                    row.ExpiredUtc.HasValue ? row.BitumensLeft : "", row.ExpiredUtc.HasValue ? row.CoesiteLeft : "" }.Select(Csv)));
+            File.WriteAllLines(dialog.FileName, lines, new UTF8Encoding(true));
+            SetStatus($"Exported {rows.Count:N0} moon fields for {period.Label}. UTC event dates; mining totals cover each field's lifetime, not just this period. Losses are estimates; unknown outcomes remain unknown.");
+        }
+        catch (Exception ex) { SetStatus("Could not export report: " + ex.Message); }
     }
 
     private void LoadReporting()

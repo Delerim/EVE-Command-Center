@@ -20,6 +20,8 @@ internal static partial class Program
         Check(StationFuelAlignment.BlocksToAlign(now, target, null) == null,
             "Missing burn rate must never fabricate a quantity");
 
+        Check(StationFuelAlignment.BlocksToAlign(now.AddDays(80), now.AddDays(180), 5) == 12000,
+            "180-day target from 80-day stock at five blocks/hour requires 12000 blocks");
         EsiCorporationStructure Make(long id, double hours) => new()
         {
             StructureId = id, Name = "Example drill " + id,
@@ -48,6 +50,12 @@ internal static partial class Program
         Check(result.Single(r=>r.StructureId==3).FuelToAdd == "Unknown" &&
               result.Single(r=>r.StructureId==6).FuelToAdd == "Unknown",
             "Absent ESI stock cannot produce fabricated top-ups");
+        var planned = StationFuelAlignment.Build(structures, fuel, types, now, now, now.AddDays(180));
+        Check(planned.Single(r=>r.StructureId==1).FuelToAdd.Contains("+21,100") &&
+              planned.Single(r=>r.StructureId==5).FuelToAdd.Contains("+42,800"),
+            "Explicit 180-day target calculates each station's own rate including the previous reference");
+        Check(StationFuelAlignment.Build(structures, fuel, types, now.AddHours(-3), now, now.AddDays(180))
+            .All(r=>r.FuelToAdd == "Unknown"), "Target planner refuses stale inventory");
         var stale = StationFuelAlignment.Build(structures, fuel, types, now.AddHours(-3), now);
         Check(stale.Single(r=>r.StructureId==2).FuelToAdd == "Unknown",
             "Stale ESI fuel quantities never produce a top-up");

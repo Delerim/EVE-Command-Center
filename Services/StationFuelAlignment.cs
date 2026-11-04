@@ -60,11 +60,11 @@ public static class StationFuelAlignment
         IReadOnlyList<EveAssetItem> assets,
         IReadOnlyDictionary<int, string> typeNames,
         DateTimeOffset? assetsUpdatedUtc,
-        DateTimeOffset now)
+        DateTimeOffset now, DateTimeOffset? requestedTarget = null)
     {
         var stations = structures.Where(s => s.Services.Any(x =>
             x.Name.Contains("moon", StringComparison.OrdinalIgnoreCase))).ToArray();
-        DateTimeOffset? target = stations.Where(s => s.FuelExpires > now)
+        DateTimeOffset? target = requestedTarget ?? stations.Where(s => s.FuelExpires > now)
             .Select(s => s.FuelExpires).Max();
         bool fresh = assetsUpdatedUtc.HasValue &&
             Math.Abs((now - assetsUpdatedUtc.Value).TotalMinutes) <= 120;
@@ -74,7 +74,7 @@ public static class StationFuelAlignment
         // Keep all valid near-target readings, then choose a compatible-rate
         // reference separately for each station. For a ~5 blocks/hour drill,
         // an unrelated ~10 blocks/hour reference must never hijack the target.
-        FuelReading[] referencePool = fresh && target.HasValue
+        FuelReading[] referencePool = !requestedTarget.HasValue && fresh && target.HasValue
             ? stations.Where(s => s.FuelExpires.HasValue &&
                     s.FuelExpires <= target &&
                     target.Value - s.FuelExpires.Value <= TimeSpan.FromHours(1.5))
@@ -94,7 +94,7 @@ public static class StationFuelAlignment
                     "Unavailable", "Unknown", "Missing or expired ESI fuel expiry");
             if (s.FuelExpires >= target)
                 return new FuelAlignmentRow(s.StructureId, station, expires,
-                    "Reference", "Aligned", "Latest expiry target");
+                    "Reference", "Aligned", requestedTarget.HasValue ? "Already meets target" : "Latest expiry target");
             if (!fresh)
                 return new FuelAlignmentRow(s.StructureId, station, expires,
                     "Unavailable", "Unknown", "Fresh ESI fuel-bay snapshot required");

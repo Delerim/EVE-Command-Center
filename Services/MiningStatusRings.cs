@@ -26,6 +26,7 @@ internal static class MiningStatusRings
     private sealed class Track
     {
         internal DateTime Last;
+        internal DateTime UncertainUntil;
         internal string Ore = "";
         internal double Yield;
         internal double SeedCycle;
@@ -36,7 +37,7 @@ internal static class MiningStatusRings
     // Keep the restart decision outside the already large Build method.
     // After a full hold and a prolonged pause, a new observed full-size pull
     // may have a changed yield. Never infer a restart from time or compression.
-    private static bool TryResumeChangedYield(List<Track> tracks, Pull pull)
+    private static bool TryResumeChangedYield(List<Track> tracks, Pull pull, double demonstratedCadence)
     {
         Track? candidate = null;
         foreach (Track track in tracks)
@@ -58,11 +59,10 @@ internal static class MiningStatusRings
         }
         if (candidate == null) return false;
 
-        double seedCycle = candidate.Cycle;
         candidate.Last = pull.Utc;
         candidate.Yield = pull.Units;
         candidate.Gaps.Clear();
-        candidate.SeedCycle = seedCycle;
+        candidate.SeedCycle = demonstratedCadence; // Do not reuse old boost timing.
         return true;
     }
 
@@ -106,7 +106,7 @@ internal static class MiningStatusRings
         var observations = recent.Where(p=>p.Utc>=lastActivity.AddMinutes(-10)).ToArray();
         var cadence = StaggeredCadences(observations, fitted);
         var tracks = new List<Track>();
-        DateTime uncertainUntil = default;
+        var unmatched = new List<Pull>();
         var lastNormal = new Dictionary<string, DateTime>(StringComparer.OrdinalIgnoreCase);
         foreach (var pull in observations)
         {
@@ -139,7 +139,8 @@ internal static class MiningStatusRings
                 !(Math.Abs(ordered[0].Track.Yield - ordered[1].Track.Yield) <= 1.5 &&
                   Math.Abs(ordered[0].Track.Cycle - ordered[1].Track.Cycle) <= 1))
             {
-                uncertainUntil = pull.Utc.AddSeconds(Math.Max(30, tracks.Max(t => t.Cycle) * 2));
+                foreach (var candidate in ordered)
+                    candidate.Track.UncertainUntil = pull.Utc.AddSeconds(Math.Max(30, candidate.Track.Cycle * 2));
                 continue;
             }
             if (ordered.Length > 0)
@@ -151,6 +152,7 @@ internal static class MiningStatusRings
                     if (chosen.Track.Gaps.Count > 4) chosen.Track.Gaps.RemoveAt(0);
                 }
                 chosen.Track.Last = pull.Utc;
+                chosen.Track.UncertainUntil = default;
                 if (!pull.Critical) chosen.Track.Yield = chosen.Track.Yield * .75 + pull.Units * .25;
             }
             else if (!pull.Critical && tracks.Count < fitted)
@@ -165,7 +167,7 @@ internal static class MiningStatusRings
             // Relearn from the observed pull instead of leaving both lanes
             // permanently stuck on old stopped/learning tracks. Never infer a
             // restart from compression or elapsed time alone.
-            else if (!pull.Critical && TryResumeChangedYield(tracks, pull))
+            else if (!pull.Critical && TryResumeChangedYield(tracks, pull, cadence.GetValueOrDefault(pull.Ore)))
             {
                 // Successful recovery is based on an actual new laser pull.
             }
@@ -174,15 +176,35 @@ internal static class MiningStatusRings
             else if (!pull.Critical && tracks.Any(t => t.Ready &&
                 string.Equals(t.Ore, pull.Ore, StringComparison.OrdinalIgnoreCase) && pull.Units < t.Yield * .8))
                 continue;
-            else
-                uncertainUntil = pull.Utc.AddSeconds(Math.Max(30, tracks.Count == 0 ? 30 : tracks.Max(t => t.Cycle) * 2));
+            else if (!pull.Critical)
+            {
+                // Repeated new yield/cadence is evidence of a boost/fit change.
+                // Do not let unmatched observations hide an independently healthy lane.
+                unmatched.Add(pull);
+                var matching = unmatched.Where(p => p.Ore == pull.Ore &&
+                    Math.Abs(p.Units - pull.Units) <= Math.Max(1.5, pull.Units * .012))
+                    .TakeLast(4).ToArray();
+                if (matching.Length >= 4)
+                {
+                    var gaps = matching.Zip(matching.Skip(1), (a,b) => (b.Utc-a.Utc).TotalSeconds).ToArray();
+                    if (gaps.Min() >= 6 && gaps.Max()-gaps.Min() <= 2.5 &&
+                        tracks.Where(t => (pull.Utc-t.Last).TotalSeconds > Math.Max(30,t.Cycle+8))
+                            .OrderBy(t => t.Last).FirstOrDefault() is { } stale)
+                    {
+                        stale.Last = pull.Utc; stale.Ore = pull.Ore; stale.Yield = pull.Units;
+                        stale.Gaps.Clear(); stale.Gaps.AddRange(gaps); stale.SeedCycle = gaps.Average();
+                        stale.UncertainUntil = default;
+                        unmatched.RemoveAll(p => p.Ore == pull.Ore && Math.Abs(p.Units-pull.Units) <= Math.Max(1.5,pull.Units*.012));
+                    }
+                }
+            }
         }
         // Keep A/B ordered by learned yield when the rolling input window advances.
         tracks = tracks.OrderBy(t => t.Yield).ToList();
         return Enumerable.Range(0, fitted).Select(i =>
         {
             var track = i < tracks.Count ? tracks[i] : null;
-            bool ready = track?.Ready == true && now >= uncertainUntil;
+            bool ready = track?.Ready == true && now >= track.UncertainUntil;
             double elapsed = track == null ? 0 : Math.Max(0, (now - track.Last).TotalSeconds);
             bool stopped = ready && elapsed > track!.Cycle + 8;
             string label = ((char)('A' + i)).ToString();

@@ -173,6 +173,18 @@ internal static partial class Program
             "ORE strip miners learn alternating ore streams despite supplemental critical yields and unit rounding");
         var oneContinues = mixedOre.Append(new MiningStatusRings.Pull(now.AddSeconds(192), 54, "Brimful Bitumens", false))
             .Append(new MiningStatusRings.Pull(now.AddSeconds(216), 54, "Brimful Bitumens", false));
+        var unrelatedPull = mixedOre.Append(new MiningStatusRings.Pull(now.AddSeconds(170), 999, "Unmatched ore", true));
+        Check(MiningStatusRings.Build(2, false, false, unrelatedPull, now.AddSeconds(171))
+            .All(r => r.Accent == "#65D5B6"), "Unmatched critical observation does not blank both healthy lanes");
+        var boostChange = Enumerable.Range(0, 8).SelectMany(n => new[] {
+            new MiningStatusRings.Pull(now.AddSeconds(n*24), 50, "Ore A", false),
+            new MiningStatusRings.Pull(now.AddSeconds(n*24+8), 50, "Ore B", false) })
+            .Concat(Enumerable.Range(0, 8).SelectMany(n => new[] {
+                new MiningStatusRings.Pull(now.AddSeconds(192+n*18), 75, "Ore A", false),
+                new MiningStatusRings.Pull(now.AddSeconds(200+n*18), 75, "Ore B", false) }));
+        Check(MiningStatusRings.Build(2,false,false,boostChange,now.AddSeconds(327))
+            .All(r => r.Accent == "#65D5B6" && r.CycleText == "18s"),
+            "Both lanes recover after a boost changes yield and cadence during continuous mining");
         var mixedStopped = MiningStatusRings.Build(2, false, false, oneContinues, now.AddSeconds(217));
         Check(mixedStopped.Count(r => r.Accent == "#E88991") == 1 && mixedStopped.Count(r => r.Accent == "#65D5B6") == 1,
             "Only the stopped ore stream turns red while the other resource continues");

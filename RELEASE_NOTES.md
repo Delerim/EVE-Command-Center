@@ -1,3 +1,10 @@
+# EVE Command Center v3.8.7
+
+- **Mining stream recovery.** Unmatched observations no longer blank both healthy indicators. Changed yields relearn current cadence rather than reusing old boost timing; repeated new observations can recover stale lanes. Stream identities remain inferred from logs, not physical module telemetry.
+- **Refuelling planner.** New REFUELLING tab accepts target days (for example 180) and calculates additional fuel blocks per station using fresh stock and estimated consumption. Stale or missing inventory remains unknown; the existing latest-expiry alignment remains available.
+- **Despawn sorting.** Sort the audit by real expiry timestamps, preserving the chosen direction across refreshes.
+- **Weekly/monthly moon detail.** Select a REPORTING period to expand the moons that popped or despawned, with event dates, lifetime ledgered R4 mining and estimated losses. Export period A to CSV with individual ore totals. Active fields and unknown outcomes are explicitly labelled, and pop-only periods are included.
+
 # EVE Command Center v3.8.6
 
 - **Integrated Skill Plans tab.** Import external single-pilot JSON or eight-pilot ZIP in the existing Pilot Command Center, next to Skills and Skill Queue, instead of opening a separate import workspace. Existing imported files and remap acknowledgements are reused without migration.

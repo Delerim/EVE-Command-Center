@@ -113,7 +113,7 @@
 <DataGridTemplateColumn Width="54"><DataGridTemplateColumn.CellTemplate><DataTemplate><Button Click="AuditExpand_Click" Padding="7,2" ToolTip="Expand or collapse ore breakdown"><Button.Style><Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}"><Setter Property="Content" Value="+"/><Style.Triggers><DataTrigger Binding="{Binding DetailsVisibility, RelativeSource={RelativeSource AncestorType=DataGridRow}}" Value="Visible"><Setter Property="Content" Value="-"/></DataTrigger></Style.Triggers></Style></Button.Style></Button></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
 <DataGridTextColumn Header="MOON" Binding="{Binding MoonName}" Width="2*"/>
 <DataGridTextColumn Header="SYSTEM" Binding="{Binding SystemName}" Width="*"/>
-<DataGridTextColumn Header="EXPIRED (LOCAL)" Binding="{Binding Expired}" Width="1.3*"/>
+<DataGridTextColumn Header="EXPIRED (LOCAL)" SortMemberPath="ExpiredUtc" Binding="{Binding Expired}" Width="1.3*"/>
 <DataGridTextColumn Header="TOTAL R4 MINED" Binding="{Binding TotalMined}" Width="*"/>
 <DataGridTextColumn Header="ZEO LOST (est.)" Binding="{Binding ZeolitesLeft}" Width="*"/>
 <DataGridTextColumn Header="SYL LOST (est.)" Binding="{Binding SylviteLeft}" Width="*"/>
@@ -128,9 +128,19 @@
     <DataGrid Grid.Row="2" x:Name="LedgerGrid" AlternationCount="2"><DataGrid.Columns><DataGridTextColumn Header="CORP" Binding="{Binding CorporationName}" Width="1.1*"/><DataGridTextColumn Header="MINER" Binding="{Binding CharacterName}" Width="1.7*"/><DataGridTextColumn Header="QUANTITY" Binding="{Binding QuantityText}" Width="*"/><DataGridTextColumn Header="VOLUME m3" Binding="{Binding VolumeText}" Width="*"/><DataGridTextColumn Header="EST. ISK" Binding="{Binding IskText}" Width="*"/><DataGridTextColumn Header="ORE BREAKDOWN" Binding="{Binding OreBreakdown}" Width="2.2*"/></DataGrid.Columns></DataGrid>
    </Grid></TabItem>
    <TabItem Header="REPORTING"><Grid Margin="8" Background="#07181B"><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
-    <DockPanel Margin="0,0,0,10"><StackPanel Orientation="Horizontal"><TextBlock Text="COMPARE" VerticalAlignment="Center" Foreground="#8FB2B5" Margin="0,0,8,0"/><ComboBox x:Name="ReportKindCombo" Width="120" SelectionChanged="ReportSelection_Changed"><ComboBoxItem Content="MONTHS" IsSelected="True"/><ComboBoxItem Content="WEEKS"/></ComboBox><ComboBox x:Name="CompareACombo" Width="230" Margin="8,0" DisplayMemberPath="Label" SelectionChanged="ReportSelection_Changed"/><TextBlock Text="VS" VerticalAlignment="Center" Foreground="#6F9497"/><ComboBox x:Name="CompareBCombo" Width="230" Margin="8,0" DisplayMemberPath="Label" SelectionChanged="ReportSelection_Changed"/></StackPanel></DockPanel>
+    <DockPanel Margin="0,0,0,10"><StackPanel Orientation="Horizontal"><Button Content="EXPORT A: MOON DETAIL CSV" Click="ExportPeriodFields_Click" Margin="0,0,12,0"/><TextBlock Text="COMPARE" VerticalAlignment="Center" Foreground="#8FB2B5" Margin="0,0,8,0"/><ComboBox x:Name="ReportKindCombo" Width="120" SelectionChanged="ReportSelection_Changed"><ComboBoxItem Content="MONTHS" IsSelected="True"/><ComboBoxItem Content="WEEKS"/></ComboBox><ComboBox x:Name="CompareACombo" Width="230" Margin="8,0" DisplayMemberPath="Label" SelectionChanged="ReportSelection_Changed"/><TextBlock Text="VS" VerticalAlignment="Center" Foreground="#6F9497"/><ComboBox x:Name="CompareBCombo" Width="230" Margin="8,0" DisplayMemberPath="Label" SelectionChanged="ReportSelection_Changed"/></StackPanel></DockPanel>
     <UniformGrid Grid.Row="1" Columns="4" Margin="0,0,0,10"><Border Background="#0D2B30" BorderBrush="#245058" BorderThickness="1" CornerRadius="6" Padding="12" Margin="0,0,5,0"><StackPanel><TextBlock Text="MINED DIFFERENCE" Foreground="#7EA8AB"/><TextBlock x:Name="CompareMinedText" FontSize="20" FontWeight="Bold"/></StackPanel></Border><Border Background="#0D2B30" BorderBrush="#245058" BorderThickness="1" CornerRadius="6" Padding="12" Margin="5,0"><StackPanel><TextBlock Text="DESPAWN DIFFERENCE" Foreground="#7EA8AB"/><TextBlock x:Name="CompareLostText" FontSize="20" FontWeight="Bold"/></StackPanel></Border><Border Background="#0D2B30" BorderBrush="#245058" BorderThickness="1" CornerRadius="6" Padding="12" Margin="5,0"><StackPanel><TextBlock Text="EFFICIENCY" Foreground="#7EA8AB"/><TextBlock x:Name="CompareEfficiencyText" FontSize="20" FontWeight="Bold"/></StackPanel></Border><Border Background="#0D2B30" BorderBrush="#245058" BorderThickness="1" CornerRadius="6" Padding="12" Margin="5,0,0,0"><StackPanel><TextBlock Text="BEST PERIOD" Foreground="#7EA8AB"/><TextBlock x:Name="CompareWinnerText" FontSize="17" FontWeight="Bold" TextWrapping="Wrap"/></StackPanel></Border></UniformGrid>
-    <DataGrid Grid.Row="2" x:Name="PeriodGrid" AlternationCount="2"><DataGrid.Columns><DataGridTextColumn Header="PERIOD" Binding="{Binding Label}" Width="1.6*"/><DataGridTextColumn Header="MINED" Binding="{Binding MinedText}" Width="*"/><DataGridTextColumn Header="DESPAWNED" Binding="{Binding LostText}" Width="*"/><DataGridTextColumn Header="EFFICIENCY" Binding="{Binding EfficiencyText}" Width="*"/><DataGridTextColumn Header="PULLS" Binding="{Binding PullCount}" Width="*"/><DataGridTextColumn Header="JACKPOTS" Binding="{Binding JackpotCount}" Width="*"/></DataGrid.Columns></DataGrid>
+    <DataGrid Grid.Row="2" x:Name="PeriodGrid" AlternationCount="2" RowDetailsVisibilityMode="VisibleWhenSelected"><DataGrid.RowDetailsTemplate><DataTemplate><StackPanel Margin="12">
+    <TextBlock Text="Fields popped or despawned in this UTC period. Mining is lifetime ledgered R4 per field; loss is an estimate. Select another period to inspect its moons." TextWrapping="Wrap" Foreground="#8FB2B5" Margin="0,0,0,8"/>
+    <DataGrid ItemsSource="{Binding Fields}" MaxHeight="350" AutoGenerateColumns="False"><DataGrid.Columns>
+     <DataGridTextColumn Header="MOON" Binding="{Binding MoonName}" Width="2*"/>
+     <DataGridTextColumn Header="POP (LOCAL)" Binding="{Binding Fractured}" SortMemberPath="FracturedUtc" Width="*"/>
+     <DataGridTextColumn Header="DESPAWN (LOCAL)" Binding="{Binding Expired}" SortMemberPath="ExpiredUtc" Width="*"/>
+     <DataGridTextColumn Header="LIFETIME MINED R4" Binding="{Binding TotalMined}" Width="*"/>
+     <DataGridTextColumn Header="LOST R4 (EST.)" Binding="{Binding ReportLoss}" Width="*"/>
+     <DataGridTextColumn Header="OUTCOME" Binding="{Binding ReportOutcome}" Width="*"/>
+    </DataGrid.Columns></DataGrid>
+    </StackPanel></DataTemplate></DataGrid.RowDetailsTemplate><DataGrid.Columns><DataGridTextColumn Header="PERIOD" Binding="{Binding Label}" Width="1.6*"/><DataGridTextColumn Header="MINED" Binding="{Binding MinedText}" Width="*"/><DataGridTextColumn Header="DESPAWNED" Binding="{Binding LostText}" Width="*"/><DataGridTextColumn Header="EFFICIENCY" Binding="{Binding EfficiencyText}" Width="*"/><DataGridTextColumn Header="PULLS" Binding="{Binding PullCount}" Width="*"/><DataGridTextColumn Header="JACKPOTS" Binding="{Binding JackpotCount}" Width="*"/></DataGrid.Columns></DataGrid>
    </Grid></TabItem>
    <TabItem x:Name="FuelTab" Header="STATION FUEL"><DockPanel Margin="14">
     <StackPanel DockPanel.Dock="Top" Margin="0,0,0,14"><TextBlock Text="STATION FUEL" Foreground="#55D7D2" FontSize="21" FontWeight="Bold"/><TextBlock x:Name="FuelSummary" Foreground="#74D6C9" FontSize="16" Margin="0,8"/><TextBlock Text="Refuel below 80 days. One combined reminder per day covers all low-fuel structures. Missing expiry is unknown, not empty." Foreground="#8FB2B5" TextWrapping="Wrap"/></StackPanel>
@@ -170,6 +180,20 @@
      <DataGridTextColumn Header="FUEL BAY (ESI SNAPSHOT)" Binding="{Binding Quantity}" Width="1.4*"/>
      <DataGridTextColumn Header="RUNS OUT" Binding="{Binding ExpiryText}" Width="175"/>
      <DataGridTextColumn Header="SERVICES" Binding="{Binding Services}" Width="1.5*"/>
+    </DataGrid.Columns></DataGrid>
+   </DockPanel></TabItem>
+   <TabItem Header="REFUELLING"><DockPanel Margin="14">
+    <StackPanel DockPanel.Dock="Top" Margin="0,0,0,12">
+     <TextBlock Text="REFUELLING PLAN" FontSize="21" Foreground="#55D7D2"/>
+     <WrapPanel Margin="0,12"><TextBlock Text="Target days from now" VerticalAlignment="Center"/><TextBox x:Name="RefuelDays" Text="180" Width="80" Margin="10,0"/><Button Content="CALCULATE" Click="RefuelCalculate_Click"/></WrapPanel>
+     <TextBlock x:Name="RefuelPlanStatus" Text="Enter the desired fuel coverage and calculate. Quantities are estimates from fresh fuel stock and ESI expiry; service changes affect consumption." TextWrapping="Wrap" Foreground="#8FB2B5"/>
+    </StackPanel>
+    <DataGrid x:Name="RefuelPlanGrid" AutoGenerateColumns="False" IsReadOnly="True"><DataGrid.Columns>
+     <DataGridTextColumn Header="STATION" Binding="{Binding StructureName}" Width="2*"/>
+     <DataGridTextColumn Header="CURRENT EXPIRY (UTC)" Binding="{Binding ExpiresText}" Width="*"/>
+     <DataGridTextColumn Header="ESTIMATED RATE" Binding="{Binding BurnPerHour}" Width="*"/>
+     <DataGridTextColumn Header="BLOCKS TO ADD / TARGET STOCK" Binding="{Binding FuelToAdd}" Width="2*"/>
+     <DataGridTextColumn Header="BASIS" Binding="{Binding DataBasis}" Width="2*"/>
     </DataGrid.Columns></DataGrid>
    </DockPanel></TabItem>
    <TabItem x:Name="DrillScheduleTab" Header="DRILL SCHEDULE"><Grid Margin="12">

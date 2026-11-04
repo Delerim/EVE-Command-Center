@@ -924,6 +924,16 @@ public sealed class MoonReportService : IDisposable
                 : 48);
     }
 
+    public IReadOnlyList<FuelAlignmentRow> PlanRefuelling(double days, DateTimeOffset now) =>
+        StationFuelAlignment.Build(_state.Structures, _state.FuelAssets,
+            _state.TypeNames, _state.FuelAssetsUpdatedUtc, now, now.AddDays(days));
+
+    public IReadOnlyList<MoonAuditView> ReportFields(DateTime start, DateTime end) =>
+        _state.Pulls.Values.Where(p => VisiblePull(p) &&
+            ((p.FracturedUtc is { } f && f.UtcDateTime >= start && f.UtcDateTime < end) ||
+             (p.ExpiredUtc is { } e && e.UtcDateTime >= start && e.UtcDateTime < end)))
+        .OrderBy(p => p.FracturedUtc).Select(p => BuildAudit(p, ProfileFor(p))).ToArray();
+
     private MoonReportSnapshot BuildSnapshot(DateTimeOffset now)
     {
         RecoverFieldHistory(now);
@@ -1355,6 +1365,8 @@ public sealed class MoonReportService : IDisposable
         return new MoonAuditView
         {
             OreRows = BuildOreRows(profile, pull),
+            ExpiredUtc = pull.ExpiredUtc,
+            FracturedUtc = pull.FracturedUtc,
             Reliable = reliable,
             TotalMined = FormatM3(Mined(pull, "zeolit") + Mined(pull, "sylvit") + Mined(pull, "bitumen") + Mined(pull, "coesite")),
             TotalLeft = reliable ? FormatM3(zeoLeft + sylviteLeft + bitumensLeft + coesiteLeft) : "Unknown",
@@ -1523,6 +1535,8 @@ public sealed class MoonReportService : IDisposable
         var starts = daily
             .Where(d => d.TotalM3 > 0 || d.LostM3 > 0)
             .Select(d => PeriodStart(d.Date))
+            .Concat(_state.Pulls.Values.Where(p => VisiblePull(p) && p.FracturedUtc.HasValue)
+                .Select(p => PeriodStart(p.FracturedUtc!.Value.UtcDateTime)))
             .Concat(_state.Pulls.Values
                 .Where(p => p.ExpiredUtc.HasValue)
                 .Select(p => PeriodStart(p.ExpiredUtc!.Value.UtcDateTime)))
@@ -1566,6 +1580,7 @@ public sealed class MoonReportService : IDisposable
             DateTime inclusiveEnd = end.AddDays(-1);
             result.Add(new MoonPeriodReportView
             {
+                Fields = ReportFields(start, end),
                 PeriodKey = monthly
                     ? start.ToString("yyyy-MM")
                     : start.ToString("yyyy-MM-dd"),
