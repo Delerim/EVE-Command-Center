@@ -171,11 +171,8 @@ internal static class MiningStatusRings
             {
                 // Successful recovery is based on an actual new laser pull.
             }
-            // A short final pull when the hold fills is not a new yield/cadence.
-            // Keep established tracks; subsequent full pulls can re-anchor a stopped stream.
-            else if (!pull.Critical && tracks.Any(t => t.Ready &&
-                string.Equals(t.Ore, pull.Ore, StringComparison.OrdinalIgnoreCase) && pull.Units < t.Yield * .8))
-                continue;
+            // A single partial pull cannot reset timing. Repeated matching pulls below
+            // the old yield can, however, demonstrate a sustained boost/yield reduction.
             else if (!pull.Critical)
             {
                 // Repeated new yield/cadence is evidence of a boost/fit change.

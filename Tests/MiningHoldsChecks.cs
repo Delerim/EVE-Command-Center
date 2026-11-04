@@ -185,6 +185,15 @@ internal static partial class Program
         Check(MiningStatusRings.Build(2,false,false,boostChange,now.AddSeconds(327))
             .All(r => r.Accent == "#65D5B6" && r.CycleText == "18s"),
             "Both lanes recover after a boost changes yield and cadence during continuous mining");
+        var lowerBoost = Enumerable.Range(0, 8).SelectMany(n => new[] {
+            new MiningStatusRings.Pull(now.AddSeconds(n*24), 100, "Ore A", false),
+            new MiningStatusRings.Pull(now.AddSeconds(n*24+8), 100, "Ore B", false) })
+            .Concat(Enumerable.Range(0, 8).SelectMany(n => new[] {
+                new MiningStatusRings.Pull(now.AddSeconds(192+n*30), 50, "Ore A", false),
+                new MiningStatusRings.Pull(now.AddSeconds(200+n*30), 50, "Ore B", false) }));
+        Check(MiningStatusRings.Build(2,false,false,lowerBoost,now.AddSeconds(411))
+            .All(r => r.Accent == "#65D5B6" && r.CycleText == "30s"),
+            "Repeated lower yields after losing boost recover instead of being ignored as partial holds");
         var mixedStopped = MiningStatusRings.Build(2, false, false, oneContinues, now.AddSeconds(217));
         Check(mixedStopped.Count(r => r.Accent == "#E88991") == 1 && mixedStopped.Count(r => r.Accent == "#65D5B6") == 1,
             "Only the stopped ore stream turns red while the other resource continues");

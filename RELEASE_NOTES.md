@@ -1,3 +1,8 @@
+# EVE Command Center v3.8.8
+
+- **Lower-yield mining recovery.** Repeated stable lower-yield pulls can relearn a stream after losing a boost. A single short full-hold pull still cannot reset timing. Includes v3.8.7 mining recovery, refuelling target planner, date sorting and weekly/monthly moon detail reports.
+- **Validation.** Adds a regression for simultaneous yield and cadence reduction while both ore streams continue mining.
+
 # EVE Command Center v3.8.7
 
 - **Mining stream recovery.** Unmatched observations no longer blank both healthy indicators. Changed yields relearn current cadence rather than reusing old boost timing; repeated new observations can recover stale lanes. Stream identities remain inferred from logs, not physical module telemetry.
