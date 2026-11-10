@@ -5,7 +5,7 @@ using EveCommandCenter.Models;
 namespace EveCommandCenter.Services;
 
 /// <summary>Project plans and retained linked-job evidence. ESI caches remain owned by IndustryService.</summary>
-public sealed class IndustryWorkspaceStore
+public sealed partial class IndustryWorkspaceStore
 {
     private readonly object _gate = new();
     private readonly string _path;
@@ -30,7 +30,7 @@ public sealed class IndustryWorkspaceStore
     {
         string json = File.ReadAllText(path);
         using var doc = JsonDocument.Parse(json);
-        Require(doc.RootElement.TryGetProperty("SchemaVersion", out var version) && version.GetInt32() is 1 or 2 or 3 or 4, "Missing or unsupported planning schema; use a compatible application version.");
+        Require(doc.RootElement.TryGetProperty("SchemaVersion", out var version) && version.GetInt32() is 1 or 2 or 3 or 4 or 5, "Missing or unsupported planning schema; use a compatible application version.");
         var state = JsonSerializer.Deserialize<IndustryWorkspace>(json) ?? throw new InvalidDataException("Empty planning document.");
         Validate(state); return state;
     }
@@ -78,7 +78,7 @@ public sealed class IndustryWorkspaceStore
                 {
                     using var document = JsonDocument.Parse(File.ReadAllText(_path));
                     if (document.RootElement.TryGetProperty("SchemaVersion", out var version))
-                        Require(version.GetInt32() <= 4, "This file belongs to a newer schema; do not downgrade it using an old backup.");
+                        Require(version.GetInt32() <= 5, "This file belongs to a newer schema; do not downgrade it using an old backup.");
                 }
                 catch (JsonException) { }
             }
@@ -248,7 +248,7 @@ public sealed class IndustryWorkspaceStore
         var last = state.JobHistory.LastOrDefault(h => h.ProjectId == projectId && h.NodeId == nodeId && h.Job.OwnerId == job.OwnerId && h.Job.JobId == job.JobId);
         if (last != null && last.Job.Status == job.Status && last.Job.EndUtc == job.EndUtc) return;
         state.JobHistory.Add(new(projectId, nodeId, job));
-        state.SchemaVersion = 4;
+        state.SchemaVersion = Math.Max(state.SchemaVersion, 4);
     }
     public void ObserveLinkedJobs(IReadOnlyList<IndustryJobLink> observations, DateTimeOffset now)
     {
@@ -403,7 +403,7 @@ public sealed class IndustryWorkspaceStore
     private static IndustryProject Project(IndustryWorkspace state, Guid id) => state.Projects.Single(p => p.Id == id);
     internal static void Validate(IndustryWorkspace state)
     {
-        Require(state.SchemaVersion is 1 or 2 or 3 or 4, "Unsupported planning schema; use a compatible application version.");
+        Require(state.SchemaVersion is 1 or 2 or 3 or 4 or 5, "Unsupported planning schema; use a compatible application version.");
         Require(state.JobHistory != null && (state.JobHistory.Count == 0 || state.SchemaVersion >= 4) &&
             state.JobHistory.All(h => h.ProjectId != Guid.Empty && h.NodeId != Guid.Empty && IndustryJobMatching.Valid(h.Job)),
             "Invalid manufacturing history.");
@@ -424,7 +424,8 @@ public sealed class IndustryWorkspaceStore
         foreach (var p in state.Projects)
         {
             Require(p.Id != Guid.Empty && !string.IsNullOrWhiteSpace(p.Name), "Project name is required.");
-            Require(p.Nodes.Count(n => n.ParentId == null) == 1, "Each project needs one root node.");
+            Require(p.IsBundle ? state.SchemaVersion >= 5 && p.Nodes.Any(n => n.ParentId == null) : p.Nodes.Count(n => n.ParentId == null) == 1,
+                "Each project needs one root node; bundles require planning schema 5.");
             var nodes = p.Nodes.ToDictionary(n => n.Id);
             foreach (var n in p.Nodes)
             {

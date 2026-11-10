@@ -687,6 +687,8 @@ public sealed class EveSsoService
         var token = await GetAccessTokenForAsync(pilot, ct);
         return await GetCharacterAssetsCachedAsync(pilot.CharacterId, token, ct);
     }
+    internal (DateTimeOffset Observed, DateTimeOffset Expires) PlanningAssetTimes(long characterId) =>
+        _assetCache.TryGetValue(characterId, out var snapshot) ? (snapshot.ObservedUtc, snapshot.ExpiresAt) : default;
 
     public async Task<EveInventorySnapshot> GetInventoryAsync(
         EvePilotProfile pilot,

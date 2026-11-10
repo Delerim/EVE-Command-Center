@@ -690,7 +690,7 @@
       <StackPanel DockPanel.Dock="Top" Margin="0,8,0,18">
         <TextBlock Text="Your production projects" FontSize="24" FontWeight="SemiBold" />
         <TextBlock Text="Choose a build to review components, blueprints, stock and jobs." Margin="0,8,0,12" Foreground="#99B7BC" />
-        <WrapPanel><Button Content="+ New project" Click="NewProject_Click"/><Button Content="Project defaults" Click="ProjectDefaults_Click"/></WrapPanel>
+        <WrapPanel><Button Content="+ New project" Click="NewProject_Click"/><Button Content="Suggested projects / Available to craft" Click="OpenCraft_Click"/><Button Content="Project defaults" Click="ProjectDefaults_Click"/></WrapPanel>
       </StackPanel>
       <ListBox x:Name="Projects" SelectionChanged="Project_Selected" Background="#07181B" BorderThickness="0" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
         <ListBox.ItemsPanel>
@@ -712,6 +712,43 @@
         </ListBox.ItemTemplate>
       </ListBox>
     </DockPanel>
+    <Grid Grid.Row="1" x:Name="CraftPage" Visibility="Collapsed" Margin="12">
+      <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+      <StackPanel>
+        <Button Content="Back to projects" Click="BackProjects_Click" HorizontalAlignment="Left"/>
+        <TextBlock Text="Build from your cans" FontSize="24" FontWeight="SemiBold" Margin="3,8"/>
+        <TextBlock Text="Owned manufacturing BPCs + free personal stock. Select several copies to check and reserve one shared project." TextWrapping="Wrap" Foreground="#99B7BC" Margin="3,4"/>
+        <WrapPanel Margin="0,8">
+          <StackPanel><TextBlock Text="BLUEPRINT OWNER"/><ComboBox x:Name="CraftOwner" DisplayMemberPath="Name" Style="{StaticResource WorkspaceCombo}" SelectionChanged="CraftFilter_Changed"/></StackPanel>
+          <StackPanel><TextBlock Text="MATERIAL SOURCE"/><ComboBox x:Name="CraftSource" MaxWidth="400" MinWidth="240" Style="{StaticResource WorkspaceCombo}" SelectionChanged="CraftFilter_Changed"/></StackPanel>
+          <StackPanel><TextBlock Text="FIND PRODUCT"/><TextBox x:Name="CraftSearch" Width="190" TextChanged="CraftSearch_Changed"/></StackPanel>
+        </WrapPanel>
+        <TextBlock x:Name="CraftSummary" TextWrapping="Wrap" Foreground="#99B7BC" Margin="3,4,3,8"/>
+        <TabControl x:Name="CraftTabs" SelectionChanged="CraftFilter_Changed" Background="#07181B" BorderThickness="0"><TabItem Header="Available to craft"/><TabItem Header="Suggested projects"/></TabControl>
+        <Button Content="Suggest a compatible bundle" Click="SuggestCraftBundle_Click" HorizontalAlignment="Left" ToolTip="Select compatible visible BPCs using the run count below, subtracting shared materials for each choice. Review the selection before creating the project."/>
+      </StackPanel>
+      <DataGrid Grid.Row="1" x:Name="CraftGrid" SelectionMode="Extended" SelectionUnit="FullRow" SelectionChanged="CraftSelection_Changed" EnableRowVirtualization="True" Margin="0,6">
+        <DataGrid.Columns>
+          <DataGridTextColumn Header="Product" Binding="{Binding Name}" Width="2*" MinWidth="190"/>
+          <DataGridTextColumn Header="Owner" Binding="{Binding Owner}" Width="130"/>
+          <DataGridTextColumn Header="BPC instance" Binding="{Binding ItemId}" Width="125"/>
+          <DataGridTextColumn Header="Unplanned runs" Binding="{Binding RemainingRuns, StringFormat=N0}" Width="120"/>
+          <DataGridTextColumn Header="Can craft runs" Binding="{Binding MaxRuns, StringFormat=N0}" Width="115"/>
+          <DataGridTextColumn Header="Output units" Binding="{Binding MaxOutput, StringFormat=N0}" Width="110"/>
+          <DataGridTextColumn Header="Inputs covered" Binding="{Binding CoverageText}" SortMemberPath="Coverage" Width="120"/>
+          <DataGridTextColumn Header="Efficiency" Binding="{Binding Efficiency}" Width="180"/>
+          <DataGridTextColumn Header="Blueprint location" Binding="{Binding Location}" Width="280"/>
+        </DataGrid.Columns>
+      </DataGrid>
+      <Border Grid.Row="2" Style="{StaticResource Card}" Padding="12">
+        <StackPanel>
+          <WrapPanel><StackPanel><TextBlock Text="PROJECT NAME"/><TextBox x:Name="CraftName" Text="Available to craft bundle" Width="240"/></StackPanel><StackPanel><TextBlock Text="RUNS PER SELECTED BPC"/><TextBox x:Name="CraftRuns" Text="1" Width="150" TextChanged="CraftRuns_Changed"/></StackPanel><Button x:Name="CreateCraftButton" Content="Create project + reserve inputs" Click="CreateCraft_Click" VerticalAlignment="Bottom" IsEnabled="False"/></WrapPanel>
+          <TextBlock x:Name="CraftPreview" TextWrapping="Wrap" Margin="3,8" Foreground="#76D7CB"/>
+          <ScrollViewer MaxHeight="125" VerticalScrollBarVisibility="Auto"><TextBlock x:Name="CraftInputs" TextWrapping="Wrap" Foreground="#B5CDD0" Margin="3,4"/></ScrollViewer>
+          <TextBlock Text="Each row is an independent alternative. The selection is checked together. Stock may need hauling; skills, facility and delivery need verification. ME applied; facility/rig bonuses excluded. Ctrl/Shift selects multiple copies." TextWrapping="Wrap" Foreground="#99B7BC" FontSize="11" Margin="3,6"/>
+        </StackPanel>
+      </Border>
+    </Grid>
     <DockPanel Grid.Row="1" Visibility="Collapsed" Margin="12" x:Name="CreationPage"><Expander Header="Create by product name" DockPanel.Dock="Bottom" Margin="10"><StackPanel>              <Expander Header="FIND PRODUCT / COMPONENT BY NAME" Foreground="#74D6C9" Margin="0,4,0,8">
                 <StackPanel>
                   <TextBox x:Name="TypeSearch" ToolTip="Search product names; first 80 matches" TextChanged="TypeSearch_Changed" />

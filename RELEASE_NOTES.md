@@ -1,3 +1,10 @@
+# EVE Command Center v3.8.10
+
+- **Available to craft.** Industry > Production Queue now includes Available to craft and Suggested projects. Match owned manufacturing BPCs to free material stacks in personal hangars and nested cans, filter by owner/material source and review maximum runs, output units, ME and material coverage. Stale, inaccessible or in-use copies and already-planned runs are excluded.
+- **One project for several BPCs.** Select copies manually or suggest a compatible bundle, review the combined inputs and create one project containing all output trees. Exact source reservations are saved atomically, preventing shared materials being promised twice. Direct inputs are consumed as stock; skills, facilities and hauling remain explicit checks. Existing projects continue to load; craft bundles use planning schema 5.
+- **Seller refresh recovery.** Fully listed products remain visible when no hangar units remain. Returning to Seller refreshes the view, character switches reject old results, shared market refreshes are awaited, failed category lookups can retry, and cancellation releases the refresh controls. Stock/orders appear before hub pricing finishes, with cache timestamps and unresolved-price warnings. Mixed-hub undercuts are checked per listing and numeric stock/price columns sort correctly.
+- **Validation.** Regressions cover shared-stock conflicts, BPC limits, atomic save/reopen, moved reservations, source filtering, financial-ledger migration, multiple project outputs, seller switching, fully listed products, cache reuse and cancellation recovery. Manufacturing and market actions remain manual in EVE.
+
 # EVE Command Center v3.8.9
 
 - **Readable moon reports.** Expanded field details use explicit readable column widths instead of collapsing star-sized columns. Mining totals are green, estimated losses coral, and efficiency uses green/amber/coral bands. Unknown or active-field losses remain neutral. Numeric period columns sort numerically; comparison colours treat lower loss as an improvement.

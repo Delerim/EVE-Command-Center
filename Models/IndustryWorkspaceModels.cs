@@ -23,6 +23,7 @@ public sealed class IndustryWorkspace
 
 public sealed class IndustryProject
 {
+    public bool IsBundle { get; set; }
     public Guid Id { get; set; } = Guid.NewGuid();
     public string Name { get; set; } = "";
     public long? LeadId { get; set; }
