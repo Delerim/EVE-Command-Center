@@ -96,6 +96,7 @@ public partial class IndustryWorkspaceView : System.Windows.Controls.UserControl
         }
         finally { _loading = false; }
         RefreshBlueprintLocations();
+        RefreshCraftSuggestions();
         ShowProject();
         if (_openMaterialsPending)
         {
@@ -115,25 +116,25 @@ public partial class IndustryWorkspaceView : System.Windows.Controls.UserControl
     }
     private void OpenProject()
     {
-        ProjectGallery.Visibility = CreationPage.Visibility = SettingsPage.Visibility = Visibility.Collapsed;
+        ProjectGallery.Visibility = CreationPage.Visibility = SettingsPage.Visibility = CraftPage.Visibility = Visibility.Collapsed;
         ProjectWorkspace.Visibility = Visibility.Visible;
         WorkspaceTabs.SelectedItem = ProjectDetailTab;
     }
     private void BackProjects_Click(object sender, RoutedEventArgs e)
     {
-        ProjectWorkspace.Visibility = CreationPage.Visibility = SettingsPage.Visibility = Visibility.Collapsed;
+        ProjectWorkspace.Visibility = CreationPage.Visibility = SettingsPage.Visibility = CraftPage.Visibility = Visibility.Collapsed;
         ProjectGallery.Visibility = Visibility.Visible;
         Projects.SelectedItem = null;
     }
     private string ProjectStage(IndustryProject p) => IndustryProductionProgress.Stage(p, _state, ReadJobs(), DateTimeOffset.UtcNow);
     private void ProjectDefaults_Click(object sender, RoutedEventArgs e)
     {
-        ProjectGallery.Visibility = ProjectWorkspace.Visibility = CreationPage.Visibility = Visibility.Collapsed;
+        ProjectGallery.Visibility = ProjectWorkspace.Visibility = CreationPage.Visibility = CraftPage.Visibility = Visibility.Collapsed;
         SettingsPage.Visibility = Visibility.Visible;
     }
     private void NewProject_Click(object sender, RoutedEventArgs e)
     {
-        ProjectGallery.Visibility = ProjectWorkspace.Visibility = SettingsPage.Visibility = Visibility.Collapsed;
+        ProjectGallery.Visibility = ProjectWorkspace.Visibility = SettingsPage.Visibility = CraftPage.Visibility = Visibility.Collapsed;
         CreationPage.Visibility = Visibility.Visible;
     }
     private void Project_Selected(object sender, SelectionChangedEventArgs e)
@@ -149,7 +150,7 @@ public partial class IndustryWorkspaceView : System.Windows.Controls.UserControl
         ProjectIdentity.Text = project.Name; ProjectIdentity.ToolTip = null; ProjectName.Text = project.Name; ProjectNotes.Text = project.Notes;
         Select(ProjectLead, project.LeadId); Select(ProjectBuyer, project.BuyerId); Select(ProjectSeller, project.SellerId);
         Paused.IsChecked = project.Paused; Archived.IsChecked = project.Archived;
-        if (!project.Nodes.Any(n => n.Id == _nodeId)) _nodeId = project.Nodes.Single(n => n.ParentId == null).Id;
+        if (!project.Nodes.Any(n => n.Id == _nodeId)) _nodeId = project.Nodes.First(n => n.ParentId == null).Id;
         var expanded = new HashSet<Guid>();
         void Remember(NodeRow row) { if (row.Expanded) expanded.Add(row.Id); foreach (var child in row.Children) Remember(child); }
         foreach (var row in Nodes.Items.OfType<NodeRow>()) Remember(row);
@@ -411,7 +412,9 @@ public partial class IndustryWorkspaceView : System.Windows.Controls.UserControl
     private void ExpandDraft_Click(object sender, RoutedEventArgs e) => Action(() =>
     {
         if (_projectId is not {} id) return;
-        var root = _state.Projects.Single(p => p.Id == id).Nodes.Single(n => n.ParentId == null);
+        var project = _state.Projects.Single(p => p.Id == id);
+        if (project.IsBundle) throw new InvalidOperationException("This bundle already has material plans. Select a build to review its inputs.");
+        var root = project.Nodes.Single(n => n.ParentId == null);
         _store.ExpandDraft(id, IndustryDependencyPlanner.Build(root.TypeId, root.Quantity));
     }, "Draft expanded at ME 0 with product and input quantities. Project identity retained; review blueprint assumptions.");
     private void ShowDelete_Click(object sender, RoutedEventArgs e)

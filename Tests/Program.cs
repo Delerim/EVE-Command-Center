@@ -28,6 +28,16 @@ internal static partial class Program
     [STAThread]
     private static void Main(string[] args)
     {
+        if (args.FirstOrDefault() == "--audit-crafting")
+        {
+            var appFixture = new System.Windows.Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
+            string folder = Path.Combine(Path.GetTempPath(), "ecc-craft-audit-" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(folder);
+            try { WorkspaceLayout.PreferencePath=Path.Combine(folder,"ui-layout.json"); CheckCraftSuggestions(folder,args.ElementAtOrDefault(1)); CheckSellerRefresh(folder,args.ElementAtOrDefault(1)); }
+            finally { Directory.Delete(folder,true); }
+            Console.WriteLine($"{_checks} craft and seller checks passed.");
+            return;
+        }
         if (args.FirstOrDefault() == "--audit-market-tabs")
         {
             var appFixture = new System.Windows.Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
@@ -425,6 +435,9 @@ internal static partial class Program
         CheckFuelAlignment();
         CheckAbyssalWatch();
         CheckSellerDashboard();
+        string sellerCheckFolder=Path.Combine(Path.GetTempPath(), "ecc-seller-check-" + Guid.NewGuid().ToString("N"));
+        try { CheckSellerRefresh(sellerCheckFolder); }
+        finally { if(Directory.Exists(sellerCheckFolder))Directory.Delete(sellerCheckFolder,true); }
         CheckReleaseMonitor().GetAwaiter().GetResult();
         CheckAccessAsync().GetAwaiter().GetResult();
         var moonSnapshot = CheckMoonRecovery();

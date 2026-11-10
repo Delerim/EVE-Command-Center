@@ -39,6 +39,9 @@ public sealed class SellerDashboardWindow : UserControl, IDisposable
     private readonly ComboBox _pilots=new(){MinWidth=240,Height=30,
         ToolTip="Select the character that owns the stock and active sell orders"};
     private readonly Button _refreshButton;
+    private readonly Button _cancelButton;
+    private CancellationTokenSource? _refreshCancellation;
+    private bool _refreshPending;
     private readonly ComboBox _filter=new(){Width=145,Height=29};
     private readonly ComboBox _category=new(){Width=170,Height=29};
     private readonly TextBox _search=new(){Width=260,Height=29};
@@ -52,20 +55,19 @@ public sealed class SellerDashboardWindow : UserControl, IDisposable
     private readonly TextBlock _value=new();
     private bool _loadingPilots;
     private bool _closing;
-    private bool _started;
     private bool _timerAttached;
     private static SolidColorBrush Ink(byte r,byte g,byte b)=>new(Color.FromRgb(r,g,b));
     private static readonly SolidColorBrush Teal=Ink(105,222,195),Muted=Ink(147,181,185),Yellow=Ink(253,194,112);
     private sealed record PilotChoice(long Id,string Name,string Detail)
     { public override string ToString()=>Name+"   ·   "+Detail; }
 
-    public SellerDashboardWindow()
+    public SellerDashboardWindow() : this(null) { }
+    internal SellerDashboardWindow(SellerDashboardService? seller)
     {
         HorizontalAlignment=System.Windows.HorizontalAlignment.Stretch;
         VerticalAlignment=System.Windows.VerticalAlignment.Stretch;
         Background=Ink(6,20,24);Foreground=Ink(230,245,244);
-        var ops=BackgroundOperations.Current;
-        _seller=new SellerDashboardService(ops.Sso,ops.MarketOrders);
+        _seller=seller??CreateSeller();
         var root=new DockPanel{Margin=new Thickness(18,14,18,14)};
         Content=root;
         var header=new StackPanel{Margin=new Thickness(0,0,0,12)};
@@ -75,6 +77,8 @@ public sealed class SellerDashboardWindow : UserControl, IDisposable
         var actions=new StackPanel{Orientation=Orientation.Horizontal};
         DockPanel.SetDock(actions,Dock.Right);hero.Children.Add(actions);
         _refreshButton=MakeButton(actions,"REFRESH STOCK + ORDERS",async(_,_)=>await RefreshAsync());
+        _cancelButton=MakeButton(actions,"CANCEL",(_,_)=>_refreshCancellation?.Cancel());
+        _cancelButton.IsEnabled=false;
         MakeButton(actions,"LINKED ACCOUNTS",(_,_) =>
             (System.Windows.Application.Current as App)?.OpenCommandCenterModule("setup"));
         hero.Children.Add(new TextBlock{Text="SELLER COMMAND CENTER",FontSize=25,FontWeight=FontWeights.Bold,
@@ -87,7 +91,8 @@ public sealed class SellerDashboardWindow : UserControl, IDisposable
         _pilots.SelectionChanged+=async(_,_)=>
         {
             if(_loadingPilots || _pilots.SelectedItem is not PilotChoice pilot)return;
-            _seller.SelectSeller(pilot.Id);await RefreshAsync();
+            try { _seller.SelectSeller(pilot.Id);await RefreshAsync(); }
+            catch(Exception ex) { if(!_closing)_status.Text="Cannot select trading character: "+ex.Message; }
         };
         selector.Children.Add(_pilots);
         selector.Children.Add(Label("Personal assets + market-order permissions required",new Thickness(18,0,0,0),Muted));
@@ -170,11 +175,7 @@ public sealed class SellerDashboardWindow : UserControl, IDisposable
         Loaded+=async(_,_)=>
         {
             if (_closing) return;
-            if (!_started)
-            {
-                _started=true;
-                await LoadPilots();
-            }
+            await LoadPilots();
             if (!_timerAttached)
             {
                 _timerAttached=true;
@@ -186,6 +187,11 @@ public sealed class SellerDashboardWindow : UserControl, IDisposable
         // results and subscriptions until the owning Market window closes.
         Unloaded+=(_,_)=>_refreshTimer.Stop();
         Render();
+    }
+    private static SellerDashboardService CreateSeller()
+    {
+        var ops=BackgroundOperations.Current;
+        return new SellerDashboardService(ops.Sso,ops.MarketOrders);
     }
     private static TextBlock Label(string value,Thickness margin,SolidColorBrush? colour=null)=>new()
     {Text=value,Margin=margin,FontSize=11,Foreground=colour??Muted,VerticalAlignment=VerticalAlignment.Center};
@@ -212,6 +218,7 @@ public sealed class SellerDashboardWindow : UserControl, IDisposable
         if(!status)
         {
             _grid.Columns.Add(new DataGridTextColumn{Header=header,Binding=new Binding(property),
+                SortMemberPath=property switch { "QtyText"=>"Stock", "ListedText"=>"Listed", "MyPriceText"=>"MyPrice", "JitaText"=>"Jita", "AmarrText"=>"Amarr", "JitaShift"=>"JitaChange", "AmarrShift"=>"AmarrChange", "HubEdge"=>"HubDifference", _=>property },
                 Width=new DataGridLength(width),IsReadOnly=true});return;
         }
         var tpl=new DataTemplate();var text=new FrameworkElementFactory(typeof(TextBlock));
@@ -247,6 +254,7 @@ public sealed class SellerDashboardWindow : UserControl, IDisposable
         if (_closing) return;
         if (_seller.Busy)
         {
+            _refreshPending=true;
             _status.Text="Seller refresh already running: " + _seller.Status;
             return;
         }
@@ -264,22 +272,31 @@ public sealed class SellerDashboardWindow : UserControl, IDisposable
             }
         }
         _refreshButton.IsEnabled=false;
+        using var refreshCancellation=CancellationTokenSource.CreateLinkedTokenSource(_life.Token);
+        _refreshCancellation=refreshCancellation;
+        _cancelButton.IsEnabled=true;
         _status.Text="Connecting to ESI for selected seller: inventory, orders and hub quotes...";
         try
         {
-            await _seller.RefreshAsync(_life.Token);
+            await _seller.RefreshAsync(refreshCancellation.Token);
             if (!_closing) Render();
         }
         catch (OperationCanceledException) when (_life.IsCancellationRequested) { }
         catch (Exception ex) { if (!_closing) _status.Text="REFRESH FAILED: " + ex.Message; }
-        finally { if (!_closing) _refreshButton.IsEnabled=true; }
+        finally
+        {
+            _refreshCancellation=null;
+            if (!_closing) { _refreshButton.IsEnabled=true; _cancelButton.IsEnabled=false; }
+        }
+        if (_refreshPending && !_closing)
+        { _refreshPending=false; await RefreshAsync(); }
     }
     private void OnUpdated()
     {
         if(_closing)return;
         if(!Dispatcher.CheckAccess()){Dispatcher.BeginInvoke(new Action(OnUpdated));return;}
         _status.Text=_seller.Status;
-        if(!_seller.Busy)Render();
+        Render();
     }
     private void Render()
     {
@@ -287,7 +304,8 @@ public sealed class SellerDashboardWindow : UserControl, IDisposable
         string query=_search.Text.Trim();
         string filter=_filter.SelectedItem as string ?? "All stock";
         string category=_category.SelectedItem as string ?? "All groups";
-        var selected=(_grid.SelectedItem as SellerStockRow)?.TypeId;
+        var selected=_grid.SelectedItem as SellerStockRow;
+        var sort=CollectionViewSource.GetDefaultView(_grid.ItemsSource)?.SortDescriptions.ToArray();
         var rows=_seller.Rows;
         var cats=rows.Select(x=>x.Category).Distinct().OrderBy(x=>x).ToArray();
         if(_category.Items.Count!=cats.Length+1 || cats.Any(x=>!_category.Items.Contains(x)))
@@ -301,11 +319,17 @@ public sealed class SellerDashboardWindow : UserControl, IDisposable
              filter=="Undercut"&&x.State=="UNDERCUT"||filter=="Listed"&&x.State=="LISTED"||
              filter=="Review stale"&&(x.State=="ORDERS STALE"||x.State=="PRICE STALE"))).ToArray();
         _grid.ItemsSource=visible;
-        if(selected.HasValue)_grid.SelectedItem=visible.FirstOrDefault(x=>x.TypeId==selected.Value);
+        var view=CollectionViewSource.GetDefaultView(visible);
+        if(sort!=null && view.CanSort)
+        {
+            view.SortDescriptions.Clear();
+            foreach(var description in sort)view.SortDescriptions.Add(description);
+        }
+        if(selected!=null)_grid.SelectedItem=visible.FirstOrDefault(x=>x.TypeId==selected.TypeId && x.Location==selected.Location && x.ContainerPath==selected.ContainerPath);
         _all.Text=rows.Count.ToString("N0");
         _ready.Text=rows.Count(x=>x.State=="NOT LISTED").ToString("N0");
-        _undercut.Text=rows.Count(x=>x.State=="UNDERCUT").ToString("N0");
-        _active.Text=rows.Where(x=>x.OpenOrders>0).Select(x=>x.TypeId).Distinct().Count().ToString("N0");
+        _undercut.Text=rows.Where(x=>x.OrdersFresh && x.MarketFresh).GroupBy(x=>x.TypeId).Sum(g=>g.First().UndercutOrderCount).ToString("N0");
+        _active.Text=rows.GroupBy(x=>x.TypeId).Sum(g=>g.First().OpenOrders).ToString("N0");
         var estimate=rows.Where(x=>x.Jita.HasValue || x.Amarr.HasValue).Sum(x=>x.Stock*Math.Max(x.Jita??0,x.Amarr??0));
         _value.Text=estimate>=1_000_000_000m?(estimate/1_000_000_000m).ToString("N2")+"B":(estimate/1_000_000m).ToString("N1")+"M";
         _status.Text=_seller.Status+"  ·  *Price-only indicative value; ignores taxes, fees, hauling and unquoted stock.";

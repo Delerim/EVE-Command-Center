@@ -57,5 +57,7 @@ internal static partial class Program
             "Corrupt cyclic ESI container paths cannot create sellable inventory");
         Check(robotics.JitaText=="88,000.00" && robotics.AmarrText=="100,000.00",
             "Station prices show currency precision instead of ambiguous region-wide averages");
+        Check(core.JitaShift=="-1,000,000.00" && core.JitaChange==-1000000m,
+            "Seller price movement displays real signed currency amounts and exposes a numeric sort value");
     }
 }

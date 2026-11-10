@@ -25,7 +25,12 @@ public sealed class SellerDashboardService : IDisposable
     public const string OrdersScope = "esi-markets.read_character_orders.v1";
     private readonly EveSsoService _sso;
     private readonly MarketOrdersService _orders;
-    private readonly HttpClient _http = EsiHttp.CreateClient();
+    private readonly HttpClient _http;
+    private readonly Func<Task<IReadOnlyList<EvePilotProfile>>> _loadPilots;
+    private readonly Func<EvePilotProfile,CancellationToken,Task<IReadOnlyList<EveAssetItem>>> _loadAssets;
+    private readonly bool _resolveMetadata;
+    private long _selectionVersion;
+    private readonly object _stateGate = new();
     private readonly string _file;
     private readonly Dictionary<int,SellerTypeInfo> _types = new();
     private readonly ConcurrentDictionary<int,Task<(int CategoryId,string Name)>> _groups = new();
@@ -48,9 +53,14 @@ public sealed class SellerDashboardService : IDisposable
     public bool Busy { get; private set; }
     public event Action? Updated;
 
-    public SellerDashboardService(EveSsoService sso, MarketOrdersService orders, string? folder = null)
+    public SellerDashboardService(EveSsoService sso, MarketOrdersService orders, string? folder = null,
+        HttpClient? http = null, Func<Task<IReadOnlyList<EvePilotProfile>>>? loadPilots = null,
+        Func<EvePilotProfile,CancellationToken,Task<IReadOnlyList<EveAssetItem>>>? loadAssets = null)
     {
         _sso=sso; _orders=orders;
+        _http=http??EsiHttp.CreateClient(); _resolveMetadata=http==null;
+        _loadPilots=loadPilots??(async()=> (await sso.LoadPilotsAsync()).ToArray());
+        _loadAssets=loadAssets??sso.GetAssetsForPlanningAsync;
         _file=Path.Combine(folder ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"EVE Command Center"),"seller-dashboard.json");
         try
         {
@@ -73,16 +83,25 @@ public sealed class SellerDashboardService : IDisposable
     public void SelectSeller(long characterId)
     {
         if(characterId<=0) throw new ArgumentOutOfRangeException(nameof(characterId));
-        SellerCharacterId=characterId; Rows=Array.Empty<SellerStockRow>(); CheckedUtc=null;
-        Save(); Updated?.Invoke();
+        lock(_stateGate)
+        {
+            Interlocked.Increment(ref _selectionVersion);
+            SellerCharacterId=characterId; Rows=Array.Empty<SellerStockRow>(); CheckedUtc=null;
+            Status=Busy ? "Trading character changed; waiting for the previous refresh to finish." : "Trading character selected. Refresh stock and orders.";
+            Save();
+        }
+        Updated?.Invoke();
     }
     private void Save()
     {
+        lock(_stateGate)
+        {
         Directory.CreateDirectory(Path.GetDirectoryName(_file)!);
         var value=new Cache { CharacterId=SellerCharacterId,Types=_types,Quotes=_quotes,Previous=_previous };
         var tmp=_file+".tmp";
         File.WriteAllText(tmp,JsonSerializer.Serialize(value));
         File.Move(tmp,_file,true);
+        }
     }
     private async Task<JsonDocument> JsonAsync(string uri,CancellationToken ct)
     {
@@ -127,7 +146,7 @@ public sealed class SellerDashboardService : IDisposable
             catch { /* Unknown types are not displayed or priced as verified stock. */ }
             finally {gate.Release();}
         })).ConfigureAwait(false);
-        foreach(var p in discovered)_types[p.Key]=p.Value;
+        lock(_stateGate)foreach(var p in discovered)_types[p.Key]=p.Value;
     }
     private async Task<decimal?> LowestAtStationAsync(int type,int region,long station,CancellationToken ct)
     {
@@ -174,7 +193,7 @@ public sealed class SellerDashboardService : IDisposable
             catch { /* Old quote, if any, is kept with its actual age. */ }
             finally {gate.Release();}
         })).ConfigureAwait(false);
-        foreach(var p in received)
+        lock(_stateGate)foreach(var p in received)
         {
             if(_quotes.TryGetValue(p.Key,out var old)&&old.CheckedUtc!=default)
                 _previous[p.Key]=old;
@@ -216,28 +235,37 @@ public sealed class SellerDashboardService : IDisposable
     public async Task RefreshAsync(CancellationToken ct = default)
     {
         if(_disposed || !await _busy.WaitAsync(0,ct))return;
-        Busy=true;Status="Loading seller's assets...";Updated?.Invoke();
+        long characterId, selectionVersion;
+        lock(_stateGate)
+        { characterId=SellerCharacterId; selectionVersion=_selectionVersion; Busy=true;Status="Loading seller's assets..."; }
+        bool Current()=>!_disposed && selectionVersion==Interlocked.Read(ref _selectionVersion);
+        void Report(string message)
+        { lock(_stateGate) { if(!Current())return; Status=message; } Updated?.Invoke(); }
+        Updated?.Invoke();
         try
         {
-            var allPilots=await _sso.LoadPilotsAsync().ConfigureAwait(false);
-            var pilot=allPilots.FirstOrDefault(p=>p.CharacterId==SellerCharacterId)
+            // Failed/cancelled category lookups must be retried on the next refresh.
+            _groups.Clear();_categories.Clear();
+            var allPilots=await _loadPilots().ConfigureAwait(false);
+            var pilot=allPilots.FirstOrDefault(p=>p.CharacterId==characterId)
                 ??throw new InvalidOperationException("Select a linked seller character first.");
             if(!pilot.Scopes.Contains(AssetsScope))throw new InvalidOperationException("Seller needs esi-assets.read_assets.v1. Reconnect the character in Setup.");
             if(!pilot.Scopes.Contains(OrdersScope))throw new InvalidOperationException("Seller needs esi-markets.read_character_orders.v1. Reconnect the character in Setup.");
-            var assets=(await _sso.GetAssetsForPlanningAsync(pilot,ct).ConfigureAwait(false)).ToArray();
-            Status=$"Resolving {assets.Select(x=>x.TypeId).Distinct().Count()} inventory types and categories...";Updated?.Invoke();
-            await ResolveTypesAsync(assets.Select(x=>x.TypeId),ct).ConfigureAwait(false);
-            var allById=assets.GroupBy(a=>a.ItemId).ToDictionary(g=>g.Key,g=>g.First());
-            var stockIds=assets.Where(a=>a.TypeId>0 && _types.TryGetValue(a.TypeId,out var info)&&SellerStockEngine.IsSellable(info))
-                .Select(a=>a.TypeId).Distinct().ToArray();
-            Status="Checking active sell orders for the selected toon...";Updated?.Invoke();
-            if(!_orders.Busy)await _orders.RefreshAsync(allPilots,ct,new[]{SellerCharacterId}).ConfigureAwait(false);
-            var snapshot=_orders.State.Characters.FirstOrDefault(x=>x.CharacterId==SellerCharacterId);
-            bool ordersFresh=snapshot!=null && snapshot.Updated>DateTimeOffset.UtcNow.AddHours(-1) && string.IsNullOrWhiteSpace(snapshot.Error);
-            Status=$"Comparing Jita 4-4 and Amarr on {stockIds.Length} stock types...";Updated?.Invoke();
-            await UpdateQuotesAsync(stockIds,ct).ConfigureAwait(false);
+            var assets=(await _loadAssets(pilot,ct).ConfigureAwait(false)).ToArray();
+            if(!Current())return;
+            Report("Checking active sell orders for the selected toon...");
+            // Market and Seller share one service. Wait instead of silently skipping a busy refresh.
+            while(_orders.Busy)await Task.Delay(100,ct).ConfigureAwait(false);
+            await _orders.RefreshAsync(allPilots,ct,new[]{characterId}).ConfigureAwait(false);
+            if(!Current())return;
+            var snapshot=_orders.State.Characters.FirstOrDefault(x=>x.CharacterId==characterId);
+            bool ordersFresh=_orders.Error.Length==0 && snapshot!=null && snapshot.Updated>DateTimeOffset.UtcNow.AddHours(-1) && string.IsNullOrWhiteSpace(snapshot.Error);
+            Report($"Resolving {assets.Select(x=>x.TypeId).Distinct().Count()} inventory types and categories...");
+            var typeIds=assets.Select(x=>x.TypeId).Concat(snapshot?.Orders.Where(o=>!o.Buy&&!o.Corporation).Select(o=>o.TypeId)??Enumerable.Empty<int>()).Distinct().ToArray();
+            await ResolveTypesAsync(typeIds,ct).ConfigureAwait(false);
+            if(!Current())return;
             var locations=new Dictionary<long,string>();
-            foreach(var location in assets.Where(a=>(a.LocationType is "station" or "other") && a.LocationFlag=="Hangar")
+            if(_resolveMetadata)foreach(var location in assets.Where(a=>(a.LocationType is "station" or "other") && a.LocationFlag=="Hangar")
                                           .Select(a=>a.LocationId).Distinct().Take(50))
             {
                 var name=await _sso.ResolveDisplayLocationAsync(location,pilot,ct).ConfigureAwait(false);
@@ -245,20 +273,37 @@ public sealed class SellerDashboardService : IDisposable
             }
             // This seller may have no Industry permissions. Resolve containers using the
             // selected character's own asset scope instead of depending on Industry sync.
-            var containerNames=await ReadContainerNamesAsync(pilot,assets,ct).ConfigureAwait(false);
-            var industry=BackgroundOperations.Current.Industry.State.Pilots.FirstOrDefault(x=>x.Id==SellerCharacterId);
-            if(industry!=null)foreach(var name in industry.AssetNames)
-                if(!containerNames.ContainsKey(name.Key))containerNames[name.Key]=name.Value;
-            Rows=SellerStockEngine.Build(assets,snapshot?.Orders??new(),_types,locations,containerNames,
+            var containerNames=_resolveMetadata?await ReadContainerNamesAsync(pilot,assets,ct).ConfigureAwait(false):new Dictionary<long,string>();
+            if(!Current())return;
+            // Publish stock/orders before slow hub pricing. Price failures cannot hide inventory.
+            var initialRows=SellerStockEngine.Build(assets,snapshot?.Orders??new(),_types,locations,containerNames,
                 _quotes,_previous,ordersFresh,DateTimeOffset.UtcNow);
+            lock(_stateGate) { if(!Current())return; Rows=initialRows; }
+            var stockIds=Rows.Select(r=>r.TypeId).Distinct().ToArray();
+            Report($"Stock + orders loaded; comparing Jita and Amarr on {stockIds.Length} sellable types...");
+            await UpdateQuotesAsync(stockIds,ct).ConfigureAwait(false);
+            if(!Current())return;
+            var finalRows=SellerStockEngine.Build(assets,snapshot?.Orders??new(),_types,locations,containerNames,
+                _quotes,_previous,ordersFresh,DateTimeOffset.UtcNow);
+            lock(_stateGate)
+            {
+            if(!Current())return;
+            Rows=finalRows;
             CheckedUtc=DateTimeOffset.UtcNow;
-            Status=ordersFresh?$"{Rows.Count:N0} inventory positions; live order snapshot (ESI cached). Prices at Jita 4-4 and Amarr; refresh ~20 minutes."
+            var assetTimes=_sso.PlanningAssetTimes(characterId);
+            string assetStatus=assetTimes.Observed==default ? "Asset cache timestamps unavailable." : $"Assets observed {assetTimes.Observed:HH:mm} UTC, cache expires {assetTimes.Expires:HH:mm} UTC.";
+            Status=ordersFresh?$"{Rows.Count:N0} positions; checked {CheckedUtc:HH:mm:ss} UTC. {assetStatus} Orders observed {snapshot!.Updated:HH:mm} UTC, next ESI refresh {snapshot.NextRefresh:HH:mm} UTC."
                 :"ORDERS STALE: stock visible, but do not act on unlisted/undercut flags until order refresh succeeds.";
+            int unresolved=typeIds.Count(id=>!_types.ContainsKey(id));
+            int unquoted=Rows.Count(r=>!r.MarketFresh);
+            if(unresolved>0)Status+=$" {unresolved} item types unresolved; retry refresh.";
+            if(unquoted>0)Status+=$" {unquoted} positions need fresh hub quotes.";
             Save();
+            }
         }
-        catch (OperationCanceledException) when(ct.IsCancellationRequested) {Status="Refresh cancelled";}
-        catch(Exception ex){Status="REFRESH FAILED: "+ex.Message+". Previous stock not replaced.";}
-        finally{Busy=false;_busy.Release();Updated?.Invoke();}
+        catch (OperationCanceledException) when(ct.IsCancellationRequested) {Report("Refresh cancelled; last displayed data retained.");}
+        catch(Exception ex){Report("REFRESH FAILED: "+ex.Message+". Last displayed data retained.");}
+        finally{lock(_stateGate)Busy=false;_busy.Release();Updated?.Invoke();}
     }
     public void Dispose(){_disposed=true;_http.Dispose(); /* In-flight refresh may still own _busy. */}
 }
