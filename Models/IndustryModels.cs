@@ -42,6 +42,7 @@ public sealed class IndustryQuote
 }
 public sealed class IndustryState
 {
+    public CraftPricingState CraftPricing { get; set; } = new();
     public List<IndustryPilot> Pilots { get; set; } = new();
     public Dictionary<int,IndustryQuote> Quotes { get; set; } = new();
     public Dictionary<string,IndustryCostSettings> CostSettings { get; set; } = new();

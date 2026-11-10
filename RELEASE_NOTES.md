@@ -1,3 +1,11 @@
+# EVE Command Center v3.8.11
+
+- **Craft opportunities, redesigned.** Product icons, coloured profit/loss assessments, material-readiness badges and summary cards make craft decisions easier to scan. Readable money columns retain their widths on smaller screens; column layout and numeric sorting are preserved. Profitable-only filtering and compatible-bundle suggestions favour priced profitable copies.
+- **Input value versus net output.** Extract Jita 4-4 or Amarr station bids/asks, price owned materials at replacement asks, and compare output value, installation cost, selling fees, net profit, margin and break-even price. Selected copies have a combined cost/proceeds breakdown, including per-material unit prices and source provenance. Instant sales use bids without a listing commission.
+- **Installation fees included.** Fetch CCP adjusted prices and the selected solar system's manufacturing cost index. Estimate job fees from the ME0 input base, system index, configured job-cost bonus, facility tax, SCC and Alpha charges. Save your build system, facility tax, sales tax, broker rate and optional BPC/hauling extras. Blank facility setup and expired/missing prices keep profit pending.
+- **Market-aware estimates.** Complete paginated books, hub-specific caches, ESI expiry, cancellable scans and visible partial failures protect price reads. Initial listings include the 100 ISK minimum broker fee; bundled identical products share a listing. Low top-price volume is flagged. Relisting, market movement and material facility/rig bonuses are excluded from indicative estimates.
+- **Validation.** Adds arithmetic, rounding, fee-minimum, instant-sale, cache, pagination, cancellation, persistence, profit-filter and full/compact WPF render checks. Existing Industry and Seller workflows remain covered.
+
 # EVE Command Center v3.8.10
 
 - **Available to craft.** Industry > Production Queue now includes Available to craft and Suggested projects. Match owned manufacturing BPCs to free material stacks in personal hangars and nested cans, filter by owner/material source and review maximum runs, output units, ME and material coverage. Stale, inaccessible or in-use copies and already-planned runs are excluded.

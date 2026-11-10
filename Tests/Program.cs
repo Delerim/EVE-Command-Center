@@ -28,6 +28,24 @@ internal static partial class Program
     [STAThread]
     private static void Main(string[] args)
     {
+        if (args.FirstOrDefault() == "--audit-craft-prices-live")
+        {
+            string folder=Path.Combine(Path.GetTempPath(),"ecc-price-smoke-"+Guid.NewGuid().ToString("N"));
+            try
+            {
+                Task.Run(async()=>
+                {
+                    using var timeout=new CancellationTokenSource(TimeSpan.FromSeconds(60));
+                    var service=new IndustryService(new EveSsoService(),folder);
+                    var result=await service.RefreshCraftPricesAsync(new[]{34,35},"Jita","Jita",timeout.Token);
+                    Check(result.Failed==0 && result.ReferenceError=="" && result.Updated==2,"Live public ESI returns complete material quotes and industry reference data");
+                    Check(service.State.CraftPricing.Systems["JITA"]==30000142 && service.State.CraftPricing.Quotes["Jita:34"].Sell>0,
+                        "Live name resolution and Jita-station pricing match the configured manufacturing system");
+                }).GetAwaiter().GetResult();
+            }
+            finally {if(Directory.Exists(folder))Directory.Delete(folder,true);}
+            return;
+        }
         if (args.FirstOrDefault() == "--audit-crafting")
         {
             var appFixture = new System.Windows.Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };

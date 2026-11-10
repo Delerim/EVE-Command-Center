@@ -13,7 +13,10 @@ public static class IndustryCraftSuggestions
         public string Name => IndustryCatalog.Name(Recipe.Products.Single().Key);
         public string Owner => Blueprint.Owner;
         public string Location => Blueprint.Location;
-        public string Icon => Blueprint.Icon;
+        public string Icon => $"https://images.evetech.net/types/{Recipe.Products.Single().Key}/icon?size=64";
+        public string StockColor => MaxRuns > 0 ? "#77DEC0" : "#EDBC73";
+        public string StockLabel => MaxRuns > 0 ? "MATERIALS READY" : "INPUTS NEEDED";
+        public IndustryCraftEconomics.Estimate Economics { get; init; } = new(0,0,null,null,null,null,null,null,"Refresh prices and configure job costs.");
         public string Efficiency => Blueprint.Efficiency;
         public long ItemId => Blueprint.ItemId;
         public string CoverageText => Coverage.ToString("P0");
