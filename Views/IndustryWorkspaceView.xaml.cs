@@ -40,6 +40,8 @@ public partial class IndustryWorkspaceView : System.Windows.Controls.UserControl
         WorkspaceLayout.Attach(this);
         WorkspaceLayout.AttachTable(ProductionProgress);
         WorkspaceLayout.AttachTable(JobHistoryGrid);
+        foreach (var column in CraftGrid.Columns.Where(c => c.Width.UnitType == DataGridLengthUnitType.Pixel)) column.MinWidth = column.Width.Value;
+        WorkspaceLayout.AttachTable(CraftGrid);
         Strategy.ItemsSource = new[] { "Make", "Buy", "Use Stock" };
         Loaded += async (_, _) =>
         {
@@ -47,14 +49,15 @@ public partial class IndustryWorkspaceView : System.Windows.Controls.UserControl
             try
             {
                 var ops = BackgroundOperations.Current;
+                _autoCraftPricing = true;
                 _loadLinked = async () => (await ops.Sso.LoadPilotsAsync()).ToList();
-                Initialize(ops.IndustryWorkspace, () => ops.Industry.State.Pilots, await _loadLinked());
+                Initialize(ops.IndustryWorkspace, () => ops.Industry.State.Pilots, await _loadLinked(), ops.Industry);
             }
             catch (Exception ex) { Message.Text = "Planning unavailable: " + ex.Message; }
         };
     }
-    internal void Initialize(IndustryWorkspaceStore store, Func<IEnumerable<IndustryPilot>> inventory, List<EvePilotProfile> linked)
-    { _store = store; _inventory = inventory; _linked = linked; _initialized = true; RefreshAll(); }
+    internal void Initialize(IndustryWorkspaceStore store, Func<IEnumerable<IndustryPilot>> inventory, List<EvePilotProfile> linked, IndustryService? pricing = null)
+    { _store = store; _inventory = inventory; _linked = linked; _initialized = true; InitializeCraftEconomics(pricing); RefreshAll(); }
     private void Action(Action action, string message)
     {
         try { action(); RefreshAll(); Message.Text = message; Message.Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(118, 215, 203)); }

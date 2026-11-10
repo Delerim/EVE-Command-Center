@@ -10,6 +10,7 @@ internal static partial class Program
 {
     private static void CheckCraftSuggestions(string folder, string? renderPath = null)
     {
+        CheckCraftEconomics(folder);
         var now = DateTimeOffset.UtcNow;
         var recipes = new List<IndustryRecipe> {
             new() { Blueprint=100, Activity="manufacturing", Products=new(){[10]=2}, Materials=new(){[34]=6} },
@@ -71,17 +72,34 @@ internal static partial class Program
         var recipe=IndustryCatalog.Recipes.First(r=>r.Activity=="manufacturing" && r.Products.Count==1 && r.Materials.Count>0 && r.Materials.All(m=>m.Value>0 && m.Value<1e8));
         var pilot=new IndustryPilot {Id=42,Name="Builder",Updated=now,Error="",
             Blueprints=new(){JsonSerializer.SerializeToElement(new {item_id=7001L,type_id=recipe.Blueprint,location_id=60003760L,quantity=-2,runs=5,material_efficiency=10,time_efficiency=20}),
-                JsonSerializer.SerializeToElement(new {item_id=7002L,type_id=recipe.Blueprint,location_id=60003760L,quantity=-2,runs=5,material_efficiency=10,time_efficiency=20})},
+                JsonSerializer.SerializeToElement(new {item_id=7002L,type_id=recipe.Blueprint,location_id=60003760L,quantity=-2,runs=5,material_efficiency=0,time_efficiency=20})},
             Assets=new(){new(){ItemId=8000,TypeId=3465,Quantity=1,IsSingleton=true,LocationId=60003760,LocationFlag="Hangar",LocationType="station"}},
             AssetNames=new(){[8000]="Manufacturing materials"},LocationNames=new(){[60003760]="Jita 4-4"} };
         long item=8100;
         foreach(var m in recipe.Materials)pilot.Assets.Add(new(){ItemId=item++,TypeId=m.Key,Quantity=IndustryCraftSuggestions.Material(m.Value,10,10),LocationId=8000,LocationFlag="Unlocked",LocationType="item"});
         var uiStore=new IndustryWorkspaceStore(Path.Combine(folder,"craft-ui"));
+        var pricing=new IndustryService(new EveSsoService(),Path.Combine(folder,"craft-ui-pricing"));
+        var pricingState=pricing.State.CraftPricing;
+        pricingState.Settings=new(){SystemId=51,SystemName="Fixture",FacilityTaxPercent=.25m};
+        pricingState.Systems["FIXTURE"]=51;pricingState.ManufacturingIndices[51]=.01m;
+        pricingState.AdjustedExpiresUtc=pricingState.IndicesExpiresUtc=now.AddHours(1);
+        foreach(var material in recipe.Materials)
+        {pricingState.AdjustedPrices[material.Key]=1;pricingState.Quotes["Jita:"+material.Key]=new(8,10,100000000,100000000,now,now.AddHours(1));}
+        decimal me0Cost=recipe.Materials.Sum(m=>(decimal)IndustryCraftSuggestions.Material(m.Value,1,0)*10);
+        decimal me10Cost=recipe.Materials.Sum(m=>(decimal)IndustryCraftSuggestions.Material(m.Value,1,10)*10);
+        decimal jobCost=recipe.Materials.Sum(m=>(decimal)m.Value)*.0525m;
+        decimal salePrice=((me0Cost+me10Cost)/2+jobCost)/.895m/(decimal)recipe.Products.Single().Value;
+        pricingState.Quotes["Jita:"+recipe.Products.Single().Key]=new(salePrice*.8m,salePrice,10000,10000,now,now.AddHours(1));
         var view=new IndustryWorkspaceView();
-        view.Initialize(uiStore,()=>new[]{pilot},new(){new(){CharacterId=42,CharacterName="Builder",Scopes=new[]{"esi-assets.read_assets.v1","esi-characters.read_blueprints.v1"}}});
+        view.Initialize(uiStore,()=>new[]{pilot},new(){new(){CharacterId=42,CharacterName="Builder",Scopes=new[]{"esi-assets.read_assets.v1","esi-characters.read_blueprints.v1"}}},pricing);
         typeof(IndustryWorkspaceView).GetMethod("OpenCraft_Click",System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.Instance)!.Invoke(view,new object[]{view,new RoutedEventArgs()});
         var grid=(DataGrid)view.FindName("CraftGrid");
         Check(grid.Items.Count==2,"Available to craft reads both real BPC instances and material stacks nested in a named can");
+        Check(grid.Items.Cast<IndustryCraftSuggestions.Suggestion>().Count(s=>s.Economics.Profit>0)==1 && grid.Items.Cast<IndustryCraftSuggestions.Suggestion>().Count(s=>s.Economics.Profit<0)==1,
+            "Craft list distinguishes profitable and loss-making copies using actual blueprint ME and complete costs");
+        var profitable=(CheckBox)view.FindName("CraftProfitOnly");profitable.IsChecked=true;profitable.RaiseEvent(new RoutedEventArgs(CheckBox.ClickEvent));
+        Check(grid.Items.Count==1 && ((IndustryCraftSuggestions.Suggestion)grid.Items[0]).Economics.Profit>0,"Profitable-only filtering excludes known losses");
+        profitable.IsChecked=false;profitable.RaiseEvent(new RoutedEventArgs(CheckBox.ClickEvent));
         grid.SelectAll();
         Check(((Button)view.FindName("CreateCraftButton")).IsEnabled && ((TextBlock)view.FindName("CraftInputs")).Text.Contains("Manufacturing materials"),
             "Multiple selected BPCs produce an actionable bundle preview with named source provenance");
@@ -93,6 +111,8 @@ internal static partial class Program
             Render(window,Path.ChangeExtension(renderPath,".craft-compact.png"));
             Check(grid.ActualHeight>=100 && ((FrameworkElement)view.FindName("CreateCraftButton")).ActualHeight>=25,
                 "Craft list and project creation remain visible at compact window sizes");
+            Check(grid.Columns.Single(c=>c.Header.ToString()=="NET PROFIT").ActualWidth>=145,
+                "Compact craft tables retain readable money columns instead of crushing all fields into the viewport");
             window.Width=1380; window.Height=920;
         }
         ((Button)view.FindName("CreateCraftButton")).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
