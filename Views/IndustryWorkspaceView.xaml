@@ -690,7 +690,7 @@
       <StackPanel DockPanel.Dock="Top" Margin="0,8,0,18">
         <TextBlock Text="Your production projects" FontSize="24" FontWeight="SemiBold" />
         <TextBlock Text="Choose a build to review components, blueprints, stock and jobs." Margin="0,8,0,12" Foreground="#99B7BC" />
-        <WrapPanel><Button Content="+ New project" Click="NewProject_Click"/><Button Content="Project defaults" Click="ProjectDefaults_Click"/></WrapPanel>
+        <WrapPanel><Button Content="+ New project" Click="NewProject_Click"/><Button Content="Suggested projects / Available to craft" Click="OpenCraft_Click"/><Button Content="Project defaults" Click="ProjectDefaults_Click"/></WrapPanel>
       </StackPanel>
       <ListBox x:Name="Projects" SelectionChanged="Project_Selected" Background="#07181B" BorderThickness="0" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
         <ListBox.ItemsPanel>
@@ -712,6 +712,73 @@
         </ListBox.ItemTemplate>
       </ListBox>
     </DockPanel>
+    <Grid Grid.Row="1" x:Name="CraftPage" Visibility="Collapsed" Margin="12">
+      <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*" MinHeight="100"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+      <StackPanel>
+        <DockPanel Margin="0,0,0,8"><Button Content="‹ Projects" Click="BackProjects_Click" DockPanel.Dock="Right" VerticalAlignment="Top"/><StackPanel><TextBlock Text="◈  Craft opportunities" FontSize="25" FontWeight="SemiBold" Foreground="#E4F5F3"/><TextBlock Text="Turn stock into finished goods. Compare replacement inputs with net sale proceeds before committing your materials." TextWrapping="Wrap" Foreground="#91B2B6" Margin="3,5"/></StackPanel></DockPanel>
+        <UniformGrid Columns="3" Margin="0,0,0,8">
+          <Border Style="{StaticResource Card}" Padding="12,9" Margin="0,0,8,0"><DockPanel><TextBlock Text="▣" Foreground="#77DEC0" FontSize="24" Margin="0,0,12,0"/><StackPanel><TextBlock Text="MATERIALS READY" FontSize="10"/><TextBlock x:Name="CraftReadyCount" FontSize="19" Foreground="#77DEC0" FontWeight="SemiBold"/></StackPanel></DockPanel></Border>
+          <Border Style="{StaticResource Card}" Padding="12,9" Margin="0,0,8,0"><DockPanel><TextBlock Text="↗" Foreground="#8DC9FC" FontSize="24" Margin="0,0,12,0"/><StackPanel><TextBlock Text="PROJECTED PROFIT" FontSize="10"/><TextBlock x:Name="CraftProfitableCount" FontSize="19" Foreground="#8DC9FC" FontWeight="SemiBold"/></StackPanel></DockPanel></Border>
+          <Border Style="{StaticResource Card}" Padding="12,9" Margin="0"><DockPanel><TextBlock Text="◷" Foreground="#EDBC73" FontSize="24" Margin="0,0,12,0"/><StackPanel><TextBlock Text="PRICED / CONFIGURED" FontSize="10"/><TextBlock x:Name="CraftPricedCount" FontSize="19" Foreground="#EDBC73" FontWeight="SemiBold"/></StackPanel></DockPanel></Border>
+        </UniformGrid>
+        <WrapPanel>
+          <ComboBox x:Name="CraftOwner" ToolTip="Blueprint owner" DisplayMemberPath="Name" Style="{StaticResource WorkspaceCombo}" SelectionChanged="CraftFilter_Changed"/>
+          <ComboBox x:Name="CraftSource" ToolTip="Material source" MaxWidth="380" MinWidth="230" Style="{StaticResource WorkspaceCombo}" SelectionChanged="CraftFilter_Changed"/>
+          <TextBox x:Name="CraftSearch" ToolTip="Find product or blueprint" Width="190" TextChanged="CraftSearch_Changed"/>
+          <ComboBox x:Name="CraftHub" Width="115" Style="{StaticResource WorkspaceCombo}" SelectionChanged="CraftHub_Changed"><ComboBoxItem Content="Jita"/><ComboBoxItem Content="Amarr"/></ComboBox>
+          <Button x:Name="CraftPricesButton" Content="↻ Refresh prices" Click="PriceCraftRows_Click" ToolTip="Price selected copies, or the first 100 matching copies. Shared types are fetched once."/>
+          <Button x:Name="CraftAllPricesButton" Content="Price all matches" Click="PriceAllCraftRows_Click"/>
+          <Button x:Name="CraftCancelPrices" Content="Cancel" Click="CancelCraftPrices_Click" IsEnabled="False"/>
+        </WrapPanel>
+        <Expander Header="⚙  Job costs &amp; selling fees" Margin="3,2"><StackPanel><WrapPanel>
+          <StackPanel><TextBlock Text="BUILD SYSTEM" FontSize="10"/><TextBox x:Name="CraftSystem" Width="145" ToolTip="Exact solar-system name; ESI provides its manufacturing cost index."/></StackPanel>
+          <StackPanel><TextBlock Text="FACILITY TAX %" FontSize="10"/><TextBox x:Name="CraftFacilityTax" Width="105" ToolTip="Enter the tax shown by your facility. Blank keeps profit pending."/></StackPanel>
+          <StackPanel><TextBlock Text="JOB COST BONUS %" FontSize="10"/><TextBox x:Name="CraftJobBonus" Width="120" ToolTip="Reduction applied to the system-index part only."/></StackPanel>
+          <StackPanel><TextBlock Text="SCC %" FontSize="10"/><TextBox x:Name="CraftScc" Width="70"/></StackPanel>
+          <StackPanel><TextBlock Text="ALPHA TAX %" FontSize="10"/><TextBox x:Name="CraftAlpha" Width="90"/></StackPanel>
+          <StackPanel><TextBlock Text="SALES TAX %" FontSize="10"/><TextBox x:Name="CraftSalesTax" Width="90"/></StackPanel>
+          <StackPanel><TextBlock Text="SELL BROKER %" FontSize="10"/><TextBox x:Name="CraftBroker" Width="100"/></StackPanel>
+          <StackPanel><TextBlock Text="EXTRAS ISK / RUN" FontSize="10"/><TextBox x:Name="CraftExtras" Width="120" ToolTip="Optional BPC, hauling or other cost per blueprint run."/></StackPanel>
+          <CheckBox x:Name="CraftInstantSale" Content="Sell instantly to buy orders" VerticalAlignment="Bottom"/>
+          <Button Content="Apply &amp; save" Click="ApplyCraftEconomics_Click" VerticalAlignment="Bottom"/>
+        </WrapPanel><TextBlock x:Name="CraftAssumptions" TextWrapping="Wrap" Foreground="#91B2B6" FontSize="11" Margin="3,5"/></StackPanel></Expander>
+        <TextBlock x:Name="CraftPricingStatus" TextWrapping="Wrap" Foreground="#EDBC73" FontSize="11" Margin="3,3"/>
+        <DockPanel><WrapPanel DockPanel.Dock="Right"><CheckBox x:Name="CraftProfitOnly" Content="Profitable only" Click="CraftProfitOnly_Click"/><Button Content="Suggest a compatible bundle" Click="SuggestCraftBundle_Click" ToolTip="Choose compatible visible copies using the run count below."/></WrapPanel><TabControl x:Name="CraftTabs" SelectionChanged="CraftFilter_Changed" Background="#07181B" BorderThickness="0"><TabItem Header="▣ Available to craft"/><TabItem Header="◈ Suggested projects"/></TabControl></DockPanel>
+        <TextBlock x:Name="CraftSummary" TextWrapping="Wrap" Foreground="#91B2B6" FontSize="11" Margin="3,4"/>
+      </StackPanel>
+      <DataGrid Grid.Row="1" x:Name="CraftGrid" SelectionMode="Extended" SelectionUnit="FullRow" SelectionChanged="CraftSelection_Changed" EnableRowVirtualization="True" EnableColumnVirtualization="True" RowHeight="54" Margin="0,4">
+        <DataGrid.Columns>
+          <DataGridTemplateColumn Header="PRODUCT / OWNER" SortMemberPath="Name" Width="255" MinWidth="220"><DataGridTemplateColumn.CellTemplate><DataTemplate><DockPanel ToolTip="{Binding Location}"><Border Width="38" Height="38" Background="#1A363C" CornerRadius="7" Margin="0,0,10,0"><Image Source="{Binding Icon}" Width="32" Height="32"/></Border><StackPanel VerticalAlignment="Center"><TextBlock Text="{Binding Name}" Foreground="#E5F3F2" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/><TextBlock Text="{Binding Owner}" Foreground="#91B2B6" FontSize="11" Margin="0,3,0,0"/></StackPanel></DockPanel></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
+          <DataGridTemplateColumn Header="NET PROFIT" SortMemberPath="Economics.Profit" Width="145"><DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding Economics.ProfitText}" Foreground="{Binding Economics.Color}" FontWeight="SemiBold" VerticalAlignment="Center" ToolTip="{Binding Economics.Breakdown}"/></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
+          <DataGridTemplateColumn Header="MARGIN" SortMemberPath="Economics.Margin" Width="85"><DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding Economics.MarginText}" Foreground="{Binding Economics.Color}" VerticalAlignment="Center"/></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
+          <DataGridTextColumn Header="INPUT VALUE" Binding="{Binding Economics.MaterialsText}" SortMemberPath="Economics.Materials" Width="140"/>
+          <DataGridTextColumn Header="JOB COST" Binding="{Binding Economics.JobCostText}" SortMemberPath="Economics.JobCost" Width="130"/>
+          <DataGridTextColumn Header="OUTPUT VALUE" Binding="{Binding Economics.GrossSaleText}" SortMemberPath="Economics.GrossSale" Width="140"/>
+          <DataGridTextColumn Header="SELLING FEES" Binding="{Binding Economics.FeesText}" SortMemberPath="Economics.Fees" Width="130"/>
+          <DataGridTemplateColumn Header="ASSESSMENT" SortMemberPath="Economics.Profit" Width="185"><DataGridTemplateColumn.CellTemplate><DataTemplate><Border Background="#152F34" CornerRadius="5" Padding="7,5" VerticalAlignment="Center" ToolTip="{Binding Economics.Note}"><TextBlock Text="{Binding Economics.Status}" Foreground="{Binding Economics.Color}" FontSize="10" FontWeight="SemiBold"/></Border></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
+          <DataGridTemplateColumn Header="MATERIALS" SortMemberPath="Coverage" Width="145"><DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding StockLabel}" Foreground="{Binding StockColor}" FontSize="10" FontWeight="SemiBold" VerticalAlignment="Center" ToolTip="{Binding Inputs}"/></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
+          <DataGridTextColumn Header="CRAFTABLE RUNS" Binding="{Binding MaxRuns, StringFormat=N0}" Width="125"/>
+          <DataGridTextColumn Header="COPY RUNS LEFT" Binding="{Binding RemainingRuns, StringFormat=N0}" Width="120"/>
+          <DataGridTextColumn Header="ME / TE" Binding="{Binding Efficiency}" Width="170"/>
+          <DataGridTextColumn Header="BPC INSTANCE" Binding="{Binding ItemId}" Width="130"/>
+          <DataGridTextColumn Header="BLUEPRINT LOCATION" Binding="{Binding Location}" Width="*" MinWidth="220"/>
+        </DataGrid.Columns>
+      </DataGrid>
+      <Border Grid.Row="2" Style="{StaticResource Card}" Padding="12" Margin="0,6,0,0"><StackPanel>
+        <UniformGrid Columns="5" Margin="0,0,0,7">
+          <StackPanel><TextBlock Text="▣  MATERIAL VALUE" FontSize="10"/><TextBlock x:Name="CraftMaterialsTotal" Foreground="#B9D9E7" FontWeight="SemiBold" FontSize="14" Margin="0,4"/></StackPanel>
+          <StackPanel><TextBlock Text="⚙  JOBS + EXTRAS" FontSize="10"/><TextBlock x:Name="CraftJobsTotal" Foreground="#EDBC73" FontWeight="SemiBold" FontSize="14" Margin="0,4"/></StackPanel>
+          <StackPanel><TextBlock Text="⇄  NET SALES" FontSize="10"/><TextBlock x:Name="CraftSalesTotal" Foreground="#8DC9FC" FontWeight="SemiBold" FontSize="14" Margin="0,4"/></StackPanel>
+          <StackPanel><TextBlock Text="%  BROKER + TAX" FontSize="10"/><TextBlock x:Name="CraftFeesTotal" Foreground="#C5B5EB" FontWeight="SemiBold" FontSize="14" Margin="0,4"/></StackPanel>
+          <StackPanel><TextBlock Text="↗  PROJECTED PROFIT" FontSize="10"/><TextBlock x:Name="CraftProfitTotal" FontWeight="Bold" FontSize="15" Margin="0,4"/></StackPanel>
+        </UniformGrid>
+        <WrapPanel><TextBox x:Name="CraftName" Text="Available to craft bundle" Width="230" ToolTip="Project name"/><TextBlock Text="Runs / copy" VerticalAlignment="Center" Margin="8,0,3,0"/><TextBox x:Name="CraftRuns" Text="1" Width="65" TextChanged="CraftRuns_Changed"/><Button x:Name="CreateCraftButton" Content="+ Create project &amp; reserve inputs" Click="CreateCraft_Click" IsEnabled="False"/></WrapPanel>
+        <TextBlock x:Name="CraftPreview" TextWrapping="Wrap" Margin="3,5" Foreground="#76D7CB" FontSize="11"/>
+        <Expander Header="Cost &amp; material breakdown"><ScrollViewer MaxHeight="160" VerticalScrollBarVisibility="Auto"><TextBlock x:Name="CraftInputs" TextWrapping="Wrap" Foreground="#B5CDD0" Margin="3,4"/></ScrollViewer></Expander>
+        <TextBlock Text="Estimates use the runs per copy above. Owned materials have replacement value. Ctrl/Shift selects copies; verify skills, facility and hauling in EVE." TextWrapping="Wrap" Foreground="#91B2B6" FontSize="10" Margin="3,4"/>
+      </StackPanel></Border>
+    </Grid>
+
     <DockPanel Grid.Row="1" Visibility="Collapsed" Margin="12" x:Name="CreationPage"><Expander Header="Create by product name" DockPanel.Dock="Bottom" Margin="10"><StackPanel>              <Expander Header="FIND PRODUCT / COMPONENT BY NAME" Foreground="#74D6C9" Margin="0,4,0,8">
                 <StackPanel>
                   <TextBox x:Name="TypeSearch" ToolTip="Search product names; first 80 matches" TextChanged="TypeSearch_Changed" />

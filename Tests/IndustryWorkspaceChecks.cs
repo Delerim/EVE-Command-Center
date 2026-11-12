@@ -15,6 +15,7 @@ internal static partial class Program
         try
         {
             WorkspaceLayout.PreferencePath = Path.Combine(folder, "ui-layout.json");
+            CheckCraftSuggestions(folder, renderPath);
             CheckIndustryPresentation(folder);
             CheckIndustryPlanning(folder, renderPath);
             if (renderPath != null) RenderCloneNames(renderPath);

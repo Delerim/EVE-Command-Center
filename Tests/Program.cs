@@ -62,6 +62,34 @@ internal static partial class Program
             CheckJaniceProfitability(args.Length > 1 ? args[1] : null);
             Console.WriteLine($"{_checks} Janice profitability checks passed."); return;
         }
+        if (args.FirstOrDefault() == "--audit-craft-prices-live")
+        {
+            string folder=Path.Combine(Path.GetTempPath(),"ecc-price-smoke-"+Guid.NewGuid().ToString("N"));
+            try
+            {
+                Task.Run(async()=>
+                {
+                    using var timeout=new CancellationTokenSource(TimeSpan.FromSeconds(60));
+                    var service=new IndustryService(new EveSsoService(),folder);
+                    var result=await service.RefreshCraftPricesAsync(new[]{34,35},"Jita","Jita",timeout.Token);
+                    Check(result.Failed==0 && result.ReferenceError=="" && result.Updated==2,"Live public ESI returns complete material quotes and industry reference data");
+                    Check(service.State.CraftPricing.Systems["JITA"]==30000142 && service.State.CraftPricing.Quotes["Jita:34"].Sell>0,
+                        "Live name resolution and Jita-station pricing match the configured manufacturing system");
+                }).GetAwaiter().GetResult();
+            }
+            finally {if(Directory.Exists(folder))Directory.Delete(folder,true);}
+            return;
+        }
+        if (args.FirstOrDefault() == "--audit-crafting")
+        {
+            var appFixture = new System.Windows.Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
+            string folder = Path.Combine(Path.GetTempPath(), "ecc-craft-audit-" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(folder);
+            try { WorkspaceLayout.PreferencePath=Path.Combine(folder,"ui-layout.json"); CheckCraftSuggestions(folder,args.ElementAtOrDefault(1)); CheckSellerRefresh(folder,args.ElementAtOrDefault(1)); }
+            finally { Directory.Delete(folder,true); }
+            Console.WriteLine($"{_checks} craft and seller checks passed.");
+            return;
+        }
         if (args.FirstOrDefault() == "--audit-market-tabs")
         {
             var appFixture = new System.Windows.Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
@@ -459,6 +487,9 @@ internal static partial class Program
         CheckFuelAlignment();
         CheckAbyssalWatch();
         CheckSellerDashboard();
+        string sellerCheckFolder=Path.Combine(Path.GetTempPath(), "ecc-seller-check-" + Guid.NewGuid().ToString("N"));
+        try { CheckSellerRefresh(sellerCheckFolder); }
+        finally { if(Directory.Exists(sellerCheckFolder))Directory.Delete(sellerCheckFolder,true); }
         CheckReleaseMonitor().GetAwaiter().GetResult();
         CheckAccessAsync().GetAwaiter().GetResult();
         var moonSnapshot = CheckMoonRecovery();

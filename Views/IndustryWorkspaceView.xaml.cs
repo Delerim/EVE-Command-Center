@@ -40,6 +40,8 @@ public partial class IndustryWorkspaceView : System.Windows.Controls.UserControl
         WorkspaceLayout.Attach(this);
         WorkspaceLayout.AttachTable(ProductionProgress);
         WorkspaceLayout.AttachTable(JobHistoryGrid);
+        foreach (var column in CraftGrid.Columns.Where(c => c.Width.UnitType == DataGridLengthUnitType.Pixel)) column.MinWidth = column.Width.Value;
+        WorkspaceLayout.AttachTable(CraftGrid);
         Strategy.ItemsSource = new[] { "Make", "Buy", "Use Stock" };
         Loaded += async (_, _) =>
         {
@@ -47,14 +49,15 @@ public partial class IndustryWorkspaceView : System.Windows.Controls.UserControl
             try
             {
                 var ops = BackgroundOperations.Current;
+                _autoCraftPricing = true;
                 _loadLinked = async () => (await ops.Sso.LoadPilotsAsync()).ToList();
-                Initialize(ops.IndustryWorkspace, () => ops.Industry.State.Pilots, await _loadLinked());
+                Initialize(ops.IndustryWorkspace, () => ops.Industry.State.Pilots, await _loadLinked(), ops.Industry);
             }
             catch (Exception ex) { Message.Text = "Planning unavailable: " + ex.Message; }
         };
     }
-    internal void Initialize(IndustryWorkspaceStore store, Func<IEnumerable<IndustryPilot>> inventory, List<EvePilotProfile> linked)
-    { _store = store; _inventory = inventory; _linked = linked; _initialized = true; RefreshAll(); }
+    internal void Initialize(IndustryWorkspaceStore store, Func<IEnumerable<IndustryPilot>> inventory, List<EvePilotProfile> linked, IndustryService? pricing = null)
+    { _store = store; _inventory = inventory; _linked = linked; _initialized = true; InitializeCraftEconomics(pricing); RefreshAll(); }
     private void Action(Action action, string message)
     {
         try { action(); RefreshAll(); Message.Text = message; Message.Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(118, 215, 203)); }
@@ -96,6 +99,7 @@ public partial class IndustryWorkspaceView : System.Windows.Controls.UserControl
         }
         finally { _loading = false; }
         RefreshBlueprintLocations();
+        RefreshCraftSuggestions();
         ShowProject();
         if (_openMaterialsPending)
         {
@@ -115,25 +119,25 @@ public partial class IndustryWorkspaceView : System.Windows.Controls.UserControl
     }
     private void OpenProject()
     {
-        ProjectGallery.Visibility = CreationPage.Visibility = SettingsPage.Visibility = Visibility.Collapsed;
+        ProjectGallery.Visibility = CreationPage.Visibility = SettingsPage.Visibility = CraftPage.Visibility = Visibility.Collapsed;
         ProjectWorkspace.Visibility = Visibility.Visible;
         WorkspaceTabs.SelectedItem = ProjectDetailTab;
     }
     private void BackProjects_Click(object sender, RoutedEventArgs e)
     {
-        ProjectWorkspace.Visibility = CreationPage.Visibility = SettingsPage.Visibility = Visibility.Collapsed;
+        ProjectWorkspace.Visibility = CreationPage.Visibility = SettingsPage.Visibility = CraftPage.Visibility = Visibility.Collapsed;
         ProjectGallery.Visibility = Visibility.Visible;
         Projects.SelectedItem = null;
     }
     private string ProjectStage(IndustryProject p) => IndustryProductionProgress.Stage(p, _state, ReadJobs(), DateTimeOffset.UtcNow);
     private void ProjectDefaults_Click(object sender, RoutedEventArgs e)
     {
-        ProjectGallery.Visibility = ProjectWorkspace.Visibility = CreationPage.Visibility = Visibility.Collapsed;
+        ProjectGallery.Visibility = ProjectWorkspace.Visibility = CreationPage.Visibility = CraftPage.Visibility = Visibility.Collapsed;
         SettingsPage.Visibility = Visibility.Visible;
     }
     private void NewProject_Click(object sender, RoutedEventArgs e)
     {
-        ProjectGallery.Visibility = ProjectWorkspace.Visibility = SettingsPage.Visibility = Visibility.Collapsed;
+        ProjectGallery.Visibility = ProjectWorkspace.Visibility = SettingsPage.Visibility = CraftPage.Visibility = Visibility.Collapsed;
         CreationPage.Visibility = Visibility.Visible;
     }
     private void Project_Selected(object sender, SelectionChangedEventArgs e)
@@ -149,7 +153,7 @@ public partial class IndustryWorkspaceView : System.Windows.Controls.UserControl
         ProjectIdentity.Text = project.Name; ProjectIdentity.ToolTip = null; ProjectName.Text = project.Name; ProjectNotes.Text = project.Notes;
         Select(ProjectLead, project.LeadId); Select(ProjectBuyer, project.BuyerId); Select(ProjectSeller, project.SellerId);
         Paused.IsChecked = project.Paused; Archived.IsChecked = project.Archived;
-        if (!project.Nodes.Any(n => n.Id == _nodeId)) _nodeId = project.Nodes.Single(n => n.ParentId == null).Id;
+        if (!project.Nodes.Any(n => n.Id == _nodeId)) _nodeId = project.Nodes.First(n => n.ParentId == null).Id;
         var expanded = new HashSet<Guid>();
         void Remember(NodeRow row) { if (row.Expanded) expanded.Add(row.Id); foreach (var child in row.Children) Remember(child); }
         foreach (var row in Nodes.Items.OfType<NodeRow>()) Remember(row);
@@ -411,7 +415,9 @@ public partial class IndustryWorkspaceView : System.Windows.Controls.UserControl
     private void ExpandDraft_Click(object sender, RoutedEventArgs e) => Action(() =>
     {
         if (_projectId is not {} id) return;
-        var root = _state.Projects.Single(p => p.Id == id).Nodes.Single(n => n.ParentId == null);
+        var project = _state.Projects.Single(p => p.Id == id);
+        if (project.IsBundle) throw new InvalidOperationException("This bundle already has material plans. Select a build to review its inputs.");
+        var root = project.Nodes.Single(n => n.ParentId == null);
         _store.ExpandDraft(id, IndustryDependencyPlanner.Build(root.TypeId, root.Quantity));
     }, "Draft expanded at ME 0 with product and input quantities. Project identity retained; review blueprint assumptions.");
     private void ShowDelete_Click(object sender, RoutedEventArgs e)

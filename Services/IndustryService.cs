@@ -4,13 +4,13 @@ using System.Net.Http.Headers;
 using System.Text.Json;
 using EveCommandCenter.Models;
 namespace EveCommandCenter.Services;
-public sealed class IndustryService
+public sealed partial class IndustryService
 {
     public Func<long, bool> ShouldSync { get; set; } = _ => true;
 
     public static readonly string[] Scopes = {"esi-industry.read_character_jobs.v1","esi-characters.read_blueprints.v1","esi-assets.read_assets.v1","esi-skills.read_skills.v1"};
     private readonly EveSsoService _sso;
-    private readonly HttpClient _http=EsiHttp.CreateClient();
+    private readonly HttpClient _http;
     private readonly string _file;
     private DateTimeOffset _due;
     public bool Busy {get;private set;}
@@ -35,7 +35,7 @@ public sealed class IndustryService
             EsiDiagnostics.Write("Industry job history: " + ex.GetType().Name);
         }
     }
-    public IndustryService(EveSsoService sso, string? directory=null) { _sso=sso; _file=Path.Combine(directory??Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"EVE Command Center"),"industry.json"); try {State=JsonSerializer.Deserialize<IndustryState>(File.ReadAllText(_file))??new();}catch {State=new();} }
+    public IndustryService(EveSsoService sso, string? directory=null, HttpClient? http=null) { _sso=sso; _http=http??EsiHttp.CreateClient(); _file=Path.Combine(directory??Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"EVE Command Center"),"industry.json"); try {State=JsonSerializer.Deserialize<IndustryState>(File.ReadAllText(_file))??new();}catch {State=new();} }
     public void Save() {Directory.CreateDirectory(Path.GetDirectoryName(_file)!);File.WriteAllText(_file+".tmp",JsonSerializer.Serialize(State));File.Move(_file+".tmp",_file,true);}
     public void Due() => _due=default;
     private async Task<List<JsonElement>> Read(string path,string token,CancellationToken ct)
@@ -158,12 +158,13 @@ public sealed class IndustryService
     }
     public async Task QuoteAsync(IndustryRecipe recipe,CancellationToken ct)
     {
+        var result=await RefreshCraftPricesAsync(recipe.Materials.Keys.Concat(recipe.Products.Keys), "Jita", "", ct);
         foreach(int type in recipe.Materials.Keys.Concat(recipe.Products.Keys).Distinct())
         {
-            if(State.Quotes.TryGetValue(type,out var quote)&&quote.Time>DateTimeOffset.UtcNow.AddHours(-1))continue;
-            var q=await MiningMarketService.FetchStationPricesAsync(MiningMarketService.TheForgeRegionId,MiningMarketService.Jita44StationId,type,ct);
-            State.Quotes[type]=new(){Buy=q.BestBuy,Sell=q.BestSell,Time=DateTimeOffset.UtcNow};
+            if(State.CraftPricing.Quotes.TryGetValue(IndustryCraftEconomics.Key("Jita",type),out var q) && IndustryCraftEconomics.Fresh(q,DateTimeOffset.UtcNow))
+                State.Quotes[type]=new(){Buy=(double?)q.Buy,Sell=(double?)q.Sell,Time=q.ObservedUtc};
         }
         Save();
+        if(result.Failed>0)throw new InvalidOperationException($"{result.Failed} item quotes could not be refreshed; previous values retained.");
     }
 }

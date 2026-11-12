@@ -28,6 +28,7 @@ public sealed class SellerStockRow
     public decimal? PreviousAmarr { get; init; }
     public bool MarketFresh { get; init; }
     public bool OrdersFresh { get; init; }
+    public int UndercutOrderCount { get; init; }
     public bool ContainsContents { get; init; }
     public bool IsSingleton { get; init; }
     public string Icon => $"https://images.evetech.net/types/{TypeId}/icon?size=64";
@@ -38,10 +39,12 @@ public sealed class SellerStockRow
     public string MyPriceText => Price(MyPrice);
     public string JitaShift => Delta(Jita, PreviousJita);
     public string AmarrShift => Delta(Amarr, PreviousAmarr);
+    public decimal? JitaChange => Jita.HasValue && PreviousJita.HasValue ? Jita-PreviousJita : null;
+    public decimal? AmarrChange => Amarr.HasValue && PreviousAmarr.HasValue ? Amarr-PreviousAmarr : null;
+    public decimal? HubDifference => Jita.HasValue && Amarr.HasValue ? Math.Abs(Jita.Value-Amarr.Value) : null;
     public string State => !OrdersFresh ? "ORDERS STALE" : Listed == 0 ? "NOT LISTED" :
         !MarketFresh ? "PRICE STALE" :
-        MyPrice.HasValue && ((OrderHub == "Jita" && Jita.HasValue && MyPrice.Value > Jita.Value) ||
-                             (OrderHub == "Amarr" && Amarr.HasValue && MyPrice.Value > Amarr.Value))
+        UndercutOrderCount > 0
             ? "UNDERCUT" : "LISTED";
     public string StateColor => State switch { "NOT LISTED" => "#FFC470", "UNDERCUT" => "#FF848B", "LISTED" => "#70E2BC", "PRICE STALE" => "#E8BB82", _ => "#AABEC2" };
     public string PreferredHub => Jita is > 0 && Amarr is > 0
@@ -59,7 +62,7 @@ public sealed class SellerStockRow
     public static string Price(decimal? price) => price.HasValue && price.Value > 0
         ? price.Value.ToString("N2", CultureInfo.InvariantCulture) : "—";
     private static string Delta(decimal? current, decimal? previous) =>
-        current is > 0 && previous is > 0 ? (current.Value - previous.Value).ToString("+N2;-N2;0", CultureInfo.InvariantCulture) : "—";
+        current is > 0 && previous is > 0 ? (current.Value - previous.Value).ToString("+#,##0.00;-#,##0.00;0.00", CultureInfo.InvariantCulture) : "—";
 }
 
 public static class SellerStockEngine
@@ -130,6 +133,9 @@ public static class SellerStockEngine
             positioned.Add((asset,location,path));
         }
         var result = new List<SellerStockRow>();
+        int Undercut(MarketOrder[] active, SellerHubQuote? quote) => active.Count(o =>
+            o.LocationId == SellerDashboardService.Jita44 && quote?.Jita is > 0 && o.Price > quote.Jita ||
+            o.LocationId == SellerDashboardService.AmarrEmperor && quote?.Amarr is > 0 && o.Price > quote.Amarr);
         foreach(var group in positioned.GroupBy(x => (x.Asset.TypeId, x.Location, x.Path)))
         {
             var first=group.First();var type=types[first.Asset.TypeId];
@@ -147,9 +153,26 @@ public static class SellerStockEngine
                 PreviousJita=before?.Jita,PreviousAmarr=before?.Amarr,
                 MarketFresh=quote!=null && quote.CheckedUtc>=now.AddMinutes(-35),
                 OrdersFresh=ordersFresh,
+                UndercutOrderCount=Undercut(active,quote),
                 ContainsContents=group.Any(x=>childIds.Contains(x.Asset.ItemId)),
                 IsSingleton=group.Any(x=>x.Asset.IsSingleton)
             });
+        }
+        // Orders remove units from hangar assets. Keep fully listed products visible even
+        // when there is no remaining inventory stack to drive a row.
+        foreach (var pair in sell.Where(p => !result.Any(r => r.TypeId == p.Key)))
+        {
+            if (!types.TryGetValue(pair.Key, out var info) || !IsSellable(info)) continue;
+            var active = pair.Value;
+            quotes.TryGetValue(pair.Key, out var quote); previous.TryGetValue(pair.Key, out var before);
+            result.Add(new SellerStockRow { TypeId=pair.Key, Name=info.Name, Category=info.Category,
+                Location=string.Join(" / ",active.Select(o=>locationNames.GetValueOrDefault(o.LocationId,$"Location {o.LocationId}")).Distinct()),
+                ContainerPath="On market; no hangar stock", Stock=0, Listed=active.Sum(o=>o.Remaining), OpenOrders=active.Length,
+                MyPrice=active.Min(o=>o.Price), OrderHub=active.Select(o=>o.LocationId).Distinct().Count()>1 ? "Multiple" :
+                    active[0].LocationId==SellerDashboardService.Jita44 ? "Jita" : active[0].LocationId==SellerDashboardService.AmarrEmperor ? "Amarr" : "Other",
+                Jita=quote?.Jita,Amarr=quote?.Amarr,PreviousJita=before?.Jita,PreviousAmarr=before?.Amarr,
+                MarketFresh=quote!=null && quote.CheckedUtc>=now.AddMinutes(-35),OrdersFresh=ordersFresh,
+                UndercutOrderCount=Undercut(active,quote) });
         }
         return result.OrderBy(x=>x.Name,StringComparer.OrdinalIgnoreCase).ThenBy(x=>x.Location).ToArray();
     }

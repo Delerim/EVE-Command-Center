@@ -51,9 +51,9 @@ public static class IndustryProductionProgress
     {
         if (project.Archived) return "Archived";
         if (project.Paused) return "Paused";
-        var root = Build(project.Nodes.Single(n => n.ParentId == null), state, jobs, now);
-        if (root.Delivered >= root.Required) return "Delivered";
-        if (root.Delivered > 0) return "Partially delivered";
+        var roots = project.Nodes.Where(n => n.ParentId == null).Select(n => Build(n, state, jobs, now)).ToArray();
+        if (roots.All(r => r.Delivered >= r.Required)) return "Delivered";
+        if (roots.Any(r => r.Delivered > 0)) return "Partially delivered";
         var rows = project.Nodes.Select(n => Build(n, state, jobs, now)).ToArray();
         if (rows.Any(r => r.AwaitingCollection > 0)) return "Awaiting collection";
         if (rows.Any(r => r.InProduction > 0)) return "Manufacturing";

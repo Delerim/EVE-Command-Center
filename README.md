@@ -19,6 +19,7 @@ Upgrading: close the app and replace its executable. Keep your settings JSON fil
 - [Ore-toon stash monitor](docs/ore-stash-watch.md) with balanced SELL / ASSESS / DON'T SELL advice and grouped selling-point alerts.
 - [Janice corp payout simulation](docs/janice-simulation.md) with 90% buy/split/sell scenarios, 100% Jita comparisons, route costs and per-ore discount limits.
 - Pilot skills, training, assets, fittings, wallet information, and ship defense calculations.
+- Industry projects, owned blueprint library, shared material reservations, and suggested multi-BPC craft bundles from personal hangars and cans.
 - Corporation moon calendar, mining ledger, ore profiles, and period reporting.
 - Corporation contracts with Janice buyback checks, approved destinations, in-game links, contents inspection, and new-contract alerts.
 - Desktop moon alerts for low fuel and drills without an extraction scheduled. Moon and contract monitoring runs in the background while Command Center is running, even when their windows are closed.

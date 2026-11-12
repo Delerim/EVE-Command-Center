@@ -133,7 +133,7 @@ public partial class IndustryWindow : Window
     private async void Quote_Click(object sender,RoutedEventArgs e)
     {
         if(_quoting||Recipes.SelectedItem is not IndustryPlan p)return;_quoting=true;
-        try {StatusText.Text="Loading selected recipe's Jita quotes through the shared queue...";await _service.QuoteAsync(p.Recipe,_life.Token);ShowPlan();StatusText.Text="Quotes updated (hourly cache).";}
+        try {StatusText.Text="Loading selected recipe's Jita quotes through the shared queue...";await _service.QuoteAsync(p.Recipe,_life.Token);ShowPlan();StatusText.Text="Quotes updated (ESI cache expiry).";}
         catch(Exception ex){StatusText.Text="Quote refresh deferred: "+ex.GetType().Name;}finally{_quoting=false;}
     }
     private async void Link_Click(object sender,RoutedEventArgs e)
