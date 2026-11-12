@@ -31,10 +31,10 @@ internal static partial class Program
         if (args.FirstOrDefault() == "--audit-janice-live")
         {
             using var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(45));
-            foreach (string code in new[] { "2coDfZ", "4S2IIm" })
+            foreach (string code in new[] { "2coDfZ", "4S2IIm", "RJyPSQ" })
             {
                 var snapshot = JaniceAppraisalClient.LoadAsync("https://janice.e-351.com/a/" + code, cancellation.Token).GetAwaiter().GetResult();
-                Check(snapshot.Code == code && snapshot.Items.Count == 7 && !JaniceProfitability.Calculate(snapshot, new()).MeetsLimit,
+                Check(snapshot.Code == code && snapshot.Items.Count == (code == "RJyPSQ" ? 2 : 7) && !JaniceProfitability.Calculate(snapshot, new()).MeetsLimit,
                     "Live public Janice client loads and evaluates " + code);
             }
             return;

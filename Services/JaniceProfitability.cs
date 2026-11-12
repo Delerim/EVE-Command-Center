@@ -16,15 +16,16 @@ public sealed record JaniceSnapshot(string Code, DateTimeOffset DatasetTime, IRe
 
 public sealed record JaniceSimulationSettings(
     decimal PayoutPercent = 90, JanicePriceSide PayoutSide = JanicePriceSide.Buy,
-    JanicePriceSide ReferenceSide = JanicePriceSide.Sell, decimal MaximumDiscountPercent = 10,
+    JanicePriceSide ReferenceSide = JanicePriceSide.Sell, decimal MaximumDiscountPercent = 15,
     decimal DirectSaleFeesPercent = 0, decimal DirectCosts = 0, decimal CorpCosts = 0);
 
 public sealed record JaniceSimulationLine(string Name, long Quantity, decimal JitaBuy, decimal JitaSplit,
     decimal JitaSell, decimal Payout, decimal NetPayout, decimal Reference, decimal Difference,
     decimal DiscountPercent, decimal RequiredPayoutPercent, bool MeetsLimit)
 {
-    public string Status => MeetsLimit ? "WITHIN LIMIT" : "EXCESS DISCOUNT";
-    public string StatusColor => MeetsLimit ? "#74D6C9" : "#FFAD83";
+    public string Status => JaniceProfitability.ValueBand(DiscountPercent);
+    public string StatusColor => JaniceProfitability.BandColor(DiscountPercent);
+    public string LimitStatus => MeetsLimit ? "WITHIN LIMIT" : "OVER LIMIT";
     public string DifferenceColor => Difference >= 0 ? "#74D6C9" : "#FFAD83";
 }
 
@@ -34,12 +35,17 @@ public sealed record JaniceSimulation(IReadOnlyList<JaniceSimulationLine> Lines)
     public decimal Reference => Lines.Sum(x => x.Reference);
     public decimal Difference => Payout - Reference;
     public decimal DiscountPercent => (1 - Payout / Reference) * 100;
+    public string ValueBand => JaniceProfitability.ValueBand(DiscountPercent);
+    public bool HasMixedValue => Lines.Select(x => x.Status).Distinct().Count() > 1;
     public bool MeetsLimit => Lines.Count > 0 && Lines.All(x => x.MeetsLimit);
     public decimal RequiredPayoutPercent => Lines.Max(x => x.RequiredPayoutPercent);
 }
 
 public static class JaniceProfitability
 {
+    // Comparative defaults supplied in the user's examples, not market standards.
+    public static string ValueBand(decimal discount) => discount < 15 ? "RELATIVELY GOOD" : discount <= 18 ? "MODERATE GAP" : "LARGE GAP";
+    public static string BandColor(decimal discount) => discount < 15 ? "#74D6C9" : discount <= 18 ? "#FFD166" : "#FFAD83";
     // immediatePrices are the unscaled snapshot. effectivePrices already contain
     // the appraisal percentage, and applying 90% again would discount twice.
     public static JaniceSnapshot Parse(JsonElement appraisal)

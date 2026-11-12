@@ -2,11 +2,17 @@
 
 Open Mining Command Center > Janice simulation, paste the appraisal link and choose LOAD APPRAISAL. This fetches the saved public appraisal without modifying it.
 
-The default scenario is your corp paying 90% Jita buy. It compares that payout against 100% Jita sell with a maximum acceptable discount of 10%. Change the reference to Jita buy for the immediate-sale alternative, or split for the midpoint. Payout basis and percentage can also be changed, including 90% split. The summary always shows all three 100% values and all three 90% scenarios.
+The default scenario is your corp paying 90% Jita buy. It compares that payout against 100% Jita sell with a maximum acceptable discount of 15%. Change the reference to Jita buy for the immediate-sale alternative, or split for the midpoint. Payout basis and percentage can also be changed, including 90% split. The summary always shows all three 100% values and all three 90% scenarios.
 
 The comparison is not accounting profit. The gap measures the value given up for the corp route. Jita sell is a quoted listing value, not guaranteed executable revenue for the whole basket. Enter direct-sale fees and hauling to compare net alternatives. Corp route costs are separate. Zero excludes that cost. Costs are shared across lines in proportion to their 100% reference value.
 
-Every ore line must stay within the configured discount limit. A good basket total cannot hide a bad individual line. The required payout percentage is the largest requirement among the lines, rounded up in the summary. A requirement above 100% means the corp's selected price basis would need a premium to meet the requested limit.
+Comparative bands follow the supplied examples: under 15% is relatively good, 15-18% moderate, and over 18% a large gap. These bands are not market standards or guarantees. The basket and each line are classified separately; a mixed batch is highlighted. Every ore line must also stay within the independently configurable discount limit. A good basket total cannot hide a bad individual line. The required payout percentage is the largest requirement among the lines, rounded up in the summary. A requirement above 100% means the corp's selected price basis would need a premium to meet the requested limit.
+
+## Current two-ore lot
+
+[RJyPSQ](https://janice.e-351.com/a/RJyPSQ) pays 6,638,680,379.70 ISK at 90% buy, against 7,767,618,837.00 ISK at 100% sell: a 1,128,938,457.30 ISK gap, or 14.53%. This is relatively good overall by the comparative bands, but mixed: normal Bitumens is 12.35% below full sell, while Brimful Bitumens is 19.86% below. The basket is not labelled wholly within the default limit.
+
+90% split would pay 6,814,768,666.50 ISK, 176,088,286.80 ISK more than 90% buy. 90% sell is 6,990,856,953.30 ISK, not the full sell value. In-game inventory estimates are a separate reference and are not assumed to be executable Jita proceeds.
 
 ## Supplied examples
 
@@ -18,4 +24,4 @@ Loading an old link does not refresh its prices. The screen shows the saved data
 
 Historical HIGH/LOW/MID labels elsewhere describe price position against regional history; they are not sell recommendations.
 
-Validation: build Tests/CommandCenter.Checks.csproj, then run the checks executable with `--audit-janice` (optional PNG path) or `--audit-janice-live` for the two public appraisal requests. The normal full regression suite includes offline comparison and UI checks.
+Validation: build Tests/CommandCenter.Checks.csproj, then run the checks executable with `--audit-janice` (optional PNG path) or `--audit-janice-live` for the three public appraisal requests. The normal full regression suite includes offline comparison and UI checks.

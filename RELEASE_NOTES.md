@@ -1,3 +1,9 @@
+# EVE Command Center v3.8.11
+
+- **Relative buyback value.** Adds the supplied comparative bands: under 15% discount is relatively good, 15-18% moderate, above 18% a large gap. These are comparisons, not guaranteed profit or market benchmarks. The configurable acceptable discount defaults to 15%.
+- **Mixed ore batches.** Shows the basket's value band and individual ore bands together, with a warning when a relatively good basket contains a poor line. The new RJyPSQ regression shows 14.53% overall, normal Bitumens at 12.35% and Brimful Bitumens at 19.86%.
+- **Preserved comparisons.** Keeps 90% buy/split/sell scenarios, 100% Jita references, net route costs, per-line limits and snapshot warnings. The configurable limit remains distinct from the comparative colour bands.
+
 # EVE Command Center v3.8.10
 
 - **Corp payout simulation.** Mining Command Center has a Janice simulation tab. Compare the corp's 90% Jita buy payout with unscaled 100% Jita buy, split or sell values, including every ore line and the full basket. A 90% sell quote is never presented as 100% value.

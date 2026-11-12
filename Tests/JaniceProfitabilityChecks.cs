@@ -28,7 +28,7 @@ internal static partial class Program
             "Both appraisals distinguish the buy/sell spread from the corp haircut");
         var buyReference = JaniceProfitability.Calculate(snapshot, new(ReferenceSide: JanicePriceSide.Buy));
         Check(Math.Abs(buyReference.Difference + 764996434.08m) < .01m && buyReference.DiscountPercent == 10 && buyReference.MeetsLimit,
-            "90% buy meets an inclusive 10% limit against 100% buy");
+            "90% buy is a ten percent discount against 100% buy");
         var split = JaniceProfitability.Calculate(good, new(PayoutSide: JanicePriceSide.Split, ReferenceSide: JanicePriceSide.Buy));
         Check(Math.Abs(split.Payout - 5014730544.885m) < .01m && Math.Abs(split.Difference + 286105850.315m) < .01m,
             "90% split prices are scaled once, never twice");
@@ -61,19 +61,38 @@ internal static partial class Program
         Check(invalid, "Costs consuming the whole reference value require corrected inputs");
         var dashboard = new MiningDashboardWindow(new StatTrackerService(), new AppSettings());
         var view = (JaniceSimulationView)dashboard.FindName("JaniceSimulator"); view.ShowSnapshot(snapshot);
-        Check(((DataGrid)view.FindName("Lines")).Items.Count == 7 && ((TextBlock)view.FindName("DecisionText")).Text.StartsWith("EXCESS DISCOUNT") &&
+        Check(((DataGrid)view.FindName("Lines")).Items.Count == 7 && ((TextBlock)view.FindName("DecisionText")).Text.StartsWith("BATCH: LARGE GAP") &&
             ((TextBlock)view.FindName("TotalsText")).Text.Contains("1,734,074,883"), "Screen exposes the real full-volume shortfall");
         ((TextBox)view.FindName("PayoutPercent")).Text = "bad input";
         Check(((DataGrid)view.FindName("Lines")).Items.Count == 0 && ((TextBlock)view.FindName("DecisionText")).Text.StartsWith("CHECK INPUTS"),
             "Invalid edits clear the previous assessment");
         ((TextBox)view.FindName("PayoutPercent")).Text = "110";
         view.ShowSnapshot(snapshot with { DatasetTime = DateTimeOffset.UtcNow.AddDays(-1) });
-        Check(((TextBlock)view.FindName("DecisionText")).Text.StartsWith("OLDER SNAPSHOT"), "Stale passing simulations require refreshed data");
+        Check(((TextBlock)view.FindName("DecisionText")).Text.Contains("OLDER SNAPSHOT"), "Stale passing simulations require refreshed data");
         ((TextBox)view.FindName("AppraisalUrl")).Text = "https://janice.e-351.com/a/another";
         Check(((DataGrid)view.FindName("Lines")).Items.Count == 0 && !((TextBlock)view.FindName("DecisionText")).Text.Contains("WITHIN"),
             "Changing the appraisal URL clears prior results");
+        using var currentDoc = JsonDocument.Parse(File.ReadAllText(Path.Combine("Tests", "Fixtures", "janice-RJyPSQ.json")));
+        var current = JaniceProfitability.Parse(currentDoc.RootElement);
+        var currentResult = JaniceProfitability.Calculate(current, new());
+        Check(Math.Abs(currentResult.Payout - 6638680379.70m) < .01m && Math.Abs(currentResult.Reference - 7767618837m) < .01m &&
+            Math.Abs(currentResult.Difference + 1128938457.30m) < .01m,
+            "Current lot has a 6.639b corp payout and 1.129b gap against full Jita sell");
+        Check(currentResult.ValueBand == "RELATIVELY GOOD" && currentResult.HasMixedValue && !currentResult.MeetsLimit &&
+            Math.Abs(currentResult.DiscountPercent - 14.533906m) < .00001m,
+            "A relatively good 14.53% batch still reports mixed individual ore value");
+        Check(currentResult.Lines.Single(x => x.Name == "Compressed Brimful Bitumens").Status == "LARGE GAP" &&
+            currentResult.Lines.Single(x => x.Name == "Compressed Bitumens").Status == "RELATIVELY GOOD",
+            "Brimful's 19.86% gap is highlighted separately from normal Bitumens at 12.35%");
+        Check(JaniceProfitability.ValueBand(14.999m) == "RELATIVELY GOOD" && JaniceProfitability.ValueBand(15) == "MODERATE GAP" &&
+            JaniceProfitability.ValueBand(18) == "MODERATE GAP" && JaniceProfitability.ValueBand(18.001m) == "LARGE GAP",
+            "Comparative band boundaries match the supplied under-15, 15-to-18 and over-18 definitions");
         ((TextBox)view.FindName("PayoutPercent")).Text = "90";
-        ((TextBox)view.FindName("AppraisalUrl")).Text = "https://janice.e-351.com/a/4S2IIm"; view.ShowSnapshot(snapshot);
+        ((TextBox)view.FindName("AppraisalUrl")).Text = "https://janice.e-351.com/a/RJyPSQ"; view.ShowSnapshot(current);
+        Check(((TextBlock)view.FindName("DecisionText")).Text.Contains("BATCH: RELATIVELY GOOD") &&
+            ((TextBlock)view.FindName("DecisionText")).Text.Contains("MIXED ORE VALUES") &&
+            ((TextBlock)view.FindName("DecisionText")).Text.Contains("1 of 2"),
+            "The current lot's UI keeps the bad individual line visible despite a relatively good basket");
         ((TabControl)dashboard.FindName("MiningTabs")).SelectedItem = dashboard.FindName("JaniceSimulationTab");
         Check(((Grid)dashboard.FindName("MiningControlsPanel")).Visibility == Visibility.Collapsed,
             "Simulation hides unrelated mining settings to preserve space for ore lines");

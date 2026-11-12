@@ -1,0 +1,39 @@
+{
+  "code": "RJyPSQ",
+  "datasetTime": "2026-11-12T22:57:05.0220902Z",
+  "pricerMarket": {
+    "id": 2,
+    "name": "Jita 4-4",
+    "enablePricer": true,
+    "enableListedValue": true,
+    "enableTradedValue": true,
+    "enableOverpricedStock": false,
+    "order": 1000
+  },
+  "failures": "",
+  "pricePercentage": 0.9,
+  "items": [
+    {
+      "amount": 1757474,
+      "itemType": {
+        "name": "Compressed Brimful Bitumens"
+      },
+      "immediatePrices": {
+        "buyPriceTotal": 2014065204.0,
+        "splitPriceTotal": 2137967121.0,
+        "sellPriceTotal": 2261869038.0
+      }
+    },
+    {
+      "amount": 4783449,
+      "itemType": {
+        "name": "Compressed Bitumens"
+      },
+      "immediatePrices": {
+        "buyPriceTotal": 5362246329.0,
+        "splitPriceTotal": 5433998064.0,
+        "sellPriceTotal": 5505749799.0
+      }
+    }
+  ]
+}

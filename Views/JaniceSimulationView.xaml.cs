@@ -78,11 +78,15 @@ public partial class JaniceSimulationView : UserControl
             Lines.ItemsSource = result.Lines;
             bool older = DateTimeOffset.UtcNow - _snapshot.DatasetTime > TimeSpan.FromMinutes(30) ||
                 _snapshot.DatasetTime > DateTimeOffset.UtcNow.AddMinutes(5);
-            DecisionText.Text = result.MeetsLimit
-                ? (older ? "OLDER SNAPSHOT: within discount limit; refresh appraisal" : "WITHIN DISCOUNT LIMIT: snapshot estimate; check executable prices")
-                : $"EXCESS DISCOUNT: {result.Lines.Count(x => !x.MeetsLimit)} of {result.Lines.Count} lines exceed {settings.MaximumDiscountPercent:0.##}%" + (older ? " | OLDER SNAPSHOT" : "");
-            DecisionText.Foreground = new SolidColorBrush(result.MeetsLimit && !older
-                ? Color.FromRgb(116, 214, 201) : Color.FromRgb(255, 173, 131));
+            DecisionText.Text = $"BATCH: {result.ValueBand} ({result.DiscountPercent:N2}%)" +
+                (result.HasMixedValue ? " | MIXED ORE VALUES" : "") +
+                (result.MeetsLimit ? $" | All lines within {settings.MaximumDiscountPercent:0.##}% limit"
+                    : $" | {result.Lines.Count(x => !x.MeetsLimit)} of {result.Lines.Count} lines exceed {settings.MaximumDiscountPercent:0.##}% limit") +
+                (older ? " | OLDER SNAPSHOT" : "");
+            string summaryColor = JaniceProfitability.BandColor(result.DiscountPercent);
+            if ((result.HasMixedValue || !result.MeetsLimit || older) && result.DiscountPercent < 18)
+                summaryColor = "#FFD166";
+            DecisionText.Foreground = (SolidColorBrush)new BrushConverter().ConvertFromString(summaryColor)!;
             decimal buy100 = _snapshot.Items.Sum(x => x.Buy), split100 = _snapshot.Items.Sum(x => x.Split), sell100 = _snapshot.Items.Sum(x => x.Sell);
             string Signed(decimal v) => v.ToString("+#,##0.00;-#,##0.00;0.00", CultureInfo.CurrentCulture);
             TotalsText.Text = $"100% Jita: buy {buy100:N2} | split {split100:N2} | sell {sell100:N2} ISK\n" +
