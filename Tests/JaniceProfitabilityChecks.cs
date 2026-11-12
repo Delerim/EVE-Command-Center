@@ -37,7 +37,7 @@ internal static partial class Program
             "Each route's fees and basket hauling cost are applied once for a net-to-net comparison");
         var mixed = new JaniceSnapshot("mixed", DateTimeOffset.UtcNow, new[] {
             new JaniceOrePrice("Bad spread", 1, 10, 55, 100), new JaniceOrePrice("Favourable", 1, 1000, 1000, 1000) });
-        var mixedResult = JaniceProfitability.Calculate(mixed, new(MaximumDiscountPercent: 20));
+        var mixedResult = JaniceProfitability.Calculate(mixed, new(MaximumDiscountPercent: 20, AvoidDiscountPercent: 25));
         Check(mixedResult.DiscountPercent <= 20 && mixedResult.Lines.Any(x => x.MeetsLimit) && !mixedResult.MeetsLimit,
             "A favourable aggregate cannot hide an individual line above the discount limit");
         bool Reject(string json)
@@ -61,7 +61,7 @@ internal static partial class Program
         Check(invalid, "Costs consuming the whole reference value require corrected inputs");
         var dashboard = new MiningDashboardWindow(new StatTrackerService(), new AppSettings());
         var view = (JaniceSimulationView)dashboard.FindName("JaniceSimulator"); view.ShowSnapshot(snapshot);
-        Check(((DataGrid)view.FindName("Lines")).Items.Count == 7 && ((TextBlock)view.FindName("DecisionText")).Text.StartsWith("BATCH: LARGE GAP") &&
+        Check(((DataGrid)view.FindName("Lines")).Items.Count == 7 && ((TextBlock)view.FindName("DecisionText")).Text.StartsWith("BATCH: DON'T SELL") &&
             ((TextBlock)view.FindName("TotalsText")).Text.Contains("1,734,074,883"), "Screen exposes the real full-volume shortfall");
         ((TextBox)view.FindName("PayoutPercent")).Text = "bad input";
         Check(((DataGrid)view.FindName("Lines")).Items.Count == 0 && ((TextBlock)view.FindName("DecisionText")).Text.StartsWith("CHECK INPUTS"),
@@ -78,18 +78,18 @@ internal static partial class Program
         Check(Math.Abs(currentResult.Payout - 6638680379.70m) < .01m && Math.Abs(currentResult.Reference - 7767618837m) < .01m &&
             Math.Abs(currentResult.Difference + 1128938457.30m) < .01m,
             "Current lot has a 6.639b corp payout and 1.129b gap against full Jita sell");
-        Check(currentResult.ValueBand == "RELATIVELY GOOD" && currentResult.HasMixedValue && !currentResult.MeetsLimit &&
+        Check(currentResult.ValueBand == "SELL" && currentResult.HasMixedValue && !currentResult.MeetsLimit &&
             Math.Abs(currentResult.DiscountPercent - 14.533906m) < .00001m,
             "A relatively good 14.53% batch still reports mixed individual ore value");
-        Check(currentResult.Lines.Single(x => x.Name == "Compressed Brimful Bitumens").Status == "LARGE GAP" &&
-            currentResult.Lines.Single(x => x.Name == "Compressed Bitumens").Status == "RELATIVELY GOOD",
+        Check(currentResult.Lines.Single(x => x.Name == "Compressed Brimful Bitumens").Status == "ASSESS" &&
+            currentResult.Lines.Single(x => x.Name == "Compressed Bitumens").Status == "SELL",
             "Brimful's 19.86% gap is highlighted separately from normal Bitumens at 12.35%");
-        Check(JaniceProfitability.ValueBand(14.999m) == "RELATIVELY GOOD" && JaniceProfitability.ValueBand(15) == "MODERATE GAP" &&
-            JaniceProfitability.ValueBand(18) == "MODERATE GAP" && JaniceProfitability.ValueBand(18.001m) == "LARGE GAP",
-            "Comparative band boundaries match the supplied under-15, 15-to-18 and over-18 definitions");
+        Check(JaniceProfitability.ValueBand(15) == "SELL" && JaniceProfitability.ValueBand(15.001m) == "ASSESS" &&
+            JaniceProfitability.ValueBand(19.999m) == "ASSESS" && JaniceProfitability.ValueBand(20) == "DON'T SELL",
+            "Balanced SELL/ASSESS/DON'T SELL boundaries do not turn every discount into a hold");
         ((TextBox)view.FindName("PayoutPercent")).Text = "90";
         ((TextBox)view.FindName("AppraisalUrl")).Text = "https://janice.e-351.com/a/RJyPSQ"; view.ShowSnapshot(current);
-        Check(((TextBlock)view.FindName("DecisionText")).Text.Contains("BATCH: RELATIVELY GOOD") &&
+        Check(((TextBlock)view.FindName("DecisionText")).Text.Contains("BATCH: SELL") &&
             ((TextBlock)view.FindName("DecisionText")).Text.Contains("MIXED ORE VALUES") &&
             ((TextBlock)view.FindName("DecisionText")).Text.Contains("1 of 2"),
             "The current lot's UI keeps the bad individual line visible despite a relatively good basket");

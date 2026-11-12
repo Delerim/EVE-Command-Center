@@ -17,25 +17,25 @@ public sealed record JaniceSnapshot(string Code, DateTimeOffset DatasetTime, IRe
 public sealed record JaniceSimulationSettings(
     decimal PayoutPercent = 90, JanicePriceSide PayoutSide = JanicePriceSide.Buy,
     JanicePriceSide ReferenceSide = JanicePriceSide.Sell, decimal MaximumDiscountPercent = 15,
-    decimal DirectSaleFeesPercent = 0, decimal DirectCosts = 0, decimal CorpCosts = 0);
+    decimal DirectSaleFeesPercent = 0, decimal DirectCosts = 0, decimal CorpCosts = 0, decimal AvoidDiscountPercent = 20);
 
 public sealed record JaniceSimulationLine(string Name, long Quantity, decimal JitaBuy, decimal JitaSplit,
     decimal JitaSell, decimal Payout, decimal NetPayout, decimal Reference, decimal Difference,
-    decimal DiscountPercent, decimal RequiredPayoutPercent, bool MeetsLimit)
+    decimal DiscountPercent, decimal RequiredPayoutPercent, bool MeetsLimit, string Advice = "ASSESS")
 {
-    public string Status => JaniceProfitability.ValueBand(DiscountPercent);
-    public string StatusColor => JaniceProfitability.BandColor(DiscountPercent);
+    public string Status => Advice;
+    public string StatusColor => Advice == "SELL" ? "#74D6C9" : Advice == "DON'T SELL" ? "#FFAD83" : "#FFD166";
     public string LimitStatus => MeetsLimit ? "WITHIN LIMIT" : "OVER LIMIT";
     public string DifferenceColor => Difference >= 0 ? "#74D6C9" : "#FFAD83";
 }
 
-public sealed record JaniceSimulation(IReadOnlyList<JaniceSimulationLine> Lines)
+public sealed record JaniceSimulation(IReadOnlyList<JaniceSimulationLine> Lines, decimal SellLimit = 15, decimal AvoidLimit = 20)
 {
     public decimal Payout => Lines.Sum(x => x.NetPayout);
     public decimal Reference => Lines.Sum(x => x.Reference);
     public decimal Difference => Payout - Reference;
     public decimal DiscountPercent => (1 - Payout / Reference) * 100;
-    public string ValueBand => JaniceProfitability.ValueBand(DiscountPercent);
+    public string ValueBand => OreStashEngine.Advice(DiscountPercent, SellLimit, AvoidLimit);
     public bool HasMixedValue => Lines.Select(x => x.Status).Distinct().Count() > 1;
     public bool MeetsLimit => Lines.Count > 0 && Lines.All(x => x.MeetsLimit);
     public decimal RequiredPayoutPercent => Lines.Max(x => x.RequiredPayoutPercent);
@@ -43,9 +43,8 @@ public sealed record JaniceSimulation(IReadOnlyList<JaniceSimulationLine> Lines)
 
 public static class JaniceProfitability
 {
-    // Comparative defaults supplied in the user's examples, not market standards.
-    public static string ValueBand(decimal discount) => discount < 15 ? "RELATIVELY GOOD" : discount <= 18 ? "MODERATE GAP" : "LARGE GAP";
-    public static string BandColor(decimal discount) => discount < 15 ? "#74D6C9" : discount <= 18 ? "#FFD166" : "#FFAD83";
+    public static string ValueBand(decimal discount) => OreStashEngine.Advice(discount);
+    public static string BandColor(decimal discount) => discount <= 15 ? "#74D6C9" : discount >= 20 ? "#FFAD83" : "#FFD166";
     // immediatePrices are the unscaled snapshot. effectivePrices already contain
     // the appraisal percentage, and applying 90% again would discount twice.
     public static JaniceSnapshot Parse(JsonElement appraisal)
@@ -76,7 +75,7 @@ public static class JaniceProfitability
     public static JaniceSimulation Calculate(JaniceSnapshot snapshot, JaniceSimulationSettings settings)
     {
         if (settings.PayoutPercent <= 0 || settings.PayoutPercent > 1000 ||
-            settings.MaximumDiscountPercent < 0 || settings.MaximumDiscountPercent >= 100 ||
+            settings.MaximumDiscountPercent < 0 || settings.MaximumDiscountPercent >= settings.AvoidDiscountPercent || settings.AvoidDiscountPercent > 100 ||
             settings.DirectSaleFeesPercent < 0 || settings.DirectSaleFeesPercent >= 100 ||
             settings.DirectCosts < 0 || settings.CorpCosts < 0 ||
             !Enum.IsDefined(settings.PayoutSide) || !Enum.IsDefined(settings.ReferenceSide))
@@ -102,9 +101,11 @@ public static class JaniceProfitability
             decimal net = payout - corpCost;
             decimal acceptable = reference * (1 - settings.MaximumDiscountPercent / 100);
             decimal requiredPercent = (acceptable + corpCost) / payoutBase * 100;
+            decimal discount = (1 - net / reference) * 100;
             lines.Add(new(item.Name, item.Quantity, item.Buy, item.Split, item.Sell, payout,
-                net, reference, net - reference, (1 - net / reference) * 100, requiredPercent, net >= acceptable));
+                net, reference, net - reference, discount, requiredPercent, net >= acceptable,
+                OreStashEngine.Advice(discount, settings.MaximumDiscountPercent, settings.AvoidDiscountPercent)));
         }
-        return new(lines);
+        return new(lines, settings.MaximumDiscountPercent, settings.AvoidDiscountPercent);
     }
 }

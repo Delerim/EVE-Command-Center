@@ -22,6 +22,7 @@ public sealed partial class BackgroundOperations : IDisposable
     public PlanetaryService Planetary { get; }
     public IndustryService Industry { get; }
     public MarketOrdersService MarketOrders { get; }
+    public OreStashService OreStash { get; }
     public PilotSyncSettings SyncSettings { get; } = new();
     public IReadOnlyList<EvePilotProfile> LinkedPilots { get; private set; } = Array.Empty<EvePilotProfile>();
     public IndustryWorkspaceStore IndustryWorkspace { get; } = new();
@@ -49,6 +50,18 @@ public sealed partial class BackgroundOperations : IDisposable
         Industry = new IndustryService(Sso);
         Industry.JobsObserved += jobs => IndustryWorkspace.ObserveLinkedJobs(jobs, DateTimeOffset.UtcNow);
         MarketOrders = new MarketOrdersService(Sso);
+        OreStash = new OreStashService(new OreStashSource(Sso));
+        NotificationCenterService.Current.SyncOreAlerts(Array.Empty<CenterNotification>(), DateTimeOffset.UtcNow);
+        OreStash.Observed += SyncOreNotices;
+        OreStash.Changed += () =>
+        {
+            if (!OreStash.Busy && !OreStash.LastScanSucceeded)
+                NotificationCenterService.Current.SyncOreAlerts(Array.Empty<CenterNotification>(), DateTimeOffset.UtcNow);
+        };
+        OreStash.SellingPoint += rows => OperatingToast.Notify("Main character ore stash",
+            string.Join("\n", rows.Take(3).Select(x => $"{x.Name}: {x.Quantity:N0} units, est. {x.CorpPayout:N0} ISK, {x.GapPercent:0.0}% gap" + (x.UncompressedUnits > 0 ? " (compress first)" : ""))) +
+            (rows.Count > 3 ? $"\n+ {rows.Count - 3} other ore types" : "") + "\nClick to assess your stash.",
+            OpenOreStash, "ORE SELLING POINT", false);
         Omega = new OmegaService(Sso);
         Omega.Alert += (title,message) =>
         {
@@ -122,6 +135,7 @@ public sealed partial class BackgroundOperations : IDisposable
             _ = Industry.RefreshAsync(_lifetime.Token);
             _ = Planetary.RefreshAsync(_lifetime.Token);
             _ = Pilots.RefreshAsync(_lifetime.Token);
+            _ = OreStash.RefreshAsync(_lifetime.Token);
             var now = DateTimeOffset.UtcNow;
             if (now >= _nextAccess && !_accessBusy)
             {
@@ -262,6 +276,24 @@ public sealed partial class BackgroundOperations : IDisposable
     }
     private static Window? OpenModule(string key) => (System.Windows.Application.Current as App)?.OpenCommandCenterModule(key);
     public void OpenOmega() => OpenModule("omega");
+    private void SyncOreNotices(IReadOnlyList<OreStashAdvice> rows)
+    {
+        var settings = OreStash.State.Settings;
+        var notices = settings.Notifications ? rows.Where(x => x.Advice == "SELL" && x.DataVerified && x.CorpPayout >= settings.MinimumAlertIsk)
+            .Select(x => new CenterNotification
+            {
+                Id = $"ORE:{settings.CharacterId}:{x.TypeId}", Source = "ORE", Active = true,
+                AlertKey = OreStash.State.Alerts.GetValueOrDefault(x.TypeId)?.LastAlert.Ticks.ToString() ?? "initial",
+                Title = x.Name + " | reasonable selling point",
+                Detail = $"{x.Quantity:N0} units | estimated corp payout {x.CorpPayout:N0} ISK | {x.GapPercent:0.00}% below full Jita sell.\n{x.Locations}\n{x.Reason}",
+                Updated = DateTimeOffset.UtcNow, Color = "#74D6C9"
+            }).ToArray() : Array.Empty<CenterNotification>();
+        NotificationCenterService.Current.SyncOreAlerts(notices, DateTimeOffset.UtcNow);
+    }
+    public void OpenOreStash()
+    {
+        if (OpenModule("mining") is MiningDashboardWindow window) window.OpenOreStash();
+    }
     public void OpenIndustry() => OpenModule("industry");
     public void OpenPlanetary() => OpenModule("pi");
     public void OpenMoons(string? search = null)
@@ -281,6 +313,7 @@ public sealed partial class BackgroundOperations : IDisposable
         _timer.Stop();
         EveSsoService.CharacterLinked -= CharacterLinked;
         _lifetime.Cancel();
+        OreStash.Dispose();
         Moons.Refreshed -= MoonRefreshed;
         Contracts.NewContracts -= NewContracts;
         Contracts.AcceptedContracts -= AcceptedContracts;

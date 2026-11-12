@@ -73,7 +73,7 @@ public partial class JaniceSimulationView : UserControl
             decimal Read(TextBox box) => decimal.TryParse(box.Text, NumberStyles.Number, CultureInfo.CurrentCulture, out var v)
                 ? v : throw new ArgumentException("Enter valid percentages and ISK costs.");
             var settings = new JaniceSimulationSettings(Read(PayoutPercent), (JanicePriceSide)PayoutSide.SelectedIndex,
-                (JanicePriceSide)ReferenceSide.SelectedIndex, Read(MaximumDiscount), Read(DirectSaleFees), Read(DirectCosts), Read(CorpCosts));
+                (JanicePriceSide)ReferenceSide.SelectedIndex, Read(MaximumDiscount), Read(DirectSaleFees), Read(DirectCosts), Read(CorpCosts), Read(AvoidDiscount));
             var result = JaniceProfitability.Calculate(_snapshot, settings);
             Lines.ItemsSource = result.Lines;
             bool older = DateTimeOffset.UtcNow - _snapshot.DatasetTime > TimeSpan.FromMinutes(30) ||
@@ -83,8 +83,8 @@ public partial class JaniceSimulationView : UserControl
                 (result.MeetsLimit ? $" | All lines within {settings.MaximumDiscountPercent:0.##}% limit"
                     : $" | {result.Lines.Count(x => !x.MeetsLimit)} of {result.Lines.Count} lines exceed {settings.MaximumDiscountPercent:0.##}% limit") +
                 (older ? " | OLDER SNAPSHOT" : "");
-            string summaryColor = JaniceProfitability.BandColor(result.DiscountPercent);
-            if ((result.HasMixedValue || !result.MeetsLimit || older) && result.DiscountPercent < 18)
+            string summaryColor = result.ValueBand == "SELL" ? "#74D6C9" : result.ValueBand == "DON'T SELL" ? "#FFAD83" : "#FFD166";
+            if (older && result.ValueBand == "SELL")
                 summaryColor = "#FFD166";
             DecisionText.Foreground = (SolidColorBrush)new BrushConverter().ConvertFromString(summaryColor)!;
             decimal buy100 = _snapshot.Items.Sum(x => x.Buy), split100 = _snapshot.Items.Sum(x => x.Split), sell100 = _snapshot.Items.Sum(x => x.Sell);

@@ -1307,6 +1307,7 @@
                 </TabItem>
 
                 <TabItem x:Name="JaniceSimulationTab" Header="Janice simulation"><local:JaniceSimulationView x:Name="JaniceSimulator"/></TabItem>
+                <TabItem x:Name="OreStashTab" Header="My ore stash"><local:OreStashView x:Name="OreStashPanel"/></TabItem>
 
                                 <TabItem x:Name="MarketTab" Header="Market / Ore">
                     <Grid>

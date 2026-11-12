@@ -1,0 +1,45 @@
+<UserControl x:Class="EveCommandCenter.Views.OreStashView"
+ xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+ xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Foreground="#EAF7F4">
+ <UserControl.Resources>
+  <Style TargetType="TextBox"><Setter Property="Background" Value="#102D31"/><Setter Property="Foreground" Value="#EAF7F4"/><Setter Property="BorderBrush" Value="#315E56"/><Setter Property="Padding" Value="7,5"/><Setter Property="MinHeight" Value="30"/></Style>
+  <Style x:Key="Field" TargetType="StackPanel"><Setter Property="Margin" Value="0,0,12,8"/></Style>
+ </UserControl.Resources>
+ <Grid Margin="6">
+  <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+  <StackPanel>
+   <TextBlock Text="MY ORE STASH" FontSize="17" FontWeight="Bold" Foreground="#55D7D2"/>
+   <TextBlock Text="Your main character only: personal hangars, nested containers and ship cargo / ore / fleet holds. No alts or corporation hangars." TextWrapping="Wrap" Foreground="#8FB2B5" Margin="0,5,0,9"/>
+  </StackPanel>
+  <WrapPanel Grid.Row="1">
+   <StackPanel Style="{StaticResource Field}"><TextBlock Text="Main character"/><ComboBox x:Name="MainPilot" DisplayMemberPath="CharacterName" Width="190"/></StackPanel>
+   <StackPanel Style="{StaticResource Field}"><TextBlock Text="Corp % Jita buy"/><TextBox x:Name="CorpPercent" Text="90" Width="105"/></StackPanel>
+   <StackPanel Style="{StaticResource Field}"><TextBlock Text="SELL gap up to %"/><TextBox x:Name="SellGap" Text="15" Width="105"/></StackPanel>
+   <StackPanel Style="{StaticResource Field}"><TextBlock Text="DON'T SELL from %"/><TextBox x:Name="AvoidGap" Text="20" Width="115"/></StackPanel>
+   <StackPanel Style="{StaticResource Field}"><TextBlock Text="Min alert (m ISK)"/><TextBox x:Name="MinimumAlert" Text="100" Width="110"/></StackPanel>
+   <StackPanel Style="{StaticResource Field}" VerticalAlignment="Bottom"><CheckBox x:Name="Monitoring" Content="Monitor while ECC is open" IsChecked="True"/><CheckBox x:Name="Alerts" Content="Good-selling-point notifications" IsChecked="True"/></StackPanel>
+   <Button x:Name="ApplyButton" Content="USE MAIN &amp; SCAN" Click="Apply_Click" VerticalAlignment="Bottom" Padding="12,5" Margin="0,0,8,8"/>
+   <Button x:Name="RefreshButton" Content="REFRESH" Click="Refresh_Click" VerticalAlignment="Bottom" Padding="12,5" Margin="0,0,8,8"/>
+  </WrapPanel>
+  <StackPanel Grid.Row="2" Margin="0,0,0,8">
+   <TextBlock x:Name="StatusText" Text="Choose a main character to begin. Monitoring continues with this tab closed while ECC is running." Foreground="#FFD166" TextWrapping="Wrap"/>
+   <TextBlock x:Name="TotalsText" Foreground="#74D6C9" Margin="0,5,0,4" TextWrapping="Wrap"/>
+   <TextBlock x:Name="DatesText" Foreground="#8FB2B5" TextWrapping="Wrap" FontSize="11"/>
+   <TextBlock Text="SELL = reasonable buyback value now; ASSESS = middle ground or incomplete evidence; DON'T SELL = large discount. Raw ore uses its verified modern compressed equivalent: compress before selling. Compare with gross 100% Jita sell, before fees and hauling. Each ore is assessed separately. No future-price prediction." Foreground="#8FB2B5" TextWrapping="Wrap" FontSize="11" Margin="0,5,0,0"/>
+  </StackPanel>
+  <DataGrid Grid.Row="3" x:Name="OreRows" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" RowHeight="32" MinHeight="90" ScrollViewer.HorizontalScrollBarVisibility="Auto">
+   <DataGrid.Columns>
+    <DataGridTextColumn Header="Ore" Binding="{Binding Name}" Width="215"/>
+    <DataGridTextColumn Header="Advice" Binding="{Binding Advice}" Width="105"><DataGridTextColumn.ElementStyle><Style TargetType="TextBlock"><Setter Property="Foreground" Value="{Binding Color}"/><Setter Property="VerticalAlignment" Value="Center"/><Setter Property="FontWeight" Value="SemiBold"/></Style></DataGridTextColumn.ElementStyle></DataGridTextColumn>
+    <DataGridTextColumn Header="Stash units" Binding="{Binding Quantity, StringFormat=N0}" Width="105"/>
+    <DataGridTextColumn Header="Est. corp payout" Binding="{Binding CorpPayout, StringFormat=N0}" Width="130"/>
+    <DataGridTextColumn Header="Full Jita sell" Binding="{Binding FullSell, StringFormat=N0}" Width="125"/>
+    <DataGridTextColumn Header="Gap %" Binding="{Binding GapPercent, StringFormat=N2}" Width="80"/>
+    <DataGridTextColumn Header="Raw units to compress" Binding="{Binding UncompressedUnits, StringFormat=N0}" Width="145"/>
+    <DataGridTextColumn Header="Jita bid depth value" Binding="{Binding ImmediateJitaBuy, StringFormat=N0}" Width="140"/>
+    <DataGridTextColumn Header="Storage locations" Binding="{Binding Locations}" Width="340"/>
+   </DataGrid.Columns>
+  </DataGrid>
+  <StackPanel Grid.Row="4" Margin="0,8,0,0"><TextBlock Text="{Binding SelectedItem.Reason, ElementName=OreRows}" TextWrapping="Wrap" Foreground="#EDAD83"/><TextBlock Text="{Binding SelectedItem.Locations, ElementName=OreRows}" TextWrapping="Wrap" Foreground="#8FB2B5"/></StackPanel>
+ </Grid>
+</UserControl>

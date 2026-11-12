@@ -71,6 +71,25 @@ public sealed class NotificationCenterService
     {
         Items.Add(new(){Id=Guid.NewGuid().ToString(),Source=category.Contains("MINING")?"MINING":category.Contains("PLANETARY")?"PI":category.Contains("OMEGA")?"OMEGA":category.Contains("INDUSTRY")?"INDUSTRY":category.Contains("CONTRACT")?"CONTRACTS":"MOONS",Title=title,Detail=detail,Updated=DateTimeOffset.UtcNow});Save();
     }
+    public void SyncOreAlerts(IEnumerable<CenterNotification> alerts, DateTimeOffset now)
+    {
+        var incoming = alerts.ToDictionary(x => x.Id, StringComparer.Ordinal);
+        bool changed = false;
+        foreach (var old in Items.Where(x => x.Source == "ORE" && x.Active && !incoming.ContainsKey(x.Id)))
+        { old.Active = false; old.Updated = now; changed = true; }
+        foreach (var notice in incoming.Values)
+        {
+            var existing = Items.FirstOrDefault(x => x.Id == notice.Id);
+            if (existing == null) { Items.Add(notice); changed = true; continue; }
+            if (!existing.Active || existing.AlertKey != notice.AlertKey || existing.Detail != notice.Detail)
+            {
+                if (existing.AlertKey != notice.AlertKey) existing.Read = false;
+                existing.Active = true; existing.Title = notice.Title; existing.Detail = notice.Detail;
+                existing.AlertKey = notice.AlertKey; existing.Color = notice.Color; existing.Updated = now; changed = true;
+            }
+        }
+        if (changed) Save();
+    }
     public void MarkRead(){foreach(var item in Items)item.Read=true;Save();}
     private void Save()
     {

@@ -17,7 +17,8 @@
    <StackPanel Style="{StaticResource Field}"><TextBlock Text="Corp payout %"/><TextBox x:Name="PayoutPercent" Text="90" Width="100" TextChanged="Inputs_Changed"/></StackPanel>
    <StackPanel Style="{StaticResource Field}"><TextBlock Text="Corp payout basis"/><ComboBox x:Name="PayoutSide" Width="125" SelectedIndex="0" SelectionChanged="Inputs_Changed"><ComboBoxItem Content="Jita buy"/><ComboBoxItem Content="Jita split"/><ComboBoxItem Content="Jita sell"/></ComboBox></StackPanel>
    <StackPanel Style="{StaticResource Field}"><TextBlock Text="Compare with 100%"/><ComboBox x:Name="ReferenceSide" Width="125" SelectedIndex="2" SelectionChanged="Inputs_Changed"><ComboBoxItem Content="Jita buy"/><ComboBoxItem Content="Jita split"/><ComboBoxItem Content="Jita sell"/></ComboBox></StackPanel>
-   <StackPanel Style="{StaticResource Field}"><TextBlock Text="Max discount %"/><TextBox x:Name="MaximumDiscount" Text="15" Width="100" TextChanged="Inputs_Changed"/></StackPanel>
+   <StackPanel Style="{StaticResource Field}"><TextBlock Text="SELL gap up to %"/><TextBox x:Name="MaximumDiscount" Text="15" Width="100" TextChanged="Inputs_Changed"/></StackPanel>
+   <StackPanel Style="{StaticResource Field}"><TextBlock Text="DON'T SELL from %"/><TextBox x:Name="AvoidDiscount" Text="20" Width="110" TextChanged="Inputs_Changed"/></StackPanel>
    <StackPanel Style="{StaticResource Field}"><TextBlock Text="Direct sale fees %"/><TextBox x:Name="DirectSaleFees" Text="0" Width="105" TextChanged="Inputs_Changed"/></StackPanel>
    <StackPanel Style="{StaticResource Field}"><TextBlock Text="Direct hauling / ISK"/><TextBox x:Name="DirectCosts" Text="0" Width="125" TextChanged="Inputs_Changed"/></StackPanel>
    <StackPanel Style="{StaticResource Field}"><TextBlock Text="Corp route costs / ISK"/><TextBox x:Name="CorpCosts" Text="0" Width="130" TextChanged="Inputs_Changed"/></StackPanel>
@@ -28,7 +29,7 @@
    <TextBlock x:Name="TotalsText" TextWrapping="Wrap"/>
   </StackPanel>
   <TextBlock Grid.Row="3" Margin="0,0,0,8" Foreground="#8FB2B5" FontSize="11" TextWrapping="Wrap"
-   Text="Snapshot estimate: a Jita sell quote is a listing value, not guaranteed proceeds. Fees and hauling reduce the direct-sale alternative; zero excludes them. Bands: under 15% relatively good, 15-18% moderate, over 18% large gap; comparative defaults, not guaranteed profit. Each line also has your configurable discount limit. Costs are shared by reference value. Loading an old appraisal does not refresh prices or verify order depth."/>
+   Text="Snapshot estimate: a Jita sell quote is a listing value, not guaranteed proceeds. Fees and hauling reduce the direct-sale alternative; zero excludes them. SELL: reasonable payout within your limit; ASSESS: middle ground; DON'T SELL: large gap. Batch advice follows the overall gap; individual ore warnings do not veto the batch. No guaranteed profit or price forecast. Costs are shared by reference value. Loading an old appraisal does not refresh prices or verify order depth."/>
   <DataGrid Grid.Row="4" x:Name="Lines" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" ScrollViewer.HorizontalScrollBarVisibility="Auto" MinHeight="100" RowHeight="30">
    <DataGrid.Columns>
     <DataGridTextColumn Header="Ore" Binding="{Binding Name}" Width="210"/>

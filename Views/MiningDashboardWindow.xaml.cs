@@ -53,7 +53,8 @@ public partial class MiningDashboardWindow : Window
         HookProfitControls();
         SetProfitRange("today");
         MiningTabs.SelectionChanged += (_, _) => MiningControlsPanel.Visibility =
-            JaniceSimulationTab.IsSelected ? Visibility.Collapsed : Visibility.Visible;
+            JaniceSimulationTab.IsSelected || OreStashTab.IsSelected ? Visibility.Collapsed : Visibility.Visible;
+
         Opacity = Math.Clamp(_prefs.DashboardOpacityPercent, 55, 100) / 100.0;
 
         _historyRefreshTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
@@ -1338,6 +1339,8 @@ public partial class MiningDashboardWindow : Window
 
     private void Minimize_Click(object sender, RoutedEventArgs e) =>
         WindowState = WindowState.Minimized;
+
+    public void OpenOreStash() => MiningTabs.SelectedItem = OreStashTab;
 
     private void CloseWindow_Click(object sender, RoutedEventArgs e) =>
         Close();

@@ -688,6 +688,20 @@ public sealed class EveSsoService
         return await GetCharacterAssetsCachedAsync(pilot.CharacterId, token, ct);
     }
 
+    internal async Task<OreAssetSnapshot> GetOreWatchAssetsAsync(EvePilotProfile pilot, CancellationToken ct)
+    {
+        var items = await GetAssetsForPlanningAsync(pilot, ct);
+        var cached = _assetCache.GetValueOrDefault(pilot.CharacterId);
+        long ship = 0;
+        if (HasScope(pilot, "esi-location.read_ship_type.v1"))
+        {
+            try { ship = (await GetCurrentShipIdentityAsync(pilot, ct)).ShipItemId; }
+            catch (OperationCanceledException) { throw; }
+            catch { /* Hangar assets and owned ship cargo remain available. */ }
+        }
+        return new(pilot.CharacterId, items, cached?.ObservedUtc ?? default, cached?.ExpiresAt ?? default, ship);
+    }
+
     public async Task<EveInventorySnapshot> GetInventoryAsync(
         EvePilotProfile pilot,
         CancellationToken cancellationToken = default)

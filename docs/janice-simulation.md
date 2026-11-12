@@ -6,11 +6,13 @@ The default scenario is your corp paying 90% Jita buy. It compares that payout a
 
 The comparison is not accounting profit. The gap measures the value given up for the corp route. Jita sell is a quoted listing value, not guaranteed executable revenue for the whole basket. Enter direct-sale fees and hauling to compare net alternatives. Corp route costs are separate. Zero excludes that cost. Costs are shared across lines in proportion to their 100% reference value.
 
-Comparative bands follow the supplied examples: under 15% is relatively good, 15-18% moderate, and over 18% a large gap. These bands are not market standards or guarantees. The basket and each line are classified separately; a mixed batch is highlighted. Every ore line must also stay within the independently configurable discount limit. A good basket total cannot hide a bad individual line. The required payout percentage is the largest requirement among the lines, rounded up in the summary. A requirement above 100% means the corp's selected price basis would need a premium to meet the requested limit.
+Advice now uses balanced defaults: SELL at a gap of 15% or less, ASSESS above 15% and below 20%, and DON'T SELL at 20% or more. These are configurable preferences, not market standards or price forecasts. The basket follows its overall gap; individual ore advice remains visible without vetoing a fair basket. The payout percentage required to bring every line into SELL is shown separately, rounded up in the summary. A requirement above 100% means a premium to the selected corp price basis would be needed.
+
+The new [My ore stash monitor](ore-stash-watch.md) applies the same defaults to the selected main character's actual personal ore holdings and can notify when an ore qualifies for SELL.
 
 ## Current two-ore lot
 
-[RJyPSQ](https://janice.e-351.com/a/RJyPSQ) pays 6,638,680,379.70 ISK at 90% buy, against 7,767,618,837.00 ISK at 100% sell: a 1,128,938,457.30 ISK gap, or 14.53%. This is relatively good overall by the comparative bands, but mixed: normal Bitumens is 12.35% below full sell, while Brimful Bitumens is 19.86% below. The basket is not labelled wholly within the default limit.
+[RJyPSQ](https://janice.e-351.com/a/RJyPSQ) pays 6,638,680,379.70 ISK at 90% buy, against 7,767,618,837.00 ISK at 100% sell: a 1,128,938,457.30 ISK gap, or 14.53%. This now receives SELL overall, but mixed individual advice: normal Bitumens is 12.35% below full sell, while Brimful Bitumens is 19.86% below. Normal Bitumens receives SELL; Brimful receives ASSESS. The batch is not forced to hold because of the Brimful line.
 
 90% split would pay 6,814,768,666.50 ISK, 176,088,286.80 ISK more than 90% buy. 90% sell is 6,990,856,953.30 ISK, not the full sell value. In-game inventory estimates are a separate reference and are not assumed to be executable Jita proceeds.
 

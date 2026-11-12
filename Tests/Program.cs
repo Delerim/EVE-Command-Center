@@ -28,6 +28,23 @@ internal static partial class Program
     [STAThread]
     private static void Main(string[] args)
     {
+        if (args.FirstOrDefault() == "--audit-ore-market-live")
+        {
+            using var source = new OreStashSource(new EveSsoService());
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+            var book = source.BookAsync(62454, timeout.Token).GetAwaiter().GetResult();
+            Check(book.TypeId == 62454 && book.Buy is > 0 && book.Sell is > 0 && book.ExpiresUtc > DateTimeOffset.UtcNow.AddMinutes(-5),
+                "Live Jita ore order book supplies both sides and provider cache expiry");
+            var types = source.OreTypesAsync(new[] { 45492 }, timeout.Token).GetAwaiter().GetResult();
+            Check(types[45492].MarketTypeId == 62454 && types[45492].MarketName == "Compressed Bitumens",
+                "Live authoritative ore catalogue verifies raw Bitumens against modern Compressed Bitumens"); return;
+        }
+        if (args.FirstOrDefault() == "--audit-ore-stash")
+        {
+            var fixtureApp = new System.Windows.Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
+            CheckOreStash(args.Length > 1 ? args[1] : null);
+            Console.WriteLine($"{_checks} ore stash checks passed."); return;
+        }
         if (args.FirstOrDefault() == "--audit-janice-live")
         {
             using var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(45));
@@ -506,6 +523,7 @@ internal static partial class Program
         // Load XAML and render sample data without starting the app or live ESI polling.
         var app = new System.Windows.Application { ShutdownMode=ShutdownMode.OnExplicitShutdown };
         CheckJaniceProfitability();
+        CheckOreStash();
         Check(
             new AppSettings().MinimizeCommandCenterOnOverviewLaunch == false,
             "Command Center defaults to keeping both windows open");
