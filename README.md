@@ -16,7 +16,7 @@ Upgrading: close the app and replace its executable. Keep your settings JSON fil
 
 - Live client thumbnails, hotkeys, independent Picture-in-Picture previews, and saved layouts.
 - Mining fleet overview with idle alerts, cycle timers, ore valuation, and history.
-- [Main-character ore stash monitor](docs/ore-stash-watch.md) with balanced SELL / ASSESS / DON'T SELL advice and grouped selling-point alerts.
+- [Ore-toon stash monitor](docs/ore-stash-watch.md) with balanced SELL / ASSESS / DON'T SELL advice and grouped selling-point alerts.
 - [Janice corp payout simulation](docs/janice-simulation.md) with 90% buy/split/sell scenarios, 100% Jita comparisons, route costs and per-ore discount limits.
 - Pilot skills, training, assets, fittings, wallet information, and ship defense calculations.
 - Corporation moon calendar, mining ledger, ore profiles, and period reporting.

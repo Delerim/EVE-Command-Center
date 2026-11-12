@@ -9,20 +9,20 @@
   <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
   <StackPanel>
    <TextBlock Text="MY ORE STASH" FontSize="17" FontWeight="Bold" Foreground="#55D7D2"/>
-   <TextBlock Text="Your main character only: personal hangars, nested containers and ship cargo / ore / fleet holds. No alts or corporation hangars." TextWrapping="Wrap" Foreground="#8FB2B5" Margin="0,5,0,9"/>
+   <TextBlock Text="Your selected ore toon only: personal hangars, nested containers and ship cargo / ore / fleet holds. Independent of market and drill toons." TextWrapping="Wrap" Foreground="#8FB2B5" Margin="0,5,0,9"/>
   </StackPanel>
   <WrapPanel Grid.Row="1">
-   <StackPanel Style="{StaticResource Field}"><TextBlock Text="Main character"/><ComboBox x:Name="MainPilot" DisplayMemberPath="CharacterName" Width="190"/></StackPanel>
+   <StackPanel Style="{StaticResource Field}"><TextBlock Text="Ore toon"/><ComboBox x:Name="MainPilot" DisplayMemberPath="CharacterName" Width="190" ToolTip="Choose any linked character; this role is independent of market and drill toons"/></StackPanel>
    <StackPanel Style="{StaticResource Field}"><TextBlock Text="Corp % Jita buy"/><TextBox x:Name="CorpPercent" Text="90" Width="105"/></StackPanel>
    <StackPanel Style="{StaticResource Field}"><TextBlock Text="SELL gap up to %"/><TextBox x:Name="SellGap" Text="15" Width="105"/></StackPanel>
    <StackPanel Style="{StaticResource Field}"><TextBlock Text="DON'T SELL from %"/><TextBox x:Name="AvoidGap" Text="20" Width="115"/></StackPanel>
    <StackPanel Style="{StaticResource Field}"><TextBlock Text="Min alert (m ISK)"/><TextBox x:Name="MinimumAlert" Text="100" Width="110"/></StackPanel>
    <StackPanel Style="{StaticResource Field}" VerticalAlignment="Bottom"><CheckBox x:Name="Monitoring" Content="Monitor while ECC is open" IsChecked="True"/><CheckBox x:Name="Alerts" Content="Good-selling-point notifications" IsChecked="True"/></StackPanel>
-   <Button x:Name="ApplyButton" Content="USE MAIN &amp; SCAN" Click="Apply_Click" VerticalAlignment="Bottom" Padding="12,5" Margin="0,0,8,8"/>
+   <Button x:Name="ApplyButton" Content="SET ORE TOON" ToolTip="Save the ore-monitoring character and scan its personal stash" Click="Apply_Click" VerticalAlignment="Bottom" Padding="12,5" Margin="0,0,8,8"/>
    <Button x:Name="RefreshButton" Content="REFRESH" Click="Refresh_Click" VerticalAlignment="Bottom" Padding="12,5" Margin="0,0,8,8"/>
   </WrapPanel>
   <StackPanel Grid.Row="2" Margin="0,0,0,8">
-   <TextBlock x:Name="StatusText" Text="Choose a main character to begin. Monitoring continues with this tab closed while ECC is running." Foreground="#FFD166" TextWrapping="Wrap"/>
+   <TextBlock x:Name="StatusText" Text="Choose an ore toon to begin. Monitoring continues with this tab closed while ECC is running." Foreground="#FFD166" TextWrapping="Wrap"/>
    <TextBlock x:Name="TotalsText" Foreground="#74D6C9" Margin="0,5,0,4" TextWrapping="Wrap"/>
    <TextBlock x:Name="DatesText" Foreground="#8FB2B5" TextWrapping="Wrap" FontSize="11"/>
    <TextBlock Text="SELL = reasonable buyback value now; ASSESS = middle ground or incomplete evidence; DON'T SELL = large discount. Raw ore uses its verified modern compressed equivalent: compress before selling. Compare with gross 100% Jita sell, before fees and hauling. Each ore is assessed separately. No future-price prediction." Foreground="#8FB2B5" TextWrapping="Wrap" FontSize="11" Margin="0,5,0,0"/>

@@ -1,6 +1,6 @@
-# Main-character ore stash monitor
+# Ore-toon stash monitor
 
-Open **Mining > My ore stash**, select the linked character that owns your ore, and choose **USE MAIN & SCAN**. The choice is saved. Only that character's personal assets are requested by this monitor; it does not read alt or corporation assets. Changing the main clears the previous stash and its alert state.
+Open **Mining > My ore stash**, choose any linked character in **Ore toon**, then choose **SET ORE TOON**. This is a dedicated saved role, independent of the market and drill toons. The choice is saved. Only that character's personal assets are requested by this monitor; it does not read alt or corporation assets. Changing the main clears the previous stash and its alert state.
 
 The main needs `esi-assets.read_assets.v1`, normally included when linking a pilot. If it is missing, reconnect that character in Setup. `esi-location.read_ship_type.v1` identifies the current ship for in-space cargo whose ship may not appear as a parent in the asset snapshot. Without that identity, hangars and owned parked-ship cargo still work, but in-space coverage may be incomplete. Structure names can remain numerical when access does not allow name resolution.
 

@@ -36,7 +36,7 @@ public partial class OreStashView : UserControl
             MainPilot.ItemsSource = pilots;
             MainPilot.SelectedItem = pilots.FirstOrDefault(x => x.CharacterId == s.CharacterId);
             RenderState();
-            if (pilots.Count == 0) StatusText.Text = "No linked characters. Link your main in Setup, then reopen this tab.";
+            if (pilots.Count == 0) StatusText.Text = "No linked characters. Link your ore toon in Setup, then reopen this tab.";
         }
         catch (Exception ex) { StatusText.Text = "Could not load linked characters: " + ex.Message; }
     }
@@ -45,7 +45,7 @@ public partial class OreStashView : UserControl
         if (_service == null) return;
         try
         {
-            if (MainPilot.SelectedItem is not EvePilotProfile pilot) throw new ArgumentException("Choose your main character first.");
+            if (MainPilot.SelectedItem is not EvePilotProfile pilot) throw new ArgumentException("Choose your ore toon first.");
             decimal Read(TextBox box) => decimal.TryParse(box.Text, NumberStyles.Number, CultureInfo.CurrentCulture, out var n)
                 ? n : throw new ArgumentException("Enter valid percentages and alert value.");
             _service.Configure(new(pilot.CharacterId, Monitoring.IsChecked == true, Alerts.IsChecked == true,
