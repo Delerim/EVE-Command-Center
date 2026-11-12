@@ -52,6 +52,8 @@ public partial class MiningDashboardWindow : Window
         SetHistoryRange("today");
         HookProfitControls();
         SetProfitRange("today");
+        MiningTabs.SelectionChanged += (_, _) => MiningControlsPanel.Visibility =
+            JaniceSimulationTab.IsSelected ? Visibility.Collapsed : Visibility.Visible;
         Opacity = Math.Clamp(_prefs.DashboardOpacityPercent, 55, 100) / 100.0;
 
         _historyRefreshTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };

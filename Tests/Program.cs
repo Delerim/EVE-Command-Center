@@ -28,6 +28,23 @@ internal static partial class Program
     [STAThread]
     private static void Main(string[] args)
     {
+        if (args.FirstOrDefault() == "--audit-janice-live")
+        {
+            using var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(45));
+            foreach (string code in new[] { "2coDfZ", "4S2IIm" })
+            {
+                var snapshot = JaniceAppraisalClient.LoadAsync("https://janice.e-351.com/a/" + code, cancellation.Token).GetAwaiter().GetResult();
+                Check(snapshot.Code == code && snapshot.Items.Count == 7 && !JaniceProfitability.Calculate(snapshot, new()).MeetsLimit,
+                    "Live public Janice client loads and evaluates " + code);
+            }
+            return;
+        }
+        if (args.FirstOrDefault() == "--audit-janice")
+        {
+            var fixtureApp = new System.Windows.Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
+            CheckJaniceProfitability(args.Length > 1 ? args[1] : null);
+            Console.WriteLine($"{_checks} Janice profitability checks passed."); return;
+        }
         if (args.FirstOrDefault() == "--audit-market-tabs")
         {
             var appFixture = new System.Windows.Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
@@ -488,6 +505,7 @@ internal static partial class Program
         finally { Directory.Delete(emptyMoonDirectory, true); }
         // Load XAML and render sample data without starting the app or live ESI polling.
         var app = new System.Windows.Application { ShutdownMode=ShutdownMode.OnExplicitShutdown };
+        CheckJaniceProfitability();
         Check(
             new AppSettings().MinimizeCommandCenterOnOverviewLaunch == false,
             "Command Center defaults to keeping both windows open");

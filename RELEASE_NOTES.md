@@ -1,3 +1,11 @@
+# EVE Command Center v3.8.10
+
+- **Corp payout simulation.** Mining Command Center has a Janice simulation tab. Compare the corp's 90% Jita buy payout with unscaled 100% Jita buy, split or sell values, including every ore line and the full basket. A 90% sell quote is never presented as 100% value.
+- **Configurable acceptable discount.** Default maximum discount is 10% against 100% Jita sell. Change the comparison basis, corp payout side/percentage, direct-sale fees, hauling and corp route costs. Every ore line must stay within the limit; a favourable basket cannot hide unfavourable lines. All 90% buy/split/sell scenarios and the payout percentage needed to meet the limit are visible.
+- **Clear historical signals.** Replaces historical SELL/HOLD/WAIT with HIGH/LOW/MID price-position labels. These signals do not claim that a corp payout or sale is good value.
+- **Complete snapshot evidence.** Uses unscaled Janice prices once, displays snapshot dates and older-data warnings, and rejects missing prices or unpriced input. Loading a saved link does not refresh market prices. Jita sell listing values are not guaranteed executable proceeds; costs default to excluded until entered.
+- **Regression coverage.** Both supplied November appraisals cover percentage scaling, normal discount versus buy/sell spread, full-volume shortfalls, per-line limits, fees, missing data and the integrated simulation screen.
+
 # EVE Command Center v3.8.9
 
 - **Readable moon reports.** Expanded field details use explicit readable column widths instead of collapsing star-sized columns. Mining totals are green, estimated losses coral, and efficiency uses green/amber/coral bands. Unknown or active-field losses remain neutral. Numeric period columns sort numerically; comparison colours treat lower loss as an improvement.

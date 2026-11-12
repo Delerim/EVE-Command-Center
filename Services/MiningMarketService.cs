@@ -270,22 +270,18 @@ public sealed class MiningMarketService
 
         string signal;
 
-        // Conservative historical-position heuristic, not a price prediction.
+        // Price position only. Trend is shown separately and never implies a trade.
         if (rangePosition >= 0.82 || vs30Pct >= 8.0)
-            signal = "SELL";
+            signal = "HIGH";
         else if (rangePosition <= 0.22 || vs30Pct <= -8.0)
-            signal = "HOLD";
-        else if (trendPct >= 4.0 && vs30Pct < 2.0)
-            signal = "HOLD";
-        else if (trendPct <= -4.0 && vs30Pct > 0)
-            signal = "SELL";
+            signal = "LOW";
         else
-            signal = "WAIT";
+            signal = "MID";
 
         string reason =
             $"{FormatSigned(vs30Pct)} vs 30d avg; " +
             $"{rangePosition * 100.0:F0}% of 90d range; " +
-            $"7d trend {FormatSigned(trendPct)}";
+            $"7d trend {FormatSigned(trendPct)}. Historical position only; use Janice simulation to compare corp payout.";
 
         return new MiningMarketTimingSignal
         {

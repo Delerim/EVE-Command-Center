@@ -1,0 +1,129 @@
+{
+  "code": "4S2IIm",
+  "datasetTime": "2026-11-10T20:42:02.3756429Z",
+  "pricerMarket": {
+    "id": 2,
+    "name": "Jita 4-4",
+    "enablePricer": true,
+    "enableListedValue": true,
+    "enableTradedValue": true,
+    "enableOverpricedStock": false,
+    "order": 1000
+  },
+  "failures": "",
+  "pricePercentage": 0.9,
+  "items": [
+    {
+      "amount": 3896691,
+      "immediatePrices": {
+        "buyPriceTotal": 4391570757.0,
+        "splitPriceTotal": 4621475526.0,
+        "sellPriceTotal": 4851380295.0
+      },
+      "effectivePrices": {
+        "buyPriceTotal": 3952413681.3,
+        "splitPriceTotal": 4159327973.4,
+        "sellPriceTotal": 4366242265.5
+      },
+      "itemType": {
+        "name": "Compressed Bitumens"
+      }
+    },
+    {
+      "amount": 1494883,
+      "immediatePrices": {
+        "buyPriceTotal": 1716125684.0,
+        "splitPriceTotal": 1889532112.0,
+        "sellPriceTotal": 2062938540.0
+      },
+      "effectivePrices": {
+        "buyPriceTotal": 1544513115.6000001,
+        "splitPriceTotal": 1700578900.8000002,
+        "sellPriceTotal": 1856644686.0
+      },
+      "itemType": {
+        "name": "Compressed Brimful Bitumens"
+      }
+    },
+    {
+      "amount": 12840,
+      "immediatePrices": {
+        "buyPriceTotal": 8799252.0,
+        "splitPriceTotal": 9397596.0,
+        "sellPriceTotal": 9995940.0
+      },
+      "effectivePrices": {
+        "buyPriceTotal": 7919326.8,
+        "splitPriceTotal": 8457836.4,
+        "sellPriceTotal": 8996346.0
+      },
+      "itemType": {
+        "name": "Compressed Brimful Coesite"
+      }
+    },
+    {
+      "amount": 9651,
+      "immediatePrices": {
+        "buyPriceTotal": 8720643.6,
+        "splitPriceTotal": 9306459.3,
+        "sellPriceTotal": 9892275.0
+      },
+      "effectivePrices": {
+        "buyPriceTotal": 7848579.24,
+        "splitPriceTotal": 8375813.37,
+        "sellPriceTotal": 8903047.5
+      },
+      "itemType": {
+        "name": "Compressed Brimful Sylvite"
+      }
+    },
+    {
+      "amount": 128157,
+      "immediatePrices": {
+        "buyPriceTotal": 194798640.0,
+        "splitPriceTotal": 201526882.5,
+        "sellPriceTotal": 208255125.0
+      },
+      "effectivePrices": {
+        "buyPriceTotal": 175318776.0,
+        "splitPriceTotal": 181374194.25,
+        "sellPriceTotal": 187429612.5
+      },
+      "itemType": {
+        "name": "Compressed Brimful Zeolites"
+      }
+    },
+    {
+      "amount": 13629,
+      "immediatePrices": {
+        "buyPriceTotal": 8992414.2,
+        "splitPriceTotal": 9981879.6,
+        "sellPriceTotal": 10971345.0
+      },
+      "effectivePrices": {
+        "buyPriceTotal": 8093172.779999999,
+        "splitPriceTotal": 8983691.64,
+        "sellPriceTotal": 9874210.5
+      },
+      "itemType": {
+        "name": "Compressed Coesite"
+      }
+    },
+    {
+      "amount": 1004530,
+      "immediatePrices": {
+        "buyPriceTotal": 1320956950.0,
+        "splitPriceTotal": 1393283110.0,
+        "sellPriceTotal": 1465609270.0
+      },
+      "effectivePrices": {
+        "buyPriceTotal": 1188861255.0,
+        "splitPriceTotal": 1253954799.0,
+        "sellPriceTotal": 1319048343.0000002
+      },
+      "itemType": {
+        "name": "Compressed Zeolites"
+      }
+    }
+  ]
+}

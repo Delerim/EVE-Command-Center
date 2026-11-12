@@ -1,0 +1,48 @@
+<UserControl x:Class="EveCommandCenter.Views.JaniceSimulationView"
+ xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+ xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Foreground="#EAF7F4">
+ <UserControl.Resources>
+  <Style TargetType="TextBox"><Setter Property="Background" Value="#102D31"/><Setter Property="Foreground" Value="#EAF7F4"/><Setter Property="BorderBrush" Value="#315E56"/><Setter Property="Padding" Value="7,5"/><Setter Property="MinHeight" Value="30"/></Style>
+  <Style TargetType="TextBlock"><Setter Property="VerticalAlignment" Value="Center"/></Style>
+  <Style x:Key="Field" TargetType="StackPanel"><Setter Property="Margin" Value="0,0,14,9"/></Style>
+ </UserControl.Resources>
+ <Grid Margin="6">
+  <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+  <StackPanel>
+   <TextBlock Text="JANICE CORP PAYOUT SIMULATOR" FontSize="17" FontWeight="Bold" Foreground="#55D7D2"/>
+   <TextBlock Text="Compare the full appraisal and each ore line. See the normal corp discount and the additional buy/sell spread against 100% Jita prices." TextWrapping="Wrap" Margin="0,5,0,10" Foreground="#8FB2B5"/>
+   <DockPanel Margin="0,0,0,10"><Button DockPanel.Dock="Right" x:Name="LoadButton" Content="LOAD APPRAISAL" Click="Load_Click" Padding="12,5" Margin="10,0,0,0"/><TextBox x:Name="AppraisalUrl" ToolTip="Paste the Janice appraisal link" TextChanged="Url_Changed"/></DockPanel>
+  </StackPanel>
+  <WrapPanel Grid.Row="1">
+   <StackPanel Style="{StaticResource Field}"><TextBlock Text="Corp payout %"/><TextBox x:Name="PayoutPercent" Text="90" Width="100" TextChanged="Inputs_Changed"/></StackPanel>
+   <StackPanel Style="{StaticResource Field}"><TextBlock Text="Corp payout basis"/><ComboBox x:Name="PayoutSide" Width="125" SelectedIndex="0" SelectionChanged="Inputs_Changed"><ComboBoxItem Content="Jita buy"/><ComboBoxItem Content="Jita split"/><ComboBoxItem Content="Jita sell"/></ComboBox></StackPanel>
+   <StackPanel Style="{StaticResource Field}"><TextBlock Text="Compare with 100%"/><ComboBox x:Name="ReferenceSide" Width="125" SelectedIndex="2" SelectionChanged="Inputs_Changed"><ComboBoxItem Content="Jita buy"/><ComboBoxItem Content="Jita split"/><ComboBoxItem Content="Jita sell"/></ComboBox></StackPanel>
+   <StackPanel Style="{StaticResource Field}"><TextBlock Text="Max discount %"/><TextBox x:Name="MaximumDiscount" Text="10" Width="100" TextChanged="Inputs_Changed"/></StackPanel>
+   <StackPanel Style="{StaticResource Field}"><TextBlock Text="Direct sale fees %"/><TextBox x:Name="DirectSaleFees" Text="0" Width="105" TextChanged="Inputs_Changed"/></StackPanel>
+   <StackPanel Style="{StaticResource Field}"><TextBlock Text="Direct hauling / ISK"/><TextBox x:Name="DirectCosts" Text="0" Width="125" TextChanged="Inputs_Changed"/></StackPanel>
+   <StackPanel Style="{StaticResource Field}"><TextBlock Text="Corp route costs / ISK"/><TextBox x:Name="CorpCosts" Text="0" Width="130" TextChanged="Inputs_Changed"/></StackPanel>
+  </WrapPanel>
+  <StackPanel Grid.Row="2" Margin="0,0,0,10">
+   <TextBlock x:Name="SnapshotText" Text="Load an appraisal to simulate. Prices come from its saved snapshot; loading the link does not refresh market prices." Foreground="#8FB2B5" TextWrapping="Wrap"/>
+   <TextBlock x:Name="DecisionText" Text="NO APPRAISAL" FontWeight="Bold" FontSize="16" Foreground="#FFD166" Margin="0,7,0,4" TextWrapping="Wrap"/>
+   <TextBlock x:Name="TotalsText" TextWrapping="Wrap"/>
+  </StackPanel>
+  <TextBlock Grid.Row="3" Margin="0,0,0,8" Foreground="#8FB2B5" FontSize="11" TextWrapping="Wrap"
+   Text="Snapshot estimate: a Jita sell quote is a listing value, not guaranteed proceeds. Fees and hauling reduce the direct-sale alternative; zero excludes them. Every ore line must stay within your discount limit. Costs are shared by reference value. Loading an old appraisal does not refresh prices or verify order depth."/>
+  <DataGrid Grid.Row="4" x:Name="Lines" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" ScrollViewer.HorizontalScrollBarVisibility="Auto" MinHeight="100" RowHeight="30">
+   <DataGrid.Columns>
+    <DataGridTextColumn Header="Ore" Binding="{Binding Name}" Width="210"/>
+    <DataGridTextColumn Header="Comparison" Binding="{Binding Status}" Width="130"><DataGridTextColumn.ElementStyle><Style TargetType="TextBlock"><Setter Property="Foreground" Value="{Binding StatusColor}"/><Setter Property="VerticalAlignment" Value="Center"/></Style></DataGridTextColumn.ElementStyle></DataGridTextColumn>
+    <DataGridTextColumn Header="Corp payout ISK" Binding="{Binding NetPayout, StringFormat=N0}" Width="125"/>
+    <DataGridTextColumn Header="Direct alternative ISK" Binding="{Binding Reference, StringFormat=N0}" Width="145"/>
+    <DataGridTextColumn Header="Gap ISK" Binding="{Binding Difference, StringFormat=N0}" Width="125"><DataGridTextColumn.ElementStyle><Style TargetType="TextBlock"><Setter Property="Foreground" Value="{Binding DifferenceColor}"/><Setter Property="VerticalAlignment" Value="Center"/></Style></DataGridTextColumn.ElementStyle></DataGridTextColumn>
+    <DataGridTextColumn Header="Discount %" Binding="{Binding DiscountPercent, StringFormat=N2}" Width="95"/>
+    <DataGridTextColumn Header="Min corp payout %" Binding="{Binding RequiredPayoutPercent, StringFormat=N3}" Width="130"/>
+    <DataGridTextColumn Header="Units" Binding="{Binding Quantity, StringFormat=N0}" Width="90"/>
+    <DataGridTextColumn Header="100% Jita buy" Binding="{Binding JitaBuy, StringFormat=N0}" Width="125"/>
+    <DataGridTextColumn Header="100% Jita split" Binding="{Binding JitaSplit, StringFormat=N0}" Width="125"/>
+    <DataGridTextColumn Header="100% Jita sell" Binding="{Binding JitaSell, StringFormat=N0}" Width="125"/>
+   </DataGrid.Columns>
+  </DataGrid>
+ </Grid>
+</UserControl>

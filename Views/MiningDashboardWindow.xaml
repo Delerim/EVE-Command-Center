@@ -1,6 +1,7 @@
 <Window x:Class="EveCommandCenter.Views.MiningDashboardWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:EveCommandCenter.Views"
         xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
         Title="EVE Command Center - Mining Command Center"
         Width="1500" Height="830" MinWidth="1120" MinHeight="650"
@@ -772,7 +773,7 @@
                 </StackPanel>
             </Grid>
 
-                        <Grid Grid.Row="1" Margin="0,0,0,13">
+                        <Grid x:Name="MiningControlsPanel" Grid.Row="1" Margin="0,0,0,13">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="0.95*"/>
                     <ColumnDefinition Width="1.35*"/>
@@ -1258,7 +1259,7 @@
                                                Margin="4,1,4,8"
                                                Foreground="#78958E"
                                                FontSize="10.5"
-                                               Text="Historical-position heuristic only. SELL = strong price, HOLD = historically cheap, WAIT = neither extreme."/>
+                                               Text="Historical position only: HIGH / LOW / MID compare quotes with regional history. Open Janice simulation to compare corp payout, 100% Jita values and your acceptable discount."/>
 
                                     <DataGrid Grid.Row="2" x:Name="SellTimingGrid" AlternationCount="2">
                                         <DataGrid.Columns>
@@ -1272,7 +1273,7 @@
                                             <DataGridTextColumn Header="90d high" CellStyle="{StaticResource CenterGridCell}" HeaderStyle="{StaticResource CenterGridHeader}" Binding="{Binding High90Text}" Width="95"/>
                                             <DataGridTextColumn Header="vs 30d" CellStyle="{StaticResource CenterGridCell}" HeaderStyle="{StaticResource CenterGridHeader}" Binding="{Binding Vs30Text}" Width="80"/>
                                             <DataGridTextColumn Header="Trend" CellStyle="{StaticResource CenterGridCell}" HeaderStyle="{StaticResource CenterGridHeader}" Binding="{Binding TrendText}" Width="80"/>
-                                            <DataGridTemplateColumn Header="Advice" Width="75">
+                                            <DataGridTemplateColumn Header="History" Width="75">
                                                 <DataGridTemplateColumn.CellTemplate>
                                                     <DataTemplate>
                                                         <TextBlock Text="{Binding Signal}" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center">
@@ -1280,13 +1281,13 @@
                                                                 <Style TargetType="TextBlock">
                                                                     <Setter Property="Foreground" Value="#78958E"/>
                                                                     <Style.Triggers>
-                                                                        <DataTrigger Binding="{Binding Signal}" Value="SELL">
+                                                                        <DataTrigger Binding="{Binding Signal}" Value="HIGH">
                                                                             <Setter Property="Foreground" Value="#76E39A"/>
                                                                         </DataTrigger>
-                                                                        <DataTrigger Binding="{Binding Signal}" Value="HOLD">
+                                                                        <DataTrigger Binding="{Binding Signal}" Value="LOW">
                                                                             <Setter Property="Foreground" Value="#58D3B4"/>
                                                                         </DataTrigger>
-                                                                        <DataTrigger Binding="{Binding Signal}" Value="WAIT">
+                                                                        <DataTrigger Binding="{Binding Signal}" Value="MID">
                                                                             <Setter Property="Foreground" Value="#E7B85A"/>
                                                                         </DataTrigger>
                                                                     </Style.Triggers>
@@ -1304,6 +1305,8 @@
                         </TabControl>
                     </Grid>
                 </TabItem>
+
+                <TabItem x:Name="JaniceSimulationTab" Header="Janice simulation"><local:JaniceSimulationView x:Name="JaniceSimulator"/></TabItem>
 
                                 <TabItem x:Name="MarketTab" Header="Market / Ore">
                     <Grid>
@@ -1335,7 +1338,7 @@
                                    Margin="4,1,4,8"
                                    Foreground="#78958E"
                                    FontSize="10.5"
-                                   Text="Live Jita 4-4 / Amarr station orders. Historical timing uses ESI regional history (The Forge / Domain)."/>
+                                   Text="Live Jita 4-4 / Amarr station quotes. History is regional price position, not a sell recommendation. Use Janice simulation for volume totals and the corp payout discount."/>
 
                         <DataGrid Grid.Row="2" x:Name="MarketGrid" AlternationCount="2">
                             <DataGrid.Columns>
@@ -1348,7 +1351,7 @@
                                 <DataGridTextColumn Header="Best sell" CellStyle="{StaticResource CenterGridCell}" HeaderStyle="{StaticResource CenterGridHeader}" Binding="{Binding BestSellText}" Width="100"/>
                                 <DataGridTextColumn Header="Best market" Binding="{Binding BestMarket}" Width="90"/>
                                 <DataGridTextColumn Header="30d avg" CellStyle="{StaticResource CenterGridCell}" HeaderStyle="{StaticResource CenterGridHeader}" Binding="{Binding Average30Text}" Width="95"/>
-                                <DataGridTemplateColumn Header="Advice" Width="75">
+                                <DataGridTemplateColumn Header="History" Width="75">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
                                             <TextBlock Text="{Binding Signal}" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center">
@@ -1356,13 +1359,13 @@
                                                     <Style TargetType="TextBlock">
                                                         <Setter Property="Foreground" Value="#78958E"/>
                                                         <Style.Triggers>
-                                                            <DataTrigger Binding="{Binding Signal}" Value="SELL">
+                                                            <DataTrigger Binding="{Binding Signal}" Value="HIGH">
                                                                 <Setter Property="Foreground" Value="#76E39A"/>
                                                             </DataTrigger>
-                                                            <DataTrigger Binding="{Binding Signal}" Value="HOLD">
+                                                            <DataTrigger Binding="{Binding Signal}" Value="LOW">
                                                                 <Setter Property="Foreground" Value="#58D3B4"/>
                                                             </DataTrigger>
-                                                            <DataTrigger Binding="{Binding Signal}" Value="WAIT">
+                                                            <DataTrigger Binding="{Binding Signal}" Value="MID">
                                                                 <Setter Property="Foreground" Value="#E7B85A"/>
                                                             </DataTrigger>
                                                         </Style.Triggers>
@@ -1449,7 +1452,7 @@
                                 <DataGridTextColumn Header="30d avg" CellStyle="{StaticResource CenterGridCell}" HeaderStyle="{StaticResource CenterGridHeader}" Binding="{Binding Average30Text}" Width="95"/>
                                 <DataGridTextColumn Header="30d m3/day" CellStyle="{StaticResource CenterGridCell}" HeaderStyle="{StaticResource CenterGridHeader}" Binding="{Binding AvgDailyM3Text}" Width="105"/>
                                 <DataGridTextColumn Header="Your load/day" CellStyle="{StaticResource CenterGridCell}" HeaderStyle="{StaticResource CenterGridHeader}" Binding="{Binding MarketLoadText}" Width="95"/>
-                                <DataGridTemplateColumn Header="Advice" Width="75">
+                                <DataGridTemplateColumn Header="History" Width="75">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
                                             <TextBlock Text="{Binding Advice}" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center">
@@ -1457,13 +1460,13 @@
                                                     <Style TargetType="TextBlock">
                                                         <Setter Property="Foreground" Value="#78958E"/>
                                                         <Style.Triggers>
-                                                            <DataTrigger Binding="{Binding Advice}" Value="SELL">
+                                                            <DataTrigger Binding="{Binding Advice}" Value="HIGH">
                                                                 <Setter Property="Foreground" Value="#76E39A"/>
                                                             </DataTrigger>
-                                                            <DataTrigger Binding="{Binding Advice}" Value="HOLD">
+                                                            <DataTrigger Binding="{Binding Advice}" Value="LOW">
                                                                 <Setter Property="Foreground" Value="#58D3B4"/>
                                                             </DataTrigger>
-                                                            <DataTrigger Binding="{Binding Advice}" Value="WAIT">
+                                                            <DataTrigger Binding="{Binding Advice}" Value="MID">
                                                                 <Setter Property="Foreground" Value="#E7B85A"/>
                                                             </DataTrigger>
                                                         </Style.Triggers>
