@@ -31,12 +31,6 @@ public class EveOConfigRoot
     [JsonPropertyName("EnablePerClientThumbnailLayouts")]
     public bool EnablePerClientThumbnailLayouts { get; set; } = false;
 
-    [JsonPropertyName("ThumbnailSize")]
-    public string? ThumbnailSize { get; set; }
-
-    [JsonPropertyName("ThumbnailMinimumSize")]
-    public string? ThumbnailMinimumSize { get; set; }
-
     [JsonPropertyName("EnableThumbnailSnap")]
     public bool EnableThumbnailSnap { get; set; } = true;
 
@@ -95,12 +89,6 @@ public class EveOConfigRoot
         var s = new AppSettings();
         s.SetupCompleted = true; // Automatically bypass the First-Run Wizard for migrated EVE-O users
 
-        // Safe parsing for "Width, Height" or "X, Y" WinForms string serializations
-        var thumbSize = ParseSize(ThumbnailSize, 384, 216);
-        var minSize = ParseSize(ThumbnailMinimumSize, 192, 108);
-
-        s.ThumbnailStartLocation = new ThumbnailRect { X = 20, Y = 20, Width = thumbSize.W, Height = thumbSize.H };
-        s.ThumbnailMinimumSize = new ThumbnailSize { Width = minSize.W, Height = minSize.H };
         s.ThumbnailSnap = EnableThumbnailSnap;
         s.HideActiveThumbnail = HideActiveClientThumbnail;
 
@@ -132,8 +120,8 @@ public class EveOConfigRoot
                     { 
                         X = pt.X, 
                         Y = pt.Y, 
-                        Width = thumbSize.W, 
-                        Height = thumbSize.H 
+                        Width = 280,
+                        Height = 180
                     };
                 }
             }
@@ -186,15 +174,6 @@ public class EveOConfigRoot
         s.LastUsedProfile = "Default";
 
         return s;
-    }
-
-    private static (int W, int H) ParseSize(string? val, int defW, int defH)
-    {
-        if (string.IsNullOrWhiteSpace(val)) return (defW, defH);
-        var parts = val.Split(new[] { ',', ' ' }, StringSplitOptions.RemoveEmptyEntries);
-        if (parts.Length >= 2 && int.TryParse(parts[0], out int w) && int.TryParse(parts[1], out int h))
-            return (w, h);
-        return (defW, defH);
     }
 
     private static (int X, int Y) ParsePoint(string? val)

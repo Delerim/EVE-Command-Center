@@ -13,8 +13,6 @@ namespace EveCommandCenter.Models;
 public class AppSettings
 {
     // ── Layout ──────────────────────────────────────────────────────
-    public ThumbnailRect ThumbnailStartLocation { get; set; } = new() { X = 20, Y = 20, Width = 280, Height = 180 };
-    public ThumbnailSize ThumbnailMinimumSize { get; set; } = new() { Width = 50, Height = 50 };
     public bool ThumbnailSnap { get; set; } = true;
     public int ThumbnailSnapDistance { get; set; } = 20;
     // Edge-snap gutter: uniform gap (px) used when snapping a thumbnail adjacent to
@@ -62,7 +60,6 @@ public class AppSettings
     // Optional global layout undo/redo hotkeys (empty = unbound; pick non-EVE keys).
     public string UndoLayoutHotkey { get; set; } = "";
     public string RedoLayoutHotkey { get; set; } = "";
-    public bool HideStatsOnLostFocus { get; set; } = false;
     public bool IncludeLoginScreensInCycle { get; set; } = false;
     public bool ShowSessionTimer { get; set; } = false;
     public bool ShowSystemName { get; set; } = true;
@@ -115,18 +112,6 @@ public class AppSettings
     /// character-name / system-name overlays. Issue #41.</summary>
     public string CycleExclusionBadgePosition { get; set; } = "TopLeft";
 
-    /// <summary>Render every thumbnail from a periodic PrintWindow snapshot
-    /// (~1s refresh) instead of the live DWM-composited preview. Trades smooth
-    /// motion for a large GPU compositor saving — strongest win when running
-    /// many clients. Default off.</summary>
-    public bool StaticThumbnails { get; set; } = false;
-
-    /// <summary>Freeze every thumbnail to its last frame when neither EVE nor
-    /// Command Center is the foreground process; resume live DWM composition
-    /// the moment EVE / the app comes back. Invisible during active play,
-    /// stops the GPU compositing thumbnails for windows you can't see while
-    /// you're working in another app. Default off.</summary>
-    public bool SuspendThumbnailsWhenBackground { get; set; } = false;
 
     /// <summary>Per-event opt-out for the thumbnail badge. Missing key = badge
     /// fires for that event (default-on). Lets the user keep the global
@@ -194,16 +179,10 @@ public class AppSettings
     public string ChatLogDirectory { get; set; } = "";
     public string GameLogDirectory { get; set; } = "";
 
-    // ── Stat Overlay ────────────────────────────────────────────────
-    public int StatOverlayFontSize { get; set; } = 8;
-    public int StatOverlayOpacity { get; set; } = 200;
-    public string StatOverlayBgColor { get; set; } = "#1a1a2e";
-    public string StatOverlayTextColor { get; set; } = "#00FF88";
     public bool StatLoggingEnabled { get; set; } = false;
     public string StatLogDirectory { get; set; } = "";
     public int StatLogRetentionDays { get; set; } = 30;
     public Dictionary<string, CharacterStatSettings> PerCharacterStats { get; set; } = new();
-    public Dictionary<string, ThumbnailRect> StatWindowPositions { get; set; } = new();
 
     // ── Mining Dashboard / Market Valuation ────────────────────────
     // Public ESI only; no EVE character authentication is required.
@@ -273,14 +252,6 @@ public class AppSettings
     // ── Thumbnail Groups (global) ───────────────────────────────────
     public List<ThumbnailGroup> ThumbnailGroups { get; set; } = new();
 
-    // ── Thumbnail Annotations ───────────────────────────────────────
-    // Per-character custom label text (e.g. "Scout", "DPS", "Logi").
-    public Dictionary<string, string> ThumbnailAnnotations { get; set; } = new();
-
-    // Per-character overrides for label color + size (2.0.6). Keys match
-    // ThumbnailAnnotations; missing entries fall back to the global thumbnail
-    // text color / size. Empty Color or Size==0 means "use default".
-    public Dictionary<string, ThumbnailLabelStyle> ThumbnailLabelStyles { get; set; } = new();
 
     // ── EVE Manager ─────────────────────────────────────────────────
     public bool EveManagerUseESI { get; set; } = true;
@@ -368,8 +339,6 @@ public class AppSettings
     // Per-profile Thumbnail Visibility proxy
     [JsonIgnore] public Dictionary<string, int> ThumbnailVisibility { get => _cp.ThumbnailVisibility; set => _cp.ThumbnailVisibility = value; }
 
-    // Per-profile secondary thumbnails proxy
-    [JsonIgnore] public Dictionary<string, SecondaryThumbnailSettings> SecondaryThumbnails { get => _cp.SecondaryThumbnails; set => _cp.SecondaryThumbnails = value; }
 
     // Per-profile performance settings proxies
     [JsonIgnore] public bool ManageAffinity { get => _cp.ManageAffinity; set => _cp.ManageAffinity = value; }
@@ -387,8 +356,6 @@ public class AppSettings
     // Backwards-compat: SettingsWindowSize as an object (for code that uses SettingsWindowSize.Width/Height)
     [JsonIgnore] public WindowSize SettingsWindowSize => new() { Width = SettingsWindowWidth, Height = SettingsWindowHeight };
 
-    // Properties that were removed but may still be referenced — keep as simple props
-    public bool ResizeThumbnailsOnHover { get; set; } = false;
     public double HoverScale { get; set; } = 1.5;
     public int NotLoggedInDim { get; set; } = 80;
     public string AlertFlashColor { get; set; } = "0xff0000";
@@ -478,15 +445,6 @@ public class ThumbnailRect
     public double Height { get; set; }
 }
 
-public class ThumbnailSize
-{
-    [JsonPropertyName("width")]
-    public double Width { get; set; }
-
-    [JsonPropertyName("height")]
-    public double Height { get; set; }
-}
-
 public class ThumbnailMargins
 {
     [JsonPropertyName("x")]
@@ -513,30 +471,6 @@ public class CustomColorEntry
     public string InactiveBorder { get; set; } = "FFFFFF";
 }
 
-public class SecondaryThumbnailSettings
-{
-    [JsonPropertyName("enabled")]
-    public int Enabled { get; set; } = 1;
-
-    [JsonIgnore]
-    public bool IsEnabled { get => Enabled != 0; set => Enabled = value ? 1 : 0; }
-
-    [JsonPropertyName("opacity")]
-    public int Opacity { get; set; } = 180;
-
-    [JsonPropertyName("x")]
-    public int X { get; set; }
-
-    [JsonPropertyName("y")]
-    public int Y { get; set; }
-
-    [JsonPropertyName("width")]
-    public int Width { get; set; } = 200;
-
-    [JsonPropertyName("height")]
-    public int Height { get; set; } = 120;
-}
-
 /// <summary>
 /// A named profile containing per-character positions, per-profile settings, and hotkey bindings.
 /// In AHK JSON, these are under _Profiles.{name} with nested sub-objects.
@@ -549,7 +483,6 @@ public class Profile
     public Dictionary<string, ClientPosition> ClientPositions { get; set; } = new();
     public Dictionary<string, HotkeyBinding> Hotkeys { get; set; } = new();
     public Dictionary<string, HotkeyGroup> HotkeyGroups { get; set; } = new();
-    public Dictionary<string, SecondaryThumbnailSettings> SecondaryThumbnails { get; set; } = new();
     public Dictionary<string, ThumbnailGroup> Groups { get; set; } = new();
     public Dictionary<string, int> ThumbnailVisibility { get; set; } = new();
     public List<string> DontMinimizeClients { get; set; } = new();
@@ -719,19 +652,6 @@ public class ThumbnailGroup
     public List<string> Members { get; set; } = new();
 }
 
-/// <summary>
-/// Per-character override for thumbnail annotation text style. Color uses the
-/// usual hex format ("#RRGGBB" or "0xRRGGBB"); empty string means "use default
-/// thumbnail text color". Size is the label's point size; 0 means "use default".
-/// </summary>
-public class ThumbnailLabelStyle
-{
-    [JsonPropertyName("color")]
-    public string Color { get; set; } = "";
-
-    [JsonPropertyName("size")]
-    public int Size { get; set; } = 0;
-}
 
 public class HotkeyGroup
 {

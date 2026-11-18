@@ -26,6 +26,7 @@ internal static class MiningStatusRings
     private sealed class Track
     {
         internal DateTime Last;
+        internal DateTime LastActivity;
         internal DateTime UncertainUntil;
         internal string Ore = "";
         internal double Yield;
@@ -95,6 +96,37 @@ internal static class MiningStatusRings
         }
         return result;
     }
+
+    // When a resource has one inferred lane, its recent full pulls directly
+    // demonstrate the recurrence. Replaying a rolling window can otherwise seed
+    // a short first interval and keep dividing real cycles by two or three.
+    // Never apply this to two same-resource lanes: their combined gaps aren't
+    // either module's cycle.
+    private static void RefreshResourceCadences(List<Track> tracks, Pull[] observations)
+    {
+        foreach (var group in tracks.GroupBy(t => t.Ore, StringComparer.OrdinalIgnoreCase))
+        {
+            if (group.Count() != 1) continue;
+            var track = group.Single();
+            var recent = observations.Where(p => !p.Critical &&
+                string.Equals(p.Ore, track.Ore, StringComparison.OrdinalIgnoreCase)).TakeLast(7).ToArray();
+            if (recent.Length < 4) continue;
+            double yield = recent.Select(p => p.Units).Order().ElementAt(recent.Length / 2);
+            var full = recent.Where(p => Math.Abs(p.Units - yield) <= Math.Max(1.5, yield * .2)).ToArray();
+            if (full.Length < 4) continue;
+            var gaps = full.Zip(full.Skip(1), (a,b) => (b.Utc - a.Utc).TotalSeconds).ToArray();
+            double cycle = gaps.Order().ElementAt(gaps.Length / 2);
+            if (cycle < 6 || gaps.Any(g => Math.Abs(g - cycle) > Math.Max(3, cycle * .2))) continue;
+            track.Gaps = gaps.TakeLast(4).ToList();
+            track.SeedCycle = cycle;
+            track.Last = full[^1].Utc;
+            track.Yield = yield;
+            track.UncertainUntil = default;
+            double tailGap = (recent[^1].Utc - track.Last).TotalSeconds;
+            if (tailGap >= cycle * .65 && tailGap <= cycle * 1.6)
+                track.LastActivity = recent[^1].Utc;
+        }
+    }
     internal static IReadOnlyList<Row> Build(int fitted, bool droneMining, bool muted, IEnumerable<Pull> source, DateTime now)
     {
         if (droneMining || fitted <= 0) return Array.Empty<Row>();
@@ -118,8 +150,20 @@ internal static class MiningStatusRings
             {
                 if (!string.Equals(track.Ore, pull.Ore, StringComparison.OrdinalIgnoreCase)) continue;
                 double gap = (pull.Utc - track.Last).TotalSeconds;
-                if (gap < Math.Max(6, track.Cycle * .65)) continue;
                 double error = Math.Abs(pull.Units - track.Yield), tolerance = Math.Max(1.5, track.Yield * .012);
+                bool uniqueResource = tracks.Count == fitted && tracks.Count(t =>
+                    string.Equals(t.Ore, pull.Ore, StringComparison.OrdinalIgnoreCase)) == 1;
+                // An observed short pull still completed a cycle. Preserve the
+                // full-yield cadence, but don't claim it has already stopped.
+                if (!pull.Critical && uniqueResource && track.Ready && gap >= track.Cycle * .65 &&
+                    gap <= track.Cycle * 1.6 && pull.Units < track.Yield * .8)
+                    track.LastActivity = pull.Utc;
+                if (gap < Math.Max(6, track.Cycle * .65)) continue;
+                if (!pull.Critical && uniqueResource && track.Ready && error <= tolerance)
+                {
+                    candidates.Add((track, error / tolerance, gap, gap <= track.Cycle * 1.6 ? 1 : 4));
+                    continue;
+                }
                 int cycles = track.Cycle > 0 ? Math.Max(1, (int)Math.Round(gap / track.Cycle)) : 1;
                 double deviation = track.Cycle > 0 ? Math.Abs(gap - cycles * track.Cycle) : 0;
                 if (pull.Critical)
@@ -196,13 +240,14 @@ internal static class MiningStatusRings
                 }
             }
         }
+        RefreshResourceCadences(tracks, observations);
         // Keep A/B ordered by learned yield when the rolling input window advances.
         tracks = tracks.OrderBy(t => t.Yield).ToList();
         return Enumerable.Range(0, fitted).Select(i =>
         {
             var track = i < tracks.Count ? tracks[i] : null;
             bool ready = track?.Ready == true && now >= track.UncertainUntil;
-            double elapsed = track == null ? 0 : Math.Max(0, (now - track.Last).TotalSeconds);
+            double elapsed = track == null ? 0 : Math.Max(0, (now - (track.LastActivity > track.Last ? track.LastActivity : track.Last)).TotalSeconds);
             bool stopped = ready && elapsed > track!.Cycle + 8;
             string label = ((char)('A' + i)).ToString();
             return new Row(label, !ready ? "Learning" : stopped ? "Stopped" : $"~{Math.Max(0, track!.Cycle - elapsed):0}s",

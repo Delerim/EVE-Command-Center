@@ -29,7 +29,6 @@
             <Ellipse x:Name="Dot2" Width="12" Height="12" Fill="#444444" Margin="4,0"/>
             <Ellipse x:Name="Dot3" Width="12" Height="12" Fill="#444444" Margin="4,0"/>
             <Ellipse x:Name="Dot4" Width="12" Height="12" Fill="#444444" Margin="4,0"/>
-            <Ellipse x:Name="Dot5" Width="12" Height="12" Fill="#444444" Margin="4,0"/>
         </StackPanel>
 
         <!-- ═══ Content Pages ═══ -->
@@ -45,55 +44,11 @@
                     <TextBlock Text="{DynamicResource L.Wiz.Feat1}" Foreground="{StaticResource TextPrimary}" Margin="0,4"/>
                     <TextBlock Text="{DynamicResource L.Wiz.Feat2}" Foreground="{StaticResource TextPrimary}" Margin="0,4"/>
                     <TextBlock Text="{DynamicResource L.Wiz.Feat3}" Foreground="{StaticResource TextPrimary}" Margin="0,4"/>
-                    <TextBlock Text="{DynamicResource L.Wiz.Feat4}" Foreground="{StaticResource TextPrimary}" Margin="0,4"/>
                     <TextBlock Text="{DynamicResource L.Wiz.Feat5}" Foreground="{StaticResource TextPrimary}" Margin="0,4"/>
-                    <TextBlock Text="{DynamicResource L.Wiz.Feat6}" Foreground="{StaticResource TextPrimary}" Margin="0,4"/>
                 </StackPanel>
                 <TextBlock Text="{DynamicResource L.Wiz.WelcomeFooter}"
                            Foreground="{StaticResource TextSecondary}" HorizontalAlignment="Center" Margin="0,24,0,0"
                            FontStyle="Italic"/>
-            </StackPanel>
-
-            <!-- Step 2: Thumbnail Size -->
-            <StackPanel x:Name="Step2" Visibility="Collapsed">
-                <TextBlock Text="{DynamicResource L.Wiz.SizeTitle}" FontSize="18" FontWeight="Bold"
-                           Foreground="{StaticResource AccentBrush}" HorizontalAlignment="Center" Margin="0,20,0,16"/>
-                <TextBlock Text="{DynamicResource L.Wiz.SizeSub}"
-                           Foreground="{StaticResource TextSecondary}" HorizontalAlignment="Center" Margin="0,0,0,20"/>
-                <UniformGrid Columns="3" Margin="0,8">
-                    <Border x:Name="CardDual" Background="{StaticResource CardBg}" CornerRadius="8" Margin="6"
-                            Padding="12" Cursor="Hand" MouseLeftButtonDown="OnSizeCard" Tag="300,200">
-                        <StackPanel HorizontalAlignment="Center">
-                            <TextBlock Text="🖥🖥" FontSize="24" HorizontalAlignment="Center"/>
-                            <TextBlock Text="{DynamicResource L.Wiz.SizeDual}" FontWeight="SemiBold" Foreground="{StaticResource TextPrimary}"
-                                       HorizontalAlignment="Center" Margin="0,6,0,2"/>
-                            <TextBlock Text="300 × 200" Foreground="{StaticResource TextSecondary}" FontSize="11"
-                                       HorizontalAlignment="Center"/>
-                        </StackPanel>
-                    </Border>
-                    <Border x:Name="CardMulti" Background="{StaticResource CardBg}" CornerRadius="8" Margin="6"
-                            Padding="12" Cursor="Hand" MouseLeftButtonDown="OnSizeCard" Tag="200,150">
-                        <StackPanel HorizontalAlignment="Center">
-                            <TextBlock Text="🖥🖥🖥" FontSize="24" HorizontalAlignment="Center"/>
-                            <TextBlock Text="{DynamicResource L.Wiz.SizeMulti}" FontWeight="SemiBold" Foreground="{StaticResource TextPrimary}"
-                                       HorizontalAlignment="Center" Margin="0,6,0,2"/>
-                            <TextBlock Text="200 × 150" Foreground="{StaticResource TextSecondary}" FontSize="11"
-                                       HorizontalAlignment="Center"/>
-                        </StackPanel>
-                    </Border>
-                    <Border x:Name="CardFleet" Background="{StaticResource CardBg}" CornerRadius="8" Margin="6"
-                            Padding="12" Cursor="Hand" MouseLeftButtonDown="OnSizeCard" Tag="150,100">
-                        <StackPanel HorizontalAlignment="Center">
-                            <TextBlock Text="⚓" FontSize="24" HorizontalAlignment="Center"/>
-                            <TextBlock Text="{DynamicResource L.Wiz.SizeFleet}" FontWeight="SemiBold" Foreground="{StaticResource TextPrimary}"
-                                       HorizontalAlignment="Center" Margin="0,6,0,2"/>
-                            <TextBlock Text="150 × 100" Foreground="{StaticResource TextSecondary}" FontSize="11"
-                                       HorizontalAlignment="Center"/>
-                        </StackPanel>
-                    </Border>
-                </UniformGrid>
-                <TextBlock x:Name="TxtSelectedSize" Text="" Foreground="{StaticResource AccentBrush}"
-                           HorizontalAlignment="Center" Margin="0,12,0,0" FontWeight="SemiBold"/>
             </StackPanel>
 
             <!-- Step 3: Hotkeys -->

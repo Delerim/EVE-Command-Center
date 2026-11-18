@@ -1,3 +1,10 @@
+# EVE Command Center v3.8.13
+
+- **Mining stream timing.** Recent full pulls establish the actual recurrence of independently identified resources, preventing short startup intervals from locking a continuing stream to a half or third cycle. Delayed pulls re-anchor their resource immediately. Short partial pulls record activity without replacing the full-yield cycle. Same-resource lanes retain independent stop detection and ambiguous observations remain neutral.
+- **Persistent control bar.** Restore an unexpectedly hidden or minimized control bar while the overview is open, keep it on a connected monitor, and repair its native topmost order after client switching and during EVE play. Recovery does not activate the bar or steal keyboard focus. Explicit hide and close actions remain respected.
+- **Legacy preview cleanup.** Remove unused PiP configuration, floating-stat appearance and position settings, obsolete thumbnail annotations and capture switches, old compact-deck options, unused standalone layout methods, and the redundant first-run thumbnail-size step. Old JSON still loads; active hotkeys, audio, client data and overview positions survive migration.
+- **Validation.** Includes continuous drift, harmonic cadence, delayed/partial pull and genuine-stop replays; native control-bar recovery checks; and legacy-settings migration coverage.
+
 # EVE Command Center v3.8.12
 
 - **Balanced SELL / ASSESS / DON'T SELL advice.** Default SELL accepts a corp payout within 15% of the comparison value, ASSESS covers the middle ground, and DON'T SELL begins at 20%. Both thresholds are adjustable. Basket advice follows its overall gap; one weaker ore line no longer vetoes the whole batch. Individual lines retain separate advice.

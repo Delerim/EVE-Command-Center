@@ -28,6 +28,22 @@ internal static partial class Program
     [STAThread]
     private static void Main(string[] args)
     {
+        if (args.FirstOrDefault() == "--audit-legacy-cleanup")
+        {
+            var cleanupApp = new System.Windows.Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
+            CheckRetiredPreviewSettings(args.Length > 1 ? args[1] : null);
+            return;
+        }
+        if (args.FirstOrDefault() == "--replay-mining-streams")
+        {
+            ReplayMiningStreams(args[1], args.Length > 2 ? args[2] : "*.txt");
+            return;
+        }
+        if (args.FirstOrDefault() == "--check-mining-streams")
+        {
+            CheckMiningStreamCadences();
+            return;
+        }
         if (args.FirstOrDefault() == "--audit-ore-market-live")
         {
             using var source = new OreStashSource(new EveSsoService());
@@ -175,6 +191,7 @@ internal static partial class Program
             Check(tile is Window strip && strip.IsVisible && overview.IsVisible &&
                   strip.Title == "EVE Command Center Control",
                 "Overview opens a dedicated persistent control strip beside its preview wall");
+            CheckControlStripRecovery(overview, (Window)tile!);
             Check(MiningFleetOverviewWindow.IsControlStripDragGesture(
                       System.Windows.Input.ModifierKeys.Alt,
                       System.Windows.Input.MouseButtonState.Pressed) &&
@@ -458,6 +475,7 @@ internal static partial class Program
         CheckPendingContractIndicator();
         CheckMiningRates();
         CheckMiningHolds();
+        CheckMiningStreamCadences();
         CheckMiningDailyActivityAccumulator();
         CheckMiningResidue();
         CheckLogMonitorSessionPruning();
@@ -560,6 +578,7 @@ internal static partial class Program
             "Command Center defaults to keeping both windows open");
         CheckEmbeddedLifecycle();
         CheckCombinedPreviewSettingsLifecycle();
+        CheckRetiredPreviewSettings();
         var landing = new CommandCenterWindow(live: false);
         Check(
             landing.FindName("LaunchOverviewButton") != null &&

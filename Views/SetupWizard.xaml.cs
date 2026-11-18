@@ -15,15 +15,14 @@ using Button = System.Windows.Controls.Button;
 namespace EveCommandCenter.Views;
 
 /// <summary>
-/// 5-step first-run setup wizard (AHK: SetupWizard.ahk).
-/// Steps: Welcome → Size Picker → Hotkeys → Char Select → Summary.
+/// First-run setup for the combined overview.
+/// Steps: Welcome, Hotkeys, Character Select, Summary.
 /// Sets SetupCompleted=true on finish.
 /// </summary>
 public partial class SetupWizard : Window
 {
     private readonly SettingsService _svc;
     private int _currentStep = 1;
-    private int _selectedWidth, _selectedHeight;
 
     // Dark title bar
     [DllImport("dwmapi.dll", PreserveSig = true)]
@@ -32,8 +31,6 @@ public partial class SetupWizard : Window
     public SetupWizard(SettingsService svc)
     {
         _svc = svc;
-        _selectedWidth = (int)_svc.Settings.ThumbnailStartLocation.Width;
-        _selectedHeight = (int)_svc.Settings.ThumbnailStartLocation.Height;
         InitializeComponent();
         Loaded += (_, _) =>
         {
@@ -49,13 +46,12 @@ public partial class SetupWizard : Window
         _currentStep = step;
 
         Step1.Visibility = step == 1 ? Visibility.Visible : Visibility.Collapsed;
-        Step2.Visibility = step == 2 ? Visibility.Visible : Visibility.Collapsed;
-        Step3.Visibility = step == 3 ? Visibility.Visible : Visibility.Collapsed;
-        Step4.Visibility = step == 4 ? Visibility.Visible : Visibility.Collapsed;
-        Step5.Visibility = step == 5 ? Visibility.Visible : Visibility.Collapsed;
+        Step3.Visibility = step == 2 ? Visibility.Visible : Visibility.Collapsed;
+        Step4.Visibility = step == 3 ? Visibility.Visible : Visibility.Collapsed;
+        Step5.Visibility = step == 4 ? Visibility.Visible : Visibility.Collapsed;
 
         // Update progress dots
-        var dots = new[] { Dot1, Dot2, Dot3, Dot4, Dot5 };
+        var dots = new[] { Dot1, Dot2, Dot3, Dot4 };
         var accent = (SolidColorBrush)FindResource("AccentBrush");
         for (int i = 0; i < dots.Length; i++)
         {
@@ -64,20 +60,20 @@ public partial class SetupWizard : Window
                 : new SolidColorBrush(Color.FromRgb(68, 68, 68));
         }
 
-        if (step == 5) BuildSummary();
+        if (step == 4) BuildSummary();
         UpdateNavigation();
     }
 
     private void UpdateNavigation()
     {
         BtnBack.Visibility = _currentStep > 1 ? Visibility.Visible : Visibility.Collapsed;
-        BtnSkip.Visibility = _currentStep < 5 ? Visibility.Visible : Visibility.Collapsed;
-        BtnNext.Content = _currentStep == 5 ? "Done" : "Next >";
+        BtnSkip.Visibility = _currentStep < 4 ? Visibility.Visible : Visibility.Collapsed;
+        BtnNext.Content = _currentStep == 4 ? "Done" : "Next >";
     }
 
     private void OnNext(object sender, RoutedEventArgs e)
     {
-        if (_currentStep == 5)
+        if (_currentStep == 4)
         {
             ApplyWizardSettings();
             Close();
@@ -94,29 +90,6 @@ public partial class SetupWizard : Window
     private void OnSkip(object sender, RoutedEventArgs e)
     {
         ShowStep(_currentStep + 1);
-    }
-
-    // ── Size Card Selection ──
-
-    private void OnSizeCard(object sender, System.Windows.Input.MouseButtonEventArgs e)
-    {
-        if (sender is not Border card || card.Tag is not string sizeStr) return;
-        var parts = sizeStr.Split(',');
-        if (parts.Length != 2) return;
-
-        _selectedWidth = int.Parse(parts[0]);
-        _selectedHeight = int.Parse(parts[1]);
-
-        // Highlight selected card
-        var accent = (SolidColorBrush)FindResource("AccentBrush");
-        var normal = (SolidColorBrush)FindResource("CardBg");
-        CardDual.Background = normal;
-        CardMulti.Background = normal;
-        CardFleet.Background = normal;
-        card.Background = accent;
-
-        TxtSelectedSize.Text = $"Selected: {_selectedWidth} × {_selectedHeight}";
-        Debug.WriteLine($"[SetupWizard] 📐 Size selected: {_selectedWidth}x{_selectedHeight}");
     }
 
     // ── Hotkey Capture ──
@@ -183,7 +156,7 @@ public partial class SetupWizard : Window
 
     private void BuildSummary()
     {
-        string summary = $"📐 Thumbnail size: {_selectedWidth} × {_selectedHeight}\n\n";
+        string summary = "";
 
         if (!string.IsNullOrWhiteSpace(TxtWizChar1.Text) && !string.IsNullOrWhiteSpace(TxtWizKey1.Text))
             summary += $"⌨ {TxtWizChar1.Text} → {TxtWizKey1.Text}\n";
@@ -205,15 +178,6 @@ public partial class SetupWizard : Window
     {
         var s = _svc.Settings;
         var p = _svc.CurrentProfile;
-
-        // Size
-        s.ThumbnailStartLocation = new ThumbnailRect
-        {
-            X = s.ThumbnailStartLocation.X,
-            Y = s.ThumbnailStartLocation.Y,
-            Width = _selectedWidth,
-            Height = _selectedHeight
-        };
 
         // Hotkeys
         void AddHotkey(string? charName, string? key)

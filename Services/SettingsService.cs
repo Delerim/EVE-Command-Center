@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
@@ -202,51 +202,6 @@ public sealed class SettingsService : IDisposable
         _debounceSaveTimer = new System.Timers.Timer(200) { AutoReset = false };
         _debounceSaveTimer.Elapsed += (_, _) => Save();
         _debounceSaveTimer.Start();
-    }
-
-    // ── Thumbnail Positions ─────────────────────────────────────────
-
-    public void SaveThumbnailPosition(string characterName, int x, int y, int width, int height)
-    {
-        CurrentProfile.ThumbnailPositions[characterName] = new ThumbnailRect
-        {
-            X = x, Y = y, Width = width, Height = height
-        };
-        SaveDelayed();
-    }
-
-    public ThumbnailRect? GetThumbnailPosition(string characterName)
-    {
-        return CurrentProfile.ThumbnailPositions.GetValueOrDefault(characterName);
-    }
-
-    /// <summary>Drop all saved per-character thumbnail positions for the current
-    /// profile so the next layout falls back to the default flow-layout. Caller
-    /// re-lays out the live thumbnails and persists.</summary>
-    public void ClearThumbnailPositions()
-    {
-        CurrentProfile.ThumbnailPositions.Clear();
-    }
-
-    /// <summary>Deep copy of the current profile's saved thumbnail positions — for
-    /// the layout undo/redo stack.</summary>
-    public Dictionary<string, ThumbnailRect> GetThumbnailPositionsSnapshot()
-    {
-        var copy = new Dictionary<string, ThumbnailRect>();
-        foreach (var (k, v) in CurrentProfile.ThumbnailPositions)
-            copy[k] = new ThumbnailRect { X = v.X, Y = v.Y, Width = v.Width, Height = v.Height };
-        return copy;
-    }
-
-    /// <summary>Replace the current profile's saved thumbnail positions with a
-    /// snapshot (layout undo/redo) and persist.</summary>
-    public void RestoreThumbnailPositions(Dictionary<string, ThumbnailRect> snapshot)
-    {
-        var dict = CurrentProfile.ThumbnailPositions;
-        dict.Clear();
-        foreach (var (k, v) in snapshot)
-            dict[k] = new ThumbnailRect { X = v.X, Y = v.Y, Width = v.Width, Height = v.Height };
-        Save();
     }
 
     // ── Profile Management ──────────────────────────────────────────

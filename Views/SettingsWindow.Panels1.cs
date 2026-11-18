@@ -206,7 +206,6 @@ public partial class SettingsWindow
             foreach (var k in profile.Hotkeys.Keys) chars.Add(k);
         }
         foreach (var kv in S.CustomColors) chars.Add(kv.Key);
-        foreach (var kv in S.SecondaryThumbnails) chars.Add(kv.Key);
         return chars.OrderBy(c => c).ToList();
     }
 

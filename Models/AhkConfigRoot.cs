@@ -1,4 +1,4 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace EveCommandCenter.Models;
@@ -30,8 +30,6 @@ public class AhkConfigRoot
         var g = GlobalSettings;
 
         // ── Global Settings ─────────────────────────────────────────
-        s.ThumbnailStartLocation = g.ThumbnailStartLocation ?? new ThumbnailRect { X = 20, Y = 20, Width = 280, Height = 180 };
-        s.ThumbnailMinimumSize = g.ThumbnailMinimumSize ?? new ThumbnailSize { Width = 100, Height = 60 };
         s.ThumbnailSnap = g.ThumbnailSnap != 0;
         s.ThumbnailSnapDistance = g.ThumbnailSnapDistance;
         s.ThumbnailGutter = g.ThumbnailGutter;
@@ -52,7 +50,6 @@ public class AhkConfigRoot
         s.GlobalCycleBackwardHotkey = g.GlobalCycleBackwardHotkey ?? "";
         s.UndoLayoutHotkey = g.UndoLayoutHotkey ?? "";
         s.RedoLayoutHotkey = g.RedoLayoutHotkey ?? "";
-        s.HideStatsOnLostFocus = g.HideStatsOnLostFocus != 0;
         s.IncludeLoginScreensInCycle = g.IncludeLoginScreensInCycle != 0;
         s.ShowSessionTimer = g.ShowSessionTimer != 0;
         s.ShowSystemName = g.ShowSystemName != 0;
@@ -109,10 +106,8 @@ public class AhkConfigRoot
         s.SeverityTrayNotify = ConvertIntDictToBoolDict(g.SeverityTrayNotify);
         s.EnabledAlertTypes = ConvertIntDictToBoolDict(g.EnabledAlertTypes);
         s.BadgeOnThumbnailAlertTypes = ConvertIntDictToBoolDict(g.BadgeOnThumbnailAlertTypes);
-        s.StaticThumbnails = g.StaticThumbnails != 0;
         s.ShowAlertBadgeOnThumbnails = g.ShowAlertBadgeOnThumbnails != 0;
         s.CustomColorPalette = g.CustomColorPalette;
-        s.SuspendThumbnailsWhenBackground = g.SuspendThumbnailsWhenBackground != 0;
         s.CycleExclusionBadgePosition = g.CycleExclusionBadgePosition ?? "TopLeft";
 
         // Log monitoring
@@ -123,15 +118,10 @@ public class AhkConfigRoot
 
         // Stats
         s.StatOverlayEnabled = g.StatOverlayEnabled != 0;
-        s.StatOverlayFontSize = g.StatOverlayFontSize;
-        s.StatOverlayOpacity = g.StatOverlayOpacity;
-        s.StatOverlayBgColor = g.StatOverlayBgColor ?? "#1a1a2e";
-        s.StatOverlayTextColor = g.StatOverlayTextColor ?? "#00FF88";
         s.StatLoggingEnabled = g.StatLogEnabled != 0;
         s.StatLogDirectory = g.StatLogPath ?? "";
         s.StatLogRetentionDays = g.StatLogRetentionDays;
         s.PerCharacterStats = ConvertStatOverlayConfig(g.StatOverlayConfig);
-        s.StatWindowPositions = g.StatWindowPositions ?? new();
 
         // Global stat metrics: prefer the canonical bitmask, fall back to migrating legacy category flags.
         if (g.GlobalStatMetrics.HasValue)
@@ -178,9 +168,6 @@ public class AhkConfigRoot
         s.ShowProcessStats = g.ShowProcessStats != 0;
         s.ProcessStatsTextSize = g.ProcessStatsTextSize.ToString();
 
-        // Thumbnail annotations
-        s.ThumbnailAnnotations = g.ThumbnailAnnotations ?? new();
-        s.ThumbnailLabelStyles = g.ThumbnailLabelStyles ?? new();
 
         // Quick-Switch Wheel
         s.QuickSwitchHotkey = g.QuickSwitchHotkey ?? "";
@@ -225,7 +212,6 @@ public class AhkConfigRoot
             profile.ClientPositions = ahkProfile.ClientPossitions ?? new();
             profile.Hotkeys = ConvertHotkeyArray(ahkProfile.Hotkeys);
             profile.HotkeyGroups = ahkProfile.HotkeyGroups ?? new();
-            profile.SecondaryThumbnails = ahkProfile.SecondaryThumbnails ?? new();
             profile.ThumbnailVisibility = ahkProfile.ThumbnailVisibility ?? new();
             profile.Groups = ahkProfile.Groups ?? new();
             profile.DontMinimizeClients = ahkProfile.ClientSettings?.DontMinimizeClients ?? new();
@@ -303,8 +289,6 @@ public class AhkConfigRoot
         var g = root.GlobalSettings;
 
         // ── Global Settings ─────────────────────────────────────────
-        g.ThumbnailStartLocation = s.ThumbnailStartLocation;
-        g.ThumbnailMinimumSize = s.ThumbnailMinimumSize;
         g.ThumbnailSnap = s.ThumbnailSnap ? 1 : 0;
         g.ThumbnailSnapDistance = s.ThumbnailSnapDistance;
         g.ThumbnailGutter = s.ThumbnailGutter;
@@ -325,7 +309,6 @@ public class AhkConfigRoot
         g.GlobalCycleBackwardHotkey = s.GlobalCycleBackwardHotkey;
         g.UndoLayoutHotkey = s.UndoLayoutHotkey;
         g.RedoLayoutHotkey = s.RedoLayoutHotkey;
-        g.HideStatsOnLostFocus = s.HideStatsOnLostFocus ? 1 : 0;
         g.IncludeLoginScreensInCycle = s.IncludeLoginScreensInCycle ? 1 : 0;
         g.ShowSessionTimer = s.ShowSessionTimer ? 1 : 0;
         g.ShowSystemName = s.ShowSystemName ? 1 : 0;
@@ -379,8 +362,6 @@ public class AhkConfigRoot
         g.SeverityTrayNotify = ConvertBoolDictToIntDict(s.SeverityTrayNotify);
         g.EnabledAlertTypes = ConvertBoolDictToIntDict(s.EnabledAlertTypes);
         g.BadgeOnThumbnailAlertTypes = ConvertBoolDictToIntDict(s.BadgeOnThumbnailAlertTypes);
-        g.StaticThumbnails = s.StaticThumbnails ? 1 : 0;
-        g.SuspendThumbnailsWhenBackground = s.SuspendThumbnailsWhenBackground ? 1 : 0;
         g.CycleExclusionBadgePosition = s.CycleExclusionBadgePosition;
         g.ShowAlertBadgeOnThumbnails = s.ShowAlertBadgeOnThumbnails ? 1 : 0;
         g.CustomColorPalette = s.CustomColorPalette;
@@ -393,15 +374,10 @@ public class AhkConfigRoot
 
         // Stats
         g.StatOverlayEnabled = s.StatOverlayEnabled ? 1 : 0;
-        g.StatOverlayFontSize = s.StatOverlayFontSize;
-        g.StatOverlayOpacity = s.StatOverlayOpacity;
-        g.StatOverlayBgColor = s.StatOverlayBgColor;
-        g.StatOverlayTextColor = s.StatOverlayTextColor;
         g.StatLogEnabled = s.StatLoggingEnabled ? 1 : 0;
         g.StatLogPath = s.StatLogDirectory;
         g.StatLogRetentionDays = s.StatLogRetentionDays;
         g.StatOverlayConfig = ConvertStatOverlayToAhk(s.PerCharacterStats);
-        g.StatWindowPositions = s.StatWindowPositions;
         g.GlobalStatMetrics = (long)(uint)s.GlobalStatMetrics;
         // Clear legacy category fields so we don't re-migrate old values on the next load.
         g.ShowDpsOverlay = null;
@@ -432,9 +408,6 @@ public class AhkConfigRoot
         g.ShowProcessStats = s.ShowProcessStats ? 1 : 0;
         g.ProcessStatsTextSize = int.TryParse(s.ProcessStatsTextSize, out var pfs) ? pfs : 9;
 
-        // Thumbnail annotations
-        g.ThumbnailAnnotations = s.ThumbnailAnnotations ?? new();
-        g.ThumbnailLabelStyles = s.ThumbnailLabelStyles ?? new();
 
         // Quick-Switch Wheel
         g.QuickSwitchHotkey = s.QuickSwitchHotkey;
@@ -474,7 +447,6 @@ public class AhkConfigRoot
                 ClientPossitions = profile.ClientPositions,
                 Hotkeys = ConvertHotkeyDictToArray(profile.Hotkeys),
                 HotkeyGroups = profile.HotkeyGroups,
-                SecondaryThumbnails = profile.SecondaryThumbnails,
                 ThumbnailVisibility = profile.ThumbnailVisibility,
                 Groups = profile.Groups,
             };
@@ -689,9 +661,6 @@ public class AhkProfile
     [JsonPropertyName("Hotkey Groups")]
     public Dictionary<string, HotkeyGroup>? HotkeyGroups { get; set; }
 
-    [JsonPropertyName("Secondary Thumbnails")]
-    public Dictionary<string, SecondaryThumbnailSettings>? SecondaryThumbnails { get; set; }
-
 
     [JsonPropertyName("Thumbnail Settings")]
     public AhkThumbnailSettings? ThumbnailSettings { get; set; }
@@ -853,11 +822,7 @@ public class AhkPerformanceSettings
 
 public class AhkGlobalSettings
 {
-    [JsonPropertyName("ThumbnailStartLocation")]
-    public ThumbnailRect? ThumbnailStartLocation { get; set; }
 
-    [JsonPropertyName("ThumbnailMinimumSize")]
-    public ThumbnailSize? ThumbnailMinimumSize { get; set; }
 
     [JsonPropertyName("ThumbnailSnap")]
     public int ThumbnailSnap { get; set; } = 1;
@@ -919,8 +884,6 @@ public class AhkGlobalSettings
     [JsonPropertyName("RedoLayoutHotkey")]
     public string? RedoLayoutHotkey { get; set; } = "";
 
-    [JsonPropertyName("HideStatsOnLostFocus")]
-    public int HideStatsOnLostFocus { get; set; } = 0;
 
     [JsonPropertyName("IncludeLoginScreensInCycle")]
     public int IncludeLoginScreensInCycle { get; set; } = 0;
@@ -1058,8 +1021,6 @@ public class AhkGlobalSettings
     [JsonPropertyName("BadgeOnThumbnailAlertTypes")]
     public Dictionary<string, int>? BadgeOnThumbnailAlertTypes { get; set; }
 
-    [JsonPropertyName("StaticThumbnails")]
-    public int StaticThumbnails { get; set; }
 
     [JsonPropertyName("ShowAlertBadgeOnThumbnails")]
     public int ShowAlertBadgeOnThumbnails { get; set; } = 1;
@@ -1067,8 +1028,6 @@ public class AhkGlobalSettings
     [JsonPropertyName("CustomColorPalette")]
     public int[]? CustomColorPalette { get; set; }
 
-    [JsonPropertyName("SuspendThumbnailsWhenBackground")]
-    public int SuspendThumbnailsWhenBackground { get; set; }
 
     [JsonPropertyName("CycleExclusionBadgePosition")]
     public string? CycleExclusionBadgePosition { get; set; }
@@ -1112,17 +1071,6 @@ public class AhkGlobalSettings
     [JsonPropertyName("StatOverlayEnabled")]
     public int StatOverlayEnabled { get; set; } = 1;
 
-    [JsonPropertyName("StatOverlayFontSize")]
-    public int StatOverlayFontSize { get; set; } = 8;
-
-    [JsonPropertyName("StatOverlayOpacity")]
-    public int StatOverlayOpacity { get; set; } = 200;
-
-    [JsonPropertyName("StatOverlayBgColor")]
-    public string? StatOverlayBgColor { get; set; } = "#1a1a2e";
-
-    [JsonPropertyName("StatOverlayTextColor")]
-    public string? StatOverlayTextColor { get; set; } = "#00FF88";
 
     [JsonPropertyName("StatLogEnabled")]
     public int StatLogEnabled { get; set; }
@@ -1133,8 +1081,6 @@ public class AhkGlobalSettings
     [JsonPropertyName("StatLogRetentionDays")]
     public int StatLogRetentionDays { get; set; } = 30;
 
-    [JsonPropertyName("StatWindowPositions")]
-    public Dictionary<string, ThumbnailRect>? StatWindowPositions { get; set; }
 
     [JsonPropertyName("RTSS_Enabled")]
     public int RTSS_Enabled { get; set; }
@@ -1226,11 +1172,6 @@ public class AhkGlobalSettings
     [JsonPropertyName("QuickSwitchCardOrder")]
     public List<string>? QuickSwitchCardOrder { get; set; }
 
-    [JsonPropertyName("ThumbnailAnnotations")]
-    public Dictionary<string, string>? ThumbnailAnnotations { get; set; } = new();
-
-    [JsonPropertyName("ThumbnailLabelStyles")]
-    public Dictionary<string, ThumbnailLabelStyle>? ThumbnailLabelStyles { get; set; } = new();
 
     // ── Under Fire Indicator ────────────────────────────────────────
     // Default 1 (enabled) to match AppSettings default; previously unmapped,

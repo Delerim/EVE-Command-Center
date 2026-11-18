@@ -24,15 +24,18 @@ public partial class MiningFleetOverviewWindow : Window
     }
     private Window? _controlTile;
     private bool _tileClosing;
+    private bool _overviewHidden;
     // One owner renders the cards; the actual XAML toolbar moves into a second,
     // independently positioned window. No duplicated buttons, event handlers or ESI.
     internal void SetOverviewHidden(bool hidden)
     {
+        _overviewHidden = hidden;
         if(hidden) { Hide(); _controlTile?.Hide(); }
         else ShowControlTile();
     }
     internal void ShowControlTile()
     {
+        _overviewHidden = false;
         if (!IsVisible) Show();
         if (WindowState == WindowState.Minimized) WindowState = WindowState.Normal;
         EnsureSeparateControlWindow();
@@ -43,6 +46,36 @@ public partial class MiningFleetOverviewWindow : Window
         ApplyOrientation();
         ApplyCombinedMode();
         RefreshCards();
+        MaintainControlTile();
+    }
+
+    // The bar is an independent HWND. A newly foregrounded/topmost EVE client
+    // can cover it without changing WPF's Topmost property or IsVisible flag.
+    // Restore its native order without activating it or interrupting EVE input.
+    internal void MaintainControlTile(IntPtr? foreground = null)
+    {
+        if (_overviewHidden || _tileClosing || !IsVisible || WindowState == WindowState.Minimized || _controlTile == null) return;
+        var toolbar = _controlTile;
+        if (toolbar.WindowState == WindowState.Minimized) toolbar.WindowState = WindowState.Normal;
+        if (!toolbar.IsVisible) toolbar.Show();
+        toolbar.Topmost = Topmost;
+        var hwnd = new System.Windows.Interop.WindowInteropHelper(toolbar).Handle;
+        if (hwnd == IntPtr.Zero) return;
+        if (EveCommandCenter.Interop.User32.GetWindowRect(hwnd, out var rect))
+        {
+            var work = System.Windows.Forms.Screen.FromHandle(hwnd).WorkingArea;
+            double scale = EveCommandCenter.Interop.DpiHelper.GetScaleFactor(toolbar);
+            toolbar.MinWidth = Math.Min(650, work.Width / scale);
+            toolbar.MaxWidth = work.Width / scale;
+            var position = RecoverOverviewPosition(System.Drawing.Rectangle.FromLTRB(rect.Left, rect.Top, rect.Right, rect.Bottom), work);
+            if (position.X != rect.Left || position.Y != rect.Top)
+                EveCommandCenter.Interop.User32.SetWindowPos(hwnd, IntPtr.Zero, position.X, position.Y, 0, 0,
+                    EveCommandCenter.Interop.User32.SWP_NOSIZE | EveCommandCenter.Interop.User32.SWP_NOZORDER | EveCommandCenter.Interop.User32.SWP_NOACTIVATE);
+        }
+        var active = foreground ?? EveCommandCenter.Interop.User32.GetForegroundWindow();
+        if (Topmost && MinerItems.Items.OfType<FleetCard>().Any(c => c.SourceHwnd != IntPtr.Zero && c.SourceHwnd == active))
+            EveCommandCenter.Interop.User32.SetWindowPos(hwnd, EveCommandCenter.Interop.User32.HWND_TOPMOST, 0, 0, 0, 0,
+                EveCommandCenter.Interop.User32.SWP_NOMOVE | EveCommandCenter.Interop.User32.SWP_NOSIZE | EveCommandCenter.Interop.User32.SWP_NOACTIVATE);
     }
 
     // The Alt gesture is intercepted on the control Window before child buttons,
@@ -78,6 +111,7 @@ public partial class MiningFleetOverviewWindow : Window
             Background = System.Windows.Media.Brushes.Transparent,
             Topmost = Topmost,
             ShowInTaskbar = false,
+            ShowActivated = false,
             WindowStartupLocation = WindowStartupLocation.Manual,
             Resources = Resources,
             Content = new System.Windows.Controls.Border {
@@ -134,7 +168,6 @@ public partial class MiningFleetOverviewWindow : Window
     {
         if (_controlTile == null) return;
         _prefs.ControlTileX = _controlTile.Left; _prefs.ControlTileY = _controlTile.Top;
-        _prefs.ControlTileWidth = _controlTile.Width;
     }
 
     private readonly OverviewPortraitCache _portraits = new();
@@ -239,7 +272,13 @@ public partial class MiningFleetOverviewWindow : Window
         if (!Dispatcher.CheckAccess()) { Dispatcher.BeginInvoke(() => UpdateActiveClient(foreground), DispatcherPriority.Render); return; }
         foreach (var card in MinerItems.Items.OfType<FleetCard>())
             card.SetActive(foreground != IntPtr.Zero && card.SourceHwnd == foreground);
+        if (foreground != _lastOverviewForeground)
+        {
+            _lastOverviewForeground = foreground;
+            MaintainControlTile(foreground);
+        }
     }
+    private IntPtr _lastOverviewForeground;
 
     private readonly BackgroundPilotRefresh _backgroundPilots = BackgroundOperations.Current.Pilots;
     private readonly CloudBackupCoordinator _cloudBackupCoordinator =
@@ -351,6 +390,7 @@ public partial class MiningFleetOverviewWindow : Window
         _timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
         _timer.Tick += (_, _) =>
         {
+            MaintainControlTile();
             if ((IsVisible && WindowState != WindowState.Minimized) || _controlTile?.IsVisible == true) RefreshCards();
         };
         _timer.Start();
@@ -1797,7 +1837,7 @@ public partial class MiningFleetOverviewWindow : Window
     private void OverviewMode_Click(object sender,RoutedEventArgs e)
     {
         if(sender is not System.Windows.Controls.MenuItem item||item.Tag is not string mode)return;
-        // Card content selection does not change the user's Combined/Separate preference.
+        // Card content selection shares the same combined overview and toolbar.
         _prefs.CharacterOverviewMiningMode=mode=="MINING";
         _prefs.CharacterOverviewCombatMode=mode is "PVE" or "PVP"?mode:"";
         ApplyCombinedMode();MiningDashboardPreferencesStore.Save(_prefs);RefreshCards();

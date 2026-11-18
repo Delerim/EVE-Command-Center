@@ -23,7 +23,6 @@ public sealed class MiningDashboardPreferences
     public string CorpBuybackPriceMode { get; set; } = "sell";
 
     public bool AllClientAlarmsMuted { get; set; }
-    public bool CompactControlTileApplied { get; set; }
     public bool IdleWatchdogEnabled { get; set; } = true;
     public int IdleSeconds { get; set; } = 90;
     public bool IdleSoundEnabled { get; set; } = true;
@@ -51,10 +50,8 @@ public sealed class MiningDashboardPreferences
         get => !AllowFleetOverviewResize;
         set => AllowFleetOverviewResize = !value;
     }
-    public bool ControlTileSettingsExpanded { get; set; } = false;
     public double? ControlTileX { get; set; }
     public double? ControlTileY { get; set; }
-    public double ControlTileWidth { get; set; } = 620;
     public bool FleetOverviewVertical { get; set; }
     public double FleetOverviewVerticalHeight { get; set; } = 850;
     public bool CharacterOverviewLivePreview { get; set; } = true;
@@ -62,9 +59,6 @@ public sealed class MiningDashboardPreferences
     public bool CharacterOverviewMiningMode { get; set; }
     public bool UseFleetTileWall { get; set; } = true;
     public bool AutoShowFleetOverview { get; set; } = true;
-
-    // Legacy preference retained for compatibility. V1.11 auto-fits by default.
-    public bool AutoSizeFleetOverview { get; set; } = true;
 
     // False = one fixed horizontal row that exactly fits the miner tiles.
     // True = user may manually resize the wall; cards still never wrap vertically.
@@ -156,7 +150,6 @@ public static class MiningDashboardPreferencesStore
 
             if (storedVersion < 6)
             {
-                prefs.AutoSizeFleetOverview = true;
                 prefs.MarketOreFilter = "myhs";
                 changed = true;
             }

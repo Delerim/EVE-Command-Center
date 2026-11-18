@@ -497,8 +497,6 @@ public partial class SettingsWindow : Window
     private const string CbFlashColor = "0xCC79A7";           // reddish-pink — CB-safe
     private const string NormalHighlightColor = "#E36A0D";
     private const string CbHighlightColor = "#56B4E9";        // sky blue — CB-safe
-    private const string NormalStatOverlayText = "#00FF88";
-    private const string CbStatOverlayText = "#56B4E9";       // sky blue — green is red-green CB problem
     private const string NormalThumbnailText = "#FAC57A";
     private const string CbThumbnailText = "#FFFFFF";          // white — universally readable
     private const string NormalNotLoggedIn = "#555555";
@@ -528,7 +526,6 @@ public partial class SettingsWindow : Window
         S.ClientHighlightColor = cbMode ? CbHighlightColor : NormalHighlightColor;
 
         // Stat overlay text (green → sky blue)
-        S.StatOverlayTextColor = cbMode ? CbStatOverlayText : NormalStatOverlayText;
 
         // Thumbnail text overlay
         S.ThumbnailTextColor = cbMode ? CbThumbnailText : NormalThumbnailText;
